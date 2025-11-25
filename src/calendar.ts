@@ -1,0 +1,172 @@
+/**
+ * Calendar Export (ICS)
+ * Generate iCalendar files for events
+ */
+
+import { Hono } from 'hono'
+import { PrismaClient } from '@prisma/client'
+import ical, { ICalEventStatus } from 'ical-generator'
+
+const app = new Hono()
+const prisma = new PrismaClient()
+
+// Export single event as ICS
+app.get('/:id/export.ics', async (c) => {
+    try {
+        const { id } = c.req.param()
+
+        const event = await prisma.event.findUnique({
+            where: { id },
+            include: {
+                user: {
+                    select: {
+                        username: true,
+                        name: true,
+                    },
+                },
+            },
+        })
+
+        if (!event) {
+            return c.text('Event not found', 404)
+        }
+
+        // Create calendar
+        const calendar = ical({ name: 'Stellar Calendar' })
+
+        // Add event
+        calendar.createEvent({
+            start: event.startTime,
+            end: event.endTime || event.startTime,
+            summary: event.title,
+            description: event.summary || undefined,
+            location: event.location || undefined,
+            url: event.url || `${process.env.BETTER_AUTH_URL}/events/${id}`,
+            organizer: {
+                name: event.user?.name || event.user?.username || 'Unknown',
+                email: `${event.user?.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
+            },
+            status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+        })
+
+        // Return ICS file
+        return c.text(calendar.toString(), 200, {
+            'Content-Type': 'text/calendar; charset=utf-8',
+            'Content-Disposition': `attachment; filename="${event.title.replace(/[^a-z0-9]/gi, '_')}.ics"`,
+        })
+    } catch (error) {
+        console.error('Error exporting event:', error)
+        return c.text('Internal server error', 500)
+    }
+})
+
+// Export user's events as ICS
+app.get('/user/:username/export.ics', async (c) => {
+    try {
+        const { username } = c.req.param()
+
+        const user = await prisma.user.findUnique({
+            where: { username },
+            include: {
+                events: {
+                    orderBy: { startTime: 'asc' },
+                },
+            },
+        })
+
+        if (!user) {
+            return c.text('User not found', 404)
+        }
+
+        // Create calendar
+        const calendar = ical({
+            name: `${user.name || username}'s Events`,
+            description: 'Events from Stellar Calendar',
+        })
+
+        // Add all events
+        for (const event of user.events) {
+            calendar.createEvent({
+                start: event.startTime,
+                end: event.endTime || event.startTime,
+                summary: event.title,
+                description: event.summary || undefined,
+                location: event.location || undefined,
+                url: event.url || `${process.env.BETTER_AUTH_URL}/events/${event.id}`,
+                organizer: {
+                    name: user.name || username,
+                    email: `${username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
+                },
+                status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+            })
+        }
+
+        // Return ICS file
+        return c.text(calendar.toString(), 200, {
+            'Content-Type': 'text/calendar; charset=utf-8',
+            'Content-Disposition': `attachment; filename="${username}_calendar.ics"`,
+        })
+    } catch (error) {
+        console.error('Error exporting calendar:', error)
+        return c.text('Internal server error', 500)
+    }
+})
+
+// Export all public events as ICS feed
+app.get('/feed.ics', async (c) => {
+    try {
+        const events = await prisma.event.findMany({
+            where: {
+                startTime: {
+                    gte: new Date(), // Only future events
+                },
+            },
+            include: {
+                user: {
+                    select: {
+                        username: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: { startTime: 'asc' },
+            take: 100, // Limit to 100 events
+        })
+
+        // Create calendar
+        const calendar = ical({
+            name: 'Stellar Calendar - Public Events',
+            description: 'Public events from Stellar Calendar',
+            url: `${process.env.BETTER_AUTH_URL}/api/calendar/feed.ics`,
+        })
+
+        // Add all events
+        for (const event of events) {
+            calendar.createEvent({
+                start: event.startTime,
+                end: event.endTime || event.startTime,
+                summary: event.title,
+                description: event.summary || undefined,
+                location: event.location || undefined,
+                url: event.url || `${process.env.BETTER_AUTH_URL}/events/${event.id}`,
+                organizer: event.user
+                    ? {
+                        name: event.user.name || event.user.username,
+                        email: `${event.user.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
+                    }
+                    : undefined,
+                status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+            })
+        }
+
+        // Return ICS file
+        return c.text(calendar.toString(), 200, {
+            'Content-Type': 'text/calendar; charset=utf-8',
+        })
+    } catch (error) {
+        console.error('Error exporting feed:', error)
+        return c.text('Internal server error', 500)
+    }
+})
+
+export default app

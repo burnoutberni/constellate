@@ -1,0 +1,342 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model - supports both local and remote (federated) users
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Basic info
+  username String  @unique
+  email    String? @unique // Only for local users
+  emailVerified Boolean @default(false)
+  name     String?
+
+  // Profile customization
+  displayColor String  @default("#3b82f6") // User's color for calendar events
+  bio          String?
+  profileImage String? // URL to profile image
+  headerImage  String? // URL to header/banner image
+
+  // Federation
+  isRemote         Boolean @default(false)
+  externalActorUrl String? @unique // Full ActivityPub actor URL for remote users
+  publicKey        String? // PEM format RSA public key
+  privateKey       String? // PEM format RSA private key (only for local users)
+  inboxUrl         String? // Remote user's inbox URL
+  sharedInboxUrl   String? // Remote user's shared inbox URL
+
+  // Relations
+  events          Event[]
+  following       Following[]       @relation("UserFollowing")
+  followers       Follower[]        @relation("UserFollowers")
+  eventAttendance EventAttendance[]
+  eventLikes      EventLike[]
+  comments        Comment[]
+  inboxItems      InboxItem[]
+  blockedUsers    BlockedUser[]     @relation("BlockingUser")
+  blockedBy       BlockedUser[]     @relation("BlockedUser")
+  reports         Report[]          @relation("Reporter")
+  reportedIn      Report[]          @relation("ReportedUser")
+  
+  // Auth
+  sessions        Session[]
+  accounts        Account[]
+
+  @@index([username])
+  @@index([externalActorUrl])
+}
+
+// Event model - calendar events with ActivityPub support
+model Event {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Basic event info
+  title       String
+  summary     String? // Description
+  location    String?
+  headerImage String? // Event banner image
+  url         String? // External URL for more info
+
+  // Timing
+  startTime DateTime
+  endTime   DateTime?
+  duration  String? // ISO 8601 duration format
+
+  // ActivityPub extended properties
+  eventStatus            String? // EventScheduled, EventCancelled, EventPostponed
+  eventAttendanceMode    String? // OfflineEventAttendanceMode, OnlineEventAttendanceMode, MixedEventAttendanceMode
+  maximumAttendeeCapacity Int?
+
+  // Federation
+  attributedTo String? // ActivityPub actor URL of event creator
+  externalId   String? @unique // For remote events
+
+  // Relations
+  userId     String?
+  user       User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance EventAttendance[]
+  likes      EventLike[]
+  comments   Comment[]
+  tags       EventTag[]
+
+  @@index([userId])
+  @@index([startTime])
+  @@index([externalId])
+}
+
+// Following relationship - who the user follows
+model Following {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Local user who is following
+  userId String
+  user   User   @relation("UserFollowing", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Actor being followed (can be local or remote)
+  actorUrl       String // Full ActivityPub actor URL
+  username       String // Display username
+  inboxUrl       String // Where to send activities
+  sharedInboxUrl String? // Shared inbox if available
+  iconUrl        String? // Profile icon URL
+  accepted       Boolean @default(false) // Whether the follow was accepted
+
+  @@unique([userId, actorUrl])
+  @@index([userId])
+}
+
+// Follower relationship - who follows the user
+model Follower {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Local user being followed
+  userId String
+  user   User   @relation("UserFollowers", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Actor who is following (can be local or remote)
+  actorUrl       String // Full ActivityPub actor URL
+  username       String // Display username
+  inboxUrl       String // Where to send activities
+  sharedInboxUrl String? // Shared inbox if available
+  iconUrl        String? // Profile icon URL
+  accepted       Boolean @default(false) // Whether the follow was accepted
+
+  @@unique([userId, actorUrl])
+  @@index([userId])
+}
+
+// Event attendance (RSVP)
+model EventAttendance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Status: "attending", "maybe", "not_attending"
+  status String
+
+  // Federation tracking
+  externalId String? @unique // For remote attendance
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Event likes/bookmarks
+model EventLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Federation tracking
+  externalId String? @unique // For remote likes
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Comments on events (federated as Note objects)
+model Comment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  content String
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Threading support
+  inReplyToId String?
+  inReplyTo   Comment?  @relation("CommentReplies", fields: [inReplyToId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  // Federation tracking
+  externalId String? @unique // For remote comments
+
+  @@index([eventId])
+  @@index([authorId])
+  @@index([inReplyToId])
+}
+
+// Event tags/hashtags
+model EventTag {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  tag String // Hashtag without the #
+
+  @@unique([eventId, tag])
+  @@index([tag])
+}
+
+// Inbox items for activity feed
+model InboxItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Activity details
+  type      String // Activity type (Create, Update, Like, etc.)
+  actorUrl  String // Who performed the activity
+  objectUrl String // What was acted upon
+  content   String? // Summary/content for display
+  read      Boolean @default(false)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// Processed activities for deduplication
+model ProcessedActivity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  activityId String @unique // The ActivityPub activity ID
+  expiresAt  DateTime // 30 days from creation
+
+  @@index([activityId])
+  @@index([expiresAt])
+}
+
+// User blocking
+model BlockedUser {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  blockingUserId String
+  blockingUser   User   @relation("BlockingUser", fields: [blockingUserId], references: [id], onDelete: Cascade)
+
+  blockedUserId String
+  blockedUser   User   @relation("BlockedUser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockingUserId, blockedUserId])
+  @@index([blockingUserId])
+}
+
+// Domain blocking (admin only)
+model BlockedDomain {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  domain String @unique
+  reason String?
+
+  @@index([domain])
+}
+
+// Content reports
+model Report {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reporterId String
+  reporter   User   @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  reportedUserId String?
+  reportedUser   User?   @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  contentUrl String? // URL of reported content
+  reason     String
+  status     String  @default("pending") // pending, reviewed, resolved
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status])
+}
+
+// Better-Auth Models
+
+model Session {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id           String    @id
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  password     String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+}
+
+

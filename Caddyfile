@@ -1,0 +1,11 @@
+{
+    auto_https off
+}
+
+http://app1.local {
+    reverse_proxy app1:5173
+}
+
+http://app2.local {
+    reverse_proxy app2:5173
+}

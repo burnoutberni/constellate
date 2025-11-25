@@ -1,0 +1,76 @@
+services:
+  app1:
+    build:
+      context: .
+      target: development
+    container_name: stellar-app1
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=file:./app1.db
+      - BETTER_AUTH_URL=http://app1.local
+      - BETTER_AUTH_SECRET=app1-secret-change-in-production
+      - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/client/node_modules
+      - app1-data:/app/prisma
+    networks:
+      - stellar-network
+    extra_hosts:
+      - "app1.local:host-gateway"
+      - "app2.local:host-gateway"
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run dev"]
+
+  app2:
+    build:
+      context: .
+      target: development
+    container_name: stellar-app2
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=file:./app2.db
+      - BETTER_AUTH_URL=http://app2.local
+      - BETTER_AUTH_SECRET=app2-secret-change-in-production
+      - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/client/node_modules
+      - app2-data:/app/prisma
+    networks:
+      - stellar-network
+    extra_hosts:
+      - "app1.local:host-gateway"
+      - "app2.local:host-gateway"
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run dev"]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: stellar-caddy
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - stellar-network
+    restart: unless-stopped
+    depends_on:
+      - app1
+      - app2
+
+volumes:
+  app1-data:
+  app2-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  stellar-network:
+    driver: bridge

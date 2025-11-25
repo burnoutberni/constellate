@@ -1,0 +1,552 @@
+/**
+ * User and Event Search with Remote Account Resolution
+ * Handles searching for local content and resolving remote accounts
+ */
+
+import { Hono } from 'hono'
+import { PrismaClient } from '@prisma/client'
+import { z } from 'zod'
+import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from './lib/activitypubHelpers.js'
+
+const app = new Hono()
+const prisma = new PrismaClient()
+
+// Search validation schema
+const SearchQuerySchema = z.object({
+    q: z.string().min(1),
+    limit: z.string().optional(),
+})
+
+// Resolve account schema
+const ResolveAccountSchema = z.object({
+    handle: z.string().min(1),
+})
+
+/**
+ * Parse a handle into username and domain
+ * Supports multiple formats:
+ * - @username@domain
+ * - username@domain
+ * - https://domain/users/username
+ * - http://domain/users/username
+ * - domain/@username
+ */
+function parseHandle(input: string): { username: string; domain: string } | null {
+    try {
+        // Try URL format first
+        if (input.startsWith('http://') || input.startsWith('https://')) {
+            const url = new URL(input)
+            const pathParts = url.pathname.split('/').filter(Boolean)
+
+            // Look for /users/username pattern
+            const userIndex = pathParts.indexOf('users')
+            if (userIndex !== -1 && pathParts[userIndex + 1]) {
+                return {
+                    username: pathParts[userIndex + 1],
+                    domain: url.hostname,
+                }
+            }
+
+            // Look for /@username pattern
+            if (pathParts.length > 0 && pathParts[0].startsWith('@')) {
+                return {
+                    username: pathParts[0].slice(1),
+                    domain: url.hostname,
+                }
+            }
+
+            // Try last path segment as username
+            if (pathParts.length > 0) {
+                return {
+                    username: pathParts[pathParts.length - 1],
+                    domain: url.hostname,
+                }
+            }
+
+            return null
+        }
+
+        // Check for domain/@username format (e.g., app2.local/@bob)
+        if (input.includes('/') && input.includes('@')) {
+            const slashIndex = input.indexOf('/')
+            const domain = input.substring(0, slashIndex)
+            const pathPart = input.substring(slashIndex + 1)
+
+            if (pathPart.startsWith('@')) {
+                return {
+                    username: pathPart.slice(1),
+                    domain,
+                }
+            }
+        }
+
+        // Remove leading @ if present
+        const normalized = input.startsWith('@') ? input.slice(1) : input
+
+        // Check for @domain format
+        const parts = normalized.split('@')
+        if (parts.length === 2 && parts[0] && parts[1]) {
+            return {
+                username: parts[0],
+                domain: parts[1],
+            }
+        }
+
+        return null
+    } catch (error) {
+        return null
+    }
+}
+
+/**
+ * Check if a handle is for a local user
+ */
+function isLocalHandle(domain: string): boolean {
+    const baseUrl = getBaseUrl()
+    const localDomain = new URL(baseUrl).hostname
+    return domain === localDomain
+}
+
+/**
+ * Search for users and events
+ * GET /api/user-search?q=query&limit=10
+ */
+app.get('/', async (c) => {
+    try {
+        const params = SearchQuerySchema.parse({
+            q: c.req.query('q'),
+            limit: c.req.query('limit'),
+        })
+
+        const query = params.q
+        const limit = Math.min(parseInt(params.limit || '10'), 50)
+
+        // Search local users
+        const users = await prisma.user.findMany({
+            where: {
+                OR: [
+                    { username: { contains: query } },
+                    { name: { contains: query } },
+                ],
+            },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                profileImage: true,
+                displayColor: true,
+                isRemote: true,
+                externalActorUrl: true,
+            },
+            take: limit,
+        })
+
+        // Search local events
+        const events = await prisma.event.findMany({
+            where: {
+                OR: [
+                    { title: { contains: query } },
+                    { summary: { contains: query } },
+                ],
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        displayColor: true,
+                        profileImage: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        attendance: true,
+                        likes: true,
+                    },
+                },
+            },
+            take: limit,
+            orderBy: { startTime: 'asc' },
+        })
+
+        // Check if query looks like a remote handle
+        const parsedHandle = parseHandle(query)
+        let remoteAccountSuggestion = null
+
+        if (parsedHandle && !isLocalHandle(parsedHandle.domain)) {
+            // Check if we already have this remote user cached
+            const cachedRemoteUser = await prisma.user.findFirst({
+                where: {
+                    username: `${parsedHandle.username}@${parsedHandle.domain}`,
+                    isRemote: true,
+                },
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    profileImage: true,
+                    displayColor: true,
+                    isRemote: true,
+                    externalActorUrl: true,
+                },
+            })
+
+            if (cachedRemoteUser) {
+                // Add to users list if not already there
+                if (!users.find(u => u.id === cachedRemoteUser.id)) {
+                    users.unshift(cachedRemoteUser)
+                }
+            } else {
+                // Suggest resolving this remote account
+                remoteAccountSuggestion = {
+                    handle: `@${parsedHandle.username}@${parsedHandle.domain}`,
+                    username: parsedHandle.username,
+                    domain: parsedHandle.domain,
+                }
+            }
+        }
+
+        return c.json({
+            users,
+            events,
+            remoteAccountSuggestion,
+        })
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return c.json({ error: 'Invalid search parameters', details: error.errors }, 400)
+        }
+        console.error('Error searching:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+/**
+ * Resolve and cache a remote account
+ * POST /api/user-search/resolve
+ * Body: { handle: "@user@domain" }
+ */
+app.post('/resolve', async (c) => {
+    try {
+        const body = await c.req.json()
+        const params = ResolveAccountSchema.parse(body)
+
+        const parsedHandle = parseHandle(params.handle)
+
+        if (!parsedHandle) {
+            return c.json({ error: 'Invalid handle format' }, 400)
+        }
+
+        // Check if it's a local user
+        if (isLocalHandle(parsedHandle.domain)) {
+            const localUser = await prisma.user.findUnique({
+                where: { username: parsedHandle.username, isRemote: false },
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    profileImage: true,
+                    displayColor: true,
+                    isRemote: true,
+                    externalActorUrl: true,
+                },
+            })
+
+            if (localUser) {
+                return c.json({ user: localUser })
+            } else {
+                return c.json({ error: 'Local user not found' }, 404)
+            }
+        }
+
+        // Check if already cached
+        const cachedUser = await prisma.user.findFirst({
+            where: {
+                username: `${parsedHandle.username}@${parsedHandle.domain}`,
+                isRemote: true,
+            },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                profileImage: true,
+                displayColor: true,
+                isRemote: true,
+                externalActorUrl: true,
+            },
+        })
+
+        if (cachedUser) {
+            return c.json({ user: cachedUser })
+        }
+
+        // Resolve via WebFinger
+        const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
+        const actorUrl = await resolveWebFinger(resource)
+
+        if (!actorUrl) {
+            return c.json({ error: 'Failed to resolve account via WebFinger' }, 404)
+        }
+
+        // Fetch actor
+        const actor = await fetchActor(actorUrl)
+
+        if (!actor) {
+            return c.json({ error: 'Failed to fetch actor' }, 404)
+        }
+
+        // Cache remote user
+        const remoteUser = await cacheRemoteUser(actor)
+
+        return c.json({
+            user: {
+                id: remoteUser.id,
+                username: remoteUser.username,
+                name: remoteUser.name,
+                profileImage: remoteUser.profileImage,
+                displayColor: remoteUser.displayColor,
+                isRemote: remoteUser.isRemote,
+                externalActorUrl: remoteUser.externalActorUrl,
+            },
+        })
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return c.json({ error: 'Invalid request body', details: error.errors }, 400)
+        }
+        console.error('Error resolving account:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+/**
+ * Get user profile with events
+ * GET /api/user-search/profile/:username
+ * Username can be:
+ * - Local: "alice"
+ * - Remote: "bob@app2.local"
+ */
+app.get('/profile/:username', async (c) => {
+    try {
+        // Decode username in case it's URL encoded (e.g., alice%40app1.local -> alice@app1.local)
+        let username = decodeURIComponent(c.req.param('username'))
+
+        // Check if it's a remote user (contains @domain)
+        const isRemote = username.includes('@')
+        
+        console.log(`[userSearch] Looking up profile for: ${username} (isRemote: ${isRemote})`)
+
+        let user = await prisma.user.findFirst({
+            where: {
+                username,
+                isRemote,
+            },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                bio: true,
+                profileImage: true,
+                headerImage: true,
+                displayColor: true,
+                isRemote: true,
+                externalActorUrl: true,
+                createdAt: true,
+                _count: {
+                    select: {
+                        followers: true,
+                        following: true,
+                    },
+                },
+            },
+        })
+
+        // If user not found and it's a remote user, try to resolve and cache them
+        if (!user && isRemote) {
+            const parsedHandle = parseHandle(username)
+            
+            if (parsedHandle && !isLocalHandle(parsedHandle.domain)) {
+                console.log(`🔍 Attempting to resolve remote user: ${username}`)
+                
+                // Resolve via WebFinger
+                const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
+                const actorUrl = await resolveWebFinger(resource)
+
+                if (actorUrl) {
+                    // Fetch actor
+                    const actor = await fetchActor(actorUrl)
+
+                    if (actor) {
+                        // Cache remote user
+                        const cachedUser = await cacheRemoteUser(actor)
+                        
+                        // Re-fetch the user with all fields
+                        user = await prisma.user.findFirst({
+                            where: {
+                                id: cachedUser.id,
+                            },
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                bio: true,
+                                profileImage: true,
+                                headerImage: true,
+                                displayColor: true,
+                                isRemote: true,
+                                externalActorUrl: true,
+                                createdAt: true,
+                                _count: {
+                                    select: {
+                                        followers: true,
+                                        following: true,
+                                    },
+                                },
+                            },
+                        })
+                        
+                        console.log(`✅ Resolved and cached remote user: ${username}`)
+                    }
+                }
+            }
+        }
+
+        if (!user) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        // Get user's events
+        let events = await prisma.event.findMany({
+            where: isRemote
+                ? { attributedTo: user.externalActorUrl || undefined }
+                : { userId: user.id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        displayColor: true,
+                        profileImage: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        attendance: true,
+                        likes: true,
+                        comments: true,
+                    },
+                },
+            },
+            orderBy: { startTime: 'desc' },
+            take: 50,
+        })
+
+        // If remote user has no cached events, fetch from their outbox
+        if (isRemote && events.length === 0 && user.externalActorUrl) {
+            try {
+                const outboxUrl = `${user.externalActorUrl}/outbox?page=1`
+                const response = await fetch(outboxUrl, {
+                    headers: {
+                        Accept: 'application/activity+json',
+                    },
+                })
+
+                if (response.ok) {
+                    const outbox: any = await response.json()
+                    const activities = outbox.orderedItems || []
+
+                    // Cache events from outbox
+                    for (const activity of activities) {
+                        if (activity.type === 'Create' && activity.object?.type === 'Event') {
+                            const event = activity.object
+                            await prisma.event.upsert({
+                                where: { externalId: event.id },
+                                update: {
+                                    title: event.name,
+                                    summary: event.summary || event.content || null,
+                                    location: typeof event.location === 'string' ? event.location : event.location?.name || null,
+                                    startTime: new Date(event.startTime),
+                                    endTime: event.endTime ? new Date(event.endTime) : null,
+                                    duration: event.duration || null,
+                                    url: event.url || null,
+                                    eventStatus: event.eventStatus || null,
+                                    eventAttendanceMode: event.eventAttendanceMode || null,
+                                    maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
+                                    headerImage: event.attachment?.[0]?.url || null,
+                                    attributedTo: user.externalActorUrl,
+                                },
+                                create: {
+                                    externalId: event.id,
+                                    title: event.name,
+                                    summary: event.summary || event.content || null,
+                                    location: typeof event.location === 'string' ? event.location : event.location?.name || null,
+                                    startTime: new Date(event.startTime),
+                                    endTime: event.endTime ? new Date(event.endTime) : null,
+                                    duration: event.duration || null,
+                                    url: event.url || null,
+                                    eventStatus: event.eventStatus || null,
+                                    eventAttendanceMode: event.eventAttendanceMode || null,
+                                    maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
+                                    headerImage: event.attachment?.[0]?.url || null,
+                                    attributedTo: user.externalActorUrl,
+                                    userId: null,
+                                },
+                            })
+                        }
+                    }
+
+                    // Re-fetch events after caching
+                    events = await prisma.event.findMany({
+                        where: { attributedTo: user.externalActorUrl },
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    name: true,
+                                    displayColor: true,
+                                    profileImage: true,
+                                },
+                            },
+                            _count: {
+                                select: {
+                                    attendance: true,
+                                    likes: true,
+                                    comments: true,
+                                },
+                            },
+                        },
+                        orderBy: { startTime: 'desc' },
+                        take: 50,
+                    })
+
+                    console.log(`✅ Cached ${activities.length} activities from ${user.username}'s outbox`)
+                }
+            } catch (error) {
+                console.error('Error fetching remote outbox:', error)
+                // Continue with empty events array
+            }
+        }
+
+        // Manually count events for proper display
+        const eventCount = isRemote
+            ? await prisma.event.count({ where: { attributedTo: user.externalActorUrl || undefined } })
+            : await prisma.event.count({ where: { userId: user.id } })
+
+        return c.json({
+            user: {
+                ...user,
+                _count: {
+                    ...user._count,
+                    events: eventCount,
+                },
+            },
+            events,
+        })
+    } catch (error) {
+        console.error('Error getting user profile:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+export default app

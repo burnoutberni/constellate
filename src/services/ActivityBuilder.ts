@@ -1,0 +1,555 @@
+/**
+ * Activity Builder Service
+ * Centralized construction of ActivityPub activities
+ */
+
+import {
+    ActivityType,
+    ObjectType,
+    ACTIVITYPUB_CONTEXTS,
+    PUBLIC_COLLECTION,
+    AttendanceStatus,
+} from '../constants/activitypub.js'
+import { getBaseUrl } from '../lib/activitypubHelpers.js'
+import type { Event, User, Comment } from '@prisma/client'
+
+/**
+ * Builds a Create activity for an event
+ */
+export function buildCreateEventActivity(
+    event: Event & { user: User | null },
+    userId: string
+): any {
+    const baseUrl = getBaseUrl()
+    const user = event.user!
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    const eventUrl = `${baseUrl}/events/${event.id}`
+    const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/activities/${event.id}/create`,
+        type: ActivityType.CREATE,
+        actor: actorUrl,
+        published: event.createdAt.toISOString(),
+        to: [PUBLIC_COLLECTION],
+        cc: [followersUrl],
+        object: {
+            type: ObjectType.EVENT,
+            id: eventUrl,
+            name: event.title,
+            summary: event.summary || undefined,
+            startTime: event.startTime.toISOString(),
+            endTime: event.endTime?.toISOString(),
+            duration: event.duration || undefined,
+            location: event.location || undefined,
+            url: event.url || undefined,
+            attributedTo: actorUrl,
+            published: event.createdAt.toISOString(),
+            eventStatus: event.eventStatus || undefined,
+            eventAttendanceMode: event.eventAttendanceMode || undefined,
+            maximumAttendeeCapacity: event.maximumAttendeeCapacity || undefined,
+            attachment: event.headerImage
+                ? [
+                    {
+                        type: ObjectType.IMAGE,
+                        url: event.headerImage,
+                    },
+                ]
+                : undefined,
+            to: [PUBLIC_COLLECTION],
+            cc: [followersUrl],
+        },
+    }
+}
+
+/**
+ * Builds an Update activity for an event
+ */
+export function buildUpdateEventActivity(
+    event: Event & { user: User | null },
+    userId: string
+): any {
+    const baseUrl = getBaseUrl()
+    const user = event.user!
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    const eventUrl = `${baseUrl}/events/${event.id}`
+    const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/activities/${event.id}/update-${Date.now()}`,
+        type: ActivityType.UPDATE,
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: [PUBLIC_COLLECTION],
+        cc: [followersUrl],
+        object: {
+            type: ObjectType.EVENT,
+            id: eventUrl,
+            name: event.title,
+            summary: event.summary || undefined,
+            startTime: event.startTime.toISOString(),
+            endTime: event.endTime?.toISOString(),
+            duration: event.duration || undefined,
+            location: event.location || undefined,
+            url: event.url || undefined,
+            attributedTo: actorUrl,
+            updated: event.updatedAt.toISOString(),
+            eventStatus: event.eventStatus || undefined,
+            eventAttendanceMode: event.eventAttendanceMode || undefined,
+            maximumAttendeeCapacity: event.maximumAttendeeCapacity || undefined,
+            attachment: event.headerImage
+                ? [
+                    {
+                        type: ObjectType.IMAGE,
+                        url: event.headerImage,
+                    },
+                ]
+                : undefined,
+            to: [PUBLIC_COLLECTION],
+            cc: [followersUrl],
+        },
+    }
+}
+
+/**
+ * Builds a Delete activity for an event
+ */
+export function buildDeleteEventActivity(
+    eventId: string,
+    user: User
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    const eventUrl = `${baseUrl}/events/${eventId}`
+    const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/activities/${eventId}/delete`,
+        type: ActivityType.DELETE,
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: [PUBLIC_COLLECTION],
+        cc: [followersUrl],
+        object: {
+            type: ObjectType.TOMBSTONE,
+            id: eventUrl,
+            formerType: ObjectType.EVENT,
+            deleted: new Date().toISOString(),
+        },
+    }
+}
+
+/**
+ * Builds a Follow activity
+ */
+export function buildFollowActivity(
+    follower: User,
+    targetActorUrl: string
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${follower.username}`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/follows/${Date.now()}`,
+        type: ActivityType.FOLLOW,
+        actor: actorUrl,
+        object: targetActorUrl,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds an Accept activity for a Follow
+ */
+export function buildAcceptActivity(
+    user: User,
+    followActivity: any
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/accepts/${Date.now()}`,
+        type: ActivityType.ACCEPT,
+        actor: actorUrl,
+        object: followActivity,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds a Like activity for an event
+ */
+export function buildLikeActivity(
+    user: User,
+    eventUrl: string,
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    
+    // Extract event ID from URL for unique activity ID
+    const eventId = eventUrl.split('/').pop() || 'unknown'
+    const timestamp = Date.now()
+    const uniqueId = `${actorUrl}/likes/${eventId}-${user.id}-${timestamp}`
+
+    // Determine addressing based on event visibility
+    const to = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: uniqueId,
+        type: ActivityType.LIKE,
+        actor: actorUrl,
+        object: eventUrl,
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds an Undo activity
+ */
+export function buildUndoActivity(
+    user: User,
+    originalActivity: any
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    
+    // Use original activity's ID for uniqueness
+    const originalId = originalActivity.id || 'unknown'
+    const timestamp = Date.now()
+    const uniqueId = `${actorUrl}/undo/${originalId}-${timestamp}`
+
+    // Preserve addressing from original activity
+    const to = originalActivity.to
+    const cc = originalActivity.cc
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: uniqueId,
+        type: ActivityType.UNDO,
+        actor: actorUrl,
+        object: originalActivity,
+        to,
+        cc,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds a TentativeAccept activity for event attendance
+ */
+export function buildAttendingActivity(
+    user: User,
+    eventUrl: string,
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    userFollowersUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    
+    // Extract event ID from URL for unique activity ID
+    const eventId = eventUrl.split('/').pop() || 'unknown'
+    const timestamp = Date.now()
+    const uniqueId = `${actorUrl}/accepts/${eventId}-${user.id}-${timestamp}`
+
+    // Determine addressing
+    const to = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+    
+    // Also include user's followers so they know the user is attending
+    if (userFollowersUrl) {
+        cc.push(userFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: uniqueId,
+        type: ActivityType.ACCEPT,
+        actor: actorUrl,
+        object: eventUrl,
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds a Reject activity for event attendance (not attending)
+ */
+export function buildNotAttendingActivity(
+    user: User,
+    eventUrl: string,
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    userFollowersUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    
+    // Extract event ID from URL for unique activity ID
+    const eventId = eventUrl.split('/').pop() || 'unknown'
+    const timestamp = Date.now()
+    const uniqueId = `${actorUrl}/reject/${eventId}-${user.id}-${timestamp}`
+
+    // Determine addressing
+    const to = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+    
+    // Also include user's followers
+    if (userFollowersUrl) {
+        cc.push(userFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: uniqueId,
+        type: ActivityType.REJECT,
+        actor: actorUrl,
+        object: eventUrl,
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds an Announce activity for "maybe" attendance
+ */
+export function buildMaybeAttendingActivity(
+    user: User,
+    eventUrl: string,
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    userFollowersUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    
+    // Extract event ID from URL for unique activity ID
+    const eventId = eventUrl.split('/').pop() || 'unknown'
+    const timestamp = Date.now()
+    const uniqueId = `${actorUrl}/tentative-accept/${eventId}-${user.id}-${timestamp}`
+
+    // Determine addressing
+    const to = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+    
+    // Also include user's followers
+    if (userFollowersUrl) {
+        cc.push(userFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: uniqueId,
+        type: ActivityType.TENTATIVE_ACCEPT,
+        actor: actorUrl,
+        object: eventUrl,
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
+ * Builds a Create activity for a comment (Note)
+ */
+export function buildCreateCommentActivity(
+    comment: Comment & { author: User; event: Event },
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    parentCommentAuthorUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${comment.author.username}`
+    const commentUrl = `${baseUrl}/comments/${comment.id}`
+    const eventUrl = comment.event.externalId || `${baseUrl}/events/${comment.eventId}`
+
+    // Determine addressing
+    const to: string[] = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    // Add parent comment author if replying
+    if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
+        to.push(parentCommentAuthorUrl)
+    }
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/activities/comment-${comment.id}`,
+        type: ActivityType.CREATE,
+        actor: actorUrl,
+        published: comment.createdAt.toISOString(),
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        object: {
+            type: ObjectType.NOTE,
+            id: commentUrl,
+            content: comment.content,
+            attributedTo: actorUrl,
+            inReplyTo: comment.inReplyToId
+                ? `${baseUrl}/comments/${comment.inReplyToId}`
+                : eventUrl,
+            published: comment.createdAt.toISOString(),
+            to,
+            cc: cc.length > 0 ? cc : undefined,
+        },
+    }
+}
+
+/**
+ * Builds a Delete activity for a comment
+ */
+export function buildDeleteCommentActivity(
+    comment: Comment & { author: User; event: Event },
+    eventAuthorUrl: string,
+    eventAuthorFollowersUrl?: string,
+    parentCommentAuthorUrl?: string,
+    isPublic: boolean = true
+): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${comment.author.username}`
+    const commentUrl = comment.externalId || `${baseUrl}/comments/${comment.id}`
+    const followersUrl = `${baseUrl}/users/${comment.author.username}/followers`
+
+    // Determine addressing (same as original comment)
+    const to: string[] = [eventAuthorUrl]
+    const cc: string[] = []
+    
+    // Add parent comment author if replying
+    if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
+        to.push(parentCommentAuthorUrl)
+    }
+    
+    if (isPublic) {
+        cc.push(PUBLIC_COLLECTION)
+    }
+    
+    if (eventAuthorFollowersUrl) {
+        cc.push(eventAuthorFollowersUrl)
+    }
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/activities/comment-${comment.id}/delete`,
+        type: ActivityType.DELETE,
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        object: {
+            type: ObjectType.TOMBSTONE,
+            id: commentUrl,
+            formerType: ObjectType.NOTE,
+            deleted: new Date().toISOString(),
+        },
+    }
+}
+
+/**
+ * Builds an Update activity for a user profile
+ */
+export function buildUpdateProfileActivity(user: User): any {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    return {
+        '@context': ACTIVITYPUB_CONTEXTS,
+        id: `${actorUrl}/updates/${Date.now()}`,
+        type: ActivityType.UPDATE,
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: [PUBLIC_COLLECTION],
+        cc: [followersUrl],
+        object: {
+            type: ObjectType.PERSON,
+            id: actorUrl,
+            preferredUsername: user.username,
+            name: user.name || user.username,
+            summary: user.bio || undefined,
+            displayColor: user.displayColor,
+            icon: user.profileImage
+                ? {
+                    type: ObjectType.IMAGE,
+                    url: user.profileImage,
+                }
+                : undefined,
+            image: user.headerImage
+                ? {
+                    type: ObjectType.IMAGE,
+                    url: user.headerImage,
+                }
+                : undefined,
+            inbox: `${actorUrl}/inbox`,
+            outbox: `${actorUrl}/outbox`,
+            followers: followersUrl,
+            following: `${baseUrl}/users/${user.username}/following`,
+            publicKey: {
+                id: `${actorUrl}#main-key`,
+                owner: actorUrl,
+                publicKeyPem: user.publicKey!,
+            },
+            endpoints: {
+                sharedInbox: `${baseUrl}/inbox`,
+            },
+        },
+    }
+}
