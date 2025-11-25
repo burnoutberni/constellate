@@ -129,6 +129,7 @@ app.get('/users/:username', async (c) => {
         // Generate keys if user doesn't have them
         if (!user.publicKey || !user.privateKey) {
             const { generateKeyPairSync } = await import('crypto')
+            const { encryptPrivateKey } = await import('./lib/encryption.js')
             const { publicKey, privateKey } = generateKeyPairSync('rsa', {
                 modulusLength: 2048,
                 publicKeyEncoding: {
@@ -141,17 +142,20 @@ app.get('/users/:username', async (c) => {
                 },
             })
 
+            // Encrypt private key before storing
+            const encryptedPrivateKey = encryptPrivateKey(privateKey)
+
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     publicKey,
-                    privateKey,
+                    privateKey: encryptedPrivateKey,
                 },
             })
 
             user.publicKey = publicKey
-            user.privateKey = privateKey
-            console.log(`✅ Generated keys for user: ${username}`)
+            user.privateKey = encryptedPrivateKey
+            console.log(`✅ Generated and encrypted keys for user: ${username}`)
         }
 
         const actorUrl = `${baseUrl}/users/${username}`
@@ -481,10 +485,10 @@ app.post('/users/:username/inbox', async (c) => {
             headers['host'] = targetHost
         }
 
-        const isValid = await verifySignature(signatureHeader!, method, path, headers)
+        const isValid = await verifySignature(signature, method, path, headers)
         if (!isValid) {
             console.error(`[Inbox] Signature verification failed for ${method} ${path}`)
-            console.error(`[Inbox] Signature: ${signatureHeader!.substring(0, 100)}...`)
+            console.error(`[Inbox] Signature: ${signature.substring(0, 100)}...`)
             return c.json({ error: 'Invalid signature' }, 401)
         }
 

@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
+import { requireAuth } from './middleware/auth.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -126,7 +127,8 @@ app.post('/', async (c) => {
 // List events
 app.get('/', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
+        // Optional authentication - get userId from context if available
+        const userId = c.get('userId') as string | undefined
         const page = parseInt(c.req.query('page') || '1')
         const limit = parseInt(c.req.query('limit') || '20')
         const skip = (page - 1) * limit
@@ -721,11 +723,7 @@ app.get('/:id', async (c) => {
 app.put('/:id', async (c) => {
     try {
         const { id } = c.req.param()
-        const userId = c.req.header('x-user-id')
-
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const body = await c.req.json()
         const validatedData = EventSchema.partial().parse(body)
@@ -776,11 +774,7 @@ app.put('/:id', async (c) => {
 app.delete('/:id', async (c) => {
     try {
         const { id } = c.req.param()
-        const userId = c.req.header('x-user-id')
-
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // Check ownership
         const event = await prisma.event.findUnique({

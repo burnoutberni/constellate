@@ -11,6 +11,7 @@ import {
     ContentType,
     PAGINATION,
 } from '../constants/activitypub.js'
+import { config } from '../config.js'
 
 const prisma = new PrismaClient()
 
@@ -19,7 +20,7 @@ const prisma = new PrismaClient()
  * @returns Base URL (e.g., http://localhost:3000)
  */
 export function getBaseUrl(): string {
-    return process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+    return config.baseUrl
 }
 
 /**

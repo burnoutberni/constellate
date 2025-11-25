@@ -7,6 +7,8 @@ import { betterAuth } from 'better-auth'
 import { PrismaClient } from '@prisma/client'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { generateKeyPairSync } from 'crypto'
+import { encryptPrivateKey } from './lib/encryption.js'
+import { config } from './config.js'
 
 const prisma = new PrismaClient()
 
@@ -24,23 +26,26 @@ export async function generateUserKeys(userId: string, username: string) {
         },
     })
 
+    // Encrypt private key before storing
+    const encryptedPrivateKey = encryptPrivateKey(privateKey)
+
     await prisma.user.update({
         where: { id: userId },
         data: {
             publicKey,
-            privateKey,
+            privateKey: encryptedPrivateKey,
         },
     })
 
-    console.log(`✅ Generated keys for user: ${username}`)
+    console.log(`✅ Generated and encrypted keys for user: ${username}`)
 }
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: 'sqlite',
     }),
-    baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000/api/auth',
-    trustedOrigins: ['http://localhost:5173'],
+    baseURL: config.betterAuthUrl,
+    trustedOrigins: config.betterAuthTrustedOrigins,
     emailAndPassword: {
         enabled: true,
     },

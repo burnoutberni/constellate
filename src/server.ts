@@ -21,6 +21,7 @@ import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
+import { config } from './config.js'
 
 const app = new Hono()
 const prisma = new PrismaClient()
@@ -28,7 +29,7 @@ const prisma = new PrismaClient()
 // Middleware
 app.use('*', logger())
 app.use('*', cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: config.corsOrigins,
     credentials: true,
 }))
 app.use('*', authMiddleware)
@@ -107,13 +108,11 @@ app.route('/api/search', searchRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
 
-const port = parseInt(process.env.PORT || '3000')
-
-console.log(`🚀 Server starting on port ${port}`)
+console.log(`🚀 Server starting on port ${config.port}`)
 
 serve({
     fetch: app.fetch,
-    port,
+    port: config.port,
 })
 
 export { app, prisma }

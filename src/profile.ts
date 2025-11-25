@@ -65,16 +65,12 @@ app.get('/users/:username/profile', async (c) => {
 // Update own profile
 app.put('/profile', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const body = await c.req.json()
         const updates = ProfileUpdateSchema.parse(body)
 
-        // Update user
+        // Update user (requireAuth ensures user can only update their own profile)
         const user = await prisma.user.update({
             where: { id: userId },
             data: updates,

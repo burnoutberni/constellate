@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { requireAuth } from './middleware/auth.js'
 
 const app = new Hono()
 const prisma = new PrismaClient()
@@ -33,10 +34,7 @@ const ReportSchema = z.object({
 // Block a user
 app.post('/block/user', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const body = await c.req.json()
         const { username, reason } = BlockUserSchema.parse(body)
@@ -82,10 +80,7 @@ app.post('/block/user', async (c) => {
 // Unblock a user
 app.delete('/block/user/:username', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const { username } = c.req.param()
 
@@ -118,10 +113,7 @@ app.delete('/block/user/:username', async (c) => {
 // Get blocked users
 app.get('/block/users', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const blocks = await prisma.blockedUser.findMany({
             where: { blockingUserId: userId },
@@ -138,10 +130,7 @@ app.get('/block/users', async (c) => {
 // Block a domain (admin only)
 app.post('/block/domain', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // TODO: Check if user is admin
         // For now, any authenticated user can block domains
@@ -174,10 +163,7 @@ app.post('/block/domain', async (c) => {
 // Unblock a domain (admin only)
 app.delete('/block/domain/:domain', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // TODO: Check if user is admin
 
@@ -197,10 +183,7 @@ app.delete('/block/domain/:domain', async (c) => {
 // Get blocked domains
 app.get('/block/domains', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // TODO: Check if user is admin
 
@@ -218,10 +201,7 @@ app.get('/block/domains', async (c) => {
 // Report content
 app.post('/report', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const body = await c.req.json()
         const { targetType, targetId, reason, category } = ReportSchema.parse(body)
@@ -271,10 +251,7 @@ app.post('/report', async (c) => {
 // Get reports (admin only)
 app.get('/reports', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // TODO: Check if user is admin
 
@@ -322,10 +299,7 @@ app.get('/reports', async (c) => {
 // Update report status (admin only)
 app.put('/reports/:id', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         // TODO: Check if user is admin
 
@@ -355,10 +329,7 @@ app.put('/reports/:id', async (c) => {
 // Check if user is blocked
 app.get('/block/check/:username', async (c) => {
     try {
-        const userId = c.req.header('x-user-id')
-        if (!userId) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
+        const userId = requireAuth(c)
 
         const { username } = c.req.param()
 

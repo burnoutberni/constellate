@@ -8,7 +8,19 @@
 
 ## Executive Summary
 
-This audit identifies **critical security vulnerabilities**, **moderate security concerns**, and **code quality improvements** across the codebase. The application implements ActivityPub federation with HTTP signatures, SSRF protection, and user authentication, but several areas require immediate attention.
+This audit identifies **critical security vulnerabilities**, **moderate security concerns**, and **code quality improvements** across the codebase. The application implements ActivityPub federation with HTTP signatures, SSRF protection, and user authentication.
+
+**Update (2025-01-27):** All critical security issues have been resolved:
+- ✅ Authentication inconsistencies fixed - all endpoints use `requireAuth(c)`
+- ✅ Signature verification bug fixed
+- ✅ Private keys encrypted at rest
+- ✅ Environment validation implemented
+- ✅ Activity processing race condition fixed
+
+**Remaining High Priority Issues:**
+- Multiple PrismaClient instances (17 instances) - connection pool risk
+- Missing authorization helpers (`requireOwnership`, `requireAdmin`)
+- Missing admin role support for moderation endpoints
 
 **Priority Levels:**
 - 🔴 **CRITICAL** - Immediate action required
@@ -20,40 +32,34 @@ This audit identifies **critical security vulnerabilities**, **moderate security
 
 ## 1. Authentication & Authorization Issues
 
-### 🔴 CRITICAL: Inconsistent Authentication Mechanisms
+### ✅ FIXED: Inconsistent Authentication Mechanisms
 
-**Issue:** Multiple authentication methods used inconsistently across endpoints:
-- Some endpoints use `c.get('userId')` from middleware
-- Others use `c.req.header('x-user-id')` (untrusted header)
-- Some use `requireAuth(c)` helper
-- No consistent pattern
+**Status:** All endpoints now use `requireAuth(c)` helper consistently. All `x-user-id` header usage has been removed.
+
+---
+
+### 🟠 HIGH: Missing Authorization Helpers
+
+**Issue:** While authentication is now consistent, authorization helpers are missing:
+
+1. **No `requireOwnership()` helper** - Ownership checks are implemented inline (e.g., `src/events.ts:741`), but a reusable helper would improve consistency
+2. **No `requireAdmin()` helper** - Moderation endpoints use `requireAuth()` but don't verify admin status
+3. **Missing `isAdmin` field** - User model doesn't have admin role field
 
 **Location:**
-- `src/events.ts`: Lines 129, 724, 779 use `c.req.header('x-user-id')`
-- `src/profile.ts`: Line 68 uses `c.req.header('x-user-id')`
-- `src/moderation.ts`: Multiple endpoints use `c.req.header('x-user-id')`
-- `src/comments.ts`: Uses `requireAuth(c)` correctly
-- `src/likes.ts`: Uses `requireAuth(c)` correctly
-
-**Risk:** Attackers can spoof user identity by setting `x-user-id` header.
+- `src/middleware/auth.ts`: Only has `requireAuth()`, missing ownership and admin helpers
+- `src/moderation.ts`: All endpoints use `requireAuth()` but no admin verification
+- `src/events.ts`: Ownership check implemented inline (line 741)
 
 **Proposal:**
-1. **Standardize on `requireAuth(c)` helper** for all authenticated endpoints
-2. **Remove all `c.req.header('x-user-id')` usage** - this header is untrusted
-3. **Add authorization checks** - verify users can only access/modify their own resources
-4. **Create role-based access control** for admin operations
+- Create `requireOwnership()` helper for consistent ownership verification
+- Create `requireAdmin()` helper for moderation endpoints
+- Add `isAdmin` boolean field to User model in Prisma schema
+- Update moderation endpoints to use `requireAdmin()`
 
 **Refactor:**
 ```typescript
-// Create centralized auth helpers
-export function requireAuth(c: Context): string {
-    const userId = c.get('userId')
-    if (!userId) {
-        throw new Error('Authentication required')
-    }
-    return userId
-}
-
+// Add to src/middleware/auth.ts
 export async function requireOwnership(
     c: Context, 
     resourceUserId: string | null,
@@ -69,28 +75,13 @@ export async function requireAdmin(c: Context): Promise<void> {
     const userId = requireAuth(c)
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { isAdmin: true } // Add isAdmin field to schema
+        select: { isAdmin: true }
     })
     if (!user?.isAdmin) {
         throw new Error('Forbidden: Admin access required')
     }
 }
 ```
-
----
-
-### 🟠 HIGH: Missing Authorization Checks
-
-**Issue:** Several endpoints lack proper ownership verification:
-
-1. **Event Updates** (`src/events.ts:721`): Checks ownership but uses untrusted header
-2. **Profile Updates** (`src/profile.ts:66`): No verification that user is updating their own profile
-3. **Moderation Endpoints** (`src/moderation.ts`): No admin checks (marked as TODO)
-
-**Proposal:**
-- Add ownership verification to all update/delete endpoints
-- Implement admin role checking for moderation endpoints
-- Add database field `isAdmin` to User model
 
 ---
 
@@ -185,13 +176,19 @@ export function parseActorUrl(url: string, baseUrl: string): {
 
 ## 3. HTTP Signature Verification
 
-### 🟠 HIGH: Signature Verification Issues
+### ✅ FIXED: Signature Verification Bug
 
-**Issue:** Multiple problems in signature verification:
+**Status:** Variable name bug fixed. Signature verification now uses correct `signature` variable.
 
-1. **Variable name bug** (`src/activitypub.ts:484`): Uses `signatureHeader!` instead of `signature`
-2. **Host header manipulation** (`src/activitypub.ts:479-482`): Modifies host header for reverse proxy, but logic may be flawed
-3. **Missing header validation**: Doesn't verify all required headers are present before verification
+---
+
+### 🟠 HIGH: Signature Verification Improvements Needed
+
+**Issue:** While the critical bug is fixed, signature verification could be improved:
+
+1. **Host header manipulation** (`src/activitypub.ts:479-482`): Modifies host header for reverse proxy, but logic may be flawed
+2. **Missing header validation**: Doesn't verify all required headers are present before verification
+3. **No signature replay attack protection**: Missing timestamp validation
 
 **Location:**
 - `src/activitypub.ts`: Lines 460-489 (personal inbox)
@@ -199,10 +196,9 @@ export function parseActorUrl(url: string, baseUrl: string): {
 - `src/lib/httpSignature.ts`: Lines 64-125
 
 **Proposal:**
-1. **Fix the variable name bug** immediately
-2. **Improve host header handling** for reverse proxies
-3. **Add comprehensive header validation**
-4. **Add signature replay attack protection** (timestamp validation)
+1. **Improve host header handling** for reverse proxies
+2. **Add comprehensive header validation**
+3. **Add signature replay attack protection** (timestamp validation)
 
 **Refactor:**
 ```typescript
@@ -343,44 +339,9 @@ export async function safeFetch(
 
 ## 5. ActivityPub Federation Security
 
-### 🟠 HIGH: Activity Processing Race Conditions
+### ✅ FIXED: Activity Processing Race Conditions
 
-**Issue:** Activity deduplication uses database check, but there's a race condition between check and mark:
-
-**Location:**
-- `src/federation.ts`: Lines 33-40
-
-**Proposal:**
-```typescript
-// Use database transaction with unique constraint
-export async function handleActivity(activity: any): Promise<void> {
-    try {
-        // Use upsert with unique constraint to prevent race conditions
-        const processed = await prisma.processedActivity.upsert({
-            where: { activityId: activity.id },
-            update: {}, // Already processed
-            create: {
-                activityId: activity.id,
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            }
-        })
-        
-        // If this is an update (already existed), skip
-        if (processed.createdAt.getTime() !== processed.updatedAt.getTime()) {
-            console.log(`Activity already processed: ${activity.id}`)
-            return
-        }
-        
-        // Process activity...
-    } catch (error) {
-        // Handle unique constraint violation as "already processed"
-        if (error.code === 'P2002') {
-            return
-        }
-        throw error
-    }
-}
-```
+**Status:** Race condition fixed. Activity deduplication now uses atomic `create()` with unique constraint and handles `P2002` errors to prevent duplicate processing.
 
 ---
 
@@ -414,55 +375,13 @@ export async function handleActivity(activity: any): Promise<void> {
 
 ## 6. Database Security
 
-### 🟠 HIGH: Private Key Storage
+### ✅ FIXED: Private Key Storage
 
-**Issue:** Private keys are stored in database in plaintext.
+**Status:** Private keys are now encrypted at rest using AES-256-GCM encryption. Encryption utilities implemented in `src/lib/encryption.ts`. Keys are encrypted before storage and decrypted when needed. Supports migration from plaintext keys in development.
 
-**Location:**
-- `prisma/schema.prisma`: Line 35 - `privateKey String?`
-- `src/auth.ts`: Keys generated and stored directly
-
-**Risk:** If database is compromised, all user keys are exposed.
-
-**Proposal:**
-1. **Encrypt private keys at rest** using application-level encryption
-2. **Use key derivation** from user password (if available)
-3. **Consider hardware security modules** for production
-4. **Add key rotation mechanism**
-
-**Refactor:**
-```typescript
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
-
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY // Must be 32 bytes
-const ALGORITHM = 'aes-256-gcm'
-
-export function encryptPrivateKey(privateKey: string): string {
-    const iv = randomBytes(16)
-    const cipher = createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv)
-    
-    let encrypted = cipher.update(privateKey, 'utf8', 'hex')
-    encrypted += cipher.final('hex')
-    
-    const authTag = cipher.getAuthTag()
-    
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`
-}
-
-export function decryptPrivateKey(encryptedKey: string): string {
-    const [ivHex, authTagHex, encrypted] = encryptedKey.split(':')
-    const iv = Buffer.from(ivHex, 'hex')
-    const authTag = Buffer.from(authTagHex, 'hex')
-    
-    const decipher = createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv)
-    decipher.setAuthTag(authTag)
-    
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-    decrypted += decipher.final('utf8')
-    
-    return decrypted
-}
-```
+**Remaining Considerations:**
+- Key rotation mechanism not yet implemented
+- Consider hardware security modules for production deployments
 
 ---
 
@@ -471,8 +390,7 @@ export function decryptPrivateKey(encryptedKey: string): string {
 **Issue:** Using SQLite for production (not inherently insecure, but has limitations).
 
 **Proposal:**
-- Document SQLite limitations
-- Consider PostgreSQL for production
+- Create Docker Compose production setup that includes PostgreSQL
 - Add connection pooling if moving to PostgreSQL
 - Add database backup strategy
 
@@ -562,16 +480,35 @@ export function handleError(error: unknown, c: Context): Response {
 
 ## 8. Code Quality & Maintainability
 
-### 🟡 MEDIUM: Prisma Client Instances
+### 🟠 HIGH: Prisma Client Instances
 
-**Issue:** Multiple PrismaClient instances created throughout codebase.
+**Issue:** **17 separate PrismaClient instances** created throughout codebase. This can lead to connection pool exhaustion and performance issues.
 
 **Location:**
-- Every route file creates its own `new PrismaClient()`
+- `src/lib/activitypubHelpers.ts`
+- `src/server.ts`
+- `src/federation.ts`
+- `src/moderation.ts`
+- `src/profile.ts`
+- `src/events.ts`
+- `src/services/ActivityDelivery.ts`
+- `src/auth.ts`
+- `src/activitypub.ts`
+- `src/lib/audience.ts`
+- `src/comments.ts`
+- `src/attendance.ts`
+- `src/likes.ts`
+- `src/userSearch.ts`
+- `src/middleware/auth.ts`
+- `src/calendar.ts`
+- `src/search.ts`
+
+**Risk:** Each instance creates its own connection pool. With 17 instances, this can exhaust database connections, especially with SQLite.
 
 **Proposal:**
 - **Create singleton Prisma client** to avoid connection pool exhaustion
-- **Export from central location**
+- **Export from central location** (`src/lib/prisma.ts`)
+- **Replace all `new PrismaClient()` with import from singleton**
 
 **Refactor:**
 ```typescript
@@ -638,43 +575,9 @@ if (process.env.NODE_ENV !== 'production') {
 
 ## 9. Configuration & Environment
 
-### 🟠 HIGH: Hardcoded Defaults
+### ✅ FIXED: Hardcoded Defaults
 
-**Issue:** Hardcoded fallback values that may not match production:
-
-**Location:**
-- `src/server.ts`: `'http://localhost:3000'` fallback
-- `src/auth.ts`: `'http://localhost:3000/api/auth'` fallback
-- `src/lib/activitypubHelpers.ts`: `'http://localhost:3000'` fallback
-
-**Proposal:**
-- **Require environment variables** in production
-- **Fail fast** if required env vars are missing
-- **Validate environment** on startup
-
-**Refactor:**
-```typescript
-// src/config.ts
-export const config = {
-    port: parseInt(process.env.PORT || '3000'),
-    baseUrl: process.env.BETTER_AUTH_URL || (() => {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('BETTER_AUTH_URL is required in production')
-        }
-        return 'http://localhost:3000'
-    })(),
-    databaseUrl: process.env.DATABASE_URL || (() => {
-        throw new Error('DATABASE_URL is required')
-    })(),
-    encryptionKey: process.env.ENCRYPTION_KEY || (() => {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('ENCRYPTION_KEY is required in production')
-        }
-        // Generate a random key for development (not secure!)
-        return randomBytes(32).toString('hex')
-    })(),
-}
-```
+**Status:** Centralized configuration implemented in `src/config.ts`. Environment variables are validated on startup. Required variables fail fast in production. Sensible defaults provided for development only.
 
 ---
 
@@ -813,13 +716,19 @@ export const config = {
 
 ## Summary of Proposed Refactors
 
-### Immediate Actions (Critical)
+### ✅ Completed Critical Fixes
 
-1. **Fix authentication inconsistencies** - Remove all `x-user-id` header usage
-2. **Fix signature verification bug** - Variable name error in `activitypub.ts:484`
-3. **Encrypt private keys** - Add encryption for keys at rest
-4. **Add environment validation** - Fail fast on missing required config
-5. **Fix race condition** - Activity processing deduplication
+1. ✅ **Fixed authentication inconsistencies** - All endpoints now use `requireAuth(c)`, removed all `x-user-id` header usage
+2. ✅ **Fixed signature verification bug** - Variable name error in `activitypub.ts:484` corrected
+3. ✅ **Encrypted private keys** - AES-256-GCM encryption implemented for keys at rest
+4. ✅ **Added environment validation** - Centralized config with fail-fast validation
+5. ✅ **Fixed race condition** - Activity processing deduplication now uses atomic operations
+
+### Immediate Actions (High Priority)
+
+1. **Refactor Prisma client** - Replace 17 instances with singleton pattern (connection pool risk)
+2. **Add authorization helpers** - Implement `requireOwnership()` and `requireAdmin()` helpers
+3. **Add admin role support** - Add `isAdmin` field to User model and protect moderation endpoints
 
 ### High Priority
 

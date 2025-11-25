@@ -27,17 +27,33 @@ const prisma = new PrismaClient()
 
 /**
  * Main activity handler - routes to specific handlers
+ * Uses atomic upsert to prevent race conditions in activity deduplication
  */
 export async function handleActivity(activity: any): Promise<void> {
     try {
-        // Check if already processed
-        if (await isActivityProcessed(activity.id)) {
-            console.log(`Activity already processed: ${activity.id}`)
-            return
-        }
+        // Use upsert with unique constraint to atomically check and mark as processed
+        // This prevents race conditions where multiple requests process the same activity
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + 30) // 30 days TTL
 
-        // Mark as processed
-        await markActivityProcessed(activity.id)
+        try {
+            // Try to create the processed activity record
+            // If it already exists (unique constraint violation), this will fail
+            await prisma.processedActivity.create({
+                data: {
+                    activityId: activity.id,
+                    expiresAt,
+                },
+            })
+        } catch (error: any) {
+            // If the activity already exists (P2002 = unique constraint violation), skip processing
+            if (error.code === 'P2002') {
+                console.log(`Activity already processed: ${activity.id}`)
+                return
+            }
+            // Re-throw other errors
+            throw error
+        }
 
         // Route to specific handler
         switch (activity.type) {
@@ -76,6 +92,9 @@ export async function handleActivity(activity: any): Promise<void> {
         }
     } catch (error) {
         console.error('Error handling activity:', error)
+        // If activity processing failed, we should still keep it marked as processed
+        // to prevent infinite retry loops. The activity was accepted (202), so we
+        // don't want to reprocess it even if handling failed.
     }
 }
 

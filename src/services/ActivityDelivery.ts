@@ -10,6 +10,7 @@ import { getBaseUrl } from '../lib/activitypubHelpers.js'
 import { resolveInboxes } from '../lib/audience.js'
 import type { Addressing } from '../lib/audience.js'
 import { ContentType } from '../constants/activitypub.js'
+import { decryptPrivateKey } from '../lib/encryption.js'
 
 const prisma = new PrismaClient()
 
@@ -27,6 +28,13 @@ export async function deliverToInbox(
     try {
         if (!user.privateKey) {
             console.error('User has no private key for signing')
+            return false
+        }
+
+        // Decrypt private key before use
+        const decryptedPrivateKey = decryptPrivateKey(user.privateKey)
+        if (!decryptedPrivateKey) {
+            console.error('Failed to decrypt private key for signing')
             return false
         }
 
@@ -52,9 +60,9 @@ export async function deliverToInbox(
             'content-type': ContentType.ACTIVITY_JSON,
         }
 
-        // Sign request
+        // Sign request with decrypted key
         const signature = signRequest(
-            user.privateKey,
+            decryptedPrivateKey,
             keyId,
             'POST',
             url.pathname + url.search,
