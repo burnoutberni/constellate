@@ -1,0 +1,516 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { Hono } from 'hono'
+import userSearchApp from '../userSearch.js'
+import { prisma } from '../lib/prisma.js'
+import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from '../lib/activitypubHelpers.js'
+
+// Mock dependencies
+vi.mock('../lib/prisma.js', () => ({
+    prisma: {
+        user: {
+            findMany: vi.fn(),
+            findFirst: vi.fn(),
+            findUnique: vi.fn(),
+        },
+        event: {
+            findMany: vi.fn(),
+            count: vi.fn(),
+            upsert: vi.fn(),
+        },
+    },
+}))
+
+vi.mock('../lib/activitypubHelpers.js', () => ({
+    resolveWebFinger: vi.fn(),
+    fetchActor: vi.fn(),
+    cacheRemoteUser: vi.fn(),
+    getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+}))
+
+vi.mock('../lib/ssrfProtection.js', () => ({
+    safeFetch: vi.fn(),
+}))
+
+// Create test app
+const app = new Hono()
+app.route('/api/user-search', userSearchApp)
+
+// Mock global fetch for remote outbox fetching
+global.fetch = vi.fn()
+
+describe('UserSearch API', () => {
+    const mockLocalUser = {
+        id: 'user_123',
+        username: 'alice',
+        name: 'Alice Smith',
+        profileImage: null,
+        displayColor: '#3b82f6',
+        isRemote: false,
+        externalActorUrl: null,
+    }
+
+    const mockRemoteUser = {
+        id: 'user_456',
+        username: 'bob@example.com',
+        name: 'Bob',
+        profileImage: null,
+        displayColor: '#ef4444',
+        isRemote: true,
+        externalActorUrl: 'https://example.com/users/bob',
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    describe('GET /', () => {
+        it('should search for local users and events', async () => {
+            const mockUsers = [mockLocalUser]
+            const mockEvents = [
+                {
+                    id: 'event_123',
+                    title: 'Test Event',
+                    summary: 'Test summary',
+                    startTime: new Date('2024-12-01T10:00:00Z'),
+                    user: mockLocalUser,
+                    _count: {
+                        attendance: 5,
+                        likes: 10,
+                    },
+                },
+            ]
+
+            vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue(mockEvents as any)
+
+            const res = await app.request('/api/user-search?q=alice')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.users).toEqual(mockUsers)
+            // Date fields are serialized to ISO strings in JSON responses
+            expect(body.events).toHaveLength(1)
+            expect(body.events[0].id).toBe('event_123')
+            expect(body.events[0].title).toBe('Test Event')
+            expect(body.events[0].startTime).toBe('2024-12-01T10:00:00.000Z')
+            expect(body.events[0].user).toEqual(mockLocalUser)
+            expect(body.events[0]._count).toEqual({ attendance: 5, likes: 10 })
+            expect(prisma.user.findMany).toHaveBeenCalledWith({
+                where: {
+                    OR: [
+                        { username: { contains: 'alice' } },
+                        { name: { contains: 'alice' } },
+                    ],
+                },
+                select: expect.any(Object),
+                take: 10,
+            })
+        })
+
+        it('should respect limit parameter', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+            await app.request('/api/user-search?q=test&limit=20')
+
+            expect(prisma.user.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    take: 20,
+                })
+            )
+        })
+
+        it('should cap limit at 50', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+            await app.request('/api/user-search?q=test&limit=100')
+
+            expect(prisma.user.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    take: 50,
+                })
+            )
+        })
+
+        it('should suggest remote account when handle format detected', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null) // Not cached
+
+            const res = await app.request('/api/user-search?q=@bob@example.com')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.remoteAccountSuggestion).toEqual({
+                handle: '@bob@example.com',
+                username: 'bob',
+                domain: 'example.com',
+            })
+        })
+
+        it('should include cached remote user in results', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockRemoteUser as any)
+
+            const res = await app.request('/api/user-search?q=@bob@example.com')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.users).toContainEqual(mockRemoteUser)
+            expect(body.remoteAccountSuggestion).toBeNull()
+        })
+
+        it('should return 400 for missing query parameter', async () => {
+            const res = await app.request('/api/user-search')
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Invalid search parameters')
+        })
+
+        it('should return 400 for empty query', async () => {
+            const res = await app.request('/api/user-search?q=')
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should handle parseHandle with various formats', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+
+            // Test @username@domain format
+            await app.request('/api/user-search?q=@alice@example.com')
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+
+            vi.clearAllMocks()
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+
+            // Test username@domain format
+            await app.request('/api/user-search?q=alice@example.com')
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+
+            vi.clearAllMocks()
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+
+            // Test URL format
+            await app.request('/api/user-search?q=https://example.com/users/alice')
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+        })
+    })
+
+    describe('POST /resolve', () => {
+        it('should resolve and cache a remote account', async () => {
+            const mockActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+                name: 'Bob',
+            }
+
+            const cachedUser = {
+                id: 'user_456',
+                username: 'bob@example.com',
+                name: 'Bob',
+                profileImage: null,
+                displayColor: '#3b82f6',
+                isRemote: true,
+                externalActorUrl: 'https://example.com/users/bob',
+            }
+
+            vi.mocked(resolveWebFinger).mockResolvedValue('https://example.com/users/bob')
+            vi.mocked(fetchActor).mockResolvedValue(mockActor)
+            vi.mocked(cacheRemoteUser).mockResolvedValue(cachedUser as any)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user).toEqual(cachedUser)
+            expect(resolveWebFinger).toHaveBeenCalledWith('acct:bob@example.com')
+            expect(fetchActor).toHaveBeenCalledWith('https://example.com/users/bob')
+            expect(cacheRemoteUser).toHaveBeenCalledWith(mockActor)
+        })
+
+        it('should return local user when handle is local', async () => {
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockLocalUser as any)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@alice@localhost' }),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user).toEqual(mockLocalUser)
+            expect(resolveWebFinger).not.toHaveBeenCalled()
+        })
+
+        it('should return cached remote user if already cached', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockRemoteUser as any)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user).toEqual(mockRemoteUser)
+            expect(resolveWebFinger).not.toHaveBeenCalled()
+        })
+
+        it('should return 404 when WebFinger resolution fails', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+            vi.mocked(resolveWebFinger).mockResolvedValue(null)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@nonexistent@example.com' }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Failed to resolve account via WebFinger')
+        })
+
+        it('should return 404 when actor fetch fails', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+            vi.mocked(resolveWebFinger).mockResolvedValue('https://example.com/users/bob')
+            vi.mocked(fetchActor).mockResolvedValue(null)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Failed to fetch actor')
+        })
+
+        it('should return 400 for invalid handle format', async () => {
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: 'invalid-format' }),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Invalid handle format')
+        })
+
+        it('should return 400 for missing handle', async () => {
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            })
+
+            expect(res.status).toBe(400)
+        })
+    })
+
+    describe('GET /profile/:username', () => {
+        it('should return local user profile with events', async () => {
+            const mockUserWithCount = {
+                ...mockLocalUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 10,
+                    following: 5,
+                },
+            }
+
+            const mockEvents = [
+                {
+                    id: 'event_123',
+                    title: 'Test Event',
+                    user: mockLocalUser,
+                    _count: {
+                        attendance: 5,
+                        likes: 10,
+                        comments: 3,
+                    },
+                },
+            ]
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue(mockEvents as any)
+            vi.mocked(prisma.event.count).mockResolvedValue(1)
+
+            const res = await app.request('/api/user-search/profile/alice')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user).toMatchObject({
+                id: 'user_123',
+                username: 'alice',
+                _count: {
+                    followers: 10,
+                    following: 5,
+                    events: 1,
+                },
+            })
+            expect(body.events).toEqual(mockEvents)
+        })
+
+        it('should resolve and cache remote user if not found', async () => {
+            const mockActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+                name: 'Bob',
+            }
+
+            const cachedUser = {
+                id: 'user_456',
+                username: 'bob@example.com',
+                name: 'Bob',
+                bio: null,
+                profileImage: null,
+                headerImage: null,
+                displayColor: '#3b82f6',
+                isRemote: true,
+                externalActorUrl: 'https://example.com/users/bob',
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            vi.mocked(prisma.user.findFirst)
+                .mockResolvedValueOnce(null) // First call - not found
+                .mockResolvedValueOnce(cachedUser as any) // After caching
+            vi.mocked(resolveWebFinger).mockResolvedValue('https://example.com/users/bob')
+            vi.mocked(fetchActor).mockResolvedValue(mockActor)
+            vi.mocked(cacheRemoteUser).mockResolvedValue(cachedUser as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.count).mockResolvedValue(0)
+
+            const res = await app.request('/api/user-search/profile/bob@example.com')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user.username).toBe('bob@example.com')
+            expect(resolveWebFinger).toHaveBeenCalled()
+            expect(fetchActor).toHaveBeenCalled()
+            expect(cacheRemoteUser).toHaveBeenCalled()
+        })
+
+        it('should fetch and cache events from remote outbox', async () => {
+            const mockUserWithCount = {
+                ...mockRemoteUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            const mockOutbox = {
+                orderedItems: [
+                    {
+                        type: 'Create',
+                        object: {
+                            type: 'Event',
+                            id: 'https://example.com/events/1',
+                            name: 'Remote Event',
+                            startTime: '2024-12-01T10:00:00Z',
+                        },
+                    },
+                ],
+            }
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany)
+                .mockResolvedValueOnce([]) // First call - no events
+                .mockResolvedValueOnce([
+                    {
+                        id: 'event_remote_1',
+                        title: 'Remote Event',
+                        user: null,
+                        _count: {
+                            attendance: 0,
+                            likes: 0,
+                            comments: 0,
+                        },
+                    },
+                ] as any) // After caching
+            vi.mocked(prisma.event.count).mockResolvedValue(1)
+            vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+            vi.mocked(global.fetch).mockResolvedValue({
+                ok: true,
+                json: async () => mockOutbox,
+            } as Response)
+
+            const res = await app.request('/api/user-search/profile/bob@example.com')
+
+            expect(res.status).toBe(200)
+            expect(global.fetch).toHaveBeenCalledWith(
+                'https://example.com/users/bob/outbox?page=1',
+                expect.objectContaining({
+                    headers: {
+                        Accept: 'application/activity+json',
+                    },
+                })
+            )
+            expect(prisma.event.upsert).toHaveBeenCalled()
+        })
+
+        it('should return 404 when user not found', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+            vi.mocked(resolveWebFinger).mockResolvedValue(null)
+
+            const res = await app.request('/api/user-search/profile/nonexistent')
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('User not found')
+        })
+
+        it('should handle URL-encoded usernames', async () => {
+            const mockUserWithCount = {
+                ...mockRemoteUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.count).mockResolvedValue(0)
+
+            const res = await app.request('/api/user-search/profile/bob%40example.com')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user.username).toBe('bob@example.com')
+        })
+    })
+})
+

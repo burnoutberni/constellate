@@ -50,10 +50,15 @@ export function isUrlSafe(urlString: string): boolean {
             }
         }
 
-        // Check for IPv6
+        // Check for IPv6 (handle bracketed format like [::1])
         if (hostname.includes(':')) {
+            // Remove brackets if present for IPv6 addresses
+            const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']')
+                ? hostname.slice(1, -1)
+                : hostname
+            
             for (const range of PRIVATE_IP_RANGES) {
-                if (range.test(hostname)) {
+                if (range.test(normalizedHostname)) {
                     return false
                 }
             }

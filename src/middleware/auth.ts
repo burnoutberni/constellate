@@ -47,6 +47,11 @@ export async function requireOwnership(
     resourceUserId: string | null,
     resourceName: string = 'resource'
 ): Promise<void> {
+    // If resourceUserId is null, it's a public resource - allow access
+    if (resourceUserId === null) {
+        return
+    }
+    
     const userId = requireAuth(c)
     if (resourceUserId !== userId) {
         throw Errors.forbidden(`You don't have permission to access this ${resourceName}`)

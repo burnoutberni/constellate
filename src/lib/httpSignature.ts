@@ -39,7 +39,14 @@ export function signRequest(
             if (header === '(request-target)') {
                 return `(request-target): ${method.toLowerCase()} ${path}`
             }
-            return `${header}: ${headers[header]}`
+            // Find header value case-insensitively
+            const headerLower = header.toLowerCase()
+            const headerValue = headers[headerLower] || 
+                Object.entries(headers).find(([key]) => key.toLowerCase() === headerLower)?.[1]
+            if (!headerValue) {
+                throw new Error(`Missing header: ${header}`)
+            }
+            return `${header}: ${headerValue}`
         })
         .join('\n')
 
@@ -91,18 +98,24 @@ export async function verifySignature(
         }
 
         // Build signature string
-        const signatureString = headersToVerify
-            .map((header) => {
-                if (header === '(request-target)') {
-                    return `(request-target): ${method.toLowerCase()} ${path}`
-                }
-                const headerValue = headers[header.toLowerCase()]
-                if (!headerValue) {
-                    console.error(`[Signature] Missing header: ${header}`)
-                }
-                return `${header}: ${headerValue || ''}`
-            })
-            .join('\n')
+        const signatureStringParts: string[] = []
+        for (const header of headersToVerify) {
+            if (header === '(request-target)') {
+                signatureStringParts.push(`(request-target): ${method.toLowerCase()} ${path}`)
+                continue
+            }
+            // Find header value case-insensitively
+            const headerLower = header.toLowerCase()
+            const headerValue = headers[headerLower] || 
+                Object.entries(headers).find(([key]) => key.toLowerCase() === headerLower)?.[1]
+            if (!headerValue) {
+                console.error(`[Signature] Missing header: ${header}`)
+                return false
+            }
+            // Use the original header name from headersToVerify (as it was signed)
+            signatureStringParts.push(`${header}: ${headerValue}`)
+        }
+        const signatureString = signatureStringParts.join('\n')
 
         // Verify signature
         const verify = createVerify('SHA256')
