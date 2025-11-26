@@ -11,11 +11,13 @@ services:
       - BETTER_AUTH_URL=http://test.local
       - BETTER_AUTH_SECRET=test-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
+      - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
     volumes:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
       - test-data:/app/prisma
+      - test-keys:/app/.keys
     networks:
       - stellar-network
     restart: unless-stopped
@@ -33,11 +35,13 @@ services:
       - BETTER_AUTH_URL=http://app1.local
       - BETTER_AUTH_SECRET=app1-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
+      - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
     volumes:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
       - app1-data:/app/prisma
+      - app1-keys:/app/.keys
     networks:
       - stellar-network
     extra_hosts:
@@ -58,11 +62,13 @@ services:
       - BETTER_AUTH_URL=http://app2.local
       - BETTER_AUTH_SECRET=app2-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
+      - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
     volumes:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
       - app2-data:/app/prisma
+      - app2-keys:/app/.keys
     networks:
       - stellar-network
     extra_hosts:
@@ -93,6 +99,9 @@ volumes:
   test-data:
   app1-data:
   app2-data:
+  test-keys:
+  app1-keys:
+  app2-keys:
   caddy-data:
   caddy-config:
 
