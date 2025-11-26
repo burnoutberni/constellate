@@ -7,7 +7,6 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { PrismaClient } from '@prisma/client'
 import activitypubRoutes from './activitypub.js'
 import eventsRoutes from './events.js'
 import attendanceRoutes from './attendance.js'
@@ -21,13 +20,21 @@ import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
+import { securityHeaders } from './middleware/security.js'
+import { handleError } from './lib/errors.js'
+import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
-// Middleware
+// Global error handler
+app.onError((err, c) => {
+    return handleError(err, c)
+})
+
+// Middleware (order matters)
 app.use('*', logger())
+app.use('*', securityHeaders) // Security headers first
 app.use('*', cors({
     origin: config.corsOrigins,
     credentials: true,
@@ -115,4 +122,4 @@ serve({
     port: config.port,
 })
 
-export { app, prisma }
+export { app }

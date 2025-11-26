@@ -4,12 +4,12 @@
  */
 
 import { Hono, Context } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { prisma } from './lib/prisma.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -17,7 +17,6 @@ declare module 'hono' {
     }
 }
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Event validation schema
 const EventSchema = z.object({

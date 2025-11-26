@@ -4,15 +4,14 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { getBaseUrl, createOrderedCollection, createOrderedCollectionPage } from './lib/activitypubHelpers.js'
 import { verifySignature } from './lib/httpSignature.js'
 import { ActivitySchema, PersonSchema, EventSchema } from './lib/activitypubSchemas.js'
 import { ACTIVITYPUB_CONTEXTS, ContentType, ObjectType, PAGINATION } from './constants/activitypub.js'
 import { handleActivity } from './federation.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // WebFinger discovery
 app.get('/.well-known/webfinger', async (c) => {

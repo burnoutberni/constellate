@@ -35,6 +35,9 @@ model User {
   privateKey       String? // PEM format RSA private key (only for local users)
   inboxUrl         String? // Remote user's inbox URL
   sharedInboxUrl   String? // Remote user's shared inbox URL
+  
+  // Admin role
+  isAdmin          Boolean @default(false) // Admin users can moderate content
 
   // Relations
   events          Event[]

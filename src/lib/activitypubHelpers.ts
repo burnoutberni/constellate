@@ -3,7 +3,6 @@
  * Utility functions for ActivityPub operations
  */
 
-import { PrismaClient } from '@prisma/client'
 import { safeFetch } from './ssrfProtection.js'
 import {
     ACTIVITYPUB_CONTEXTS,
@@ -12,8 +11,7 @@ import {
     PAGINATION,
 } from '../constants/activitypub.js'
 import { config } from '../config.js'
-
-const prisma = new PrismaClient()
+import { prisma } from './prisma.js'
 
 /**
  * Gets the base URL for this instance

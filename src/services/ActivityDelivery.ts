@@ -3,7 +3,6 @@
  * Handles delivery of ActivityPub activities to remote inboxes
  */
 
-import { PrismaClient } from '@prisma/client'
 import { signRequest, createDigest } from '../lib/httpSignature.js'
 import { safeFetch } from '../lib/ssrfProtection.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
@@ -11,8 +10,7 @@ import { resolveInboxes } from '../lib/audience.js'
 import type { Addressing } from '../lib/audience.js'
 import { ContentType } from '../constants/activitypub.js'
 import { decryptPrivateKey } from '../lib/encryption.js'
-
-const prisma = new PrismaClient()
+import { prisma } from '../lib/prisma.js'
 
 /**
  * Delivers an activity to a single inbox

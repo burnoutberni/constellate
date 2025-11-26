@@ -4,12 +4,11 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from './lib/activitypubHelpers.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Search validation schema
 const SearchQuerySchema = z.object({

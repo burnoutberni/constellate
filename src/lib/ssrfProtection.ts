@@ -72,19 +72,38 @@ export function isUrlSafe(urlString: string): boolean {
 }
 
 /**
- * Validates and fetches a URL with SSRF protection
+ * Validates and fetches a URL with SSRF protection and timeout
  * @param url - The URL to fetch
  * @param options - Fetch options
+ * @param timeoutMs - Request timeout in milliseconds (default: 30 seconds)
  * @returns Fetch response
- * @throws Error if URL is not safe
+ * @throws Error if URL is not safe or request times out
  */
 export async function safeFetch(
     url: string,
-    options?: RequestInit
+    options?: RequestInit,
+    timeoutMs: number = 30000 // 30 seconds default
 ): Promise<Response> {
     if (!isUrlSafe(url)) {
         throw new Error(`URL is not safe to fetch: ${url}`)
     }
 
-    return fetch(url, options)
+    // Create AbortController for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        return response
+    } catch (error: any) {
+        clearTimeout(timeoutId)
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeoutMs}ms: ${url}`)
+        }
+        throw error
+    }
 }

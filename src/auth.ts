@@ -4,13 +4,11 @@
  */
 
 import { betterAuth } from 'better-auth'
-import { PrismaClient } from '@prisma/client'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { generateKeyPairSync } from 'crypto'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
-
-const prisma = new PrismaClient()
+import { prisma } from './lib/prisma.js'
 
 // Helper function to generate keys for users
 export async function generateUserKeys(userId: string, username: string) {

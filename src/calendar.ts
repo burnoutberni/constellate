@@ -4,11 +4,10 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import ical, { ICalEventStatus } from 'ical-generator'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Export single event as ICS
 app.get('/:id/export.ics', async (c) => {

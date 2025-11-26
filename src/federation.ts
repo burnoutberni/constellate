@@ -3,7 +3,6 @@
  * Process incoming ActivityPub activities
  */
 
-import { PrismaClient } from '@prisma/client'
 import {
     ActivityType,
     ObjectType,
@@ -22,8 +21,7 @@ import {
     broadcast,
     BroadcastEvents,
 } from './realtime.js'
-
-const prisma = new PrismaClient()
+import { prisma } from './lib/prisma.js'
 
 /**
  * Main activity handler - routes to specific handlers

@@ -4,16 +4,15 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { buildLikeActivity, buildUndoActivity } from './services/ActivityBuilder.js'
 import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { requireAuth } from './middleware/auth.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { getPublicAddressing } from './lib/audience.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Like event
 app.post('/:id/like', async (c) => {

@@ -3,11 +3,9 @@
  * Determines recipients for ActivityPub activities
  */
 
-import { PrismaClient } from '@prisma/client'
 import { PUBLIC_COLLECTION } from '../constants/activitypub.js'
 import { getBaseUrl } from './activitypubHelpers.js'
-
-const prisma = new PrismaClient()
+import { prisma } from './prisma.js'
 
 export interface Addressing {
     to: string[]

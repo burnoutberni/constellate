@@ -4,12 +4,11 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
-import { requireAuth } from './middleware/auth.js'
+import { requireAuth, requireAdmin } from './middleware/auth.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Block user schema
 const BlockUserSchema = z.object({
@@ -130,10 +129,7 @@ app.get('/block/users', async (c) => {
 // Block a domain (admin only)
 app.post('/block/domain', async (c) => {
     try {
-        const userId = requireAuth(c)
-
-        // TODO: Check if user is admin
-        // For now, any authenticated user can block domains
+        await requireAdmin(c)
 
         const body = await c.req.json()
         const { domain, reason } = BlockDomainSchema.parse(body)
@@ -163,9 +159,7 @@ app.post('/block/domain', async (c) => {
 // Unblock a domain (admin only)
 app.delete('/block/domain/:domain', async (c) => {
     try {
-        const userId = requireAuth(c)
-
-        // TODO: Check if user is admin
+        await requireAdmin(c)
 
         const { domain } = c.req.param()
 
@@ -180,12 +174,10 @@ app.delete('/block/domain/:domain', async (c) => {
     }
 })
 
-// Get blocked domains
+// Get blocked domains (admin only)
 app.get('/block/domains', async (c) => {
     try {
-        const userId = requireAuth(c)
-
-        // TODO: Check if user is admin
+        await requireAdmin(c)
 
         const blocks = await prisma.blockedDomain.findMany({
             orderBy: { createdAt: 'desc' },
@@ -251,9 +243,7 @@ app.post('/report', async (c) => {
 // Get reports (admin only)
 app.get('/reports', async (c) => {
     try {
-        const userId = requireAuth(c)
-
-        // TODO: Check if user is admin
+        await requireAdmin(c)
 
         const status = c.req.query('status') as 'pending' | 'resolved' | 'dismissed' | undefined
         const page = parseInt(c.req.query('page') || '1')
@@ -299,9 +289,7 @@ app.get('/reports', async (c) => {
 // Update report status (admin only)
 app.put('/reports/:id', async (c) => {
     try {
-        const userId = requireAuth(c)
-
-        // TODO: Check if user is admin
+        await requireAdmin(c)
 
         const { id } = c.req.param()
         const body = await c.req.json()

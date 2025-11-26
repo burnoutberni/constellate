@@ -1,7 +1,7 @@
 # Security Audit & Refactoring Proposals
 ## Stellar Calendar - ActivityPub Federated Calendar Platform
 
-**Date:** 2025-01-27  
+**Date:** 2025-11-26
 **Scope:** Full codebase security review, code quality assessment, and maintainability analysis
 
 ---
@@ -10,17 +10,29 @@
 
 This audit identifies **critical security vulnerabilities**, **moderate security concerns**, and **code quality improvements** across the codebase. The application implements ActivityPub federation with HTTP signatures, SSRF protection, and user authentication.
 
-**Update (2025-01-27):** All critical security issues have been resolved:
-- ✅ Authentication inconsistencies fixed - all endpoints use `requireAuth(c)`
-- ✅ Signature verification bug fixed
-- ✅ Private keys encrypted at rest
-- ✅ Environment validation implemented
-- ✅ Activity processing race condition fixed
+**Update (2025-11-26):** We have verified the following fixes and identified remaining issues:
 
-**Remaining High Priority Issues:**
-- Multiple PrismaClient instances (17 instances) - connection pool risk
-- Missing authorization helpers (`requireOwnership`, `requireAdmin`)
-- Missing admin role support for moderation endpoints
+**Verified Fixed:**
+- ✅ Authentication inconsistencies fixed - `requireAuth(c)` is consistently used in sensitive endpoints.
+- ✅ Signature verification bug fixed - Logic is correct, though replay protection is missing.
+- ✅ Private keys encrypted at rest - AES-256-GCM encryption is correctly implemented.
+- ✅ Environment validation implemented - Config is centralized.
+- ✅ Prisma client singleton implemented - Connection management is improved.
+- ✅ Authorization helpers implemented - `requireOwnership` and `requireAdmin` are available.
+- ✅ Admin role support added.
+- ✅ Structured error handling implemented.
+- ✅ Security headers middleware implemented.
+- ✅ Request timeouts added to external fetches.
+- ✅ CORS configuration made environment-variable based.
+
+**Remaining Priority Issues:**
+- 🟠 **HIGH** - SSRF Protection is weak (Regex-based, no DNS resolution, no redirect handling).
+- 🟠 **HIGH** - No CSRF Protection for state-changing operations.
+- 🟡 **MEDIUM** - Rate limiting middleware exists but is **NOT APPLIED** to public endpoints (`search.ts`, `userSearch.ts`).
+- 🟡 **MEDIUM** - SSE (`realtime.ts`) allows anonymous connections.
+- 🟡 **MEDIUM** - Input sanitization is missing in backend (relies on frontend escaping).
+- 🟡 **MEDIUM** - Activity IDs use `Date.now()` (collision risk).
+- 🟡 **MEDIUM** - HTTP Signature Replay Attack protection is missing.
 
 **Priority Levels:**
 - 🔴 **CRITICAL** - Immediate action required
@@ -34,54 +46,13 @@ This audit identifies **critical security vulnerabilities**, **moderate security
 
 ### ✅ FIXED: Inconsistent Authentication Mechanisms
 
-**Status:** All endpoints now use `requireAuth(c)` helper consistently. All `x-user-id` header usage has been removed.
+**Status:** Verified. All endpoints in `likes.ts`, `attendance.ts`, `events.ts`, `profile.ts`, `moderation.ts`, `comments.ts` use `requireAuth(c)`.
 
 ---
 
-### 🟠 HIGH: Missing Authorization Helpers
+### ✅ FIXED: Missing Authorization Helpers
 
-**Issue:** While authentication is now consistent, authorization helpers are missing:
-
-1. **No `requireOwnership()` helper** - Ownership checks are implemented inline (e.g., `src/events.ts:741`), but a reusable helper would improve consistency
-2. **No `requireAdmin()` helper** - Moderation endpoints use `requireAuth()` but don't verify admin status
-3. **Missing `isAdmin` field** - User model doesn't have admin role field
-
-**Location:**
-- `src/middleware/auth.ts`: Only has `requireAuth()`, missing ownership and admin helpers
-- `src/moderation.ts`: All endpoints use `requireAuth()` but no admin verification
-- `src/events.ts`: Ownership check implemented inline (line 741)
-
-**Proposal:**
-- Create `requireOwnership()` helper for consistent ownership verification
-- Create `requireAdmin()` helper for moderation endpoints
-- Add `isAdmin` boolean field to User model in Prisma schema
-- Update moderation endpoints to use `requireAdmin()`
-
-**Refactor:**
-```typescript
-// Add to src/middleware/auth.ts
-export async function requireOwnership(
-    c: Context, 
-    resourceUserId: string | null,
-    resourceName: string = 'resource'
-): Promise<void> {
-    const userId = requireAuth(c)
-    if (resourceUserId !== userId) {
-        throw new Error(`Forbidden: You don't own this ${resourceName}`)
-    }
-}
-
-export async function requireAdmin(c: Context): Promise<void> {
-    const userId = requireAuth(c)
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { isAdmin: true }
-    })
-    if (!user?.isAdmin) {
-        throw new Error('Forbidden: Admin access required')
-    }
-}
-```
+**Status:** Verified. `requireOwnership` and `requireAdmin` exist in `src/middleware/auth.ts` and are used.
 
 ---
 
@@ -161,6 +132,7 @@ export function parseActorUrl(url: string, baseUrl: string): {
 ### 🟡 MEDIUM: XSS Risk in User-Generated Content
 
 **Issue:** User-provided content (bio, comments, event descriptions) is stored and displayed without explicit sanitization.
+**Verification:** Frontend (React) escapes content by default, reducing immediate risk. However, storing raw HTML is bad practice and risky for other clients.
 
 **Location:**
 - All user input fields
@@ -178,7 +150,7 @@ export function parseActorUrl(url: string, baseUrl: string): {
 
 ### ✅ FIXED: Signature Verification Bug
 
-**Status:** Variable name bug fixed. Signature verification now uses correct `signature` variable.
+**Status:** Verified. Variable name bug is fixed.
 
 ---
 
@@ -186,14 +158,13 @@ export function parseActorUrl(url: string, baseUrl: string): {
 
 **Issue:** While the critical bug is fixed, signature verification could be improved:
 
-1. **Host header manipulation** (`src/activitypub.ts:479-482`): Modifies host header for reverse proxy, but logic may be flawed
+1. **Host header manipulation** (`src/activitypub.ts`): Logic overrides Host header with target host.
 2. **Missing header validation**: Doesn't verify all required headers are present before verification
-3. **No signature replay attack protection**: Missing timestamp validation
+3. **No signature replay attack protection**: Missing timestamp validation (Confirmed).
 
 **Location:**
-- `src/activitypub.ts`: Lines 460-489 (personal inbox)
-- `src/activitypub.ts`: Lines 518-546 (shared inbox)
-- `src/lib/httpSignature.ts`: Lines 64-125
+- `src/activitypub.ts`: Personal inbox & Shared inbox
+- `src/lib/httpSignature.ts`
 
 **Proposal:**
 1. **Improve host header handling** for reverse proxies
@@ -263,12 +234,12 @@ export async function verifySignature(
 
 ### 🟠 HIGH: SSRF Protection Gaps
 
-**Issue:** SSRF protection exists but has limitations:
+**Issue:** SSRF protection exists but has limitations (Verified):
 
-1. **Development mode bypass** (`src/lib/ssrfProtection.ts:35-39`): Allows localhost in dev
+1. **Development mode bypass**: Allows localhost in dev
 2. **IPv6 validation incomplete**: Regex patterns may not catch all IPv6 private ranges
-3. **DNS rebinding risk**: No validation that resolved IP matches hostname
-4. **No redirect protection**: `safeFetch` doesn't follow redirects safely
+3. **DNS rebinding risk**: No validation that resolved IP matches hostname (Confirmed).
+4. **No redirect protection**: `safeFetch` doesn't follow redirects safely (Confirmed).
 
 **Location:**
 - `src/lib/ssrfProtection.ts`
@@ -328,10 +299,10 @@ export async function safeFetch(
 
 ### 🟡 MEDIUM: Missing Rate Limiting
 
-**Issue:** No rate limiting on external fetch operations, allowing potential DoS.
+**Issue:** Rate limiting middleware exists (`src/middleware/rateLimit.ts`) but is **NOT APPLIED** to public endpoints like `search.ts` and `userSearch.ts`.
 
 **Proposal:**
-- Add rate limiting for external fetches
+- Apply rate limiting for external fetches
 - Implement request queuing
 - Add timeout handling
 
@@ -341,7 +312,7 @@ export async function safeFetch(
 
 ### ✅ FIXED: Activity Processing Race Conditions
 
-**Status:** Race condition fixed. Activity deduplication now uses atomic `create()` with unique constraint and handles `P2002` errors to prevent duplicate processing.
+**Status:** Verified.
 
 ---
 
@@ -365,7 +336,7 @@ export async function safeFetch(
 **Issue:** Activity IDs are generated using timestamps, which could collide.
 
 **Location:**
-- `src/services/ActivityBuilder.ts`: Multiple activity builders use `Date.now()`
+- `src/services/ActivityBuilder.ts`: Multiple activity builders use `Date.now()` (Confirmed).
 
 **Proposal:**
 - Use UUIDs or cuid for activity IDs
@@ -377,7 +348,7 @@ export async function safeFetch(
 
 ### ✅ FIXED: Private Key Storage
 
-**Status:** Private keys are now encrypted at rest using AES-256-GCM encryption. Encryption utilities implemented in `src/lib/encryption.ts`. Keys are encrypted before storage and decrypted when needed. Supports migration from plaintext keys in development.
+**Status:** Verified. Private keys are encrypted at rest using AES-256-GCM encryption.
 
 **Remaining Considerations:**
 - Key rotation mechanism not yet implemented
@@ -409,124 +380,23 @@ export async function safeFetch(
 
 ## 7. Error Handling & Information Disclosure
 
-### 🟠 HIGH: Information Disclosure in Errors
+### ✅ FIXED: Information Disclosure in Errors
 
-**Issue:** Error messages may leak sensitive information:
-
-1. **Stack traces** in production responses
-2. **Database errors** exposed to clients
-3. **File paths** in error messages
-
-**Location:**
-- Throughout codebase - all catch blocks return generic errors, but console.error may log sensitive info
-
-**Proposal:**
-1. **Structured error handling** with error codes
-2. **Sanitize error messages** before sending to clients
-3. **Log errors securely** without sensitive data
-4. **Use error monitoring** (Sentry, etc.)
-
-**Refactor:**
-```typescript
-// Create error handling utility
-export class AppError extends Error {
-    constructor(
-        public code: string,
-        message: string,
-        public statusCode: number = 500,
-        public details?: any
-    ) {
-        super(message)
-        this.name = 'AppError'
-    }
-}
-
-export function handleError(error: unknown, c: Context): Response {
-    if (error instanceof AppError) {
-        return c.json({
-            error: error.code,
-            message: error.message,
-            ...(process.env.NODE_ENV === 'development' && { details: error.details })
-        }, error.statusCode)
-    }
-    
-    // Log full error server-side
-    console.error('Unhandled error:', error)
-    
-    // Return generic error to client
-    return c.json({
-        error: 'INTERNAL_ERROR',
-        message: 'An internal error occurred'
-    }, 500)
-}
-```
+**Status:** Verified. Structured error handling implemented.
 
 ---
 
-### 🟡 MEDIUM: Missing Request Timeouts
+### ✅ FIXED: Missing Request Timeouts
 
-**Issue:** No explicit timeouts on external requests.
-
-**Location:**
-- `src/lib/activitypubHelpers.ts`: `fetchActor`, `resolveWebFinger`
-- `src/services/ActivityDelivery.ts`: `deliverToInbox`
-
-**Proposal:**
-- Add timeout to all fetch operations
-- Use AbortController for timeouts
-- Implement retry logic with exponential backoff (partially exists)
+**Status:** Verified. `safeFetch()` has 30-second default timeout.
 
 ---
 
 ## 8. Code Quality & Maintainability
 
-### 🟠 HIGH: Prisma Client Instances
+### ✅ FIXED: Prisma Client Instances
 
-**Issue:** **17 separate PrismaClient instances** created throughout codebase. This can lead to connection pool exhaustion and performance issues.
-
-**Location:**
-- `src/lib/activitypubHelpers.ts`
-- `src/server.ts`
-- `src/federation.ts`
-- `src/moderation.ts`
-- `src/profile.ts`
-- `src/events.ts`
-- `src/services/ActivityDelivery.ts`
-- `src/auth.ts`
-- `src/activitypub.ts`
-- `src/lib/audience.ts`
-- `src/comments.ts`
-- `src/attendance.ts`
-- `src/likes.ts`
-- `src/userSearch.ts`
-- `src/middleware/auth.ts`
-- `src/calendar.ts`
-- `src/search.ts`
-
-**Risk:** Each instance creates its own connection pool. With 17 instances, this can exhaust database connections, especially with SQLite.
-
-**Proposal:**
-- **Create singleton Prisma client** to avoid connection pool exhaustion
-- **Export from central location** (`src/lib/prisma.ts`)
-- **Replace all `new PrismaClient()` with import from singleton**
-
-**Refactor:**
-```typescript
-// src/lib/prisma.ts
-import { PrismaClient } from '@prisma/client'
-
-const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined
-}
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-})
-
-if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma
-}
-```
+**Status:** Verified. Singleton pattern used.
 
 ---
 
@@ -577,20 +447,13 @@ if (process.env.NODE_ENV !== 'production') {
 
 ### ✅ FIXED: Hardcoded Defaults
 
-**Status:** Centralized configuration implemented in `src/config.ts`. Environment variables are validated on startup. Required variables fail fast in production. Sensible defaults provided for development only.
+**Status:** Verified. Centralized configuration implemented in `src/config.ts`.
 
 ---
 
-### 🟡 MEDIUM: CORS Configuration
+### ✅ FIXED: CORS Configuration
 
-**Issue:** CORS allows localhost origins - should be configurable.
-
-**Location:**
-- `src/server.ts`: Lines 30-33
-
-**Proposal:**
-- Make CORS origins configurable via environment variables
-- Validate origins against allowlist
+**Status:** Verified. CORS configuration made environment-variable based.
 
 ---
 
@@ -598,7 +461,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 ### 🟡 MEDIUM: SSE Authentication
 
-**Issue:** SSE endpoint doesn't require authentication, but uses optional userId.
+**Issue:** SSE endpoint (`src/realtime.ts`) doesn't require authentication, but uses optional userId. Allows anonymous connections.
 
 **Location:**
 - `src/realtime.ts`: Line 23-28
@@ -626,15 +489,19 @@ if (process.env.NODE_ENV !== 'production') {
 
 ## 11. Missing Security Features
 
-### 🟠 HIGH: No Rate Limiting
+### 🟡 MEDIUM: Rate Limiting Not Applied
 
-**Issue:** No rate limiting on any endpoints.
+**Issue:** Rate limiting middleware exists but not yet applied to routes.
+
+**Status:** 
+- Rate limiting middleware implemented in `src/middleware/rateLimit.ts`
+- **Action Required:** Apply rate limiting middleware to sensitive endpoints (e.g. `search.ts`, `userSearch.ts`).
 
 **Proposal:**
-- Implement rate limiting middleware
-- Use Redis or in-memory store
-- Different limits for authenticated vs anonymous
-- Stricter limits for sensitive operations
+- Apply `strictRateLimit` to auth endpoints (login, signup)
+- Apply `moderateRateLimit` to write operations
+- Apply `lenientRateLimit` to read operations
+- Consider Redis for multi-instance deployments
 
 ---
 
@@ -649,17 +516,9 @@ if (process.env.NODE_ENV !== 'production') {
 
 ---
 
-### 🟡 MEDIUM: Missing Security Headers
+### ✅ FIXED: Missing Security Headers
 
-**Issue:** No security headers set.
-
-**Proposal:**
-- Add security headers middleware:
-  - `Content-Security-Policy`
-  - `X-Frame-Options`
-  - `X-Content-Type-Options`
-  - `Strict-Transport-Security` (if HTTPS)
-  - `Referrer-Policy`
+**Status:** Verified. Security headers middleware implemented.
 
 ---
 
@@ -716,35 +575,36 @@ if (process.env.NODE_ENV !== 'production') {
 
 ## Summary of Proposed Refactors
 
-### ✅ Completed Critical Fixes
+### ✅ Verified Fixed
 
-1. ✅ **Fixed authentication inconsistencies** - All endpoints now use `requireAuth(c)`, removed all `x-user-id` header usage
-2. ✅ **Fixed signature verification bug** - Variable name error in `activitypub.ts:484` corrected
-3. ✅ **Encrypted private keys** - AES-256-GCM encryption implemented for keys at rest
-4. ✅ **Added environment validation** - Centralized config with fail-fast validation
-5. ✅ **Fixed race condition** - Activity processing deduplication now uses atomic operations
+1. ✅ **Fixed authentication inconsistencies**
+2. ✅ **Fixed signature verification bug**
+3. ✅ **Encrypted private keys**
+4. ✅ **Added environment validation**
+5. ✅ **Fixed race condition**
+6. ✅ **Refactored Prisma client**
+7. ✅ **Added authorization helpers**
+8. ✅ **Added admin role support**
+9. ✅ **Improved error handling**
+10. ✅ **Added security headers**
+11. ✅ **Added request timeouts**
+12. ✅ **Made CORS configurable**
 
-### Immediate Actions (High Priority)
+### Remaining High Priority
 
-1. **Refactor Prisma client** - Replace 17 instances with singleton pattern (connection pool risk)
-2. **Add authorization helpers** - Implement `requireOwnership()` and `requireAdmin()` helpers
-3. **Add admin role support** - Add `isAdmin` field to User model and protect moderation endpoints
+1. **Improve SSRF protection** - DNS validation, redirect handling
+2. **Add CSRF protection**
+3. **Apply rate limiting** - Middleware exists, needs to be applied to routes
+4. **Fix Activity ID uniqueness** - Use UUIDs
 
-### High Priority
+### Remaining Medium Priority
 
-1. **Add rate limiting** - Protect all endpoints
-2. **Improve SSRF protection** - DNS validation, redirect handling
-3. **Add authorization checks** - Verify ownership on all operations
-4. **Improve error handling** - Structured errors, no information disclosure
-5. **Add security headers** - CSP, HSTS, etc.
-
-### Medium Priority
-
-1. **Refactor Prisma client** - Singleton pattern
-2. **Improve type safety** - Remove `any` types
-3. **Add input sanitization** - HTML sanitization
-4. **Improve code organization** - Split large files
-5. **Add comprehensive logging** - Structured logging
+1. **Add input sanitization** - HTML sanitization for user content
+2. **Secure SSE** - Require auth
+3. **Improve signature verification** - Add replay protection
+4. **Improve type safety** - Remove `any` types
+5. **Improve code organization** - Split large files
+6. **Add comprehensive logging** - Structured logging
 
 ### Low Priority
 
@@ -783,4 +643,3 @@ if (process.env.NODE_ENV !== 'production') {
 ---
 
 **End of Security Audit**
-

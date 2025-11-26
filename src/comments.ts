@@ -4,16 +4,15 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { buildCreateCommentActivity, buildDeleteCommentActivity } from './services/ActivityBuilder.js'
 import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Comment validation schema
 const CommentSchema = z.object({

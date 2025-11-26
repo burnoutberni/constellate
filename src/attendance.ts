@@ -4,7 +4,6 @@
  */
 
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import {
     buildAttendingActivity,
@@ -17,9 +16,9 @@ import { AttendanceStatus } from './constants/activitypub.js'
 import { requireAuth } from './middleware/auth.js'
 import { broadcast } from './realtime.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
+import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
-const prisma = new PrismaClient()
 
 // Attendance validation schema
 const AttendanceSchema = z.object({
