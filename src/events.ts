@@ -4,7 +4,7 @@
  */
 
 import { Hono, Context } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
@@ -77,9 +77,9 @@ app.post('/', async (c) => {
         // Use deliverActivity with proper addressing to reach all recipients
         const { getPublicAddressing } = await import('./lib/audience.js')
         const addressing = {
-            to: activity.to || [],
-            cc: activity.cc || [],
-            bcc: [],
+            to: Array.isArray(activity.to) ? activity.to : activity.to ? [activity.to] : [],
+            cc: Array.isArray(activity.cc) ? activity.cc : activity.cc ? [activity.cc] : [],
+            bcc: [] as string[],
         }
         await deliverActivity(activity, addressing, userId)
 
@@ -115,8 +115,8 @@ app.post('/', async (c) => {
 
         return c.json(event, 201)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error creating event:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -371,13 +371,17 @@ app.get('/by-user/:username/:eventId', async (c) => {
                 })
 
                 if (remoteResponse.ok) {
-                    const remoteEvent: any = await remoteResponse.json()
+                    const remoteEvent = await remoteResponse.json() as Record<string, unknown>
 
                     // Cache attendance from remote event
-                    if (remoteEvent.replies?.items) {
-                        for (const reply of remoteEvent.replies.items) {
-                            if (reply.type === 'Accept' || reply.type === 'TentativeAccept' || reply.type === 'Reject') {
-                                const actorUrl = reply.actor
+                    if (remoteEvent && typeof remoteEvent === 'object' && 'replies' in remoteEvent) {
+                        const replies = remoteEvent.replies as { items?: unknown[] } | undefined
+                        if (replies?.items) {
+                            for (const reply of replies.items) {
+                                const replyObj = reply as Record<string, unknown>
+                                const replyType = replyObj.type
+                                if (replyType === 'Accept' || replyType === 'TentativeAccept' || replyType === 'Reject') {
+                                    const actorUrl = replyObj.actor as string | undefined
 
                                 // Find or cache the remote user
                                 let attendeeUser = await prisma.user.findFirst({
@@ -387,7 +391,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                 if (!attendeeUser) {
                                     // Fetch and cache the remote user
                                     const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                    const actor = await fetchActor(actorUrl)
+                                    const actor = actorUrl ? await fetchActor(actorUrl) : null
                                     if (actor) {
                                         attendeeUser = await cacheRemoteUser(actor)
                                     }
@@ -396,8 +400,8 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                 if (attendeeUser) {
                                     // Determine status
                                     let status = 'attending'
-                                    if (reply.type === 'TentativeAccept') status = 'maybe'
-                                    if (reply.type === 'Reject') status = 'not_attending'
+                                    if (replyType === 'TentativeAccept') status = 'maybe'
+                                    if (replyType === 'Reject') status = 'not_attending'
 
                                     // Cache attendance
                                     await prisma.eventAttendance.upsert({
@@ -415,10 +419,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                         },
                                     })
                                 }
-                            } else if (reply.type === 'Note') {
+                            } else if (replyType === 'Note') {
                                 // Cache comment
-                                const actorUrl = reply.attributedTo
-                                const content = reply.content
+                                const actorUrl = replyObj.attributedTo as string | undefined
+                                const content = replyObj.content as string | undefined
+
+                                if (!actorUrl || !content) continue
 
                                 // Find or cache the remote user
                                 let authorUser = await prisma.user.findFirst({
@@ -433,14 +439,14 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                     }
                                 }
 
-                                if (authorUser) {
+                                if (authorUser && content && replyObj.id) {
                                     await prisma.comment.upsert({
-                                        where: { externalId: reply.id },
+                                        where: { externalId: replyObj.id as string },
                                         update: {
                                             content,
                                         },
                                         create: {
-                                            externalId: reply.id,
+                                            externalId: replyObj.id as string,
                                             content,
                                             eventId: event.id,
                                             authorId: authorUser.id,
@@ -450,17 +456,22 @@ app.get('/by-user/:username/:eventId', async (c) => {
                             }
                         }
                     }
+                }
 
                     // Cache likes from remote event
-                    if (remoteEvent.likes?.items) {
-                        for (const like of remoteEvent.likes.items) {
-                            const actorUrl = like.actor || like
+                    const likes = remoteEvent.likes as { items?: unknown[] } | undefined
+                    if (likes?.items) {
+                        for (const like of likes.items) {
+                            const likeObj = like as Record<string, unknown> | string
+                            const actorUrl = typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj
+                                ? (likeObj.actor as string)
+                                : typeof likeObj === 'string' ? likeObj : undefined
 
                             let likerUser = await prisma.user.findFirst({
                                 where: { externalActorUrl: actorUrl },
                             })
 
-                            if (!likerUser) {
+                            if (!likerUser && actorUrl) {
                                 const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
                                 const actor = await fetchActor(actorUrl)
                                 if (actor) {
@@ -487,10 +498,11 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     }
 
                     // Update event URL if present in remote event
-                    if (remoteEvent.url && remoteEvent.url !== event.url) {
+                    const remoteUrl = remoteEvent.url as string | undefined
+                    if (remoteUrl && remoteUrl !== event.url) {
                         await prisma.event.update({
                             where: { id: event.id },
-                            data: { url: remoteEvent.url },
+                            data: { url: remoteUrl },
                         })
                     }
 
@@ -761,8 +773,8 @@ app.put('/:id', async (c) => {
 
         return c.json(event)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)
         return c.json({ error: 'Internal server error' }, 500)

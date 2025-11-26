@@ -3,7 +3,7 @@
  * Prevents connection pool exhaustion by using a single instance
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
 // Determine log level based on environment
 // Set PRISMA_LOG_QUERIES=true to enable query logging
 const shouldLogQueries = process.env.PRISMA_LOG_QUERIES === 'true'
-const logLevel = shouldLogQueries 
+const logLevel: Prisma.LogLevel[] = shouldLogQueries 
     ? ['query', 'error', 'warn']
     : process.env.NODE_ENV === 'development'
     ? ['error', 'warn']

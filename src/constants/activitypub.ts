@@ -52,19 +52,19 @@ export const CollectionType = {
     ORDERED_COLLECTION_PAGE: 'OrderedCollectionPage',
 } as const
 
-// Event Status
-export const EventStatus = {
-    SCHEDULED: 'EventScheduled',
-    CANCELLED: 'EventCancelled',
-    POSTPONED: 'EventPostponed',
-} as const
+// Event Status (TypeScript enum for Zod v4 compatibility)
+export enum EventStatus {
+    SCHEDULED = 'EventScheduled',
+    CANCELLED = 'EventCancelled',
+    POSTPONED = 'EventPostponed',
+}
 
-// Event Attendance Mode
-export const EventAttendanceMode = {
-    OFFLINE: 'OfflineEventAttendanceMode',
-    ONLINE: 'OnlineEventAttendanceMode',
-    MIXED: 'MixedEventAttendanceMode',
-} as const
+// Event Attendance Mode (TypeScript enum for Zod v4 compatibility)
+export enum EventAttendanceMode {
+    OFFLINE = 'OfflineEventAttendanceMode',
+    ONLINE = 'OnlineEventAttendanceMode',
+    MIXED = 'MixedEventAttendanceMode',
+}
 
 // Attendance Status (internal)
 export const AttendanceStatus = {

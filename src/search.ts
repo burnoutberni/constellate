@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
@@ -42,7 +42,7 @@ app.get('/', async (c) => {
         const skip = (page - 1) * limit
 
         // Build where clause
-        const where: any = {}
+        const where: Record<string, unknown> = {}
 
         // Text search in title and summary
         if (params.q) {
@@ -59,12 +59,12 @@ app.get('/', async (c) => {
 
         // Date range filter
         if (params.startDate || params.endDate) {
-            where.startTime = {}
+            where.startTime = {} as { gte?: Date; lte?: Date }
             if (params.startDate) {
-                where.startTime.gte = new Date(params.startDate)
+                (where.startTime as { gte: Date }).gte = new Date(params.startDate)
             }
             if (params.endDate) {
-                where.startTime.lte = new Date(params.endDate)
+                (where.startTime as { lte: Date }).lte = new Date(params.endDate)
             }
         }
 
@@ -147,8 +147,8 @@ app.get('/', async (c) => {
             },
         })
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Invalid search parameters', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Invalid search parameters', details: error.issues }, 400 as const)
         }
         console.error('Error searching events:', error)
         return c.json({ error: 'Internal server error' }, 500)

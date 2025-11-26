@@ -4,7 +4,8 @@
  */
 
 import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { Scalar } from '@scalar/hono-api-reference'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import activitypubRoutes from './activitypub.js'
@@ -25,7 +26,46 @@ import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
 
-const app = new Hono()
+const app = new OpenAPIHono()
+
+// OpenAPI Docs
+// Serve static OpenAPI specification
+app.get('/doc', async (c) => {
+    const fs = await import('fs/promises')
+    const path = await import('path')
+    const { fileURLToPath } = await import('url')
+
+    const __filename = fileURLToPath(import.meta.url)
+    const __dirname = path.dirname(__filename)
+    const openapiPath = path.join(__dirname, 'openapi.json')
+
+    try {
+        const spec = await fs.readFile(openapiPath, 'utf-8')
+        const openapi = JSON.parse(spec)
+
+        // Dynamically set server URL based on environment
+        const serverUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+        openapi.servers = [
+            {
+                url: serverUrl,
+                description: serverUrl.includes('localhost') ? 'Development server' : 'Docker instance'
+            }
+        ]
+
+        return c.json(openapi)
+    } catch (error) {
+        return c.json({ error: 'OpenAPI spec not found' }, 500)
+    }
+})
+
+app.get(
+    '/reference',
+    Scalar({
+        spec: {
+            url: '/doc',
+        },
+    } as any)
+)
 
 // Global error handler
 app.onError((err, c) => {

@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import {
     buildAttendingActivity,
     buildNotAttendingActivity,
@@ -148,8 +148,8 @@ app.post('/:id/attend', async (c) => {
 
         return c.json(attendance)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -256,9 +256,9 @@ app.delete('/:id/attend', async (c) => {
         // The original activity already includes userFollowersUrl in cc, which is preserved in undo
         const { deliverActivity } = await import('./services/ActivityDelivery.js')
         const addressing = {
-            to: undoActivity.to || [],
-            cc: undoActivity.cc || [],
-            bcc: [],
+            to: Array.isArray(undoActivity.to) ? undoActivity.to : undoActivity.to ? [undoActivity.to] : [],
+            cc: Array.isArray(undoActivity.cc) ? undoActivity.cc : undoActivity.cc ? [undoActivity.cc] : [],
+            bcc: [] as string[],
         }
         
         // Deliver using addressing (will resolve all recipients and deduplicate inboxes)
@@ -304,9 +304,9 @@ app.get('/:id/attendees', async (c) => {
 
         // Group by status
         const grouped = {
-            attending: attendees.filter((a: any) => a.status === AttendanceStatus.ATTENDING),
-            maybe: attendees.filter((a: any) => a.status === AttendanceStatus.MAYBE),
-            not_attending: attendees.filter((a: any) => a.status === AttendanceStatus.NOT_ATTENDING),
+            attending: attendees.filter((a) => a.status === AttendanceStatus.ATTENDING),
+            maybe: attendees.filter((a) => a.status === AttendanceStatus.MAYBE),
+            not_attending: attendees.filter((a) => a.status === AttendanceStatus.NOT_ATTENDING),
         }
 
         return c.json({

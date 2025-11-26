@@ -22,12 +22,13 @@ import {
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import type { Activity } from './lib/activitypubSchemas.js'
 
 /**
  * Main activity handler - routes to specific handlers
  * Uses atomic upsert to prevent race conditions in activity deduplication
  */
-export async function handleActivity(activity: any): Promise<void> {
+export async function handleActivity(activity: Activity): Promise<void> {
     try {
         // Use upsert with unique constraint to atomically check and mark as processed
         // This prevents race conditions where multiple requests process the same activity
@@ -43,9 +44,9 @@ export async function handleActivity(activity: any): Promise<void> {
                     expiresAt,
                 },
             })
-        } catch (error: any) {
+        } catch (error: unknown) {
             // If the activity already exists (P2002 = unique constraint violation), skip processing
-            if (error.code === 'P2002') {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
                 console.log(`Activity already processed: ${activity.id}`)
                 return
             }

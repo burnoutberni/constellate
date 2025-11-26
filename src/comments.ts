@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { buildCreateCommentActivity, buildDeleteCommentActivity } from './services/ActivityBuilder.js'
 import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
@@ -67,15 +67,7 @@ app.post('/:id/comments', async (c) => {
                 inReplyToId: inReplyToId || null,
             },
             include: {
-                author: {
-                    select: {
-                        id: true,
-                        username: true,
-                        name: true,
-                        profileImage: true,
-                        displayColor: true,
-                    },
-                },
+                author: true,
                 event: true,
             },
         })
@@ -113,7 +105,7 @@ app.post('/:id/comments', async (c) => {
         const isPublic = true
 
         const activity = buildCreateCommentActivity(
-            comment as any,
+            comment,
             eventAuthorUrl,
             eventAuthorFollowersUrl,
             parentCommentAuthorUrl,
@@ -157,8 +149,8 @@ app.post('/:id/comments', async (c) => {
 
         return c.json(comment, 201)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error creating comment:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -280,7 +272,7 @@ app.delete('/comments/:commentId', async (c) => {
 
         // Build Delete activity before deleting
         const activity = buildDeleteCommentActivity(
-            comment as any,
+            comment,
             eventAuthorUrl,
             eventAuthorFollowersUrl,
             parentCommentAuthorUrl,

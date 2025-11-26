@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 
@@ -68,8 +68,8 @@ app.post('/block/user', async (c) => {
 
         return c.json(block, 201)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error blocking user:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -148,8 +148,8 @@ app.post('/block/domain', async (c) => {
 
         return c.json(block, 201)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error blocking domain:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -232,8 +232,8 @@ app.post('/report', async (c) => {
 
         return c.json(report, 201)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error creating report:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -306,8 +306,8 @@ app.put('/reports/:id', async (c) => {
 
         return c.json(report)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error updating report:', error)
         return c.json({ error: 'Internal server error' }, 500)

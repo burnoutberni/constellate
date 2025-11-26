@@ -12,6 +12,19 @@ import {
 } from '../constants/activitypub.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
 import type { Event, User, Comment } from '@prisma/client'
+import type {
+    CreateActivity,
+    UpdateActivity,
+    DeleteActivity,
+    FollowActivity,
+    AcceptActivity,
+    RejectActivity,
+    LikeActivity,
+    UndoActivity,
+    AnnounceActivity,
+    TentativeAcceptActivity,
+    Activity,
+} from '../lib/activitypubSchemas.js'
 
 /**
  * Builds a Create activity for an event
@@ -19,7 +32,7 @@ import type { Event, User, Comment } from '@prisma/client'
 export function buildCreateEventActivity(
     event: Event & { user: User | null },
     userId: string
-): any {
+): CreateActivity {
     const baseUrl = getBaseUrl()
     const user = event.user!
     const actorUrl = `${baseUrl}/users/${user.username}`
@@ -27,7 +40,7 @@ export function buildCreateEventActivity(
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/${event.id}/create`,
         type: ActivityType.CREATE,
         actor: actorUrl,
@@ -69,7 +82,7 @@ export function buildCreateEventActivity(
 export function buildUpdateEventActivity(
     event: Event & { user: User | null },
     userId: string
-): any {
+): UpdateActivity {
     const baseUrl = getBaseUrl()
     const user = event.user!
     const actorUrl = `${baseUrl}/users/${user.username}`
@@ -77,7 +90,7 @@ export function buildUpdateEventActivity(
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/${event.id}/update-${Date.now()}`,
         type: ActivityType.UPDATE,
         actor: actorUrl,
@@ -119,14 +132,14 @@ export function buildUpdateEventActivity(
 export function buildDeleteEventActivity(
     eventId: string,
     user: User
-): any {
+): DeleteActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     const eventUrl = `${baseUrl}/events/${eventId}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/${eventId}/delete`,
         type: ActivityType.DELETE,
         actor: actorUrl,
@@ -148,12 +161,12 @@ export function buildDeleteEventActivity(
 export function buildFollowActivity(
     follower: User,
     targetActorUrl: string
-): any {
+): FollowActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${follower.username}`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/follows/${Date.now()}`,
         type: ActivityType.FOLLOW,
         actor: actorUrl,
@@ -167,13 +180,13 @@ export function buildFollowActivity(
  */
 export function buildAcceptActivity(
     user: User,
-    followActivity: any
-): any {
+    followActivity: FollowActivity | string
+): AcceptActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/accepts/${Date.now()}`,
         type: ActivityType.ACCEPT,
         actor: actorUrl,
@@ -191,7 +204,7 @@ export function buildLikeActivity(
     eventAuthorUrl: string,
     eventAuthorFollowersUrl?: string,
     isPublic: boolean = true
-): any {
+): LikeActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     
@@ -213,7 +226,7 @@ export function buildLikeActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: uniqueId,
         type: ActivityType.LIKE,
         actor: actorUrl,
@@ -229,8 +242,8 @@ export function buildLikeActivity(
  */
 export function buildUndoActivity(
     user: User,
-    originalActivity: any
-): any {
+    originalActivity: LikeActivity | FollowActivity | AnnounceActivity | TentativeAcceptActivity
+): UndoActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     
@@ -244,7 +257,7 @@ export function buildUndoActivity(
     const cc = originalActivity.cc
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: uniqueId,
         type: ActivityType.UNDO,
         actor: actorUrl,
@@ -292,7 +305,7 @@ export function buildAttendingActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: uniqueId,
         type: ActivityType.ACCEPT,
         actor: actorUrl,
@@ -313,7 +326,7 @@ export function buildNotAttendingActivity(
     eventAuthorFollowersUrl?: string,
     userFollowersUrl?: string,
     isPublic: boolean = true
-): any {
+): RejectActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     
@@ -340,7 +353,7 @@ export function buildNotAttendingActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: uniqueId,
         type: ActivityType.REJECT,
         actor: actorUrl,
@@ -361,7 +374,7 @@ export function buildMaybeAttendingActivity(
     eventAuthorFollowersUrl?: string,
     userFollowersUrl?: string,
     isPublic: boolean = true
-): any {
+): TentativeAcceptActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     
@@ -388,7 +401,7 @@ export function buildMaybeAttendingActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: uniqueId,
         type: ActivityType.TENTATIVE_ACCEPT,
         actor: actorUrl,
@@ -408,7 +421,7 @@ export function buildCreateCommentActivity(
     eventAuthorFollowersUrl?: string,
     parentCommentAuthorUrl?: string,
     isPublic: boolean = true
-): any {
+): CreateActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${comment.author.username}`
     const commentUrl = `${baseUrl}/comments/${comment.id}`
@@ -432,7 +445,7 @@ export function buildCreateCommentActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/comment-${comment.id}`,
         type: ActivityType.CREATE,
         actor: actorUrl,
@@ -463,7 +476,7 @@ export function buildDeleteCommentActivity(
     eventAuthorFollowersUrl?: string,
     parentCommentAuthorUrl?: string,
     isPublic: boolean = true
-): any {
+): DeleteActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${comment.author.username}`
     const commentUrl = comment.externalId || `${baseUrl}/comments/${comment.id}`
@@ -487,7 +500,7 @@ export function buildDeleteCommentActivity(
     }
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/comment-${comment.id}/delete`,
         type: ActivityType.DELETE,
         actor: actorUrl,
@@ -506,13 +519,13 @@ export function buildDeleteCommentActivity(
 /**
  * Builds an Update activity for a user profile
  */
-export function buildUpdateProfileActivity(user: User): any {
+export function buildUpdateProfileActivity(user: User): UpdateActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
     return {
-        '@context': ACTIVITYPUB_CONTEXTS,
+        '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/updates/${Date.now()}`,
         type: ActivityType.UPDATE,
         actor: actorUrl,

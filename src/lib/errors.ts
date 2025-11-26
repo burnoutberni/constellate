@@ -4,6 +4,7 @@
  */
 
 import { Context } from 'hono'
+import { z, ZodError } from 'zod'
 import { config } from '../config.js'
 
 /**
@@ -15,7 +16,7 @@ export class AppError extends Error {
         public code: string,
         message: string,
         public statusCode: number = 500,
-        public details?: any
+        public details?: unknown
     ) {
         super(message)
         this.name = 'AppError'
@@ -26,29 +27,40 @@ export class AppError extends Error {
  * Handles errors and returns appropriate responses
  * Sanitizes error messages in production
  */
+interface ErrorResponse {
+    error: string
+    message: string
+    details?: unknown
+}
+
 export function handleError(error: unknown, c: Context): Response {
     // Handle known application errors
     if (error instanceof AppError) {
-        const response: any = {
+        const response: ErrorResponse = {
             error: error.code,
             message: error.message,
         }
         
         // Only include details in development
-        if (config.isDevelopment && error.details) {
+        if (config.isDevelopment && error.details !== undefined) {
             response.details = error.details
         }
         
-        return c.json(response, error.statusCode)
+        return c.json(response, error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500)
     }
     
     // Handle Zod validation errors
-    if (error && typeof error === 'object' && 'name' in error && error.name === 'ZodError') {
-        return c.json({
+    if (error instanceof ZodError) {
+        const response: ErrorResponse = {
             error: 'VALIDATION_ERROR',
             message: 'Invalid input data',
-            ...(config.isDevelopment && { details: (error as any).errors }),
-        }, 400)
+        }
+        
+        if (config.isDevelopment) {
+            response.details = error.issues
+        }
+        
+        return c.json(response, 400 as const)
     }
     
     // Log full error server-side (for debugging)
@@ -58,7 +70,7 @@ export function handleError(error: unknown, c: Context): Response {
     return c.json({
         error: 'INTERNAL_ERROR',
         message: 'An internal error occurred',
-    }, 500)
+    }, 500 as const)
 }
 
 /**

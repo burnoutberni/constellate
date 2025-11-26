@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
 
@@ -212,8 +212,8 @@ app.get('/', async (c) => {
             remoteAccountSuggestion,
         })
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Invalid search parameters', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Invalid search parameters', details: error.issues }, 400 as const)
         }
         console.error('Error searching:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -309,8 +309,8 @@ app.post('/resolve', async (c) => {
             },
         })
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Invalid request body', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Invalid request body', details: error.issues }, 400 as const)
         }
         console.error('Error resolving account:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -451,42 +451,60 @@ app.get('/profile/:username', async (c) => {
                 })
 
                 if (response.ok) {
-                    const outbox: any = await response.json()
-                    const activities = outbox.orderedItems || []
+                    const outbox = await response.json() as { orderedItems?: unknown[] } | undefined
+                    const activities = outbox?.orderedItems || []
 
                     // Cache events from outbox
                     for (const activity of activities) {
-                        if (activity.type === 'Create' && activity.object?.type === 'Event') {
-                            const event = activity.object
+                        const activityObj = activity as Record<string, unknown>
+                        const activityType = activityObj.type
+                        const activityObject = activityObj.object as Record<string, unknown> | undefined
+                        if (activityType === 'Create' && activityObject && activityObject.type === 'Event') {
+                            const eventObj = activityObject as Record<string, unknown>
+                            const eventId = eventObj.id as string | undefined
+                            const eventName = eventObj.name as string | undefined
+                            const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+                            const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
+                            const eventStartTime = eventObj.startTime as string | undefined
+                            const eventEndTime = eventObj.endTime as string | undefined
+                            const eventDuration = eventObj.duration as string | undefined
+                            const eventUrl = eventObj.url as string | undefined
+                            const eventStatus = eventObj.eventStatus as string | undefined
+                            const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
+                            const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
+                            const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
+                            
+                            if (!eventId || !eventName || !eventStartTime) continue
+                            
                             await prisma.event.upsert({
-                                where: { externalId: event.id },
+                                where: { externalId: eventId },
                                 update: {
-                                    title: event.name,
-                                    summary: event.summary || event.content || null,
-                                    location: typeof event.location === 'string' ? event.location : event.location?.name || null,
-                                    startTime: new Date(event.startTime),
-                                    endTime: event.endTime ? new Date(event.endTime) : null,
-                                    duration: event.duration || null,
-                                    url: event.url || null,
-                                    eventStatus: event.eventStatus || null,
-                                    eventAttendanceMode: event.eventAttendanceMode || null,
-                                    maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
-                                    headerImage: event.attachment?.[0]?.url || null,
+                                    title: eventName,
+                                    summary: eventSummary || null,
+                                    location: typeof eventLocation === 'string' ? eventLocation : (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation ? eventLocation.name as string : null),
+                                    startTime: new Date(eventStartTime),
+                                    endTime: eventEndTime ? new Date(eventEndTime) : null,
+                                    duration: eventDuration || null,
+                                    url: eventUrl || null,
+                                    eventStatus: eventStatus || null,
+                                    eventAttendanceMode: eventAttendanceMode || null,
+                                    maximumAttendeeCapacity: eventMaxCapacity || null,
+                                    headerImage: eventAttachment?.[0]?.url || null,
                                     attributedTo: user.externalActorUrl,
                                 },
                                 create: {
-                                    externalId: event.id,
-                                    title: event.name,
-                                    summary: event.summary || event.content || null,
-                                    location: typeof event.location === 'string' ? event.location : event.location?.name || null,
-                                    startTime: new Date(event.startTime),
-                                    endTime: event.endTime ? new Date(event.endTime) : null,
-                                    duration: event.duration || null,
-                                    url: event.url || null,
-                                    eventStatus: event.eventStatus || null,
-                                    eventAttendanceMode: event.eventAttendanceMode || null,
-                                    maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
-                                    headerImage: event.attachment?.[0]?.url || null,
+                                    externalId: eventId,
+                                    title: eventName,
+                                    summary: eventSummary || null,
+                                    location: typeof eventLocation === 'string' ? eventLocation : (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation ? eventLocation.name as string : null),
+                                    startTime: new Date(eventStartTime),
+                                    endTime: eventEndTime ? new Date(eventEndTime) : null,
+                                    duration: eventDuration || null,
+                                    url: eventUrl || null,
+                                    eventStatus: eventStatus || null,
+                                    eventAttendanceMode: eventAttendanceMode || null,
+                                    maximumAttendeeCapacity: eventMaxCapacity || null,
+                                    headerImage: eventAttachment?.[0]?.url || null,
                                     attributedTo: user.externalActorUrl,
                                     userId: null,
                                 },

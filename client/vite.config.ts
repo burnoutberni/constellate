@@ -20,6 +20,14 @@ export default defineConfig({
                 target: 'http://localhost:3000',
                 changeOrigin: true,
             },
+            '/doc': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+            },
+            '/reference': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+            },
             '/.well-known': {
                 target: 'http://localhost:3000',
                 changeOrigin: true,

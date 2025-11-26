@@ -3,7 +3,7 @@
  * Type-safe validation for ActivityPub objects and activities
  */
 
-import { z } from 'zod'
+import { z } from '@hono/zod-openapi'
 import {
     ActivityType,
     ObjectType,
@@ -13,7 +13,7 @@ import {
 } from '../constants/activitypub.js'
 
 // Base schemas
-const urlOrObject = z.union([z.string().url(), z.record(z.any())])
+const urlOrObject = z.union([z.string().url(), z.record(z.string(), z.unknown())])
 const urlOrArray = z.union([z.string().url(), z.array(z.string().url())])
 
 // Image schema
@@ -42,7 +42,7 @@ export const PublicKeySchema = z.object({
 
 // Person (Actor) schema
 export const PersonSchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     type: z.literal(ObjectType.PERSON),
     id: z.string().url(),
     preferredUsername: z.string(),
@@ -65,7 +65,7 @@ export const PersonSchema = z.object({
 
 // Event schema
 export const EventSchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     type: z.literal(ObjectType.EVENT),
     id: z.string().url(),
     name: z.string(),
@@ -90,7 +90,7 @@ export const EventSchema = z.object({
 
 // Note schema (for comments)
 export const NoteSchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     type: z.literal(ObjectType.NOTE),
     id: z.string().url(),
     content: z.string(),
@@ -124,7 +124,7 @@ const ObjectSchema = z.union([
 
 // Activity base schema
 const BaseActivitySchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     id: z.string().url(),
     type: z.string(),
     actor: z.string().url(),
@@ -137,19 +137,19 @@ const BaseActivitySchema = z.object({
 // Create Activity
 export const CreateActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.CREATE),
-    object: z.union([EventSchema, NoteSchema, z.record(z.any())]),
+    object: z.union([EventSchema, NoteSchema, z.record(z.string(), z.unknown())]),
 })
 
 // Update Activity
 export const UpdateActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.UPDATE),
-    object: z.union([EventSchema, PersonSchema, z.record(z.any())]),
+    object: z.union([EventSchema, PersonSchema, z.record(z.string(), z.unknown())]),
 })
 
 // Delete Activity
 export const DeleteActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.DELETE),
-    object: z.union([z.string().url(), TombstoneSchema, z.record(z.any())]),
+    object: z.union([z.string().url(), TombstoneSchema, z.record(z.string(), z.unknown())]),
 })
 
 // Follow Activity
@@ -161,13 +161,13 @@ export const FollowActivitySchema = BaseActivitySchema.extend({
 // Accept Activity
 export const AcceptActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.ACCEPT),
-    object: z.union([z.string().url(), FollowActivitySchema, z.record(z.any())]),
+    object: z.union([z.string().url(), FollowActivitySchema, z.record(z.string(), z.unknown())]),
 })
 
 // Reject Activity
 export const RejectActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.REJECT),
-    object: z.union([z.string().url(), z.record(z.any())]),
+    object: z.union([z.string().url(), z.record(z.string(), z.unknown())]),
 })
 
 // Like Activity
@@ -185,14 +185,14 @@ export const UndoActivitySchema = BaseActivitySchema.extend({
             id: z.string().url(),
             type: z.string(),
         }),
-        z.record(z.any()),
+        z.record(z.string(), z.unknown()),
     ]),
 })
 
 // Announce Activity
 export const AnnounceActivitySchema = BaseActivitySchema.extend({
     type: z.literal(ActivityType.ANNOUNCE),
-    object: z.union([z.string().url(), z.record(z.any())]),
+    object: z.union([z.string().url(), z.record(z.string(), z.unknown())]),
 })
 
 // TentativeAccept Activity (for attendance)
@@ -233,22 +233,22 @@ export const ActivitySchema = z.union([
 
 // OrderedCollection schema
 export const OrderedCollectionSchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     type: z.literal(CollectionType.ORDERED_COLLECTION),
     id: z.string().url(),
     totalItems: z.number(),
-    orderedItems: z.array(z.any()).optional(),
+    orderedItems: z.array(z.unknown()).optional(),
     first: z.string().url().optional(),
     last: z.string().url().optional(),
 })
 
 // OrderedCollectionPage schema
 export const OrderedCollectionPageSchema = z.object({
-    '@context': z.union([z.string(), z.array(z.any())]).optional(),
+    '@context': z.union([z.string(), z.array(z.unknown())]).optional(),
     type: z.literal(CollectionType.ORDERED_COLLECTION_PAGE),
     id: z.string().url(),
     partOf: z.string().url(),
-    orderedItems: z.array(z.any()),
+    orderedItems: z.array(z.unknown()),
     next: z.string().url().optional(),
     prev: z.string().url().optional(),
 })
@@ -276,9 +276,12 @@ export type UpdateActivity = z.infer<typeof UpdateActivitySchema>
 export type DeleteActivity = z.infer<typeof DeleteActivitySchema>
 export type FollowActivity = z.infer<typeof FollowActivitySchema>
 export type AcceptActivity = z.infer<typeof AcceptActivitySchema>
+export type RejectActivity = z.infer<typeof RejectActivitySchema>
 export type LikeActivity = z.infer<typeof LikeActivitySchema>
 export type UndoActivity = z.infer<typeof UndoActivitySchema>
 export type AnnounceActivity = z.infer<typeof AnnounceActivitySchema>
 export type TentativeAcceptActivity = z.infer<typeof TentativeAcceptActivitySchema>
+export type BlockActivity = z.infer<typeof BlockActivitySchema>
+export type FlagActivity = z.infer<typeof FlagActivitySchema>
 export type OrderedCollection = z.infer<typeof OrderedCollectionSchema>
 export type OrderedCollectionPage = z.infer<typeof OrderedCollectionPageSchema>

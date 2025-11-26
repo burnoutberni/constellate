@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { buildUpdateProfileActivity, buildFollowActivity, buildUndoActivity } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
@@ -81,8 +81,8 @@ app.put('/profile', async (c) => {
 
         return c.json(user)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation failed', details: error.errors }, 400)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error updating profile:', error)
         return c.json({ error: 'Internal server error' }, 500)
