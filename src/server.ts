@@ -73,7 +73,10 @@ app.onError((err, c) => {
 })
 
 // Middleware (order matters)
-app.use('*', logger())
+// Only enable logger when not in test environment
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    app.use('*', logger())
+}
 app.use('*', securityHeaders) // Security headers first
 app.use('*', cors({
     origin: config.corsOrigins,
@@ -155,11 +158,14 @@ app.route('/api/search', searchRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
 
-console.log(`🚀 Server starting on port ${config.port}`)
-
-serve({
-    fetch: app.fetch,
-    port: config.port,
-})
+// Only start server when not in test environment
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    console.log(`🚀 Server starting on port ${config.port}`)
+    
+    serve({
+        fetch: app.fetch,
+        port: config.port,
+    })
+}
 
 export { app }

@@ -9,3 +9,11 @@ http://app1.local {
 http://app2.local {
     reverse_proxy app2:5173
 }
+
+http://test.local {
+    root * /var/www/coverage
+    file_server {
+        hide .git
+    }
+    try_files {path} /index.html
+}

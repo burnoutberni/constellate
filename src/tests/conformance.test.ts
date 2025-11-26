@@ -17,22 +17,48 @@ describe('ActivityPub Conformance', () => {
     })
 
     describe('WebFinger', () => {
-        it('should respond to WebFinger queries', async () => {
-            const res = await app.request('/.well-known/webfinger?resource=acct:alice@localhost')
-
-            if (res.status === 200) {
-                const body = await res.json() as any
-                const result = WebFingerSchema.safeParse(body)
-                expect(result.success).toBe(true)
-                expect(body.subject).toBe('acct:alice@localhost')
-                expect(body.links).toBeDefined()
-                expect(Array.isArray(body.links)).toBe(true)
-            }
+        it('should return 404 for non-existent users', async () => {
+            const res = await app.request(`/.well-known/webfinger?resource=acct:nonexistent@example.com`)
+            
+            expect(res.status).toBe(404)
         })
 
         it('should return 400 for missing resource parameter', async () => {
             const res = await app.request('/.well-known/webfinger')
             expect(res.status).toBe(400)
+        })
+
+        it('should return valid JSON resource descriptor for existing user', async () => {
+            // Use alice which is created in seed
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const domain = new URL(baseUrl).hostname
+            const resource = `acct:alice@${domain}`
+            const res = await app.request(`/.well-known/webfinger?resource=${encodeURIComponent(resource)}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            
+            // Validate against WebFinger schema
+            const result = WebFingerSchema.safeParse(body)
+            expect(result.success).toBe(true)
+            
+            // Check required fields
+            expect(body.subject).toBe(resource)
+            expect(body.links).toBeDefined()
+            expect(Array.isArray(body.links)).toBe(true)
+            expect(body.links.length).toBeGreaterThan(0)
+            
+            // Check that links contain required ActivityPub link
+            const selfLink = body.links.find((link: any) => link.rel === 'self')
+            expect(selfLink).toBeDefined()
+            expect(selfLink.type).toBe('application/activity+json')
+            expect(selfLink.href).toBe(`${baseUrl}/users/alice`)
+            
+            // Check aliases if present
+            if (body.aliases) {
+                expect(Array.isArray(body.aliases)).toBe(true)
+                expect(body.aliases).toContain(`${baseUrl}/users/alice`)
+            }
         })
     })
 

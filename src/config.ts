@@ -41,15 +41,18 @@ export const config = {
     // Encryption key for private keys (32 bytes = 64 hex chars)
     encryptionKey: ((): string => {
         const key = process.env.ENCRYPTION_KEY
+        const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
         if (!key) {
             if (process.env.NODE_ENV === 'production') {
                 throw new Error('ENCRYPTION_KEY is required in production. Generate with: openssl rand -hex 32')
             }
-            // Generate a random key for development (warn user)
+            // Generate a random key for development (warn user, but not in tests)
             const devKey = randomBytes(32).toString('hex')
-            console.warn('⚠️  WARNING: Using auto-generated ENCRYPTION_KEY for development. This is not secure for production!')
-            console.warn(`   Generated key: ${devKey}`)
-            console.warn('   Set ENCRYPTION_KEY environment variable for production.')
+            if (!isTest) {
+                console.warn('⚠️  WARNING: Using auto-generated ENCRYPTION_KEY for development. This is not secure for production!')
+                console.warn(`   Generated key: ${devKey}`)
+                console.warn('   Set ENCRYPTION_KEY environment variable for production.')
+            }
             return devKey
         }
         if (key.length !== 64) {
@@ -75,8 +78,9 @@ if (config.encryptionKey.length !== 64) {
     throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
 }
 
-// Log configuration status on startup
-if (config.isDevelopment) {
+// Log configuration status on startup (but not during tests)
+const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
+if (config.isDevelopment && !isTest) {
     console.log('📋 Configuration loaded:')
     console.log(`   Environment: ${config.nodeEnv}`)
     console.log(`   Base URL: ${config.baseUrl}`)
