@@ -196,6 +196,26 @@ export function buildAcceptActivity(
 }
 
 /**
+ * Builds a Reject activity for follow requests
+ */
+export function buildRejectFollowActivity(
+    user: User,
+    followActivity: FollowActivity | string
+): RejectActivity {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+
+    return {
+        '@context': [...ACTIVITYPUB_CONTEXTS],
+        id: `${actorUrl}/rejects/${Date.now()}`,
+        type: ActivityType.REJECT,
+        actor: actorUrl,
+        object: typeof followActivity === 'string' ? followActivity : followActivity,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
  * Builds a Like activity for an event
  */
 export function buildLikeActivity(

@@ -281,3 +281,38 @@ export async function isDomainBlocked(domain: string): Promise<boolean> {
     })
     return block !== null
 }
+
+/**
+ * Fetches follower count from a remote user's ActivityPub followers collection
+ * @param actorUrl - Remote user's actor URL
+ * @returns Follower count, or null if unable to fetch
+ */
+export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number | null> {
+    try {
+        // Construct followers collection URL
+        const followersUrl = `${actorUrl}/followers`
+
+        const response = await safeFetch(followersUrl, {
+            headers: {
+                Accept: ContentType.ACTIVITY_JSON,
+            },
+        })
+
+        if (!response.ok) {
+            console.error(`Failed to fetch followers collection: ${response.status}`)
+            return null
+        }
+
+        const collection = await response.json()
+
+        // Extract totalItems from the collection
+        if (collection.totalItems !== undefined) {
+            return typeof collection.totalItems === 'number' ? collection.totalItems : parseInt(collection.totalItems, 10)
+        }
+
+        return null
+    } catch (error) {
+        console.error('Error fetching remote follower count:', error)
+        return null
+    }
+}

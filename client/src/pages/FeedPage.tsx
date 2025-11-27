@@ -1,67 +1,62 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
-import { useRealtime } from '../hooks/useRealtime'
 import { CreateEventModal } from '../components/CreateEventModal'
+import { MiniCalendar } from '../components/MiniCalendar'
+import { ActivityFeedItem } from '../components/ActivityFeedItem'
 import { useAuth } from '../contexts/AuthContext'
-
-interface Event {
-    id: string
-    title: string
-    summary?: string
-    location?: string
-    startTime: string
-    endTime?: string
-    user: {
-        id: string
-        username: string
-        name?: string
-        displayColor?: string
-    }
-    _count?: {
-        attendance: number
-        likes: number
-        comments: number
-    }
-}
+import { useEvents, useActivityFeed } from '../hooks/queries'
+import { useUIStore } from '../stores'
 
 export function FeedPage() {
-    const [events, setEvents] = useState<Event[]>([])
-    const [loading, setLoading] = useState(true)
-    const [showCreateModal, setShowCreateModal] = useState(false)
+    const { user, logout } = useAuth()
+    const { data: eventsData, isLoading: eventsLoading } = useEvents(100)
+    const { data: activityData, isLoading: activityLoading } = useActivityFeed()
+    const { openCreateEventModal, sseConnected } = useUIStore()
+    const [selectedDate, setSelectedDate] = useState(new Date())
+    const navigate = useNavigate()
 
-    const { user, logout } = useAuth();
+    const events = eventsData?.events || []
+    const activities = activityData?.activities || []
 
-    // Real-time updates
-    const { isConnected } = useRealtime({
-        onEvent: (event) => {
-            if (event.type === 'event:created') {
-                setEvents((prev) => [event.data.event, ...prev])
-            } else if (event.type === 'event:updated') {
-                setEvents((prev) =>
-                    prev.map((e) => (e.id === event.data.event.id ? event.data.event : e))
-                )
-            } else if (event.type === 'event:deleted') {
-                setEvents((prev) => prev.filter((e) => e.id !== event.data.eventId))
-            }
-        },
+    // Get events for selected date
+    const selectedDateStart = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+        0,
+        0,
+        0,
+        0
+    )
+    const selectedDateEnd = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+        23,
+        59,
+        59,
+        999
+    )
+    const selectedDateEvents = events.filter((event) => {
+        const eventDate = new Date(event.startTime)
+        return eventDate >= selectedDateStart && eventDate <= selectedDateEnd
     })
 
-    useEffect(() => {
-        fetchEvents()
-    }, [])
+    // Get today's events
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    const todayEvents = events.filter((event) => {
+        const eventDate = new Date(event.startTime)
+        return eventDate >= todayStart && eventDate <= todayEnd
+    })
 
-    const fetchEvents = async () => {
-        try {
-            setLoading(true)
-            const response = await fetch('/api/events?limit=50')
-            const data = await response.json()
-            setEvents(data.events || [])
-        } catch (error) {
-            console.error('Error fetching events:', error)
-        } finally {
-            setLoading(false)
-        }
+    const formatTime = (dateString: string) => {
+        return new Date(dateString).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+        })
     }
 
     const formatDate = (dateString: string) => {
@@ -81,20 +76,28 @@ export function FeedPage() {
         })
     }
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-        })
+    const handleEventClick = (event: typeof events[0]) => {
+        if (event.user?.username) {
+            navigate(`/@${event.user.username}/${event.id}`)
+        }
+    }
+
+    const isToday = (date: Date) => {
+        const today = new Date()
+        return (
+            date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear()
+        )
     }
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Navbar isConnected={isConnected} user={user} onLogout={logout} />
+            <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
             {/* Create Event Button */}
             <div className="max-w-6xl mx-auto px-4 py-4 flex justify-end">
                 <button
-                    onClick={() => setShowCreateModal(true)}
+                    onClick={openCreateEventModal}
                     className="btn btn-primary"
                 >
                     Create Event
@@ -104,141 +107,144 @@ export function FeedPage() {
             {/* Main Content */}
             <div className="max-w-6xl mx-auto px-4 py-6">
                 <div className="grid lg:grid-cols-3 gap-6">
-                    {/* Main Feed */}
+                    {/* Main Feed - Activity Feed */}
                     <div className="lg:col-span-2 space-y-4">
-                        {loading ? (
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-gray-900">Activity Feed</h2>
+                            {!user && (
+                                <p className="text-sm text-gray-500">
+                                    <Link to="/login" className="text-blue-600 hover:underline">
+                                        Sign in
+                                    </Link>{' '}
+                                    to see activities from people you follow
+                                </p>
+                            )}
+                        </div>
+
+                        {activityLoading ? (
                             <div className="card p-8 text-center">
                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
                             </div>
-                        ) : events.length === 0 ? (
+                        ) : activities.length === 0 ? (
                             <div className="card p-8 text-center text-gray-500">
-                                No events yet. Create one to get started!
+                                {user ? (
+                                    <>
+                                        <p className="mb-2">No activity yet</p>
+                                        <p className="text-sm">
+                                            Follow people to see their activities in your feed
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="mb-2">Sign in to see your activity feed</p>
+                                        <Link to="/login" className="btn btn-primary mt-4">
+                                            Sign In
+                                        </Link>
+                                    </>
+                                )}
                             </div>
                         ) : (
-                            events
-                                .filter((event) => event.user !== null) // Skip events without user data
-                                .map((event) => (
-                                    <Link
-                                        key={event.id}
-                                        to={`/@${event.user.username}/${event.id}`}
-                                        className="block"
-                                    >
-                                        <div className="card-hover p-6 animate-fade-in">
-                                            {/* Event Header */}
-                                            <div className="flex items-start gap-3 mb-4">
-                                                <div
-                                                    className="avatar w-12 h-12 flex-shrink-0"
-                                                    style={{ backgroundColor: event.user.displayColor || '#3b82f6' }}
-                                                >
-                                                    {event.user.name?.[0] || event.user.username[0].toUpperCase()}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="font-semibold text-gray-900">
-                                                        {event.user.name || event.user.username}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        @{event.user.username}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Event Content */}
-                                            <div className="mb-4">
-                                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                                    {event.title}
-                                                </h3>
-                                                {event.summary && (
-                                                    <p className="text-gray-700 mb-3">{event.summary}</p>
-                                                )}
-
-                                                {/* Event Details */}
-                                                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>📅</span>
-                                                        <span>{formatDate(event.startTime)}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span>🕐</span>
-                                                        <span>{formatTime(event.startTime)}</span>
-                                                    </div>
-                                                    {event.location && (
-                                                        <div className="flex items-center gap-2">
-                                                            <span>📍</span>
-                                                            <span>{event.location}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Event Actions */}
-                                            <div className="flex items-center gap-6 pt-3 border-t border-gray-100">
-                                                <button className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors">
-                                                    <span>👍</span>
-                                                    <span className="text-sm">
-                                                        {event._count?.attendance || 0} Going
-                                                    </span>
-                                                </button>
-                                                <button className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
-                                                    <span>❤️</span>
-                                                    <span className="text-sm">
-                                                        {event._count?.likes || 0}
-                                                    </span>
-                                                </button>
-                                                <button className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-colors">
-                                                    <span>💬</span>
-                                                    <span className="text-sm">
-                                                        {event._count?.comments || 0}
-                                                    </span>
-                                                </button>
-                                                <button className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors ml-auto">
-                                                    <span>🔗</span>
-                                                    <span className="text-sm">Share</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                ))
+                            activities.map((activity) => (
+                                <ActivityFeedItem key={activity.id} activity={activity} />
+                            ))
                         )}
                     </div>
 
                     {/* Sidebar */}
                     <div className="space-y-4">
-                        {/* Upcoming Events */}
+                        {/* Mini Calendar */}
+                        <MiniCalendar
+                            selectedDate={selectedDate}
+                            onDateSelect={setSelectedDate}
+                        />
+
+                        {/* Today's Events */}
                         <div className="card p-4">
-                            <h2 className="font-bold text-lg mb-4">Upcoming Events</h2>
-                            <div className="space-y-3">
-                                {events
-                                    .filter((e) => new Date(e.startTime) > new Date())
-                                    .slice(0, 5)
-                                    .map((event) => (
+                            <h2 className="font-bold text-lg mb-4">Today's Events</h2>
+                            {eventsLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                </div>
+                            ) : todayEvents.length === 0 ? (
+                                <div className="text-center py-4 text-gray-500 text-sm">
+                                    No events today
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {todayEvents.slice(0, 5).map((event) => (
                                         <div
                                             key={event.id}
-                                            className="flex gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
+                                            onClick={() => handleEventClick(event)}
+                                            className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
                                         >
-                                            <div
-                                                className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                style={{ backgroundColor: event.user.displayColor || '#3b82f6' }}
-                                            >
-                                                {new Date(event.startTime).getDate()}
+                                            <div className="font-medium text-sm text-gray-900">
+                                                {event.title}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm truncate">
-                                                    {event.title}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {formatDate(event.startTime)}
-                                                </div>
+                                            <div className="text-xs text-gray-500">
+                                                {formatTime(event.startTime)}
+                                                {event.location && ` • ${event.location}`}
                                             </div>
                                         </div>
                                     ))}
-                            </div>
+                                    {todayEvents.length > 5 && (
+                                        <div className="text-xs text-gray-400 text-center pt-2">
+                                            +{todayEvents.length - 5} more
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
+
+                        {/* Selected Date Events */}
+                        {!isToday(selectedDate) && (
+                            <div className="card p-4">
+                                <h2 className="font-bold text-lg mb-4">
+                                    {selectedDate.toLocaleDateString('en-US', {
+                                        weekday: 'long',
+                                        month: 'short',
+                                        day: 'numeric',
+                                    })}
+                                </h2>
+                                {eventsLoading ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                    </div>
+                                ) : selectedDateEvents.length === 0 ? (
+                                    <div className="text-center py-4 text-gray-500 text-sm">
+                                        No events on this date
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {selectedDateEvents.map((event) => (
+                                            <div
+                                                key={event.id}
+                                                onClick={() => handleEventClick(event)}
+                                                className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                            >
+                                                <div className="font-medium text-sm text-gray-900">
+                                                    {event.title}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {formatTime(event.startTime)}
+                                                    {event.location && ` • ${event.location}`}
+                                                </div>
+                                                {event.user && (
+                                                    <div className="text-xs text-gray-400 mt-1">
+                                                        by @{event.user.username}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Suggestions */}
                         <div className="card p-4">
                             <h2 className="font-bold text-lg mb-4">Discover</h2>
                             <div className="space-y-2">
-                                <Link to="/discover" className="block text-sm text-blue-600 hover:underline">
+                                <Link to="/" className="block text-sm text-blue-600 hover:underline">
                                     Browse all events
                                 </Link>
                                 <Link to="/calendar" className="block text-sm text-blue-600 hover:underline">
@@ -251,11 +257,7 @@ export function FeedPage() {
             </div>
 
             {/* Create Event Modal */}
-            <CreateEventModal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                onSuccess={fetchEvents}
-            />
+            <CreateEventModal />
         </div>
     )
 }

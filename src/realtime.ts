@@ -205,6 +205,9 @@ export const BroadcastEvents = {
     // Follow updates
     FOLLOW_ADDED: 'follow:added',
     FOLLOW_REMOVED: 'follow:removed',
+    FOLLOW_ACCEPTED: 'follow:accepted',
+    FOLLOW_PENDING: 'follow:pending',
+    FOLLOW_REJECTED: 'follow:rejected',
     FOLLOWER_ADDED: 'follower:added',
     FOLLOWER_REMOVED: 'follower:removed',
 } as const

@@ -1,135 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
+import { FollowersModal } from '../components/FollowersModal'
 import { useAuth } from '../contexts/AuthContext'
-
-interface User {
-    id: string
-    username: string
-    name: string | null
-    bio: string | null
-    profileImage: string | null
-    headerImage: string | null
-    displayColor: string
-    isRemote: boolean
-    externalActorUrl: string | null
-    createdAt: string
-    _count: {
-        followers: number
-        following: number
-        events: number
-    }
-}
-
-interface Event {
-    id: string
-    title: string
-    summary: string | null
-    startTime: string
-    endTime: string | null
-    location: string | null
-    headerImage: string | null
-    user: {
-        id: string
-        username: string
-        name: string | null
-        displayColor: string
-        profileImage: string | null
-    } | null
-    _count: {
-        attendance: number
-        likes: number
-        comments: number
-    }
-}
-
-interface ProfileData {
-    user: User
-    events: Event[]
-}
-
-interface FollowStatus {
-    isFollowing: boolean
-    isAccepted: boolean
-}
+import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '../hooks/queries/users'
+import { useUIStore } from '../stores/uiStore'
 
 export function UserProfilePage() {
     const location = useLocation()
     const navigate = useNavigate()
     const { user: currentUser, logout } = useAuth()
-    const [profileData, setProfileData] = useState<ProfileData | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null)
-    const [isFollowingAction, setIsFollowingAction] = useState(false)
+    const [username, setUsername] = useState<string>('')
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            // Check if this is a profile route (starts with /@)
-            if (!location.pathname.startsWith('/@')) {
-                return
-            }
-
-            // Extract path parts
-            const pathParts = location.pathname.split('/').filter(Boolean)
-
-            // If there are more than 1 parts after @, it's an event route, not a profile
-            // Example: /@alice/eventId has 2 parts, /@alice has 1 part
-            if (pathParts.length > 1) {
-                return // This is an event route, not a profile route
-            }
-
-            // Extract handle from pathname (e.g., /@alice or /@alice@app1.local)
-            // Remove /@ prefix (2 characters)
-            const handle = location.pathname.slice(2)
-
-            if (!handle) return
-
-            setIsLoading(true)
-            setError(null)
-
-            try {
-                const response = await fetch(`/api/user-search/profile/${encodeURIComponent(handle)}`)
-
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        setError('User not found')
-                    } else {
-                        setError('Failed to load profile')
-                    }
-                    return
-                }
-
-                const data = await response.json()
-                setProfileData(data)
-
-                // Fetch follow status if user is logged in
-                if (currentUser) {
-                    try {
-                        const followResponse = await fetch(
-                            `/api/users/${encodeURIComponent(handle)}/follow-status`,
-                            {
-                                credentials: 'include',
-                            }
-                        )
-                        if (followResponse.ok) {
-                            const followData = await followResponse.json()
-                            setFollowStatus(followData)
-                        }
-                    } catch (err) {
-                        console.error('Error fetching follow status:', err)
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching profile:', err)
-                setError('Failed to load profile')
-            } finally {
-                setIsLoading(false)
-            }
+        // Check if this is a profile route (starts with /@)
+        if (!location.pathname.startsWith('/@')) {
+            return
         }
 
-        fetchProfile()
-    }, [location.pathname, currentUser])
+        // Extract path parts
+        const pathParts = location.pathname.split('/').filter(Boolean)
+
+        // If there are more than 1 parts after @, it's an event route, not a profile
+        // Example: /@alice/eventId has 2 parts, /@alice has 1 part
+        if (pathParts.length > 1) {
+            return // This is an event route, not a profile route
+        }
+
+        // Extract handle from pathname (e.g., /@alice or /@alice@app1.local)
+        // Remove /@ prefix (2 characters)
+        const handle = location.pathname.slice(2)
+
+        if (handle) {
+            setUsername(handle)
+        }
+    }, [location.pathname])
+
+    const { data: profileData, isLoading, error } = useUserProfile(username)
+    const { data: followStatus } = useFollowStatus(username)
+    const followMutation = useFollowUser(username)
+    const unfollowMutation = useUnfollowUser(username)
+    const { followersModalOpen, followersModalUsername, followersModalType, openFollowersModal, closeFollowersModal } = useUIStore()
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -148,137 +59,21 @@ export function UserProfilePage() {
 
     const handleFollow = async () => {
         if (!currentUser || !profileData) return
-
-        // Save previous state for rollback
-        const previousFollowStatus = followStatus
-        const previousFollowerCount = profileData.user._count.followers
-
-        setIsFollowingAction(true)
-        
-        // Optimistically update UI
-        setFollowStatus({ isFollowing: true, isAccepted: false })
-        setProfileData({
-            ...profileData,
-            user: {
-                ...profileData.user,
-                _count: {
-                    ...profileData.user._count,
-                    followers: previousFollowerCount + 1,
-                },
-            },
-        })
-
         try {
-            const handle = location.pathname.slice(2)
-            const response = await fetch(`/api/users/${encodeURIComponent(handle)}/follow`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                // Revert to previous state on failure
-                setFollowStatus(previousFollowStatus)
-                setProfileData({
-                    ...profileData,
-                    user: {
-                        ...profileData.user,
-                        _count: {
-                            ...profileData.user._count,
-                            followers: previousFollowerCount,
-                        },
-                    },
-                })
-                const error = await response.json()
-                alert(error.error || 'Failed to follow user')
-                return
-            }
-
-            // Success - state already updated optimistically
+            await followMutation.mutateAsync()
         } catch (err) {
-            // Revert to previous state on error
-            setFollowStatus(previousFollowStatus)
-            setProfileData({
-                ...profileData,
-                user: {
-                    ...profileData.user,
-                    _count: {
-                        ...profileData.user._count,
-                        followers: previousFollowerCount,
-                    },
-                },
-            })
             console.error('Error following user:', err)
             alert('Failed to follow user')
-        } finally {
-            setIsFollowingAction(false)
         }
     }
 
     const handleUnfollow = async () => {
         if (!currentUser || !profileData) return
-
-        // Save previous state for rollback
-        const previousFollowStatus = followStatus
-        const previousFollowerCount = profileData.user._count.followers
-
-        setIsFollowingAction(true)
-        
-        // Optimistically update UI
-        setFollowStatus({ isFollowing: false, isAccepted: false })
-        setProfileData({
-            ...profileData,
-            user: {
-                ...profileData.user,
-                _count: {
-                    ...profileData.user._count,
-                    followers: Math.max(0, previousFollowerCount - 1),
-                },
-            },
-        })
-
         try {
-            const handle = location.pathname.slice(2)
-            const response = await fetch(`/api/users/${encodeURIComponent(handle)}/follow`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                // Revert to previous state on failure
-                setFollowStatus(previousFollowStatus)
-                setProfileData({
-                    ...profileData,
-                    user: {
-                        ...profileData.user,
-                        _count: {
-                            ...profileData.user._count,
-                            followers: previousFollowerCount,
-                        },
-                    },
-                })
-                const error = await response.json()
-                alert(error.error || 'Failed to unfollow user')
-                return
-            }
-
-            // Success - state already updated optimistically
+            await unfollowMutation.mutateAsync()
         } catch (err) {
-            // Revert to previous state on error
-            setFollowStatus(previousFollowStatus)
-            setProfileData({
-                ...profileData,
-                user: {
-                    ...profileData.user,
-                    _count: {
-                        ...profileData.user._count,
-                        followers: previousFollowerCount,
-                    },
-                },
-            })
             console.error('Error unfollowing user:', err)
             alert('Failed to unfollow user')
-        } finally {
-            setIsFollowingAction(false)
         }
     }
 
@@ -299,7 +94,7 @@ export function UserProfilePage() {
 
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                        {error}
+                        {error instanceof Error ? error.message : 'Failed to load profile'}
                     </div>
                 )}
 
@@ -356,18 +151,45 @@ export function UserProfilePage() {
                                                 {followStatus?.isFollowing ? (
                                                     <button
                                                         onClick={handleUnfollow}
-                                                        disabled={isFollowingAction}
-                                                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        disabled={unfollowMutation.isPending}
+                                                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                     >
-                                                        {isFollowingAction ? 'Unfollowing...' : 'Unfollow'}
+                                                        {unfollowMutation.isPending ? (
+                                                            <>
+                                                                <svg className="animate-spin h-4 w-4 text-gray-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                                <span>Unfollowing...</span>
+                                                            </>
+                                                        ) : (
+                                                            'Unfollow'
+                                                        )}
                                                     </button>
                                                 ) : (
                                                     <button
                                                         onClick={handleFollow}
-                                                        disabled={isFollowingAction}
-                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        disabled={followMutation.isPending || followMutation.isSuccess}
+                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                     >
-                                                        {isFollowingAction ? 'Following...' : 'Follow'}
+                                                        {followMutation.isPending ? (
+                                                            <>
+                                                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                                <span>Following...</span>
+                                                            </>
+                                                        ) : followStatus?.isFollowing && !followStatus?.isAccepted ? (
+                                                            <>
+                                                                <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                <span>Pending...</span>
+                                                            </>
+                                                        ) : (
+                                                            'Follow'
+                                                        )}
                                                     </button>
                                                 )}
                                             </div>
@@ -381,27 +203,35 @@ export function UserProfilePage() {
                                     <div className="flex gap-6 text-sm text-gray-600">
                                         <div>
                                             <span className="font-semibold text-gray-900">
-                                                {profileData.user._count.events}
+                                                {profileData.user._count?.events || 0}
                                             </span>{' '}
                                             Events
                                         </div>
-                                        <div>
+                                        <button
+                                            onClick={() => openFollowersModal(profileData.user.username, 'followers')}
+                                            className="hover:text-gray-900 transition-colors cursor-pointer"
+                                        >
                                             <span className="font-semibold text-gray-900">
-                                                {profileData.user._count.followers}
+                                                {profileData.user._count?.followers || 0}
                                             </span>{' '}
                                             Followers
-                                        </div>
-                                        <div>
+                                        </button>
+                                        <button
+                                            onClick={() => openFollowersModal(profileData.user.username, 'following')}
+                                            className="hover:text-gray-900 transition-colors cursor-pointer"
+                                        >
                                             <span className="font-semibold text-gray-900">
-                                                {profileData.user._count.following}
+                                                {profileData.user._count?.following || 0}
                                             </span>{' '}
                                             Following
-                                        </div>
+                                        </button>
                                     </div>
 
-                                    <p className="text-xs text-gray-400 mt-2">
-                                        Joined {formatDate(profileData.user.createdAt)}
-                                    </p>
+                                    {profileData.user.createdAt && (
+                                        <p className="text-xs text-gray-400 mt-2">
+                                            Joined {formatDate(profileData.user.createdAt)}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -487,9 +317,9 @@ export function UserProfilePage() {
                                             </div>
 
                                             <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                                                <span>{event._count.attendance} attending</span>
-                                                <span>{event._count.likes} likes</span>
-                                                <span>{event._count.comments} comments</span>
+                                                <span>{event._count?.attendance || 0} attending</span>
+                                                <span>{event._count?.likes || 0} likes</span>
+                                                <span>{event._count?.comments || 0} comments</span>
                                             </div>
                                         </div>
                                     ))}
@@ -499,6 +329,16 @@ export function UserProfilePage() {
                     </>
                 )}
             </div>
+
+            {/* Followers/Following Modal */}
+            {followersModalOpen && followersModalUsername && followersModalType && (
+                <FollowersModal
+                    isOpen={followersModalOpen}
+                    onClose={closeFollowersModal}
+                    username={followersModalUsername}
+                    type={followersModalType}
+                />
+            )}
         </div>
     )
 }

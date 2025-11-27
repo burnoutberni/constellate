@@ -1587,14 +1587,15 @@
                     "Realtime"
                 ],
                 "summary": "Server-sent events stream",
-                "description": "Subscribe to real-time updates for events, likes, comments, and attendance",
+                "description": "Subscribe to real-time updates via Server-Sent Events (SSE). Events include:\n- Event updates: `event:created`, `event:updated`, `event:deleted`\n- Attendance: `attendance:added`, `attendance:updated`, `attendance:removed`\n- Likes: `like:added`, `like:removed`\n- Comments: `comment:added`, `comment:deleted`\n- Follows: `follow:added`, `follow:removed`, `follow:accepted`, `follow:pending`, `follow:rejected`\n- Followers: `follower:added`, `follower:removed`\n- Profile: `profile:updated`\n\nAll events include a `type` field and a `data` object with event-specific information. The stream sends a `connected` event on initial connection and periodic `heartbeat` events to keep the connection alive.",
                 "responses": {
                     "200": {
                         "description": "SSE stream",
                         "content": {
                             "text/event-stream": {
                                 "schema": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "description": "Server-Sent Events stream. Each event has an `event` field (event type) and a `data` field (JSON string with event data)."
                                 }
                             }
                         }

@@ -14,11 +14,13 @@ import {
     cacheRemoteUser,
     fetchActor,
     getBaseUrl,
+    fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import {
     broadcast,
+    broadcastToUser,
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
@@ -130,8 +132,11 @@ async function handleFollow(activity: any): Promise<void> {
 
     const remoteUser = await cacheRemoteUser(actor)
 
+    // Check if user auto-accepts followers
+    const shouldAutoAccept = (targetUser as any).autoAcceptFollowers ?? true
+
     // Create or update follower record
-    await prisma.follower.upsert({
+    const follower = await prisma.follower.upsert({
         where: {
             userId_actorUrl: {
                 userId: targetUser.id,
@@ -139,7 +144,7 @@ async function handleFollow(activity: any): Promise<void> {
             },
         },
         update: {
-            accepted: true,
+            accepted: shouldAutoAccept,
         },
         create: {
             userId: targetUser.id,
@@ -148,16 +153,42 @@ async function handleFollow(activity: any): Promise<void> {
             inboxUrl: actor.inbox,
             sharedInboxUrl: actor.endpoints?.sharedInbox || null,
             iconUrl: actor.icon?.url || null,
+            accepted: shouldAutoAccept,
+        },
+    })
+
+    // Calculate current follower count (target user is local, so we can calculate directly)
+    const followerCount = await prisma.follower.count({
+        where: {
+            userId: targetUser.id,
             accepted: true,
         },
     })
 
-    // Send Accept activity
-    const acceptActivity = buildAcceptActivity(targetUser, activity)
-    const inboxUrl = actor.endpoints?.sharedInbox || actor.inbox
-    await deliverToInbox(acceptActivity, inboxUrl, targetUser)
+    // Broadcast FOLLOWER_ADDED to the target user's clients
+    // This notifies Bob that Alice is following him
+    await broadcastToUser(targetUser.id, {
+        type: BroadcastEvents.FOLLOWER_ADDED,
+        data: {
+            username: targetUser.username,
+            follower: {
+                username: remoteUser.username,
+                actorUrl,
+                accepted: shouldAutoAccept,
+            },
+            followerCount,
+        },
+    })
 
-    console.log(`✅ Accepted follow from ${actorUrl}`)
+    // Send Accept activity only if auto-accepting
+    if (shouldAutoAccept) {
+        const acceptActivity = buildAcceptActivity(targetUser, activity)
+        const inboxUrl = actor.endpoints?.sharedInbox || actor.inbox
+        await deliverToInbox(acceptActivity, inboxUrl, targetUser)
+        console.log(`✅ Auto-accepted follow from ${actorUrl}`)
+    } else {
+        console.log(`⏳ Follow request from ${actorUrl} pending approval`)
+    }
 }
 
 /**
@@ -167,19 +198,28 @@ async function handleAccept(activity: any): Promise<void> {
     const actorUrl = activity.actor
     const object = activity.object
 
-    // Handle Event Accept (Attendance) - object can be a string (event URL) or object
-    if (typeof object === 'string' || (typeof object === 'object' && (object.type === ObjectType.EVENT || object.id))) {
-        await handleAcceptEvent(activity, object)
-        return
-    }
+    console.log(`[handleAccept] Received Accept activity:`)
+    console.log(`  - actor: ${actorUrl}`)
+    console.log(`  - object type: ${typeof object}`)
+    console.log(`  - object: ${JSON.stringify(object, null, 2).substring(0, 500)}`)
 
-    // Handle Follow Accept - object must be an object with type FOLLOW
+    // Handle Follow Accept FIRST - object must be an object with type FOLLOW
+    // This must be checked before Event Accept because Follow activities also have an 'id' field
     if (typeof object === 'object' && object.type === ActivityType.FOLLOW) {
+        console.log(`[handleAccept] Processing Follow Accept: actor=${actorUrl}, object.type=${object.type}`)
         await handleAcceptFollow(activity, object)
         return
     }
 
-    console.log(`Unhandled Accept object: ${typeof object === 'string' ? object : object?.type || 'unknown'}`)
+    // Handle Event Accept (Attendance) - object can be a string (event URL) or object
+    if (typeof object === 'string' || (typeof object === 'object' && (object.type === ObjectType.EVENT || object.id))) {
+        console.log(`[handleAccept] Routing to handleAcceptEvent`)
+        await handleAcceptEvent(activity, object)
+        return
+    }
+
+    console.log(`[handleAccept] Unhandled Accept object: ${typeof object === 'string' ? object : object?.type || 'unknown'}`)
+    console.log(`[handleAccept] Full object: ${JSON.stringify(object, null, 2)}`)
 }
 
 async function handleAcceptEvent(activity: any, object: any): Promise<void> {
@@ -247,30 +287,74 @@ async function handleAcceptFollow(activity: any, followActivity: any): Promise<v
     const followerUrl = followActivity.actor
     const baseUrl = getBaseUrl()
 
+    console.log(`[handleAcceptFollow] Processing Accept activity:`)
+    console.log(`  - activity.actor (accepter): ${actorUrl}`)
+    console.log(`  - followActivity.actor (follower): ${followerUrl}`)
+    console.log(`  - baseUrl: ${baseUrl}`)
+
     // Check if the follower is local
     if (!followerUrl.startsWith(baseUrl)) {
-        console.log('Follower is not local')
+        console.log(`[handleAcceptFollow] Follower is not local: ${followerUrl} does not start with ${baseUrl}`)
         return
     }
 
     const username = followerUrl.split('/').pop()
+    console.log(`[handleAcceptFollow] Looking up local user: ${username}`)
+    
     const localUser = await prisma.user.findUnique({
         where: { username, isRemote: false },
     })
 
     if (!localUser) {
-        console.log('Local user not found')
+        console.log(`[handleAcceptFollow] Local user not found: ${username}`)
         return
     }
 
+    console.log(`[handleAcceptFollow] Found local user: ${localUser.id}`)
+    console.log(`[handleAcceptFollow] Updating Following record: userId=${localUser.id}, actorUrl=${actorUrl}`)
+
     // Update following record
-    await prisma.following.updateMany({
+    const result = await prisma.following.updateMany({
         where: {
             userId: localUser.id,
             actorUrl,
         },
         data: {
             accepted: true,
+        },
+    })
+
+    console.log(`[handleAcceptFollow] Updated ${result.count} Following record(s)`)
+
+    // Get the target user (the one being followed) to get their username
+    const targetUser = await prisma.user.findFirst({
+        where: {
+            externalActorUrl: actorUrl,
+            isRemote: true,
+        },
+        select: {
+            username: true,
+        },
+    })
+
+    // Fetch remote follower count from the remote server
+    let remoteFollowerCount: number | null = null
+    try {
+        remoteFollowerCount = await fetchRemoteFollowerCount(actorUrl)
+        console.log(`[handleAcceptFollow] Fetched remote follower count: ${remoteFollowerCount}`)
+    } catch (error) {
+        console.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
+    }
+
+    // Broadcast SSE event to notify the follower's clients
+    const targetUsername = targetUser?.username || actorUrl.split('/').pop() || 'unknown'
+    await broadcastToUser(localUser.id, {
+        type: BroadcastEvents.FOLLOW_ACCEPTED,
+        data: {
+            username: targetUsername,
+            actorUrl,
+            isAccepted: true,
+            followerCount: remoteFollowerCount,
         },
     })
 
@@ -733,6 +817,27 @@ async function handleUndoFollow(activity: any, followActivity: any): Promise<voi
         },
     })
 
+    // Calculate current follower count (target user is local, so we can calculate directly)
+    const followerCount = await prisma.follower.count({
+        where: {
+            userId: targetUser.id,
+            accepted: true,
+        },
+    })
+
+    // Broadcast FOLLOWER_REMOVED to the target user's clients (Bob)
+    // This notifies Bob that Alice unfollowed him
+    await broadcastToUser(targetUser.id, {
+        type: BroadcastEvents.FOLLOWER_REMOVED,
+        data: {
+            username: targetUser.username,
+            follower: {
+                actorUrl,
+            },
+            followerCount,
+        },
+    })
+
     console.log(`✅ Unfollowed by ${actorUrl}`)
 }
 
@@ -917,17 +1022,65 @@ async function handleTentativeAccept(activity: any): Promise<void> {
 }
 
 /**
- * Handle Reject activity (not attending)
+ * Handle Reject activity (not attending or follow rejection)
  */
 async function handleReject(activity: any): Promise<void> {
     const actorUrl = activity.actor
-    const objectUrl = activity.object
+    const object = activity.object
+    const baseUrl = getBaseUrl()
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
     const remoteUser = await cacheRemoteUser(actor)
 
+    // Check if this is a Reject for a Follow activity
+    // The object could be a Follow activity object or a string URL
+    const isFollowReject = typeof object === 'object' && object.type === ActivityType.FOLLOW
+
+    if (isFollowReject) {
+        // This is a Reject for a follow request
+        const followActivity = object
+        const followerUrl = followActivity.actor
+
+        // Check if the follower is local
+        if (followerUrl && followerUrl.startsWith(baseUrl)) {
+            const username = followerUrl.split('/').pop()
+            const localUser = await prisma.user.findUnique({
+                where: { username, isRemote: false },
+            })
+
+            if (localUser) {
+                // Update Following record to mark as rejected
+                // We could delete it, but keeping it with accepted: false allows tracking
+                await prisma.following.updateMany({
+                    where: {
+                        userId: localUser.id,
+                        actorUrl,
+                    },
+                    data: {
+                        accepted: false, // Explicitly rejected
+                    },
+                })
+
+                // Broadcast FOLLOW_REJECTED to the follower's clients
+                await broadcastToUser(localUser.id, {
+                    type: BroadcastEvents.FOLLOW_REJECTED,
+                    data: {
+                        username: remoteUser.username,
+                        actorUrl,
+                        isAccepted: false,
+                    },
+                })
+
+                console.log(`❌ Follow request rejected by ${actorUrl}`)
+                return
+            }
+        }
+    }
+
+    // Otherwise, treat as event attendance rejection
+    const objectUrl = typeof object === 'string' ? object : object.id
     const event = await prisma.event.findFirst({
         where: {
             OR: [

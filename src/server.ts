@@ -19,6 +19,7 @@ import calendarRoutes from './calendar.js'
 import searchRoutes from './search.js'
 import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
+import activityRoutes from './activity.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -157,6 +158,7 @@ app.route('/api/calendar', calendarRoutes)
 app.route('/api/search', searchRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
+app.route('/api', activityRoutes)
 
 // Only start server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {

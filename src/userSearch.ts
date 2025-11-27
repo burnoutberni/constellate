@@ -324,6 +324,178 @@ app.post('/resolve', async (c) => {
  * - Local: "alice"
  * - Remote: "bob@app2.local"
  */
+// Get followers list
+app.get('/profile/:username/followers', async (c) => {
+    try {
+        // Decode username in case it's URL encoded
+        let username = decodeURIComponent(c.req.param('username'))
+        const limit = parseInt(c.req.query('limit') || '50')
+        
+        // Check if it's a remote user (contains @domain)
+        const isRemote = username.includes('@')
+        
+        const user = await prisma.user.findFirst({
+            where: {
+                username,
+                isRemote,
+            },
+        })
+
+        if (!user) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        const followers = await prisma.follower.findMany({
+            where: {
+                userId: user.id,
+                accepted: true,
+            },
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+        })
+
+        // Resolve followers to user objects
+        const baseUrl = getBaseUrl()
+        const followerUsers = []
+
+        for (const follower of followers) {
+            let followerUser = null
+
+            if (follower.actorUrl.startsWith(baseUrl)) {
+                // Local user
+                const followerUsername = follower.actorUrl.split('/').pop()
+                if (followerUsername) {
+                    followerUser = await prisma.user.findUnique({
+                        where: {
+                            username: followerUsername,
+                            isRemote: false,
+                        },
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            profileImage: true,
+                            displayColor: true,
+                            isRemote: true,
+                        },
+                    })
+                }
+            } else {
+                // Remote user
+                followerUser = await prisma.user.findFirst({
+                    where: {
+                        externalActorUrl: follower.actorUrl,
+                        isRemote: true,
+                    },
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        profileImage: true,
+                        displayColor: true,
+                        isRemote: true,
+                    },
+                })
+            }
+
+            if (followerUser) {
+                followerUsers.push(followerUser)
+            }
+        }
+
+        return c.json({ followers: followerUsers })
+    } catch (error) {
+        console.error('Error getting followers:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+// Get following list
+app.get('/profile/:username/following', async (c) => {
+    try {
+        // Decode username in case it's URL encoded
+        let username = decodeURIComponent(c.req.param('username'))
+        const limit = parseInt(c.req.query('limit') || '50')
+        
+        // Check if it's a remote user (contains @domain)
+        const isRemote = username.includes('@')
+        
+        const user = await prisma.user.findFirst({
+            where: {
+                username,
+                isRemote,
+            },
+        })
+
+        if (!user) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        const following = await prisma.following.findMany({
+            where: {
+                userId: user.id,
+                accepted: true,
+            },
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+        })
+
+        // Resolve following to user objects
+        const baseUrl = getBaseUrl()
+        const followingUsers = []
+
+        for (const follow of following) {
+            let followUser = null
+
+            if (follow.actorUrl.startsWith(baseUrl)) {
+                // Local user
+                const followUsername = follow.actorUrl.split('/').pop()
+                if (followUsername) {
+                    followUser = await prisma.user.findUnique({
+                        where: {
+                            username: followUsername,
+                            isRemote: false,
+                        },
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            profileImage: true,
+                            displayColor: true,
+                            isRemote: true,
+                        },
+                    })
+                }
+            } else {
+                // Remote user
+                followUser = await prisma.user.findFirst({
+                    where: {
+                        externalActorUrl: follow.actorUrl,
+                        isRemote: true,
+                    },
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        profileImage: true,
+                        displayColor: true,
+                        isRemote: true,
+                    },
+                })
+            }
+
+            if (followUser) {
+                followingUsers.push(followUser)
+            }
+        }
+
+        return c.json({ following: followingUsers })
+    } catch (error) {
+        console.error('Error getting following:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
 app.get('/profile/:username', async (c) => {
     try {
         // Decode username in case it's URL encoded (e.g., alice%40app1.local -> alice@app1.local)
@@ -352,6 +524,7 @@ app.get('/profile/:username', async (c) => {
                 createdAt: true,
                 _count: {
                     select: {
+                        events: true,
                         followers: true,
                         following: true,
                     },
@@ -379,7 +552,7 @@ app.get('/profile/:username', async (c) => {
                         const cachedUser = await cacheRemoteUser(actor)
                         
                         // Re-fetch the user with all fields
-                        user = await prisma.user.findFirst({
+                        const refetchedUser = await prisma.user.findFirst({
                             where: {
                                 id: cachedUser.id,
                             },
@@ -396,12 +569,17 @@ app.get('/profile/:username', async (c) => {
                                 createdAt: true,
                                 _count: {
                                     select: {
+                                        events: true,
                                         followers: true,
                                         following: true,
                                     },
                                 },
                             },
                         })
+                        
+                        if (refetchedUser) {
+                            user = refetchedUser
+                        }
                         
                         console.log(`✅ Resolved and cached remote user: ${username}`)
                     }
@@ -411,6 +589,39 @@ app.get('/profile/:username', async (c) => {
 
         if (!user) {
             return c.json({ error: 'User not found' }, 404)
+        }
+
+        // Calculate actual follower/following counts (only accepted)
+        // For remote users, we can't calculate counts from our local database
+        // Their followers/following are stored on their server
+        let followerCount = 0
+        let followingCount = 0
+
+        if (!isRemote) {
+            // Only calculate for local users
+            followerCount = await prisma.follower.count({
+                where: {
+                    userId: user.id,
+                    accepted: true,
+                },
+            })
+
+            followingCount = await prisma.following.count({
+                where: {
+                    userId: user.id,
+                    accepted: true,
+                },
+            })
+        }
+
+        // Override _count with actual counts
+        const userWithCounts = {
+            ...user,
+            _count: {
+                events: user._count?.events || 0,
+                followers: followerCount,
+                following: followingCount,
+            },
         }
 
         // Get user's events
@@ -552,9 +763,9 @@ app.get('/profile/:username', async (c) => {
 
         return c.json({
             user: {
-                ...user,
+                ...userWithCounts,
                 _count: {
-                    ...user._count,
+                    ...userWithCounts._count,
                     events: eventCount,
                 },
             },

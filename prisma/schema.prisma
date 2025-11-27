@@ -38,6 +38,9 @@ model User {
   
   // Admin role
   isAdmin          Boolean @default(false) // Admin users can moderate content
+  
+  // Privacy settings
+  autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
 
   // Relations
   events          Event[]

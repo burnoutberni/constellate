@@ -21,14 +21,23 @@ export function Navbar({ isConnected, user, onLogout }: {
               <Link to="/calendar" className="nav-link">
                 Calendar
               </Link>
+              <Link to="/about" className="nav-link">
+                About
+              </Link>
             </div>
           </div>
           <div className="hidden md:block flex-1 max-w-md">
             <SearchBar />
           </div>
-          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
             {user ? (
               <>
+                <Link to="/settings" className="text-sm text-gray-700 hover:text-gray-900">
+                  Settings
+                </Link>
+                <Link to="/followers/pending" className="text-sm text-gray-700 hover:text-gray-900">
+                  Followers
+                </Link>
                 <span className="text-sm text-gray-700">
                   👤 {user?.name || user?.email}
                 </span>
