@@ -1320,5 +1320,222 @@ describe('Moderation API', () => {
             expect(body.pagination.page).toBe(1)
         })
     })
+
+    describe('Block User Edge Cases', () => {
+        it('should return 400 when trying to block yourself', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/moderation/block/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: testUser.username,
+                }),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Cannot block yourself')
+        })
+
+        it('should return existing block when upserting', async () => {
+            // Create existing block
+            await prisma.blockedUser.create({
+                data: {
+                    blockingUserId: testUser.id,
+                    blockedUserId: testUser2.id,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/moderation/block/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: testUser2.username,
+                }),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json()
+            expect(body.blockingUserId).toBe(testUser.id)
+            expect(body.blockedUserId).toBe(testUser2.id)
+        })
+    })
+
+    describe('Report Edge Cases', () => {
+        it('should return 404 when reporting non-existent event', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+
+            const res = await app.request('/api/moderation/report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    targetType: 'event',
+                    targetId: 'nonexistent-event-id',
+                    reason: 'Test report',
+                }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Event not found')
+        })
+
+        it('should return 404 when reporting non-existent comment', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.comment.findUnique).mockResolvedValue(null)
+
+            const res = await app.request('/api/moderation/report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    targetType: 'comment',
+                    targetId: 'nonexistent-comment-id',
+                    reason: 'Test report',
+                }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Comment not found')
+        })
+    })
+
+    describe('Check Block Status', () => {
+        it('should check if user is blocked', async () => {
+            await prisma.blockedUser.create({
+                data: {
+                    blockingUserId: testUser.id,
+                    blockedUserId: testUser2.id,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.blocked).toBe(true)
+            expect(body.block).toBeDefined()
+        })
+
+        it('should return false when user is not blocked', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.blocked).toBe(false)
+            expect(body.block).toBeNull()
+        })
+
+        it('should handle errors when checking block status', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const originalFindFirst = prisma.blockedUser.findFirst
+            vi.spyOn(prisma.blockedUser, 'findFirst').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+
+            // Restore
+            prisma.blockedUser.findFirst = originalFindFirst
+        })
+    })
 })
 

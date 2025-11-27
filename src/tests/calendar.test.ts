@@ -450,5 +450,103 @@ describe('Calendar Export', () => {
             expect(icsContent).toMatch(/DTEND:\d{8}T\d{6}Z/)
         })
     })
+
+    describe('Error Handling', () => {
+        it('should handle database errors in single event export', async () => {
+            const { vi } = await import('vitest')
+            const originalFindUnique = prisma.event.findUnique
+            vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+            expect(res.status).toBe(500)
+            const text = await res.text()
+            expect(text).toBe('Internal server error')
+
+            // Restore
+            prisma.event.findUnique = originalFindUnique
+        })
+
+        it('should handle database errors in user calendar export', async () => {
+            const { vi } = await import('vitest')
+            const originalFindUnique = prisma.user.findUnique
+            vi.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+            expect(res.status).toBe(500)
+            const text = await res.text()
+            expect(text).toBe('Internal server error')
+
+            // Restore
+            prisma.user.findUnique = originalFindUnique
+        })
+
+        it('should handle database errors in feed export', async () => {
+            const { vi } = await import('vitest')
+            const originalFindMany = prisma.event.findMany
+            vi.spyOn(prisma.event, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/calendar/feed.ics')
+
+            expect(res.status).toBe(500)
+            const text = await res.text()
+            expect(text).toBe('Internal server error')
+
+            // Restore
+            prisma.event.findMany = originalFindMany
+        })
+
+        it('should handle event without user in single export', async () => {
+            const eventWithoutUser = await prisma.event.create({
+                data: {
+                    title: 'Event Without User',
+                    startTime: new Date('2024-01-01T10:00:00Z'),
+                    userId: null,
+                    attributedTo: 'https://remote.example.com/users/remote',
+                },
+            })
+
+            const res = await app.request(`/api/calendar/${eventWithoutUser.id}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('SUMMARY:Event Without User')
+            // Should handle missing user gracefully
+
+            // Cleanup
+            await prisma.event.delete({ where: { id: eventWithoutUser.id } })
+        })
+
+        it('should handle user without name in user export', async () => {
+            const userWithoutName = await prisma.user.create({
+                data: {
+                    username: 'nonameuser',
+                    email: 'noname@example.com',
+                    name: null,
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'User Event',
+                    startTime: new Date('2024-01-01T10:00:00Z'),
+                    userId: userWithoutName.id,
+                    attributedTo: `${baseUrl}/users/${userWithoutName.username}`,
+                },
+            })
+
+            const res = await app.request(`/api/calendar/user/${userWithoutName.username}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('SUMMARY:User Event')
+
+            // Cleanup
+            await prisma.event.delete({ where: { id: event.id } })
+            await prisma.user.delete({ where: { id: userWithoutName.id } })
+        })
+    })
 })
 

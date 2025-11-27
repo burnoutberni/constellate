@@ -22,9 +22,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
-    "docker:dev": "docker-compose up app1 app2 caddy",
+    "docker:dev": "docker-compose up app1 app2 caddy --build",
     "docker:dev:down": "docker-compose stop app1 app2 caddy",
-    "docker:test": "docker-compose up test",
+    "docker:test": "docker-compose up test --build",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },

@@ -1006,6 +1006,523 @@ describe('Profile API', () => {
             // Restore original
             prisma.user.findFirst = originalFindFirst
         })
+
+        it('should return false when not authenticated', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.isFollowing).toBe(false)
+            expect(body.isAccepted).toBe(false)
+        })
+    })
+
+    describe('Follow User Edge Cases', () => {
+        it('should return 404 when user not found', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+
+            const res = await app.request('/api/users/nonexistent/follow', {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('User not found')
+        })
+
+        it('should return 400 when trying to follow yourself', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(testUser as any)
+
+            const res = await app.request(`/api/users/${testUser.username}/follow`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Cannot follow yourself')
+        })
+
+        it('should return 400 when already following', async () => {
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const targetActorUrl = `${baseUrl}/users/${testUser2.username}`
+
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: targetActorUrl,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(testUser2 as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Already following')
+        })
+
+        it('should delete unaccepted follow and create new one', async () => {
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const targetActorUrl = `${baseUrl}/users/${testUser2.username}`
+
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: targetActorUrl,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: false, // Not accepted
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(testUser2 as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: targetActorUrl,
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'POST',
+            })
+
+            // Should succeed (delete old and create new)
+            expect([200, 201]).toContain(res.status)
+        })
+
+        it('should handle local user follow with auto-accept', async () => {
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const targetActorUrl = `${baseUrl}/users/${testUser2.username}`
+
+            // Set autoAcceptFollowers to true
+            await prisma.user.update({
+                where: { id: testUser2.id },
+                data: { autoAcceptFollowers: true },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue({
+                ...testUser2,
+                autoAcceptFollowers: true,
+            } as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: targetActorUrl,
+            } as any)
+            vi.mocked(activityBuilder.buildAcceptActivity).mockReturnValue({
+                type: 'Accept',
+                actor: targetActorUrl,
+                object: {
+                    type: 'Follow',
+                    actor: `${baseUrl}/users/${testUser.username}`,
+                    object: targetActorUrl,
+                },
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'POST',
+            })
+
+            expect([200, 201]).toContain(res.status)
+        })
+
+        it('should handle follow status for remote users', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob Remote',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/users/${remoteUser.username}/follow-status`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.isFollowing).toBeDefined()
+            expect(body.isAccepted).toBeDefined()
+        })
+
+        it('should handle follow with auto-accept enabled for local user', async () => {
+            // Set autoAcceptFollowers to true
+            await prisma.user.update({
+                where: { id: testUser2.id },
+                data: { autoAcceptFollowers: true },
+            })
+
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue({
+                ...testUser2,
+                autoAcceptFollowers: true,
+            } as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: `${baseUrl}/users/${testUser2.username}`,
+            } as any)
+            vi.mocked(activityBuilder.buildAcceptActivity).mockReturnValue({
+                type: 'Accept',
+                actor: `${baseUrl}/users/${testUser2.username}`,
+                object: {
+                    type: 'Follow',
+                    actor: `${baseUrl}/users/${testUser.username}`,
+                    object: `${baseUrl}/users/${testUser2.username}`,
+                },
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'POST',
+            })
+
+            expect([200, 201]).toContain(res.status)
+            
+            // Check that follower was created with accepted: true
+            const follower = await prisma.follower.findFirst({
+                where: {
+                    userId: testUser2.id,
+                    actorUrl: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            expect(follower).toBeDefined()
+            expect(follower?.accepted).toBe(true)
+        })
+
+        it('should handle follow with auto-accept disabled for local user', async () => {
+            // Set autoAcceptFollowers to false
+            await prisma.user.update({
+                where: { id: testUser2.id },
+                data: { autoAcceptFollowers: false },
+            })
+
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue({
+                ...testUser2,
+                autoAcceptFollowers: false,
+            } as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: `${baseUrl}/users/${testUser2.username}`,
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'POST',
+            })
+
+            expect([200, 201]).toContain(res.status)
+            
+            // Check that follower was created with accepted: false
+            const follower = await prisma.follower.findFirst({
+                where: {
+                    userId: testUser2.id,
+                    actorUrl: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            expect(follower).toBeDefined()
+            expect(follower?.accepted).toBe(false)
+        })
+    })
+
+    describe('Unfollow User', () => {
+        it('should unfollow a local user', async () => {
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const targetActorUrl = `${baseUrl}/users/${testUser2.username}`
+
+            // Create following relationship
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: targetActorUrl,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            // Create follower relationship
+            await prisma.follower.create({
+                data: {
+                    userId: testUser2.id,
+                    actorUrl: `${baseUrl}/users/${testUser.username}`,
+                    username: testUser.username,
+                    inboxUrl: `${baseUrl}/users/${testUser.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(testUser2 as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: targetActorUrl,
+            } as any)
+            vi.mocked(activityBuilder.buildUndoActivity).mockReturnValue({
+                type: 'Undo',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: {
+                    type: 'Follow',
+                    actor: `${baseUrl}/users/${testUser.username}`,
+                    object: targetActorUrl,
+                },
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.success).toBe(true)
+
+            // Check that following was deleted
+            const following = await prisma.following.findFirst({
+                where: {
+                    userId: testUser.id,
+                    actorUrl: targetActorUrl,
+                },
+            })
+
+            expect(following).toBeNull()
+        })
+
+        it('should unfollow a remote user', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob Remote',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                    inboxUrl: 'https://example.com/users/bob/inbox',
+                },
+            })
+
+            const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+            const targetActorUrl = remoteUser.externalActorUrl!
+
+            // Create following relationship
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: targetActorUrl,
+                    username: remoteUser.username,
+                    inboxUrl: remoteUser.inboxUrl!,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(remoteUser as any)
+            vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+                type: 'Follow',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: targetActorUrl,
+            } as any)
+            vi.mocked(activityBuilder.buildUndoActivity).mockReturnValue({
+                type: 'Undo',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: {
+                    type: 'Follow',
+                    actor: `${baseUrl}/users/${testUser.username}`,
+                    object: targetActorUrl,
+                },
+            } as any)
+            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
+
+            const res = await app.request(`/api/users/${remoteUser.username}/follow`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(200)
+        })
+
+        it('should return 400 when not following', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser as any)
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(testUser2 as any)
+            vi.mocked(prisma.following.findUnique).mockResolvedValue(null)
+
+            const res = await app.request(`/api/users/${testUser2.username}/follow`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json()
+            expect(body.error).toBe('Not following')
+        })
     })
 })
 

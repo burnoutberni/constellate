@@ -716,6 +716,322 @@ describe('Activity Feed API', () => {
             // Restore original
             prisma.following.findMany = originalFindMany
         })
+
+        it('should handle case when actorUrl does not start with baseUrl for remote users', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: `remote_${Date.now()}`,
+                    isRemote: true,
+                    externalActorUrl: 'https://remote.example.com/users/remote',
+                },
+            })
+
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: remoteUser.externalActorUrl!,
+                    username: remoteUser.username,
+                    inboxUrl: 'https://remote.example.com/users/remote/inbox',
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            // Should handle remote users correctly
+            expect(body.activities).toBeDefined()
+        })
+
+        it('should handle case when username cannot be extracted from actorUrl', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/`, // Invalid URL without username
+                    username: 'invalid',
+                    inboxUrl: `${baseUrl}/users/invalid/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            // Should handle gracefully when username cannot be extracted
+            expect(body.activities).toBeDefined()
+        })
+
+        it('should handle case when user is not found for actorUrl', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/nonexistent`,
+                    username: 'nonexistent',
+                    inboxUrl: `${baseUrl}/users/nonexistent/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            // Should return empty feed when user not found
+            expect(body.activities).toEqual([])
+        })
+
+        it('should handle errors when fetching likes', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/${testUser2.username}`,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const originalFindMany = prisma.eventLike.findMany
+            vi.spyOn(prisma.eventLike, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+
+            // Restore
+            prisma.eventLike.findMany = originalFindMany
+        })
+
+        it('should handle errors when fetching RSVPs', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/${testUser2.username}`,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const originalFindMany = prisma.eventAttendance.findMany
+            vi.spyOn(prisma.eventAttendance, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+
+            // Restore
+            prisma.eventAttendance.findMany = originalFindMany
+        })
+
+        it('should handle errors when fetching comments', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/${testUser2.username}`,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const originalFindMany = prisma.comment.findMany
+            vi.spyOn(prisma.comment, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+
+            // Restore
+            prisma.comment.findMany = originalFindMany
+        })
+
+        it('should handle errors when fetching events', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/${testUser2.username}`,
+                    username: testUser2.username,
+                    inboxUrl: `${baseUrl}/users/${testUser2.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const originalFindMany = prisma.event.findMany
+            vi.spyOn(prisma.event, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+
+            // Restore
+            prisma.event.findMany = originalFindMany
+        })
+
+        it('should handle case when user is not found for actorUrl', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/nonexistent`,
+                    username: 'nonexistent',
+                    inboxUrl: `${baseUrl}/users/nonexistent/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            // Should return empty feed when user not found
+            expect(body.activities).toEqual([])
+        })
+
+        it('should handle case when username cannot be extracted from actorUrl', async () => {
+            await prisma.following.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: `${baseUrl}/users/`, // Invalid URL without username
+                    username: 'invalid',
+                    inboxUrl: `${baseUrl}/users/invalid/inbox`,
+                    accepted: true,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/activity/feed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            // Should handle gracefully when username cannot be extracted
+            expect(body.activities).toBeDefined()
+        })
     })
 })
 
