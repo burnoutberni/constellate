@@ -511,6 +511,294 @@ describe('UserSearch API', () => {
             const body = await res.json()
             expect(body.user.username).toBe('bob@example.com')
         })
+
+        it('should handle error when fetching remote outbox fails', async () => {
+            const mockUserWithCount = {
+                ...mockRemoteUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValueOnce([]) // No cached events
+            vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'))
+
+            const res = await app.request('/api/user-search/profile/bob@example.com')
+
+            // Should still return user profile even if outbox fetch fails
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user.username).toBe('bob@example.com')
+            expect(body.events).toEqual([])
+        })
+
+        it('should handle invalid outbox response', async () => {
+            const mockUserWithCount = {
+                ...mockRemoteUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValueOnce([])
+            vi.mocked(global.fetch).mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ invalid: 'data' }), // Invalid outbox format
+            } as Response)
+
+            const res = await app.request('/api/user-search/profile/bob@example.com')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.user.username).toBe('bob@example.com')
+        })
+
+        it('should handle outbox with non-Create activities', async () => {
+            const mockUserWithCount = {
+                ...mockRemoteUser,
+                bio: null,
+                headerImage: null,
+                createdAt: new Date('2024-01-01'),
+                _count: {
+                    followers: 0,
+                    following: 0,
+                },
+            }
+
+            const mockOutbox = {
+                orderedItems: [
+                    {
+                        type: 'Like', // Not a Create activity
+                        object: {
+                            type: 'Event',
+                        },
+                    },
+                ],
+            }
+
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValueOnce([])
+            vi.mocked(global.fetch).mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockOutbox,
+            } as Response)
+
+            const res = await app.request('/api/user-search/profile/bob@example.com')
+
+            expect(res.status).toBe(200)
+            // Should not create events from non-Create activities
+            expect(prisma.event.upsert).not.toHaveBeenCalled()
+        })
+
+        it('should handle error when getting profile fails', async () => {
+            vi.mocked(prisma.user.findFirst).mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/user-search/profile/alice')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+        })
+    })
+
+    describe('Handle parsing edge cases', () => {
+        beforeEach(() => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+        })
+
+        it('should parse handle with domain/@username format', async () => {
+            await app.request('/api/user-search?q=example.com/@bob')
+
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+        })
+
+        it('should parse handle from URL with /users/username pattern', async () => {
+            await app.request('/api/user-search?q=https://example.com/users/bob')
+
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+        })
+
+        it('should parse handle from URL with /@username pattern', async () => {
+            await app.request('/api/user-search?q=https://example.com/@bob')
+
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+        })
+
+        it('should parse handle from URL using last path segment', async () => {
+            await app.request('/api/user-search?q=https://example.com/some/path/bob')
+
+            expect(prisma.user.findFirst).toHaveBeenCalled()
+        })
+
+        it('should handle invalid URL format gracefully', async () => {
+            const res = await app.request('/api/user-search?q=not-a-valid-url-format')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.remoteAccountSuggestion).toBeNull()
+        })
+
+        it('should handle empty query gracefully', async () => {
+            const res = await app.request('/api/user-search?q=')
+
+            expect(res.status).toBe(400)
+        })
+    })
+
+    describe('Search with various query formats', () => {
+        it('should search by username', async () => {
+            const mockUsers = [mockLocalUser]
+            vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+            const res = await app.request('/api/user-search?q=alice')
+
+            expect(res.status).toBe(200)
+            expect(prisma.user.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: {
+                        OR: [
+                            { username: { contains: 'alice' } },
+                            { name: { contains: 'alice' } },
+                        ],
+                    },
+                })
+            )
+        })
+
+        it('should search by name', async () => {
+            const mockUsers = [{ ...mockLocalUser, name: 'Alice Smith' }]
+            vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+            const res = await app.request('/api/user-search?q=Smith')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.users.length).toBeGreaterThan(0)
+        })
+
+        it('should search events by title', async () => {
+            const mockEvents = [
+                {
+                    id: 'event_123',
+                    title: 'Test Event',
+                    summary: 'Test summary',
+                    startTime: new Date('2024-12-01T10:00:00Z'),
+                    user: mockLocalUser,
+                    _count: {
+                        attendance: 5,
+                        likes: 10,
+                    },
+                },
+            ]
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue(mockEvents as any)
+
+            const res = await app.request('/api/user-search?q=Test')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.events.length).toBeGreaterThan(0)
+            expect(body.events[0].title).toBe('Test Event')
+        })
+
+        it('should search events by summary', async () => {
+            const mockEvents = [
+                {
+                    id: 'event_123',
+                    title: 'Event',
+                    summary: 'Detailed description',
+                    startTime: new Date('2024-12-01T10:00:00Z'),
+                    user: mockLocalUser,
+                    _count: {
+                        attendance: 5,
+                        likes: 10,
+                    },
+                },
+            ]
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue(mockEvents as any)
+
+            const res = await app.request('/api/user-search?q=Detailed')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.events.length).toBeGreaterThan(0)
+        })
+    })
+
+    describe('Error handling', () => {
+        it('should handle error when search fails', async () => {
+            vi.mocked(prisma.user.findMany).mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/user-search?q=test')
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+        })
+
+        it('should handle error when resolve fails', async () => {
+            vi.mocked(prisma.user.findFirst).mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(500)
+            const body = await res.json()
+            expect(body.error).toBe('Internal server error')
+        })
+
+        it('should handle WebFinger resolution timeout', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+            vi.mocked(resolveWebFinger).mockImplementation(() => 
+                new Promise((resolve) => setTimeout(() => resolve(null), 100))
+            )
+
+            // This test verifies the code handles null resolution gracefully
+            // In a real scenario, this would timeout, but we're testing the null case
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Failed to resolve account via WebFinger')
+        })
+
+        it('should handle actor fetch failure', async () => {
+            vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+            vi.mocked(resolveWebFinger).mockResolvedValue('https://example.com/users/bob')
+            vi.mocked(fetchActor).mockResolvedValue(null)
+
+            const res = await app.request('/api/user-search/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: '@bob@example.com' }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json()
+            expect(body.error).toBe('Failed to fetch actor')
+        })
     })
 })
 

@@ -567,6 +567,320 @@ describe('Federation Handlers', () => {
 
             expect(processed).toBeTruthy()
         })
+
+        it('should handle Update activity for profile', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'remoteuser@example.com',
+                    email: 'remote@example.com',
+                    name: 'Remote User',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/remoteuser',
+                },
+            })
+
+            const activity = {
+                id: 'https://example.com/activities/update-profile-1',
+                type: ActivityType.UPDATE,
+                actor: 'https://example.com/users/remoteuser',
+                object: {
+                    type: ObjectType.PERSON,
+                    id: 'https://example.com/users/remoteuser',
+                    preferredUsername: 'remoteuser',
+                    name: 'Updated Remote User',
+                    summary: 'Updated bio',
+                    displayColor: '#ff0000',
+                    icon: {
+                        url: 'https://example.com/new-avatar.jpg',
+                    },
+                    image: {
+                        url: 'https://example.com/new-header.jpg',
+                    },
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            const updatedUser = await prisma.user.findUnique({
+                where: { id: remoteUser.id },
+            })
+
+            expect(updatedUser?.name).toBe('Updated Remote User')
+            expect(updatedUser?.bio).toBe('Updated bio')
+            expect(updatedUser?.displayColor).toBe('#ff0000')
+            expect(updatedUser?.profileImage).toBe('https://example.com/new-avatar.jpg')
+            expect(updatedUser?.headerImage).toBe('https://example.com/new-header.jpg')
+        })
+
+        it('should handle Delete activity for comments', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'remoteuser@example.com',
+                    email: 'remote@example.com',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/remoteuser',
+                },
+            })
+
+            const comment = await prisma.comment.create({
+                data: {
+                    externalId: 'https://example.com/comments/1',
+                    content: 'Test comment',
+                    eventId: testEvent.id,
+                    authorId: remoteUser.id,
+                },
+            })
+
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const activity = {
+                id: 'https://example.com/activities/delete-comment-1',
+                type: ActivityType.DELETE,
+                actor: 'https://example.com/users/remoteuser',
+                object: {
+                    type: ObjectType.TOMBSTONE,
+                    id: 'https://example.com/comments/1',
+                    formerType: ObjectType.NOTE,
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            const deletedComment = await prisma.comment.findUnique({
+                where: { id: comment.id },
+            })
+
+            expect(deletedComment).toBeNull()
+            expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
+        })
+
+        it('should handle Undo Follow activity', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'remoteuser@example.com',
+                    email: 'remote@example.com',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/remoteuser',
+                },
+            })
+
+            await prisma.follower.create({
+                data: {
+                    userId: testUser.id,
+                    actorUrl: 'https://example.com/users/remoteuser',
+                    username: 'remoteuser@example.com',
+                    inboxUrl: 'https://example.com/users/remoteuser/inbox',
+                    accepted: true,
+                },
+            })
+
+            const activity = {
+                id: 'https://example.com/activities/undo-follow-1',
+                type: ActivityType.UNDO,
+                actor: 'https://example.com/users/remoteuser',
+                object: {
+                    type: ActivityType.FOLLOW,
+                    actor: 'https://example.com/users/remoteuser',
+                    object: `${baseUrl}/users/${testUser.username}`,
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            const follower = await prisma.follower.findFirst({
+                where: {
+                    userId: testUser.id,
+                    actorUrl: 'https://example.com/users/remoteuser',
+                },
+            })
+
+            expect(follower).toBeNull()
+        })
+
+        it('should handle Undo Attendance activity', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'remoteuser@example.com',
+                    email: 'remote@example.com',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/remoteuser',
+                },
+            })
+
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: testEvent.id,
+                    userId: remoteUser.id,
+                    status: AttendanceStatus.ATTENDING,
+                },
+            })
+
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const activity = {
+                id: 'https://example.com/activities/undo-attendance-1',
+                type: ActivityType.UNDO,
+                actor: 'https://example.com/users/remoteuser',
+                object: {
+                    type: ActivityType.ACCEPT,
+                    actor: 'https://example.com/users/remoteuser',
+                    object: `${baseUrl}/events/${testEvent.id}`,
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            const attendance = await prisma.eventAttendance.findFirst({
+                where: {
+                    eventId: testEvent.id,
+                    userId: remoteUser.id,
+                },
+            })
+
+            expect(attendance).toBeNull()
+            expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
+        })
+
+        it('should handle Announce activity', async () => {
+            const activity = {
+                id: 'https://example.com/activities/announce-1',
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                object: `${baseUrl}/events/${testEvent.id}`,
+            }
+
+            // Should not throw
+            await expect(handleActivity(activity as any)).resolves.not.toThrow()
+        })
+
+        it('should handle Follow activity for non-local target', async () => {
+            const activity = {
+                id: 'https://example.com/activities/follow-nonlocal-1',
+                type: ActivityType.FOLLOW,
+                actor: 'https://example.com/users/bob',
+                object: 'https://otherdomain.com/users/alice', // Not local
+            }
+
+            await handleActivity(activity as any)
+
+            // Should not create follower for non-local target
+            const follower = await prisma.follower.findFirst({
+                where: {
+                    actorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            expect(follower).toBeNull()
+        })
+
+        it('should handle Create activity with missing object', async () => {
+            const activity = {
+                id: 'https://example.com/activities/create-missing-1',
+                type: ActivityType.CREATE,
+                actor: 'https://example.com/users/bob',
+                // Missing object
+            }
+
+            await expect(handleActivity(activity as any)).resolves.not.toThrow()
+        })
+
+        it('should handle Create activity with unsupported object type', async () => {
+            const activity = {
+                id: 'https://example.com/activities/create-unsupported-1',
+                type: ActivityType.CREATE,
+                actor: 'https://example.com/users/bob',
+                object: {
+                    type: 'UnsupportedType',
+                    id: 'https://example.com/objects/1',
+                },
+            }
+
+            await expect(handleActivity(activity as any)).resolves.not.toThrow()
+        })
+
+        it('should handle Update activity with unsupported object type', async () => {
+            const activity = {
+                id: 'https://example.com/activities/update-unsupported-1',
+                type: ActivityType.UPDATE,
+                actor: 'https://example.com/users/bob',
+                object: {
+                    type: 'UnsupportedType',
+                    id: 'https://example.com/objects/1',
+                },
+            }
+
+            await expect(handleActivity(activity as any)).resolves.not.toThrow()
+        })
+
+        it('should handle Create Note without inReplyTo', async () => {
+            const remoteActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+                inbox: 'https://example.com/users/bob/inbox',
+            }
+
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob',
+                    isRemote: true,
+                    externalActorUrl: remoteActor.id,
+                    inboxUrl: remoteActor.inbox,
+                },
+            })
+
+            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor)
+            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+
+            const activity = {
+                id: 'https://example.com/activities/create-note-no-reply-1',
+                type: ActivityType.CREATE,
+                actor: remoteActor.id,
+                object: {
+                    type: ObjectType.NOTE,
+                    id: 'https://example.com/comments/2',
+                    content: 'Comment without inReplyTo',
+                    // Missing inReplyTo
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            // Should not create comment
+            const comment = await prisma.comment.findFirst({
+                where: {
+                    externalId: activity.object.id,
+                },
+            })
+
+            expect(comment).toBeNull()
+        })
+
+        it('should handle Accept Follow for non-local follower', async () => {
+            const activity = {
+                id: 'https://example.com/activities/accept-follow-nonlocal-1',
+                type: ActivityType.ACCEPT,
+                actor: 'https://example.com/users/bob',
+                object: {
+                    type: ActivityType.FOLLOW,
+                    actor: 'https://otherdomain.com/users/alice', // Not local
+                    object: 'https://example.com/users/bob',
+                },
+            }
+
+            await handleActivity(activity as any)
+
+            // Should not update following
+            const following = await prisma.following.findFirst({
+                where: {
+                    actorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            expect(following).toBeNull()
+        })
     })
 })
 

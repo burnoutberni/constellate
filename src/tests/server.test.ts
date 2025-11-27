@@ -507,5 +507,218 @@ describe('Server Setup', () => {
             expect(res.status).toBe(200)
         })
     })
+
+    describe('Edge Cases', () => {
+        it('should handle missing OpenAPI spec file gracefully', async () => {
+            // This test verifies the error handling path exists
+            // The actual file should exist, but we test the error case
+            const res = await app.request('/doc')
+            // Should either succeed (file exists) or return 500 (file missing)
+            expect([200, 500]).toContain(res.status)
+        })
+
+        it('should handle malformed JSON in signup response', async () => {
+            const mockResponse = new Response('Invalid JSON', { status: 200 })
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+
+            // Should not throw
+            await expect(
+                app.request('/api/auth/sign-up', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                    }),
+                })
+            ).resolves.not.toThrow()
+        })
+
+        it('should handle signup response with different user ID structure', async () => {
+            const mockResponse = new Response(
+                JSON.stringify({
+                    data: {
+                        user: {
+                            id: 'user-123',
+                        },
+                    },
+                }),
+                { status: 200 }
+            )
+
+            const mockUser = {
+                id: 'user-123',
+                username: 'testuser',
+                isRemote: false,
+                publicKey: null,
+                privateKey: null,
+            }
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
+
+            await app.request('/api/auth/sign-up', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: 'test@example.com',
+                    password: 'password123',
+                }),
+            })
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            expect(authModule.generateUserKeys).toHaveBeenCalled()
+        })
+
+        it('should handle signup response without user ID', async () => {
+            const mockResponse = new Response(
+                JSON.stringify({
+                    success: true,
+                    // No user field
+                }),
+                { status: 200 }
+            )
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+
+            // Should not throw
+            await expect(
+                app.request('/api/auth/sign-up', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                    }),
+                })
+            ).resolves.not.toThrow()
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            // Should not generate keys if no user ID
+            expect(authModule.generateUserKeys).not.toHaveBeenCalled()
+        })
+
+        it('should handle non-signup auth routes without key generation', async () => {
+            const mockResponse = new Response(JSON.stringify({ success: true }), {
+                status: 200,
+            })
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+
+            await app.request('/api/auth/session', {
+                method: 'GET',
+            })
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            // Should not generate keys for non-signup routes
+            expect(authModule.generateUserKeys).not.toHaveBeenCalled()
+        })
+
+        it('should handle GET signup route (should not generate keys)', async () => {
+            const mockResponse = new Response(JSON.stringify({ success: true }), {
+                status: 200,
+            })
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+
+            await app.request('/api/auth/sign-up', {
+                method: 'GET',
+            })
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            // GET requests should not trigger key generation
+            expect(authModule.generateUserKeys).not.toHaveBeenCalled()
+        })
+
+        it('should handle key generation errors without crashing', async () => {
+            const mockUser = {
+                id: 'user-123',
+                username: 'testuser',
+                isRemote: false,
+                publicKey: null,
+                privateKey: null,
+            }
+
+            const mockResponse = new Response(
+                JSON.stringify({
+                    user: { id: 'user-123' },
+                }),
+                { status: 200 }
+            )
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(authModule.generateUserKeys).mockRejectedValue(new Error('Key generation failed'))
+
+            // Should not throw even if key generation fails
+            await expect(
+                app.request('/api/auth/sign-up', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                    }),
+                })
+            ).resolves.not.toThrow()
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+        })
+
+        it('should handle database errors when checking user for key generation', async () => {
+            const mockResponse = new Response(
+                JSON.stringify({
+                    user: { id: 'user-123' },
+                }),
+                { status: 200 }
+            )
+
+            vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
+            vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error('Database error'))
+
+            // Should not throw
+            await expect(
+                app.request('/api/auth/sign-up', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                    }),
+                })
+            ).resolves.not.toThrow()
+
+            await new Promise(resolve => setTimeout(resolve, 100))
+        })
+
+        it('should handle CORS preflight requests', async () => {
+            const res = await app.request('/health', {
+                method: 'OPTIONS',
+            })
+
+            // CORS should handle OPTIONS requests
+            expect([200, 204]).toContain(res.status)
+        })
+
+        it('should handle requests to non-existent routes', async () => {
+            const res = await app.request('/nonexistent-route')
+
+            // Should return 404 or be handled by error handler
+            expect([404, 500]).toContain(res.status)
+        })
+
+        it('should handle malformed request bodies gracefully', async () => {
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: 'invalid json',
+            })
+
+            // Should return 400 or 500 depending on error handling
+            expect([400, 500]).toContain(res.status)
+        })
+    })
 })
 

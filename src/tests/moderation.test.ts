@@ -1006,6 +1006,319 @@ describe('Moderation API', () => {
 
             expect(res.status).toBe(400)
         })
+
+        it('should return 404 for non-existent report', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/moderation/reports/nonexistent-id', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status: 'resolved',
+                }),
+            })
+
+            expect(res.status).toBe(404)
+        })
+
+        it('should handle invalid request body format', async () => {
+            const report = await prisma.report.create({
+                data: {
+                    reporterId: testUser.id,
+                    reportedUserId: testUser2.id,
+                    contentUrl: 'user:test',
+                    reason: 'Test report',
+                    status: 'pending',
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/moderation/reports/${report.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    // Missing status field
+                }),
+            })
+
+            expect(res.status).toBe(400)
+        })
+    })
+
+    describe('Error Handling', () => {
+        it('should handle database errors when blocking user', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/moderation/block/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: testUser2.username,
+                }),
+            })
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle database errors when unblocking user', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request(`/api/moderation/block/user/${testUser2.username}`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle database errors when getting blocked users', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.blockedUser, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/moderation/block/users')
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle database errors when blocking domain', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.blockedDomain, 'upsert').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/moderation/block/domain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    domain: 'spam.example.com',
+                }),
+            })
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle database errors when creating report', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.user, 'findUnique').mockResolvedValueOnce(testUser2 as any)
+            vi.spyOn(prisma.report, 'create').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/moderation/report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    targetType: 'user',
+                    targetId: testUser2.id,
+                    reason: 'Test reason',
+                }),
+            })
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle database errors when getting reports', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.spyOn(prisma.report, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request('/api/moderation/reports')
+
+            expect(res.status).toBe(500)
+        })
+
+        it('should handle pagination edge cases', async () => {
+            // Create multiple reports
+            for (let i = 0; i < 25; i++) {
+                await prisma.report.create({
+                    data: {
+                        reporterId: testUser.id,
+                        reportedUserId: testUser2.id,
+                        contentUrl: `user:test${i}`,
+                        reason: `Test report ${i}`,
+                        status: 'pending',
+                    },
+                })
+            }
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            // Test first page
+            const res1 = await app.request('/api/moderation/reports?page=1&limit=10')
+            expect(res1.status).toBe(200)
+            const body1 = await res1.json()
+            expect(body1.reports.length).toBe(10)
+            expect(body1.pagination.page).toBe(1)
+            expect(body1.pagination.total).toBe(25)
+
+            // Test second page
+            const res2 = await app.request('/api/moderation/reports?page=2&limit=10')
+            expect(res2.status).toBe(200)
+            const body2 = await res2.json()
+            expect(body2.reports.length).toBe(10)
+            expect(body2.pagination.page).toBe(2)
+
+            // Test last page
+            const res3 = await app.request('/api/moderation/reports?page=3&limit=10')
+            expect(res3.status).toBe(200)
+            const body3 = await res3.json()
+            expect(body3.reports.length).toBe(5)
+            expect(body3.pagination.page).toBe(3)
+        })
+
+        it('should handle maximum limit cap', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/moderation/reports?limit=200')
+
+            expect(res.status).toBe(200)
+            const body = await res.json()
+            expect(body.pagination.limit).toBe(100) // Should be capped at 100
+        })
+
+        it('should handle invalid page number', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: adminUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/moderation/reports?page=invalid')
+
+            expect(res.status).toBe(200) // Should default to page 1
+            const body = await res.json()
+            expect(body.pagination.page).toBe(1)
+        })
     })
 })
 

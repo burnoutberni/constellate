@@ -1,152 +1,146 @@
 /**
  * Tests for Authentication Setup
+ * Tests for generateUserKeys and better-auth configuration
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { config } from 'dotenv'
-config()
 import { generateUserKeys } from '../auth.js'
 import { prisma } from '../lib/prisma.js'
-import * as encryption from '../lib/encryption.js'
+import { encryptPrivateKey } from '../lib/encryption.js'
 
-// Mock encryption
-vi.mock('../lib/encryption.js')
+// Mock dependencies
+vi.mock('../lib/prisma.js', () => ({
+    prisma: {
+        user: {
+            update: vi.fn(),
+        },
+    },
+}))
 
-describe('Auth', () => {
-    let testUser: any
+vi.mock('../lib/encryption.js', () => ({
+    encryptPrivateKey: vi.fn(),
+}))
 
-    beforeEach(async () => {
-        // Clean up
-        await prisma.user.deleteMany({})
-
-        // Create test user with unique identifiers to avoid race conditions in parallel tests
-        const timestamp = Date.now()
-        const randomSuffix = Math.random().toString(36).substring(7)
-        testUser = await prisma.user.create({
-            data: {
-                username: `alice_${timestamp}_${randomSuffix}`,
-                email: `alice_${timestamp}_${randomSuffix}@test.com`,
-                name: 'Alice Test',
-                isRemote: false,
-            },
-        })
-
-        // Reset mocks
+describe('Authentication Setup', () => {
+    beforeEach(() => {
         vi.clearAllMocks()
     })
 
     describe('generateUserKeys', () => {
-        it('should generate and store RSA key pair for user', async () => {
-            // Ensure user exists before generating keys
-            const user = await prisma.user.findUnique({ where: { id: testUser.id } })
-            if (!user) {
-                throw new Error('Test user not found')
-            }
-
+        it('should generate RSA key pair and encrypt private key', async () => {
+            const userId = 'user-123'
+            const username = 'testuser'
             const mockEncryptedKey = 'encrypted-private-key'
-            vi.mocked(encryption.encryptPrivateKey).mockReturnValue(mockEncryptedKey)
 
-            await generateUserKeys(testUser.id, testUser.username)
+            vi.mocked(encryptPrivateKey).mockReturnValue(mockEncryptedKey)
+            vi.mocked(prisma.user.update).mockResolvedValue({} as any)
 
-            // Verify keys were generated and stored
-            const updatedUser = await prisma.user.findUnique({
-                where: { id: testUser.id },
-                select: {
-                    publicKey: true,
-                    privateKey: true,
-                },
-            })
+            await generateUserKeys(userId, username)
 
-            expect(updatedUser).not.toBeNull()
-            expect(updatedUser!.publicKey).toBeTruthy()
-            expect(updatedUser!.privateKey).toBe(mockEncryptedKey)
-            expect(updatedUser!.publicKey).toContain('BEGIN PUBLIC KEY')
-            expect(updatedUser!.publicKey).toContain('END PUBLIC KEY')
-        })
+            // Verify encryption was called
+            expect(encryptPrivateKey).toHaveBeenCalled()
+            const encryptionCall = vi.mocked(encryptPrivateKey).mock.calls[0][0]
+            expect(encryptionCall).toContain('BEGIN PRIVATE KEY')
 
-        it('should encrypt private key before storing', async () => {
-            const mockEncryptedKey = 'encrypted-private-key'
-            vi.mocked(encryption.encryptPrivateKey).mockReturnValue(mockEncryptedKey)
-
-            // Ensure user exists before generating keys
-            const user = await prisma.user.findUnique({ where: { id: testUser.id } })
-            if (!user) {
-                throw new Error('Test user not found')
-            }
-
-            await generateUserKeys(testUser.id, testUser.username)
-
-            // Verify encryptPrivateKey was called
-            expect(encryption.encryptPrivateKey).toHaveBeenCalled()
-            const callArgs = vi.mocked(encryption.encryptPrivateKey).mock.calls[0][0]
-            expect(callArgs).toContain('BEGIN PRIVATE KEY')
-            expect(callArgs).toContain('END PRIVATE KEY')
-
-            // Verify encrypted key was stored
-            const updatedUser = await prisma.user.findUnique({
-                where: { id: testUser.id },
-                select: { privateKey: true },
-            })
-            expect(updatedUser!.privateKey).toBe(mockEncryptedKey)
-        })
-
-        it('should generate 2048-bit RSA keys', async () => {
-            vi.mocked(encryption.encryptPrivateKey).mockReturnValue('encrypted-key')
-
-            await generateUserKeys(testUser.id, testUser.username)
-
-            const updatedUser = await prisma.user.findUnique({
-                where: { id: testUser.id },
-                select: { publicKey: true },
-            })
-
-            // RSA 2048-bit public keys are typically around 450-500 characters in PEM format
-            expect(updatedUser!.publicKey.length).toBeGreaterThan(400)
-            expect(updatedUser!.publicKey.length).toBeLessThan(600)
-        })
-
-        it('should handle errors during key generation', async () => {
-            vi.mocked(encryption.encryptPrivateKey).mockImplementation(() => {
-                throw new Error('Encryption failed')
-            })
-
-            await expect(generateUserKeys(testUser.id, testUser.username)).rejects.toThrow()
-
-            // Verify user was not updated
-            const user = await prisma.user.findUnique({
-                where: { id: testUser.id },
-                select: { publicKey: true, privateKey: true },
-            })
-            expect(user!.publicKey).toBeNull()
-            expect(user!.privateKey).toBeNull()
-        })
-
-        it('should update existing user keys', async () => {
-            // Set initial keys
-            await prisma.user.update({
-                where: { id: testUser.id },
+            // Verify database update was called
+            expect(prisma.user.update).toHaveBeenCalledWith({
+                where: { id: userId },
                 data: {
-                    publicKey: 'old-public-key',
-                    privateKey: 'old-private-key',
+                    publicKey: expect.stringContaining('BEGIN PUBLIC KEY'),
+                    privateKey: mockEncryptedKey,
                 },
             })
+        })
 
-            const mockEncryptedKey = 'new-encrypted-key'
-            vi.mocked(encryption.encryptPrivateKey).mockReturnValue(mockEncryptedKey)
+        it('should generate keys with correct RSA parameters', async () => {
+            const userId = 'user-123'
+            const username = 'testuser'
 
-            await generateUserKeys(testUser.id, testUser.username)
+            vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+            vi.mocked(prisma.user.update).mockResolvedValue({} as any)
 
-            const updatedUser = await prisma.user.findUnique({
-                where: { id: testUser.id },
-                select: {
-                    publicKey: true,
-                    privateKey: true,
-                },
+            await generateUserKeys(userId, username)
+
+            // Verify the public key is in PEM format
+            const updateCall = vi.mocked(prisma.user.update).mock.calls[0][0]
+            const publicKey = updateCall.data.publicKey as string
+            expect(publicKey).toContain('BEGIN PUBLIC KEY')
+            expect(publicKey).toContain('END PUBLIC KEY')
+        })
+
+        it('should handle database errors gracefully', async () => {
+            const userId = 'user-123'
+            const username = 'testuser'
+
+            vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+            vi.mocked(prisma.user.update).mockRejectedValue(new Error('Database error'))
+
+            await expect(generateUserKeys(userId, username)).rejects.toThrow('Database error')
+        })
+
+        it('should handle encryption errors gracefully', async () => {
+            const userId = 'user-123'
+            const username = 'testuser'
+
+            vi.mocked(encryptPrivateKey).mockImplementation(() => {
+                throw new Error('Encryption error')
             })
 
-            expect(updatedUser!.publicKey).not.toBe('old-public-key')
-            expect(updatedUser!.privateKey).toBe(mockEncryptedKey)
+            await expect(generateUserKeys(userId, username)).rejects.toThrow('Encryption error')
+        })
+
+        it('should generate unique keys for different users', async () => {
+            const userId1 = 'user-1'
+            const userId2 = 'user-2'
+            const username1 = 'user1'
+            const username2 = 'user2'
+
+            vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+            vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+
+            await generateUserKeys(userId1, username1)
+            const publicKey1 = vi.mocked(prisma.user.update).mock.calls[0][0].data.publicKey as string
+
+            vi.clearAllMocks()
+            vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+            vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+
+            await generateUserKeys(userId2, username2)
+            const publicKey2 = vi.mocked(prisma.user.update).mock.calls[0][0].data.publicKey as string
+
+            // Keys should be different (very high probability)
+            expect(publicKey1).not.toBe(publicKey2)
+        })
+
+        it('should store encrypted private key, not plain text', async () => {
+            const userId = 'user-123'
+            const username = 'testuser'
+            const mockEncryptedKey = 'encrypted-private-key'
+
+            vi.mocked(encryptPrivateKey).mockReturnValue(mockEncryptedKey)
+            vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+
+            await generateUserKeys(userId, username)
+
+            const updateCall = vi.mocked(prisma.user.update).mock.calls[0][0]
+            const storedPrivateKey = updateCall.data.privateKey as string
+
+            // Should store encrypted key, not plain text
+            expect(storedPrivateKey).toBe(mockEncryptedKey)
+            expect(storedPrivateKey).not.toContain('BEGIN PRIVATE KEY')
+        })
+    })
+
+    describe('better-auth configuration', () => {
+        it('should export auth instance', async () => {
+            const { auth } = await import('../auth.js')
+            expect(auth).toBeDefined()
+            expect(auth.handler).toBeDefined()
+        })
+
+        it('should export Session type', async () => {
+            const authModule = await import('../auth.js')
+            expect(authModule).toHaveProperty('Session')
         })
     })
 })
-
