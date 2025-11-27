@@ -20,8 +20,8 @@ services:
       - test-keys:/app/.keys
     networks:
       - stellar-network
-    restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run db:seed && npm run test:coverage && npm run test:watch"]
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run db:seed && npm run test:coverage"]
 
   app1:
     build:
@@ -93,7 +93,6 @@ services:
     depends_on:
       - app1
       - app2
-      - test
 
 volumes:
   test-data:

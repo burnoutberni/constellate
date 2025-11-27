@@ -15,5 +15,4 @@ http://test.local {
     file_server {
         hide .git
     }
-    try_files {path} /index.html
 }

@@ -31,9 +31,9 @@ export default defineConfig({
       NODE_ENV: 'test',
     },
     // Only show failed tests, hide passing ones
-    // 'dot' reporter shows minimal output (dots for passing, F for failing)
+    // 'basic' reporter shows minimal output and highlights failures
     // Overridden by --reporter flag in test:watch script
-    reporters: process.env.CI ? ['verbose'] : ['dot'],
+    reporters: process.env.CI ? ['verbose'] : ['basic'],
     // Suppress console output from tests unless it's an error
     silent: false,
   },
