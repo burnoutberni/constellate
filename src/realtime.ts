@@ -3,15 +3,19 @@
  * Broadcasts updates to all connected clients
  */
 
+
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
+import { moderateRateLimit } from './middleware/rateLimit.js'
+import { requireAuth } from './middleware/auth.js'
 
 const app = new Hono()
+
 
 // Connected clients registry
 interface Client {
     id: string
-    userId?: string
+    userId: string // Now required
     stream: any // Hono SSE stream
 }
 
@@ -19,12 +23,13 @@ const clients = new Map<string, Client>()
 
 /**
  * SSE endpoint - clients connect here for real-time updates
+ * Authentication required to prevent resource exhaustion
  */
-app.get('/stream', async (c) => {
+app.get('/stream', moderateRateLimit, async (c) => {
+    // Require authentication
+    const userId = requireAuth(c)
     const clientId = crypto.randomUUID()
 
-    // Get user ID from context (set by auth middleware)
-    const userId = c.get('userId')
 
     return streamSSE(c, async (stream) => {
         // Store client
@@ -35,7 +40,8 @@ app.get('/stream', async (c) => {
         }
         clients.set(clientId, client)
 
-        console.log(`✅ SSE client connected: ${clientId} (user: ${userId || 'anonymous'})`)
+        console.log(`✅ SSE client connected: ${clientId} (user: ${userId})`)
+
 
         // Send initial connection message
         await stream.writeSSE({

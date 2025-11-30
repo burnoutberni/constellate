@@ -3,6 +3,7 @@
  * Centralized construction of ActivityPub activities
  */
 
+import { randomUUID } from 'crypto'
 import {
     ActivityType,
     ObjectType,
@@ -91,7 +92,7 @@ export function buildUpdateEventActivity(
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
-        id: `${actorUrl}/activities/${event.id}/update-${Date.now()}`,
+        id: `${actorUrl}/activities/${event.id}/update-${randomUUID()}`,
         type: ActivityType.UPDATE,
         actor: actorUrl,
         published: new Date().toISOString(),
@@ -167,7 +168,7 @@ export function buildFollowActivity(
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
-        id: `${actorUrl}/follows/${Date.now()}`,
+        id: `${actorUrl}/follows/${randomUUID()}`,
         type: ActivityType.FOLLOW,
         actor: actorUrl,
         object: targetActorUrl,
@@ -187,7 +188,7 @@ export function buildAcceptActivity(
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
-        id: `${actorUrl}/accepts/${Date.now()}`,
+        id: `${actorUrl}/accepts/${randomUUID()}`,
         type: ActivityType.ACCEPT,
         actor: actorUrl,
         object: followActivity,
@@ -207,7 +208,7 @@ export function buildRejectFollowActivity(
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
-        id: `${actorUrl}/rejects/${Date.now()}`,
+        id: `${actorUrl}/rejects/${randomUUID()}`,
         type: ActivityType.REJECT,
         actor: actorUrl,
         object: typeof followActivity === 'string' ? followActivity : followActivity,
@@ -227,20 +228,20 @@ export function buildLikeActivity(
 ): LikeActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
-    
+
     // Extract event ID from URL for unique activity ID
     const eventId = eventUrl.split('/').pop() || 'unknown'
-    const timestamp = Date.now()
-    const uniqueId = `${actorUrl}/likes/${eventId}-${user.id}-${timestamp}`
+    const activityId = randomUUID()
+    const uniqueId = `${actorUrl}/likes/${eventId}-${activityId}`
 
     // Determine addressing based on event visibility
     const to = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
@@ -266,11 +267,11 @@ export function buildUndoActivity(
 ): UndoActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
-    
+
     // Use original activity's ID for uniqueness
     const originalId = originalActivity.id || 'unknown'
-    const timestamp = Date.now()
-    const uniqueId = `${actorUrl}/undo/${originalId}-${timestamp}`
+    const activityId = randomUUID()
+    const uniqueId = `${actorUrl}/undo/${originalId}-${activityId}`
 
     // Preserve addressing from original activity
     const to = originalActivity.to
@@ -301,24 +302,24 @@ export function buildAttendingActivity(
 ): any {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
-    
+
     // Extract event ID from URL for unique activity ID
     const eventId = eventUrl.split('/').pop() || 'unknown'
-    const timestamp = Date.now()
-    const uniqueId = `${actorUrl}/accepts/${eventId}-${user.id}-${timestamp}`
+    const activityId = randomUUID()
+    const uniqueId = `${actorUrl}/accepts/${eventId}-${activityId}`
 
     // Determine addressing
     const to = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
-    
+
     // Also include user's followers so they know the user is attending
     if (userFollowersUrl) {
         cc.push(userFollowersUrl)
@@ -349,24 +350,24 @@ export function buildNotAttendingActivity(
 ): RejectActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
-    
+
     // Extract event ID from URL for unique activity ID
     const eventId = eventUrl.split('/').pop() || 'unknown'
-    const timestamp = Date.now()
-    const uniqueId = `${actorUrl}/reject/${eventId}-${user.id}-${timestamp}`
+    const activityId = randomUUID()
+    const uniqueId = `${actorUrl}/reject/${eventId}-${activityId}`
 
     // Determine addressing
     const to = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
-    
+
     // Also include user's followers
     if (userFollowersUrl) {
         cc.push(userFollowersUrl)
@@ -397,24 +398,24 @@ export function buildMaybeAttendingActivity(
 ): TentativeAcceptActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
-    
+
     // Extract event ID from URL for unique activity ID
     const eventId = eventUrl.split('/').pop() || 'unknown'
-    const timestamp = Date.now()
-    const uniqueId = `${actorUrl}/tentative-accept/${eventId}-${user.id}-${timestamp}`
+    const activityId = randomUUID()
+    const uniqueId = `${actorUrl}/tentative-accept/${eventId}-${activityId}`
 
     // Determine addressing
     const to = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
-    
+
     // Also include user's followers
     if (userFollowersUrl) {
         cc.push(userFollowersUrl)
@@ -450,16 +451,16 @@ export function buildCreateCommentActivity(
     // Determine addressing
     const to: string[] = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     // Add parent comment author if replying
     if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
         to.push(parentCommentAuthorUrl)
     }
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
@@ -505,16 +506,16 @@ export function buildDeleteCommentActivity(
     // Determine addressing (same as original comment)
     const to: string[] = [eventAuthorUrl]
     const cc: string[] = []
-    
+
     // Add parent comment author if replying
     if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
         to.push(parentCommentAuthorUrl)
     }
-    
+
     if (isPublic) {
         cc.push(PUBLIC_COLLECTION)
     }
-    
+
     if (eventAuthorFollowersUrl) {
         cc.push(eventAuthorFollowersUrl)
     }
@@ -546,7 +547,7 @@ export function buildUpdateProfileActivity(user: User): UpdateActivity {
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
-        id: `${actorUrl}/updates/${Date.now()}`,
+        id: `${actorUrl}/updates/${randomUUID()}`,
         type: ActivityType.UPDATE,
         actor: actorUrl,
         published: new Date().toISOString(),

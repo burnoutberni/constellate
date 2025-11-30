@@ -41,7 +41,7 @@ export function signRequest(
             }
             // Find header value case-insensitively
             const headerLower = header.toLowerCase()
-            const headerValue = headers[headerLower] || 
+            const headerValue = headers[headerLower] ||
                 Object.entries(headers).find(([key]) => key.toLowerCase() === headerLower)?.[1]
             if (!headerValue) {
                 throw new Error(`Missing header: ${header}`)
@@ -90,8 +90,26 @@ export async function verifySignature(
             return false
         }
 
+        // Validate date header to prevent replay attacks
+        const dateHeader = headers['date']
+        if (dateHeader) {
+            const requestDate = new Date(dateHeader)
+            const now = new Date()
+            const diff = Math.abs(now.getTime() - requestDate.getTime())
+
+            // Reject requests older than 5 minutes or in the future
+            if (diff > 5 * 60 * 1000) {
+                console.error('[Signature] Request too old or too far in future')
+                console.error(`[Signature] Request date: ${dateHeader}, Current: ${now.toISOString()}, Diff: ${diff}ms`)
+                return false
+            }
+        } else {
+            console.error('[Signature] Missing Date header')
+            return false
+        }
+
         // Fetch the public key
-        const publicKey = await fetchPublicKey(keyId)
+        let publicKey = await fetchPublicKey(keyId)
         if (!publicKey) {
             console.error(`[Signature] Failed to fetch public key from: ${keyId}`)
             return false
@@ -106,7 +124,7 @@ export async function verifySignature(
             }
             // Find header value case-insensitively
             const headerLower = header.toLowerCase()
-            const headerValue = headers[headerLower] || 
+            const headerValue = headers[headerLower] ||
                 Object.entries(headers).find(([key]) => key.toLowerCase() === headerLower)?.[1]
             if (!headerValue) {
                 console.error(`[Signature] Missing header: ${header}`)
@@ -121,15 +139,33 @@ export async function verifySignature(
         const verify = createVerify('SHA256')
         verify.update(signatureString)
         verify.end()
-        const isValid = verify.verify(publicKey, sig, 'base64')
-        
+        let isValid = verify.verify(publicKey, sig, 'base64')
+
+        // If verification fails, try refreshing the key (might have been rotated)
+        if (!isValid) {
+            console.log('[Signature] Verification failed, refreshing public key and retrying')
+            publicKeyCache.delete(keyId) // Invalidate cache
+
+            const freshKey = await fetchPublicKey(keyId)
+            if (freshKey && freshKey !== publicKey) {
+                const retryVerify = createVerify('SHA256')
+                retryVerify.update(signatureString)
+                retryVerify.end()
+                isValid = retryVerify.verify(freshKey, sig, 'base64')
+
+                if (isValid) {
+                    console.log('[Signature] Verification succeeded with fresh key')
+                }
+            }
+        }
+
         if (!isValid) {
             console.error(`[Signature] Verification failed for keyId: ${keyId}`)
             console.error(`[Signature] Method: ${method}, Path: ${path}`)
             console.error(`[Signature] Headers to verify: ${headersToVerify.join(', ')}`)
             console.error(`[Signature] Signature string:\n${signatureString}`)
         }
-        
+
         return isValid
     } catch (error) {
         console.error('[Signature] Verification error:', error)

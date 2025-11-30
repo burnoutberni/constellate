@@ -10,6 +10,7 @@ import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { sanitizeText } from './lib/sanitization.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -56,10 +57,13 @@ app.post('/', async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
-        // Create event
+        // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
                 ...validatedData,
+                title: sanitizeText(validatedData.title),
+                summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
+                location: validatedData.location ? sanitizeText(validatedData.location) : null,
                 startTime: new Date(validatedData.startTime),
                 endTime: validatedData.endTime ? new Date(validatedData.endTime) : null,
                 userId,
@@ -73,7 +77,7 @@ app.post('/', async (c) => {
         // Build and deliver Create activity
         // Ensure event object includes user property for activity builder
         const activity = buildCreateEventActivity({ ...event, user }, userId)
-        
+
         // Use deliverActivity with proper addressing to reach all recipients
         const { getPublicAddressing } = await import('./lib/audience.js')
         const addressing = {
@@ -383,80 +387,80 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                 if (replyType === 'Accept' || replyType === 'TentativeAccept' || replyType === 'Reject') {
                                     const actorUrl = replyObj.actor as string | undefined
 
-                                // Find or cache the remote user
-                                let attendeeUser = await prisma.user.findFirst({
-                                    where: { externalActorUrl: actorUrl },
-                                })
+                                    // Find or cache the remote user
+                                    let attendeeUser = await prisma.user.findFirst({
+                                        where: { externalActorUrl: actorUrl },
+                                    })
 
-                                if (!attendeeUser) {
-                                    // Fetch and cache the remote user
-                                    const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                    const actor = actorUrl ? await fetchActor(actorUrl) : null
-                                    if (actor) {
-                                        attendeeUser = await cacheRemoteUser(actor)
+                                    if (!attendeeUser) {
+                                        // Fetch and cache the remote user
+                                        const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
+                                        const actor = actorUrl ? await fetchActor(actorUrl) : null
+                                        if (actor) {
+                                            attendeeUser = await cacheRemoteUser(actor)
+                                        }
                                     }
-                                }
 
-                                if (attendeeUser) {
-                                    // Determine status
-                                    let status = 'attending'
-                                    if (replyType === 'TentativeAccept') status = 'maybe'
-                                    if (replyType === 'Reject') status = 'not_attending'
+                                    if (attendeeUser) {
+                                        // Determine status
+                                        let status = 'attending'
+                                        if (replyType === 'TentativeAccept') status = 'maybe'
+                                        if (replyType === 'Reject') status = 'not_attending'
 
-                                    // Cache attendance
-                                    await prisma.eventAttendance.upsert({
-                                        where: {
-                                            eventId_userId: {
+                                        // Cache attendance
+                                        await prisma.eventAttendance.upsert({
+                                            where: {
+                                                eventId_userId: {
+                                                    userId: attendeeUser.id,
+                                                    eventId: event.id,
+                                                },
+                                            },
+                                            update: { status },
+                                            create: {
                                                 userId: attendeeUser.id,
                                                 eventId: event.id,
+                                                status,
                                             },
-                                        },
-                                        update: { status },
-                                        create: {
-                                            userId: attendeeUser.id,
-                                            eventId: event.id,
-                                            status,
-                                        },
-                                    })
-                                }
-                            } else if (replyType === 'Note') {
-                                // Cache comment
-                                const actorUrl = replyObj.attributedTo as string | undefined
-                                const content = replyObj.content as string | undefined
-
-                                if (!actorUrl || !content) continue
-
-                                // Find or cache the remote user
-                                let authorUser = await prisma.user.findFirst({
-                                    where: { externalActorUrl: actorUrl },
-                                })
-
-                                if (!authorUser) {
-                                    const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                    const actor = await fetchActor(actorUrl)
-                                    if (actor) {
-                                        authorUser = await cacheRemoteUser(actor)
+                                        })
                                     }
-                                }
+                                } else if (replyType === 'Note') {
+                                    // Cache comment
+                                    const actorUrl = replyObj.attributedTo as string | undefined
+                                    const content = replyObj.content as string | undefined
 
-                                if (authorUser && content && replyObj.id) {
-                                    await prisma.comment.upsert({
-                                        where: { externalId: replyObj.id as string },
-                                        update: {
-                                            content,
-                                        },
-                                        create: {
-                                            externalId: replyObj.id as string,
-                                            content,
-                                            eventId: event.id,
-                                            authorId: authorUser.id,
-                                        },
+                                    if (!actorUrl || !content) continue
+
+                                    // Find or cache the remote user
+                                    let authorUser = await prisma.user.findFirst({
+                                        where: { externalActorUrl: actorUrl },
                                     })
+
+                                    if (!authorUser) {
+                                        const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
+                                        const actor = await fetchActor(actorUrl)
+                                        if (actor) {
+                                            authorUser = await cacheRemoteUser(actor)
+                                        }
+                                    }
+
+                                    if (authorUser && content && replyObj.id) {
+                                        await prisma.comment.upsert({
+                                            where: { externalId: replyObj.id as string },
+                                            update: {
+                                                content,
+                                            },
+                                            create: {
+                                                externalId: replyObj.id as string,
+                                                content,
+                                                eventId: event.id,
+                                                authorId: authorUser.id,
+                                            },
+                                        })
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
                     // Cache likes from remote event
                     const likes = remoteEvent.likes as { items?: unknown[] } | undefined
@@ -753,11 +757,14 @@ app.put('/:id', async (c) => {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
-        // Update event
+        // Update event with sanitized input
         const event = await prisma.event.update({
             where: { id },
             data: {
                 ...validatedData,
+                title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
+                summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
+                location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
                 startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
                 endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
             },

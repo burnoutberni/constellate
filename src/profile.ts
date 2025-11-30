@@ -1,8 +1,4 @@
-/**
- * Profile Management
- * User profile endpoints with federation
- */
-
+import { randomUUID } from 'crypto'
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { buildUpdateProfileActivity, buildFollowActivity, buildUndoActivity, buildAcceptActivity, buildRejectFollowActivity } from './services/ActivityBuilder.js'
@@ -11,6 +7,7 @@ import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
+import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
 
 const app = new Hono()
@@ -45,7 +42,6 @@ app.get('/users/me/profile', async (c) => {
                 isRemote: true,
                 externalActorUrl: true,
                 isAdmin: true,
-                isBot: true,
                 autoAcceptFollowers: true,
                 createdAt: true,
                 _count: {
@@ -112,9 +108,8 @@ app.get('/users/:username/profile', async (c) => {
                 headerImage: true,
                 isRemote: true,
                 externalActorUrl: true,
-                isAdmin: true, // Include isAdmin
-                isBot: true, // Include isBot
-                autoAcceptFollowers: true, // Include for own profile
+                isAdmin: true,
+                autoAcceptFollowers: true,
                 createdAt: true,
                 _count: {
                     select: {
@@ -155,9 +150,8 @@ app.get('/users/:username/profile', async (c) => {
 
         return c.json({
             ...user,
-            isAdmin: isOwnProfile ? user.isAdmin : undefined, // Only return if own profile
-            isBot: isOwnProfile ? user.isBot : undefined, // Only return if own profile
-            autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined, // Only return if own profile
+            isAdmin: isOwnProfile ? user.isAdmin : undefined,
+            autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
             _count: {
                 ...user._count,
                 followers: followerCount,
@@ -178,10 +172,14 @@ app.put('/profile', async (c) => {
         const body = await c.req.json()
         const updates = ProfileUpdateSchema.parse(body)
 
-        // Update user (requireAuth ensures user can only update their own profile)
+        // Update user with sanitized input
         const user = await prisma.user.update({
             where: { id: userId },
-            data: updates,
+            data: {
+                ...updates,
+                name: updates.name ? sanitizeText(updates.name) : undefined,
+                bio: updates.bio ? sanitizeText(updates.bio) : undefined,
+            },
         })
 
         // Build and deliver Update(Person) activity to followers
@@ -264,7 +262,7 @@ app.post('/users/:username/follow', async (c) => {
 
         // Find target user
         const isRemote = username.includes('@')
-        
+
         // For remote users, we don't need autoAcceptFollowers (they handle it on their server)
         // For local users, we need it to check their setting
         const targetUser = await prisma.user.findFirst({
@@ -351,7 +349,7 @@ app.post('/users/:username/follow', async (c) => {
             const currentUserActorUrl = `${baseUrl}/users/${currentUser.username}`
             // Check if target user auto-accepts followers (only for local users)
             const shouldAutoAccept = (targetUser as any).autoAcceptFollowers ?? true
-            
+
             // Create the follower record
             await prisma.follower.upsert({
                 where: {
@@ -639,7 +637,7 @@ app.post('/followers/:followerId/accept', async (c) => {
         const baseUrl = getBaseUrl()
         const followActivity: FollowActivity = {
             '@context': ['https://www.w3.org/ns/activitystreams'],
-            id: `${follower.actorUrl}/follows/${Date.now()}`,
+            id: `${follower.actorUrl}/follows/${randomUUID()}`,
             type: 'Follow',
             actor: follower.actorUrl,
             object: `${baseUrl}/users/${follower.user.username}`,
@@ -682,7 +680,7 @@ app.post('/followers/:followerId/reject', async (c) => {
         const baseUrl = getBaseUrl()
         const followActivity: FollowActivity = {
             '@context': ['https://www.w3.org/ns/activitystreams'],
-            id: `${follower.actorUrl}/follows/${Date.now()}`,
+            id: `${follower.actorUrl}/follows/${randomUUID()}`,
             type: 'Follow',
             actor: follower.actorUrl,
             object: `${baseUrl}/users/${follower.user.username}`,

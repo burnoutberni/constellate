@@ -7,18 +7,24 @@ import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
+import { safeFetch } from './lib/ssrfProtection.js'
+import { lenientRateLimit } from './middleware/rateLimit.js'
 
 const app = new Hono()
 
+// Apply rate limiting to prevent abuse
+app.use('*', lenientRateLimit)
+
+
 // Search validation schema
 const SearchQuerySchema = z.object({
-    q: z.string().min(1),
+    q: z.string().min(1).max(200), // Add length limit
     limit: z.string().optional(),
 })
 
 // Resolve account schema
 const ResolveAccountSchema = z.object({
-    handle: z.string().min(1),
+    handle: z.string().min(1).max(300), // Add length limit for full handles
 })
 
 /**
@@ -330,10 +336,10 @@ app.get('/profile/:username/followers', async (c) => {
         // Decode username in case it's URL encoded
         let username = decodeURIComponent(c.req.param('username'))
         const limit = parseInt(c.req.query('limit') || '50')
-        
+
         // Check if it's a remote user (contains @domain)
         const isRemote = username.includes('@')
-        
+
         const user = await prisma.user.findFirst({
             where: {
                 username,
@@ -416,10 +422,10 @@ app.get('/profile/:username/following', async (c) => {
         // Decode username in case it's URL encoded
         let username = decodeURIComponent(c.req.param('username'))
         const limit = parseInt(c.req.query('limit') || '50')
-        
+
         // Check if it's a remote user (contains @domain)
         const isRemote = username.includes('@')
-        
+
         const user = await prisma.user.findFirst({
             where: {
                 username,
@@ -503,7 +509,7 @@ app.get('/profile/:username', async (c) => {
 
         // Check if it's a remote user (contains @domain)
         const isRemote = username.includes('@')
-        
+
         console.log(`[userSearch] Looking up profile for: ${username} (isRemote: ${isRemote})`)
 
         let user = await prisma.user.findFirst({
@@ -535,10 +541,10 @@ app.get('/profile/:username', async (c) => {
         // If user not found and it's a remote user, try to resolve and cache them
         if (!user && isRemote) {
             const parsedHandle = parseHandle(username)
-            
+
             if (parsedHandle && !isLocalHandle(parsedHandle.domain)) {
                 console.log(`🔍 Attempting to resolve remote user: ${username}`)
-                
+
                 // Resolve via WebFinger
                 const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
                 const actorUrl = await resolveWebFinger(resource)
@@ -550,7 +556,7 @@ app.get('/profile/:username', async (c) => {
                     if (actor) {
                         // Cache remote user
                         const cachedUser = await cacheRemoteUser(actor)
-                        
+
                         // Re-fetch the user with all fields
                         const refetchedUser = await prisma.user.findFirst({
                             where: {
@@ -576,11 +582,11 @@ app.get('/profile/:username', async (c) => {
                                 },
                             },
                         })
-                        
+
                         if (refetchedUser) {
                             user = refetchedUser
                         }
-                        
+
                         console.log(`✅ Resolved and cached remote user: ${username}`)
                     }
                 }
@@ -684,9 +690,9 @@ app.get('/profile/:username', async (c) => {
                             const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
                             const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
                             const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
-                            
+
                             if (!eventId || !eventName || !eventStartTime) continue
-                            
+
                             await prisma.event.upsert({
                                 where: { externalId: eventId },
                                 update: {

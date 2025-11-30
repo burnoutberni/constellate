@@ -3,21 +3,27 @@
  * Advanced search capabilities for events
  */
 
+
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { prisma } from './lib/prisma.js'
+import { lenientRateLimit } from './middleware/rateLimit.js'
 
 const app = new Hono()
 
+// Apply rate limiting to all search endpoints
+app.use('*', lenientRateLimit)
+
+
 // Search validation schema
 const SearchSchema = z.object({
-    q: z.string().optional(), // Search query
-    location: z.string().optional(), // Location filter
+    q: z.string().max(200).optional(), // Search query with length limit
+    location: z.string().max(200).optional(), // Location filter
     startDate: z.string().datetime().optional(), // Start date filter
     endDate: z.string().datetime().optional(), // End date filter
     status: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     mode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
-    username: z.string().optional(), // Filter by organizer
+    username: z.string().max(200).optional(), // Filter by organizer
     page: z.string().optional(),
     limit: z.string().optional(),
 })

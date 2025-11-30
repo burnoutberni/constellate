@@ -18,11 +18,48 @@ const PRIVATE_IP_RANGES = [
 const ALLOWED_PROTOCOLS = ['http:', 'https:']
 
 /**
- * Validates a URL to prevent SSRF attacks
+ * Checks if an IP address is in a private range
+ * @param ip - IP address to check (IPv4 or IPv6)
+ * @returns True if IP is private
+ */
+function isPrivateIP(ip: string): boolean {
+    // IPv4 private ranges
+    const ipv4Patterns = [
+        /^127\./,                    // Loopback
+        /^10\./,                     // Private
+        /^172\.(1[6-9]|2\d|3[01])\./, // Private
+        /^192\.168\./,               // Private
+        /^169\.254\./,               // Link-local
+        /^0\./,                      // Current network
+    ]
+
+    // IPv6 private ranges
+    const ipv6Patterns = [
+        /^::1$/,                     // Loopback
+        /^fe80:/i,                   // Link-local
+        /^fc00:/i,                   // Unique local
+        /^fd00:/i,                   // Unique local
+        /^::ffff:127\./i,            // IPv4-mapped loopback
+        /^::ffff:10\./i,             // IPv4-mapped private
+        /^::ffff:172\.(1[6-9]|2\d|3[01])\./i, // IPv4-mapped private
+        /^::ffff:192\.168\./i,       // IPv4-mapped private
+    ]
+
+    for (const pattern of [...ipv4Patterns, ...ipv6Patterns]) {
+        if (pattern.test(ip)) {
+            return true
+        }
+    }
+
+    return false
+}
+
+/**
+ * Validates a URL to prevent SSRF attacks with DNS resolution
  * @param urlString - The URL to validate
  * @returns True if the URL is safe to fetch
  */
-export function isUrlSafe(urlString: string): boolean {
+export async function isUrlSafe(urlString: string): Promise<boolean> {
     try {
         const url = new URL(urlString)
 
@@ -38,15 +75,14 @@ export function isUrlSafe(urlString: string): boolean {
             }
         }
 
-        // Check for private IP ranges
+        // Check for private IP ranges in hostname
         const hostname = url.hostname
 
         // Check if it's an IP address
         if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-            for (const range of PRIVATE_IP_RANGES) {
-                if (range.test(hostname)) {
-                    return false
-                }
+            if (isPrivateIP(hostname)) {
+                console.error(`[SSRF] Blocked private IPv4: ${hostname}`)
+                return false
             }
         }
 
@@ -56,17 +92,48 @@ export function isUrlSafe(urlString: string): boolean {
             const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']')
                 ? hostname.slice(1, -1)
                 : hostname
-            
-            for (const range of PRIVATE_IP_RANGES) {
-                if (range.test(normalizedHostname)) {
-                    return false
-                }
+
+            if (isPrivateIP(normalizedHostname)) {
+                console.error(`[SSRF] Blocked private IPv6: ${normalizedHostname}`)
+                return false
             }
         }
 
         // Check for localhost variations (only in production)
         if (hostname === 'localhost' || hostname.endsWith('.local')) {
+            console.error(`[SSRF] Blocked localhost variation: ${hostname}`)
             return false
+        }
+
+        // Resolve DNS and check all IPs (skip in development for .local domains)
+        if (process.env.NODE_ENV !== 'development' || !hostname.endsWith('.local')) {
+            try {
+                const dns = await import('dns/promises')
+
+                // Try to resolve both IPv4 and IPv6
+                const ipv4Addresses = await dns.resolve4(hostname).catch(() => [] as string[])
+                const ipv6Addresses = await dns.resolve6(hostname).catch(() => [] as string[])
+
+                const allAddresses = [...ipv4Addresses, ...ipv6Addresses]
+
+                // If we got no addresses, the hostname doesn't resolve
+                if (allAddresses.length === 0) {
+                    console.error(`[SSRF] Hostname does not resolve: ${hostname}`)
+                    return false
+                }
+
+                // Check each resolved IP
+                for (const ip of allAddresses) {
+                    if (isPrivateIP(ip)) {
+                        console.error(`[SSRF] Blocked private IP from DNS: ${ip} for ${hostname}`)
+                        return false
+                    }
+                }
+            } catch (error) {
+                // DNS resolution failed - block by default
+                console.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
+                return false
+            }
         }
 
         return true
@@ -77,38 +144,65 @@ export function isUrlSafe(urlString: string): boolean {
 }
 
 /**
- * Validates and fetches a URL with SSRF protection and timeout
+ * Validates and fetches a URL with SSRF protection, redirect handling, and timeout
  * @param url - The URL to fetch
  * @param options - Fetch options
  * @param timeoutMs - Request timeout in milliseconds (default: 30 seconds)
+ * @param maxRedirects - Maximum number of redirects to follow (default: 5)
  * @returns Fetch response
  * @throws Error if URL is not safe or request times out
  */
 export async function safeFetch(
     url: string,
     options?: RequestInit,
-    timeoutMs: number = 30000 // 30 seconds default
+    timeoutMs: number = 30000, // 30 seconds default
+    maxRedirects: number = 5
 ): Promise<Response> {
-    if (!isUrlSafe(url)) {
-        throw new Error(`URL is not safe to fetch: ${url}`)
-    }
+    let currentUrl = url
+    let redirectCount = 0
 
-    // Create AbortController for timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
-        return response
-    } catch (error: any) {
-        clearTimeout(timeoutId)
-        if (error.name === 'AbortError') {
-            throw new Error(`Request timeout after ${timeoutMs}ms: ${url}`)
+    while (redirectCount <= maxRedirects) {
+        // Validate current URL
+        if (!await isUrlSafe(currentUrl)) {
+            throw new Error(`URL is not safe to fetch: ${currentUrl}`)
         }
-        throw error
+
+        // Create AbortController for timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+        try {
+            const response = await fetch(currentUrl, {
+                ...options,
+                signal: controller.signal,
+                redirect: 'manual', // Handle redirects manually
+            })
+            clearTimeout(timeoutId)
+
+            // Check for redirects
+            if (response.status >= 300 && response.status < 400) {
+                const location = response.headers.get('location')
+                if (!location) {
+                    throw new Error('Redirect without location header')
+                }
+
+                // Resolve relative URLs
+                currentUrl = new URL(location, currentUrl).toString()
+                redirectCount++
+
+                console.log(`[SSRF] Following redirect ${redirectCount}/${maxRedirects}: ${currentUrl}`)
+                continue
+            }
+
+            return response
+        } catch (error: any) {
+            clearTimeout(timeoutId)
+            if (error.name === 'AbortError') {
+                throw new Error(`Request timeout after ${timeoutMs}ms: ${currentUrl}`)
+            }
+            throw error
+        }
     }
+
+    throw new Error(`Too many redirects (max ${maxRedirects})`)
 }

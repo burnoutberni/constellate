@@ -11,6 +11,7 @@ import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import { sanitizeText } from './lib/sanitization.js'
 
 const app = new Hono()
 
@@ -58,10 +59,10 @@ app.post('/:id/comments', async (c) => {
             }
         }
 
-        // Create comment
+        // Create comment with sanitized content
         const comment = await prisma.comment.create({
             data: {
-                content,
+                content: sanitizeText(content),
                 eventId: id,
                 authorId: userId,
                 inReplyToId: inReplyToId || null,
@@ -75,7 +76,7 @@ app.post('/:id/comments', async (c) => {
         // Build and deliver Create(Note) activity
         const baseUrl = getBaseUrl()
         const eventAuthorUrl = event.attributedTo!
-        
+
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
         if (event.user) {
@@ -86,7 +87,7 @@ app.post('/:id/comments', async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         // Get parent comment author URL if replying
         let parentCommentAuthorUrl: string | undefined
         if (inReplyToId) {
@@ -100,7 +101,7 @@ app.post('/:id/comments', async (c) => {
                     `${baseUrl}/users/${parentComment.author.username}`
             }
         }
-        
+
         // Determine if event is public (default to true)
         const isPublic = true
 
@@ -111,16 +112,16 @@ app.post('/:id/comments', async (c) => {
             parentCommentAuthorUrl,
             isPublic
         )
-        
+
         // Build recipients list
         const recipients: string[] = [eventAuthorUrl]
         if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
             recipients.push(parentCommentAuthorUrl)
         }
-        
+
         // Deliver to direct recipients
         await deliverToActors(activity, recipients, userId)
-        
+
         // Also deliver to event author's followers if event is public
         if (eventAuthorFollowersUrl && event.user) {
             await deliverToFollowers(activity, event.user.id)
@@ -249,7 +250,7 @@ app.delete('/comments/:commentId', async (c) => {
 
         const baseUrl = getBaseUrl()
         const eventAuthorUrl = comment.event.attributedTo!
-        
+
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
         if (comment.event.user) {
@@ -260,14 +261,14 @@ app.delete('/comments/:commentId', async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         // Get parent comment author URL if replying
         let parentCommentAuthorUrl: string | undefined
         if (comment.inReplyTo && comment.inReplyTo.author.id !== userId) {
             parentCommentAuthorUrl = comment.inReplyTo.author.externalActorUrl ||
                 `${baseUrl}/users/${comment.inReplyTo.author.username}`
         }
-        
+
         const isPublic = true
 
         // Build Delete activity before deleting
@@ -292,7 +293,7 @@ app.delete('/comments/:commentId', async (c) => {
 
         // Deliver Delete activity
         await deliverToActors(activity, recipients, userId)
-        
+
         // Also deliver to event author's followers if event is public
         if (eventAuthorFollowersUrl && comment.event.user) {
             await deliverToFollowers(activity, comment.event.user.id)

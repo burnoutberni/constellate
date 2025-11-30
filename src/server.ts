@@ -24,6 +24,7 @@ import adminRoutes from './admin.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
+import { csrfProtection } from './middleware/csrf.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
@@ -85,6 +86,8 @@ app.use('*', cors({
     credentials: true,
 }))
 app.use('*', authMiddleware)
+// Apply CSRF protection to all API routes (state-changing operations)
+app.use('/api/*', csrfProtection)
 
 // Health check
 app.get('/health', (c) => {
@@ -104,7 +107,7 @@ app.get('/', (c) => {
 // Auth routes (better-auth) - intercept to generate keys after signup
 app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
     const response = await auth.handler(c.req.raw)
-    
+
     // If this is a signup request, generate keys for the new user
     if (c.req.method === 'POST' && (c.req.path.includes('/sign-up') || c.req.path.includes('/signup'))) {
         // Only proceed if response is successful
@@ -112,10 +115,10 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
             try {
                 const responseClone = response.clone()
                 const data = await responseClone.json() as any
-                
+
                 // Try to get user ID from response
                 const userId = data?.user?.id || data?.data?.user?.id
-                
+
                 if (userId) {
                     // Query database to get the full user with username
                     const user = await prisma.user.findUnique({
@@ -128,7 +131,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
                             privateKey: true,
                         },
                     })
-                    
+
                     // Only generate keys if user exists, is local, and doesn't have keys
                     if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
                         // Generate keys in the background (don't block the response)
@@ -144,7 +147,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
             }
         }
     }
-    
+
     return response
 })
 
@@ -165,7 +168,7 @@ app.route('/api/admin', adminRoutes)
 // Only start server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
     console.log(`🚀 Server starting on port ${config.port}`)
-    
+
     serve({
         fetch: app.fetch,
         port: config.port,
