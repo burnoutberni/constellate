@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      target: production
+    container_name: stellar-prod
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-stellar}?schema=public
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    networks:
+      - stellar-network
+    restart: always
+    depends_on:
+      - db
+    entrypoint: ["/app/scripts/prod-entrypoint.sh"]
+    command: ["node", "dist/server.js"]
+
+  db:
+    image: postgres:15-alpine
+    container_name: stellar-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-stellar}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - stellar-network
+    restart: always
+
+volumes:
+  db-data:
+
+networks:
+  stellar-network:
+    driver: bridge
