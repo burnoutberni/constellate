@@ -22,7 +22,9 @@ async function main() {
     // Create a test local user
     const testUser = await prisma.user.upsert({
         where: { username: 'alice' },
-        update: {},
+        update: {
+            isAdmin: true, // Make alice admin on update too
+        },
         create: {
             username: 'alice',
             email: 'alice@localhost',
@@ -32,6 +34,7 @@ async function main() {
             publicKey,
             privateKey,
             isRemote: false,
+            isAdmin: true, // Make alice admin by default
         },
     })
 

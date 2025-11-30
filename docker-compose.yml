@@ -48,7 +48,7 @@ services:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run dev:app"]
+    entrypoint: ["/bin/sh", "-c", "npx prisma generate && npx prisma db push && npm run dev:app"]
 
   app2:
     build:
@@ -75,7 +75,7 @@ services:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run dev:app"]
+    entrypoint: ["/bin/sh", "-c", "npx prisma generate && npx prisma db push && npm run dev:app"]
 
   caddy:
     image: caddy:2-alpine

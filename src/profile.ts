@@ -25,10 +25,80 @@ const ProfileUpdateSchema = z.object({
     autoAcceptFollowers: z.boolean().optional(),
 })
 
+// Get current user's own profile (includes admin status)
+// This must come BEFORE /users/:username/profile to avoid route conflicts
+app.get('/users/me/profile', async (c) => {
+    try {
+        const userId = requireAuth(c)
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                bio: true,
+                displayColor: true,
+                profileImage: true,
+                headerImage: true,
+                isRemote: true,
+                externalActorUrl: true,
+                isAdmin: true,
+                isBot: true,
+                autoAcceptFollowers: true,
+                createdAt: true,
+                _count: {
+                    select: {
+                        events: true,
+                    },
+                },
+            },
+        })
+
+        if (!user) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        // Calculate actual follower/following counts
+        let followerCount = 0
+        let followingCount = 0
+
+        if (!user.isRemote) {
+            followerCount = await prisma.follower.count({
+                where: {
+                    userId: user.id,
+                    accepted: true,
+                },
+            })
+
+            followingCount = await prisma.following.count({
+                where: {
+                    userId: user.id,
+                    accepted: true,
+                },
+            })
+        }
+
+        return c.json({
+            ...user,
+            _count: {
+                ...user._count,
+                followers: followerCount,
+                following: followingCount,
+            },
+        })
+    } catch (error) {
+        console.error('Error getting own profile:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
 // Get profile
 app.get('/users/:username/profile', async (c) => {
     try {
         const { username } = c.req.param()
+        const currentUserId = c.get('userId') // Get current user from auth middleware
 
         const user = await prisma.user.findUnique({
             where: { username },
@@ -42,6 +112,9 @@ app.get('/users/:username/profile', async (c) => {
                 headerImage: true,
                 isRemote: true,
                 externalActorUrl: true,
+                isAdmin: true, // Include isAdmin
+                isBot: true, // Include isBot
+                autoAcceptFollowers: true, // Include for own profile
                 createdAt: true,
                 _count: {
                     select: {
@@ -77,8 +150,14 @@ app.get('/users/:username/profile', async (c) => {
             })
         }
 
+        // Only return sensitive fields if user is viewing their own profile
+        const isOwnProfile = currentUserId === user.id
+
         return c.json({
             ...user,
+            isAdmin: isOwnProfile ? user.isAdmin : undefined, // Only return if own profile
+            isBot: isOwnProfile ? user.isBot : undefined, // Only return if own profile
+            autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined, // Only return if own profile
             _count: {
                 ...user._count,
                 followers: followerCount,

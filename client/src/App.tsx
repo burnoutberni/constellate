@@ -11,6 +11,7 @@ import { CalendarPage } from './pages/CalendarPage'
 import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PendingFollowersPage } from './pages/PendingFollowersPage'
+import { AdminPage } from './pages/AdminPage'
 
 function AppContent() {
     // Global SSE connection
@@ -25,6 +26,7 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/followers/pending" element={<PendingFollowersPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/*" element={<ProfileOrEventPage />} />
         </Routes>
     )

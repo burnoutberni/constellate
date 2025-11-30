@@ -1,11 +1,27 @@
 import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
+import { useQuery } from '@tanstack/react-query'
 
 export function Navbar({ isConnected, user, onLogout }: {
   isConnected?: boolean
-  user?: { name?: string; email?: string } | null
+  user?: { name?: string; email?: string; id?: string } | null
   onLogout?: () => void
 }) {
+  // Check if current user is admin
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ['current-user-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null
+      const response = await fetch(`/api/users/me/profile`, {
+        credentials: 'include',
+      })
+      if (!response.ok) return null
+      return response.json()
+    },
+    enabled: !!user?.id,
+  })
+
+  const isAdmin = currentUserProfile?.isAdmin || false
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4">
@@ -32,6 +48,11 @@ export function Navbar({ isConnected, user, onLogout }: {
             <div className="flex items-center gap-4">
             {user ? (
               <>
+                {isAdmin && (
+                  <Link to="/admin" className="text-sm text-gray-700 hover:text-gray-900">
+                    Admin
+                  </Link>
+                )}
                 <Link to="/settings" className="text-sm text-gray-700 hover:text-gray-900">
                   Settings
                 </Link>

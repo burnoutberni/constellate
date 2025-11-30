@@ -16,6 +16,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "make-admin": "tsx scripts/make-admin.ts",
     "test": "vitest run",
     "test:watch": "vitest --coverage --watch --reporter=dot",
     "test:coverage": "vitest run --coverage --reporter=basic",
