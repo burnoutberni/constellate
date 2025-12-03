@@ -9,6 +9,7 @@ import { buildCreateCommentActivity, buildDeleteCommentActivity } from './servic
 import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { moderateRateLimit } from './middleware/rateLimit.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -22,7 +23,7 @@ const CommentSchema = z.object({
 })
 
 // Create comment
-app.post('/:id/comments', async (c) => {
+app.post('/:id/comments', moderateRateLimit, async (c) => {
     try {
         const { id } = c.req.param()
         const userId = requireAuth(c)
@@ -220,7 +221,7 @@ app.get('/:id/comments', async (c) => {
 })
 
 // Delete comment
-app.delete('/comments/:commentId', async (c) => {
+app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
     try {
         const { commentId } = c.req.param()
         const userId = requireAuth(c)

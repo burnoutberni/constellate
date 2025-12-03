@@ -9,6 +9,7 @@ import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventAct
 import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 
@@ -35,7 +36,7 @@ const EventSchema = z.object({
 })
 
 // Create event
-app.post('/', async (c) => {
+app.post('/', moderateRateLimit, async (c) => {
     try {
         // Get userId from context (set by authMiddleware)
         const userId = c.get('userId') as string | undefined
@@ -735,7 +736,7 @@ app.get('/:id', async (c) => {
 })
 
 // Update event
-app.put('/:id', async (c) => {
+app.put('/:id', moderateRateLimit, async (c) => {
     try {
         const { id } = c.req.param()
         const userId = requireAuth(c)
@@ -789,7 +790,7 @@ app.put('/:id', async (c) => {
 })
 
 // Delete event
-app.delete('/:id', async (c) => {
+app.delete('/:id', moderateRateLimit, async (c) => {
     try {
         const { id } = c.req.param()
         const userId = requireAuth(c)

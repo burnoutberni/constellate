@@ -7,7 +7,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=file:./test.db
+      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/stellar_test?schema=public
       - BETTER_AUTH_URL=http://test.local
       - BETTER_AUTH_SECRET=test-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
@@ -16,12 +16,26 @@ services:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
-      - test-data:/app/prisma
       - test-keys:/app/.keys
     networks:
       - stellar-network
+    depends_on:
+      - db-test
     restart: "no"
-    entrypoint: ["/bin/sh", "-c", "npx prisma db push --skip-generate && npm run db:seed && npm run test:coverage"]
+    entrypoint: ["/bin/sh", "-c", "npx prisma migrate deploy && npm run db:seed && npm run test:coverage"]
+
+  db-test:
+    image: postgres:15-alpine
+    container_name: stellar-db-test
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=stellar_test
+    volumes:
+      - test-data:/var/lib/postgresql/data
+    networks:
+      - stellar-network
+    restart: "no"
 
   app1:
     build:
@@ -31,7 +45,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=file:./app1.db
+      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/stellar_app1?schema=public
       - BETTER_AUTH_URL=http://app1.local
       - BETTER_AUTH_SECRET=app1-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
@@ -40,7 +54,6 @@ services:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
-      - app1-data:/app/prisma
       - app1-keys:/app/.keys
     networks:
       - stellar-network
@@ -48,6 +61,8 @@ services:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
     restart: unless-stopped
+    depends_on:
+      - db-dev
     entrypoint: ["/app/scripts/dev-entrypoint.sh"]
     command: ["npm", "run", "dev:app"]
 
@@ -59,7 +74,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=file:./app2.db
+      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/stellar_app2?schema=public
       - BETTER_AUTH_URL=http://app2.local
       - BETTER_AUTH_SECRET=app2-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
@@ -68,7 +83,6 @@ services:
       - .:/app
       - /app/node_modules
       - /app/client/node_modules
-      - app2-data:/app/prisma
       - app2-keys:/app/.keys
     networks:
       - stellar-network
@@ -76,8 +90,24 @@ services:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
     restart: unless-stopped
+    depends_on:
+      - db-dev
     entrypoint: ["/app/scripts/dev-entrypoint.sh"]
     command: ["npm", "run", "dev:app"]
+
+  db-dev:
+    image: postgres:15-alpine
+    container_name: stellar-db-dev
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=stellar_app1,stellar_app2
+    volumes:
+      - db-dev-data:/var/lib/postgresql/data
+      - ./scripts/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    networks:
+      - stellar-network
+    restart: unless-stopped
 
   caddy:
     image: caddy:2-alpine
@@ -98,8 +128,7 @@ services:
 
 volumes:
   test-data:
-  app1-data:
-  app2-data:
+  db-dev-data:
   test-keys:
   app1-keys:
   app2-keys:

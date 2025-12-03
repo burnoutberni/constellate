@@ -14,6 +14,7 @@ import {
 import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { AttendanceStatus } from './constants/activitypub.js'
 import { requireAuth } from './middleware/auth.js'
+import { moderateRateLimit } from './middleware/rateLimit.js'
 import { broadcast } from './realtime.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
@@ -26,7 +27,7 @@ const AttendanceSchema = z.object({
 })
 
 // Set or update attendance status
-app.post('/:id/attend', async (c) => {
+app.post('/:id/attend', moderateRateLimit, async (c) => {
     try {
         const { id } = c.req.param()
         const userId = requireAuth(c)
@@ -157,7 +158,7 @@ app.post('/:id/attend', async (c) => {
 })
 
 // Remove attendance
-app.delete('/:id/attend', async (c) => {
+app.delete('/:id/attend', moderateRateLimit, async (c) => {
     try {
         const { id } = c.req.param()
         const userId = requireAuth(c)

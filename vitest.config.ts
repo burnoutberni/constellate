@@ -31,7 +31,7 @@ export default defineConfig({
     env: {
       VITEST: 'true',
       NODE_ENV: 'test',
-      // Use SQLite database for tests (relative to project root, Prisma creates it in prisma/ directory)
+      // Use test database (relative to project root, Prisma creates it in prisma/ directory)
       DATABASE_URL: 'file:./prisma/test.db',
       // Better Auth configuration for tests
       BETTER_AUTH_URL: 'http://test.local',

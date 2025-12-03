@@ -10,14 +10,13 @@ interface CreateEventModalProps {
 export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
         const { user } = useAuth() || {}
         const [error, setError] = useState<string | null>(null)
-    // TODO: Revert this test data before release
     const [formData, setFormData] = useState({
-        title: 'Team Meeting',
-        summary: 'Our team is the best',
-        location: 'Meeting Room A',
-        url: 'https://example.com/meeting',
-        startTime: new Date(new Date().getTime() + 1000 * 60 * 60).toISOString().slice(0, 16),
-        endTime: new Date(new Date().getTime() + 1000 * 60 * 60 * 2).toISOString().slice(0, 16),
+        title: '',
+        summary: '',
+        location: '',
+        url: '',
+        startTime: '',
+        endTime: '',
     })
     const [submitting, setSubmitting] = useState(false)
 

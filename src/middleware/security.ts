@@ -15,17 +15,31 @@ export async function securityHeaders(c: Context, next: Next) {
     
     // Content Security Policy
     // Allow same-origin, better-auth, and ActivityPub endpoints
-    // In production, you may want to restrict this further
+    // In production, we use stricter CSP without unsafe-inline/unsafe-eval
+    const isProduction = config.isProduction
+    
+    // For production, use stricter CSP
+    // For development, allow unsafe-inline/unsafe-eval for Vite HMR
+    const scriptSrc = isProduction
+        ? "script-src 'self'" // Production: no inline scripts
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval'" // Development: allow for Vite
+    
+    const styleSrc = isProduction
+        ? "style-src 'self'" // Production: no inline styles (use external stylesheets)
+        : "style-src 'self' 'unsafe-inline'" // Development: allow for Vite
+    
     const csp = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Needed for Vite dev, tighten in production
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https:",
+        scriptSrc,
+        styleSrc,
+        "img-src 'self' data: https:", // Allow images from any HTTPS source (for user content, ActivityPub)
         "font-src 'self' data:",
         "connect-src 'self' https: wss: ws:", // For ActivityPub federation and WebSocket
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
+        "object-src 'none'", // Block plugins
+        "upgrade-insecure-requests", // Upgrade HTTP to HTTPS
     ].join('; ')
     
     // Set security headers

@@ -3,54 +3,27 @@ set -e
 
 echo "🔄 Checking dependencies..."
 
-# Function to check if dependencies need updating
-check_and_install_deps() {
-    local dir=$1
-    local name=$2
-    
-    if [ "$dir" = "." ]; then
-        cd /app
-    else
-        cd /app/$dir
-    fi
-    
-    # Check if node_modules exists and is not empty
-    if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
-        echo "📦 Installing $name dependencies (missing node_modules)..."
-        npm ci
-    else
-        # Check if package-lock.json is newer than node_modules or if package.json changed
-        if [ -f "package-lock.json" ]; then
-            if [ "package-lock.json" -nt "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
-                echo "📦 Updating $name dependencies (package files changed)..."
-                npm ci
-            else
-                echo "✅ $name dependencies are up to date"
-            fi
-        else
-            # No lock file, install dependencies
-            echo "📦 Installing $name dependencies (no lock file)..."
-            npm install
-        fi
-    fi
-    
-    if [ "$dir" != "." ]; then
-        cd /app
-    fi
-}
+echo "📦 Installing server dependencies..."
+npm install
 
-# Install/update server dependencies
-check_and_install_deps "." "server"
+echo "📦 Installing client dependencies..."
+cd client && npm install && cd ..
 
-# Install/update client dependencies
-check_and_install_deps "client" "client"
-
-echo "🗄️  Syncing Database Schema..."
+echo "🗄️  Setting up Database..."
 # Generate Prisma client first
 npx prisma generate
 
-# Push schema changes to DB
-npx prisma db push --skip-generate
+# Run migrations
+# If no migrations exist, this will create and apply the initial one
+# If migrations exist, this will apply any pending ones
+echo "Running database migrations..."
+if [ -z "$(ls -A /app/prisma/migrations 2>/dev/null | grep -v README)" ]; then
+  echo "No migrations found, creating initial migration..."
+  npx prisma migrate dev --name init
+else
+  echo "Applying existing migrations..."
+  npx prisma migrate deploy
+fi
 
 echo "🌱 Seeding Database..."
 npm run db:seed

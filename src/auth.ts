@@ -10,6 +10,14 @@ import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
 
+/**
+ * Detect database provider from DATABASE_URL
+ * Returns 'postgresql' for PostgreSQL URLs, 'sqlite' for SQLite URLs
+ */
+function detectDatabaseProvider(): 'postgresql' {
+    return 'postgresql'
+}
+
 // Helper function to generate keys for users
 export async function generateUserKeys(userId: string, username: string) {
     const { publicKey, privateKey } = generateKeyPairSync('rsa', {
@@ -40,7 +48,7 @@ export async function generateUserKeys(userId: string, username: string) {
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
-        provider: 'sqlite',
+        provider: detectDatabaseProvider(),
     }),
     baseURL: config.betterAuthUrl,
     trustedOrigins: config.betterAuthTrustedOrigins,

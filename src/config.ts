@@ -96,10 +96,20 @@ export const config = {
     
     // Better Auth configuration
     betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
+    betterAuthSecret: getEnv('BETTER_AUTH_SECRET', '', true), // Required in production
     betterAuthTrustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS || 'http://localhost:5173').split(','),
     
-    // CORS origins
-    corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(','),
+    // CORS origins - required in production
+    corsOrigins: ((): string[] => {
+        const origins = process.env.CORS_ORIGINS
+        if (!origins) {
+            if (process.env.NODE_ENV === 'production') {
+                throw new Error('CORS_ORIGINS is required in production')
+            }
+            return ['http://localhost:5173', 'http://localhost:3000']
+        }
+        return origins.split(',').map(o => o.trim())
+    })(),
     
     // Security settings
     isDevelopment: process.env.NODE_ENV !== 'production',

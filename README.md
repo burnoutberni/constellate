@@ -2,7 +2,7 @@
 
 A federated event management platform implementing the ActivityPub protocol for decentralized event sharing and discovery across multiple instances.
 
-**⚠️ Warning: This project is not production-ready yet.**
+**Status: Public Beta** - The project is ready for beta testing. See deployment section for production setup.
 
 ## Development
 
@@ -18,16 +18,24 @@ npm run docker:test
 
 The dev environment starts two instances (app1 and app2) that watch all frontend and backend code changes. Both are served by Caddy at `http://app1.local` and `http://app2.local`. Each instance runs both backend and frontend; the frontend proxies API requests to the backend. Add these domains to your hosts file: `app1.local`, `app2.local`, and `test.local`. Edit `/etc/hosts` and add `127.0.0.1 app1.local app2.local test.local`. The test watcher monitors source code changes and runs tests automatically.
 
+**Database:** Docker development uses PostgreSQL (consistent with production). Migrations are created and applied automatically on first startup.
+
 ### Local Development
+
+**Option 1: Using PostgreSQL (Recommended, consistent with production)**
 
 ```bash
 # Install dependencies
 npm install
 cd client && npm install && cd ..
 
+# Set up PostgreSQL database (make sure PostgreSQL is running)
+# Create database: createdb stellar_dev
+export DATABASE_URL="postgresql://user:password@localhost:5432/stellar_dev?schema=public"
+
 # Set up database
 npx prisma generate
-npx prisma db push
+npx prisma migrate dev --name init
 npx prisma db seed
 
 # Start development servers (Terminal 1)
@@ -37,15 +45,49 @@ npm run dev
 npm run test:watch
 ```
 
+
+
 ## Production
 
-```bash
-# Build
-npm run build
+### Docker Deployment
 
-# Start
-npm start
+```bash
+# Build and start production containers
+npm run docker:prod
 ```
+
+### Required Environment Variables
+
+Create a `.env` file with the following variables:
+
+```bash
+# Server Configuration
+NODE_ENV=production
+PORT=3000
+BETTER_AUTH_URL=https://yourdomain.com
+BETTER_AUTH_SECRET=<generate-with-openssl-rand-hex-32>
+BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
+CORS_ORIGINS=https://yourdomain.com
+
+# Database
+DATABASE_URL=postgresql://user:password@db:5432/stellar?schema=public
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<strong-password>
+POSTGRES_DB=stellar
+
+# Encryption (for private keys)
+ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
+```
+
+**Important Notes:**
+
+1. **Rate Limiting**: The current implementation uses in-memory rate limiting, which only works for single-instance deployments. For multi-instance deployments, you MUST implement Redis-based rate limiting (see `src/middleware/rateLimit.ts` for details).
+
+2. **Caddy Configuration**: Update `Caddyfile.prod` with your actual domain and email before deployment.
+
+3. **Database Migrations**: Migrations run automatically on container startup via `scripts/prod-entrypoint.sh`. Always create migrations when changing the database schema using `npx prisma migrate dev --name your_change_name`.
+
+4. **Security**: Ensure all secrets are properly generated and stored securely. Never commit `.env` files to version control.
 
 ## Testing
 

@@ -25,6 +25,7 @@ import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
 import { csrfProtection } from './middleware/csrf.js'
+import { strictRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
@@ -92,9 +93,35 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
     app.use('/api/*', csrfProtection)
 }
 
-// Health check
-app.get('/health', (c) => {
-    return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+// Health check endpoint with database connectivity check
+app.get('/health', async (c) => {
+    const health = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        checks: {
+            database: 'unknown' as 'ok' | 'error' | 'unknown',
+        },
+    }
+    
+    // Check database connectivity
+    try {
+        await prisma.$queryRaw`SELECT 1`
+        health.checks.database = 'ok'
+    } catch (error) {
+        health.checks.database = 'error'
+        health.status = 'degraded'
+        
+        // In production, don't expose error details
+        if (config.isDevelopment) {
+            return c.json({
+                ...health,
+                error: error instanceof Error ? error.message : 'Database connection failed',
+            }, 503)
+        }
+    }
+    
+    const statusCode = health.status === 'ok' ? 200 : 503
+    return c.json(health, statusCode)
 })
 
 // Root endpoint
@@ -108,7 +135,8 @@ app.get('/', (c) => {
 
 // Mount routes
 // Auth routes (better-auth) - intercept to generate keys after signup
-app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
+// Apply strict rate limiting to auth routes (especially POST for signup/login)
+app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
     const response = await auth.handler(c.req.raw)
 
     // If this is a signup request, generate keys for the new user
@@ -152,6 +180,11 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
     }
 
     return response
+})
+
+// GET requests to auth routes (no rate limiting needed, just for session checks)
+app.on(['GET'], '/api/auth/*', async (c) => {
+    return auth.handler(c.req.raw)
 })
 
 app.route('/', activitypubRoutes)

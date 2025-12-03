@@ -5,6 +5,7 @@ import { buildUpdateProfileActivity, buildFollowActivity, buildUndoActivity, bui
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -165,7 +166,7 @@ app.get('/users/:username/profile', async (c) => {
 })
 
 // Update own profile
-app.put('/profile', async (c) => {
+app.put('/profile', moderateRateLimit, async (c) => {
     try {
         const userId = requireAuth(c)
 
@@ -246,7 +247,7 @@ app.get('/users/:username/follow-status', async (c) => {
 })
 
 // Follow user
-app.post('/users/:username/follow', async (c) => {
+app.post('/users/:username/follow', moderateRateLimit, async (c) => {
     try {
         const { username } = c.req.param()
         const userId = requireAuth(c)
@@ -431,7 +432,7 @@ app.post('/users/:username/follow', async (c) => {
 })
 
 // Unfollow user
-app.delete('/users/:username/follow', async (c) => {
+app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
     try {
         const { username } = c.req.param()
         const userId = requireAuth(c)
@@ -608,7 +609,7 @@ app.get('/followers/pending', async (c) => {
 })
 
 // Accept follower
-app.post('/followers/:followerId/accept', async (c) => {
+app.post('/followers/:followerId/accept', moderateRateLimit, async (c) => {
     try {
         const userId = requireAuth(c)
         const { followerId } = c.req.param()
@@ -656,7 +657,7 @@ app.post('/followers/:followerId/accept', async (c) => {
 })
 
 // Reject follower
-app.post('/followers/:followerId/reject', async (c) => {
+app.post('/followers/:followerId/reject', moderateRateLimit, async (c) => {
     try {
         const userId = requireAuth(c)
         const { followerId } = c.req.param()

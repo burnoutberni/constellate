@@ -6,6 +6,34 @@
 import { Context, Next } from 'hono'
 import { Errors } from '../lib/errors.js'
 
+/**
+ * ⚠️ PRODUCTION LIMITATION
+ * 
+ * This implementation uses an in-memory Map for rate limiting.
+ * 
+ * Limitations:
+ * - Only works for single-instance deployments
+ * - Rate limits are per-instance, not shared across instances
+ * - Rate limit data is lost on server restart
+ * 
+ * For multi-instance deployments, you MUST use Redis or a database-backed
+ * rate limiting solution. Consider using:
+ * - Redis with ioredis or node-redis
+ * - Database-backed rate limiting (store in Prisma)
+ * - External service like Upstash Redis
+ * 
+ * Example Redis implementation:
+ * ```typescript
+ * import Redis from 'ioredis'
+ * const redis = new Redis(process.env.REDIS_URL)
+ * 
+ * // In rateLimit function:
+ * const key = `ratelimit:${finalConfig.keyGenerator ? finalConfig.keyGenerator(c) : userId ? `user:${userId}` : `ip:${ip}`}`
+ * const count = await redis.incr(key)
+ * if (count === 1) await redis.expire(key, Math.ceil(finalConfig.windowMs / 1000))
+ * if (count > finalConfig.maxRequests) throw Errors.tooManyRequests(...)
+ * ```
+ */
 // In-memory rate limit store
 // In production, consider using Redis for distributed rate limiting
 interface RateLimitEntry {

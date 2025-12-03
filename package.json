@@ -4,13 +4,9 @@
   "description": "Federated event management platform implementing ActivityPub protocol",
   "type": "module",
   "scripts": {
-    "predev:app": "node scripts/check-deps.js || true",
-    "predev:server": "node scripts/check-deps.js || true",
-    "deps:check": "node scripts/check-deps.js",
-    "deps:install": "npm ci && cd client && npm ci && cd ..",
     "dev:app": "concurrently \"npm run dev:server\" \"npm run dev:client\" --names \"SERVER,CLIENT\" --prefix-colors \"blue,magenta\" --kill-others-on-fail false",
     "dev:server": "tsx watch src/server.ts",
-    "dev:client": "(node scripts/check-deps.js || true) && npm run dev --prefix client",
+    "dev:client": "npm run dev --prefix client",
     "build": "tsc && cd client && npm run build",
     "start": "node dist/server.js",
     "docker:dev": "docker-compose up app1 app2 caddy --build",
@@ -29,12 +25,10 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
-    "make-admin": "tsx scripts/make-admin.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "analyze:unused": "knip",
-    "analyze:orphans": "madge src --extensions ts --orphans",
-    "analyze:routes": "tsx scripts/print-routes.ts"
+    "analyze:orphans": "madge src --extensions ts --orphans"
   },
   "keywords": [
     "activitypub",

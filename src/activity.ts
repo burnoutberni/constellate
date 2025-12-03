@@ -311,46 +311,49 @@ app.get('/activity/feed', async (c) => {
 })
 
 // Debug endpoint to check following relationships
-app.get('/activity/debug', async (c) => {
-    try {
-        const userId = c.get('userId')
-        
-        if (!userId) {
-            return c.json({ error: 'Not authenticated' }, 401)
+// Only available in development
+if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
+    app.get('/activity/debug', async (c) => {
+        try {
+            const userId = c.get('userId')
+            
+            if (!userId) {
+                return c.json({ error: 'Not authenticated' }, 401)
+            }
+
+            const allFollowing = await prisma.following.findMany({
+                where: { userId },
+                select: {
+                    actorUrl: true,
+                    username: true,
+                    accepted: true,
+                    createdAt: true,
+                },
+            })
+
+            const allFollowers = await prisma.follower.findMany({
+                where: { userId },
+                select: {
+                    actorUrl: true,
+                    username: true,
+                    accepted: true,
+                    createdAt: true,
+                },
+            })
+
+            return c.json({
+                userId,
+                following: allFollowing,
+                followers: allFollowers,
+                acceptedFollowing: allFollowing.filter(f => f.accepted),
+                unacceptedFollowing: allFollowing.filter(f => !f.accepted),
+            })
+        } catch (error) {
+            console.error('Error in debug endpoint:', error)
+            return c.json({ error: 'Internal server error' }, 500)
         }
-
-        const allFollowing = await prisma.following.findMany({
-            where: { userId },
-            select: {
-                actorUrl: true,
-                username: true,
-                accepted: true,
-                createdAt: true,
-            },
-        })
-
-        const allFollowers = await prisma.follower.findMany({
-            where: { userId },
-            select: {
-                actorUrl: true,
-                username: true,
-                accepted: true,
-                createdAt: true,
-            },
-        })
-
-        return c.json({
-            userId,
-            following: allFollowing,
-            followers: allFollowers,
-            acceptedFollowing: allFollowing.filter(f => f.accepted),
-            unacceptedFollowing: allFollowing.filter(f => !f.accepted),
-        })
-    } catch (error) {
-        console.error('Error in debug endpoint:', error)
-        return c.json({ error: 'Internal server error' }, 500)
-    }
-})
+    })
+}
 
 export default app
 
