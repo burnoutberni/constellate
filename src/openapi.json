@@ -58,6 +58,10 @@
         {
             "name": "Admin",
             "description": "Administrative operations (admin only)"
+        },
+        {
+            "name": "Setup",
+            "description": "Initial instance setup and onboarding"
         }
     ],
     "components": {
@@ -2269,6 +2273,145 @@
                     },
                     "403": {
                         "description": "Forbidden (not admin)"
+                    }
+                }
+            }
+        },
+        "/api/setup/status": {
+            "get": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Check if initial setup is required",
+                "description": "Returns whether the instance needs initial setup (i.e., no users exist yet)",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Setup status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "setupRequired": {
+                                            "type": "boolean",
+                                            "description": "True if no users exist and setup is needed"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/setup": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Create first admin user",
+                "description": "Creates the initial admin user for a new instance. Only works when no users exist.",
+                "security": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "email",
+                                    "username",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "description": "Admin user email address"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 50,
+                                        "description": "Admin username"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "description": "Admin display name"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "minLength": 8,
+                                        "description": "Optional password. If not provided, user can only login via magic link."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Admin user created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "user": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                },
+                                                "username": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required fields",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Setup already completed (users exist)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Setup failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     }
                 }
             }

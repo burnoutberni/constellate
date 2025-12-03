@@ -13,6 +13,7 @@ interface AuthContextType {
     user: User | null
     loading: boolean
     login: (email: string, password: string) => Promise<void>
+    sendMagicLink: (email: string) => Promise<void>
     signup: (email: string, password: string, name: string, username: string) => Promise<void>
     logout: () => Promise<void>
 }
@@ -54,6 +55,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const sendMagicLink = async (email: string) => {
+        const { error } = await authClient.signIn.magicLink({
+            email,
+            callbackURL: window.location.origin,
+        })
+
+        if (error) {
+            throw error
+        }
+    }
+
     const signup = async (email: string, password: string, name: string, username: string) => {
         const { data, error } = await authClient.signUp.email({
             email,
@@ -77,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, sendMagicLink, signup, logout }}>
             {children}
         </AuthContext.Provider>
     )

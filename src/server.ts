@@ -21,6 +21,7 @@ import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
 import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
+import setupRoutes from './setup.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -102,7 +103,7 @@ app.get('/health', async (c) => {
             database: 'unknown' as 'ok' | 'error' | 'unknown',
         },
     }
-    
+
     // Check database connectivity
     try {
         await prisma.$queryRaw`SELECT 1`
@@ -110,7 +111,7 @@ app.get('/health', async (c) => {
     } catch (error) {
         health.checks.database = 'error'
         health.status = 'degraded'
-        
+
         // In production, don't expose error details
         if (config.isDevelopment) {
             return c.json({
@@ -119,7 +120,7 @@ app.get('/health', async (c) => {
             }, 503)
         }
     }
-    
+
     const statusCode = health.status === 'ok' ? 200 : 503
     return c.json(health, statusCode)
 })
@@ -200,6 +201,7 @@ app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
 app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
+app.route('/api/setup', setupRoutes)
 
 // Only start server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {

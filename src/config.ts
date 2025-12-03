@@ -32,18 +32,18 @@ export const config = {
     // Server configuration
     port: parseInt(getEnv('PORT', '3000')),
     nodeEnv: process.env.NODE_ENV || 'development',
-    
+
     // Base URL - required in production
     baseUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000', true),
-    
+
     // Database
     databaseUrl: requireEnv('DATABASE_URL'),
-    
+
     // Encryption key for private keys (32 bytes = 64 hex chars)
     encryptionKey: ((): string => {
         const key = process.env.ENCRYPTION_KEY
         const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
-        
+
         // If key is provided via env var, use it
         if (key) {
             if (key.length !== 64) {
@@ -51,16 +51,16 @@ export const config = {
             }
             return key
         }
-        
+
         // In production, require the key
         if (process.env.NODE_ENV === 'production') {
             throw new Error('ENCRYPTION_KEY is required in production. Generate with: openssl rand -hex 32')
         }
-        
+
         // In development, try to read from or create a persistent key file
         // This ensures the same key is used across container restarts
         const keyFilePath = process.env.ENCRYPTION_KEY_FILE || '/app/.encryption-key'
-        
+
         try {
             if (existsSync(keyFilePath)) {
                 const fileKey = readFileSync(keyFilePath, 'utf8').trim()
@@ -73,11 +73,11 @@ export const config = {
                     console.warn(`⚠️  Encryption key file exists but has invalid length, generating new key`)
                 }
             }
-            
+
             // Generate a new key and save it
             const devKey = randomBytes(32).toString('hex')
             writeFileSync(keyFilePath, devKey, { mode: 0o600 }) // Read/write for owner only
-            
+
             if (!isTest) {
                 console.log(`✅ Generated and saved encryption key to ${keyFilePath}`)
                 console.log('   This key will persist across container restarts in development.')
@@ -93,12 +93,12 @@ export const config = {
             return devKey
         }
     })(),
-    
+
     // Better Auth configuration
     betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
     betterAuthSecret: getEnv('BETTER_AUTH_SECRET', '', true), // Required in production
     betterAuthTrustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS || 'http://localhost:5173').split(','),
-    
+
     // CORS origins - required in production
     corsOrigins: ((): string[] => {
         const origins = process.env.CORS_ORIGINS
@@ -110,10 +110,20 @@ export const config = {
         }
         return origins.split(',').map(o => o.trim())
     })(),
-    
+
     // Security settings
     isDevelopment: process.env.NODE_ENV !== 'production',
     isProduction: process.env.NODE_ENV === 'production',
+
+    // SMTP Configuration
+    smtp: {
+        host: getEnv('SMTP_HOST', ''),
+        port: parseInt(getEnv('SMTP_PORT', '587')),
+        secure: getEnv('SMTP_SECURE', 'false') === 'true',
+        user: getEnv('SMTP_USER', ''),
+        pass: getEnv('SMTP_PASS', ''),
+        from: getEnv('SMTP_FROM', 'noreply@example.com'),
+    },
 }
 
 // Validate encryption key format

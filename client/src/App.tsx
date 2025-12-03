@@ -12,13 +12,42 @@ import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { AdminPage } from './pages/AdminPage'
+import { OnboardingPage } from './pages/OnboardingPage'
+import { useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 function AppContent() {
     // Global SSE connection
     useRealtimeSSE()
+    const navigate = useNavigate()
+    const location = useLocation()
+    const [checkingSetup, setCheckingSetup] = useState(true)
+
+    useEffect(() => {
+        // Don't check setup if we're already on the onboarding page
+        if (location.pathname === '/onboarding') {
+            setCheckingSetup(false)
+            return
+        }
+
+        fetch('/api/setup/status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.setupRequired) {
+                    navigate('/onboarding')
+                }
+            })
+            .catch(console.error)
+            .finally(() => setCheckingSetup(false))
+    }, [navigate, location.pathname])
+
+    if (checkingSetup) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    }
 
     return (
         <Routes>
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/login" element={<LoginPage />} />

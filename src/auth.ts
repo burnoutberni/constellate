@@ -9,6 +9,7 @@ import { generateKeyPairSync } from 'crypto'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
+import { sendEmail } from './lib/email.js'
 
 /**
  * Detect database provider from DATABASE_URL
@@ -54,6 +55,17 @@ export const auth = betterAuth({
     trustedOrigins: config.betterAuthTrustedOrigins,
     emailAndPassword: {
         enabled: true,
+    },
+    magicLink: {
+        enabled: true,
+        sendMagicLink: async ({ email, token, url }: { email: string; token: string; url: string }, request?: Request) => {
+            await sendEmail({
+                to: email,
+                subject: 'Login to Stellar Calendar',
+                text: `Click here to login: ${url}`,
+                html: `<a href="${url}">Click here to login</a>`,
+            })
+        },
     },
     session: {
         expiresIn: 60 * 60 * 24 * 7, // 7 days
