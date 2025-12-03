@@ -270,7 +270,7 @@ app.post('/users/:username/follow', async (c) => {
                 username,
                 isRemote,
             },
-            select: isRemote ? {
+            select: {
                 id: true,
                 username: true,
                 name: true,
@@ -282,21 +282,22 @@ app.post('/users/:username/follow', async (c) => {
                 externalActorUrl: true,
                 inboxUrl: true,
                 sharedInboxUrl: true,
-            } : {
-                id: true,
-                username: true,
-                name: true,
-                bio: true,
-                displayColor: true,
-                profileImage: true,
-                headerImage: true,
-                isRemote: true,
-                externalActorUrl: true,
-                inboxUrl: true,
-                sharedInboxUrl: true,
-                autoAcceptFollowers: true,
-            } as any,
-        })
+                ...(isRemote ? {} : { autoAcceptFollowers: true }),
+            },
+        }) as {
+            id: string;
+            username: string;
+            name: string | null;
+            bio: string | null;
+            displayColor: string;
+            profileImage: string | null;
+            headerImage: string | null;
+            isRemote: boolean;
+            externalActorUrl: string | null;
+            inboxUrl: string | null;
+            sharedInboxUrl: string | null;
+            autoAcceptFollowers?: boolean;
+        } | null
 
         if (!targetUser) {
             return c.json({ error: 'User not found' }, 404)
@@ -348,7 +349,7 @@ app.post('/users/:username/follow', async (c) => {
         if (!targetUser.isRemote) {
             const currentUserActorUrl = `${baseUrl}/users/${currentUser.username}`
             // Check if target user auto-accepts followers (only for local users)
-            const shouldAutoAccept = (targetUser as any).autoAcceptFollowers ?? true
+            const shouldAutoAccept = targetUser.autoAcceptFollowers ?? true
 
             // Create the follower record
             await prisma.follower.upsert({

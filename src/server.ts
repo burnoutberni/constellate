@@ -67,7 +67,7 @@ app.get(
         spec: {
             url: '/doc',
         },
-    } as any)
+    } as unknown as Parameters<typeof Scalar>[0])
 )
 
 // Global error handler
@@ -114,10 +114,10 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
         if (response.ok) {
             try {
                 const responseClone = response.clone()
-                const data = await responseClone.json() as any
+                const data = await responseClone.json() as unknown as { user?: { id: string } }
 
                 // Try to get user ID from response
-                const userId = data?.user?.id || data?.data?.user?.id
+                const userId = data?.user?.id || (data as unknown as { data?: { user?: { id: string } } })?.data?.user?.id
 
                 if (userId) {
                     // Query database to get the full user with username

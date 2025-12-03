@@ -51,6 +51,7 @@ export function SettingsPage() {
             await updateProfileMutation.mutateAsync({ autoAcceptFollowers: newValue })
         } catch (error) {
             // Revert on error
+            console.error('Failed to update auto-accept setting:', error)
             setAutoAccept(!newValue)
             alert('Failed to update setting')
         }
@@ -88,14 +89,12 @@ export function SettingsPage() {
                         <button
                             onClick={handleToggleAutoAccept}
                             disabled={updateProfileMutation.isPending}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                autoAccept ? 'bg-blue-600' : 'bg-gray-200'
-                            }`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${autoAccept ? 'bg-blue-600' : 'bg-gray-200'
+                                }`}
                         >
                             <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                    autoAccept ? 'translate-x-6' : 'translate-x-1'
-                                }`}
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoAccept ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
                             />
                         </button>
                     </div>

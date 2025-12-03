@@ -99,6 +99,7 @@ function parseHandle(input: string): { username: string; domain: string } | null
 
         return null
     } catch (error) {
+        console.error('Error parsing handle:', error)
         return null
     }
 }
@@ -334,7 +335,7 @@ app.post('/resolve', async (c) => {
 app.get('/profile/:username/followers', async (c) => {
     try {
         // Decode username in case it's URL encoded
-        let username = decodeURIComponent(c.req.param('username'))
+        const username = decodeURIComponent(c.req.param('username'))
         const limit = parseInt(c.req.query('limit') || '50')
 
         // Check if it's a remote user (contains @domain)
@@ -420,7 +421,7 @@ app.get('/profile/:username/followers', async (c) => {
 app.get('/profile/:username/following', async (c) => {
     try {
         // Decode username in case it's URL encoded
-        let username = decodeURIComponent(c.req.param('username'))
+        const username = decodeURIComponent(c.req.param('username'))
         const limit = parseInt(c.req.query('limit') || '50')
 
         // Check if it's a remote user (contains @domain)
@@ -505,7 +506,7 @@ app.get('/profile/:username/following', async (c) => {
 app.get('/profile/:username', async (c) => {
     try {
         // Decode username in case it's URL encoded (e.g., alice%40app1.local -> alice@app1.local)
-        let username = decodeURIComponent(c.req.param('username'))
+        const username = decodeURIComponent(c.req.param('username'))
 
         // Check if it's a remote user (contains @domain)
         const isRemote = username.includes('@')

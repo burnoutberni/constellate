@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 
 interface RealtimeEvent {
     type: string
-    data: any
+    data: unknown
     timestamp: string
 }
 
@@ -167,23 +167,3 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
     }
 }
 
-// Example usage component
-export function RealtimeIndicator() {
-    const { isConnected } = useRealtime({
-        onEvent: (event) => {
-            console.log('Received event:', event)
-        },
-    })
-
-    return (
-        <div className="fixed bottom-4 right-4 flex items-center gap-2 glass px-3 py-2 rounded-lg">
-            <div
-                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                    }`}
-            />
-            <span className="text-sm">
-                {isConnected ? 'Live' : 'Disconnected'}
-            </span>
-        </div>
-    )
-}

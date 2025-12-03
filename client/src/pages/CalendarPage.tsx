@@ -25,7 +25,7 @@ interface Event {
 export function CalendarPage() {
     const [events, setEvents] = useState<Event[]>([])
     const [currentDate, setCurrentDate] = useState(new Date())
-    const [view, setView] = useState<'month' | 'week' | 'day'>('month')
+    const [view] = useState<'month' | 'week' | 'day'>('month')
     const [loading, setLoading] = useState(true)
 
     const { user, logout } = useAuth();

@@ -70,7 +70,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/.well-known/webfinger?resource=acct:${testUser.username}@${new URL(baseUrl).hostname}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.subject).toBe(`acct:${testUser.username}@${new URL(baseUrl).hostname}`)
             expect(body.aliases).toContain(`${baseUrl}/users/${testUser.username}`)
             expect(body.links).toBeDefined()
@@ -80,7 +80,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/.well-known/webfinger')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Missing resource parameter')
         })
 
@@ -88,7 +88,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/.well-known/webfinger?resource=invalid-format')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid resource format')
         })
 
@@ -96,7 +96,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/.well-known/webfinger?resource=acct:${testUser.username}@wrong-domain.com`)
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Domain mismatch')
         })
 
@@ -104,7 +104,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/.well-known/webfinger?resource=acct:nonexistent@${new URL(baseUrl).hostname}`)
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 
@@ -126,7 +126,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/.well-known/nodeinfo')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.links).toBeDefined()
             expect(body.links[0].rel).toBe('http://nodeinfo.diaspora.software/ns/schema/2.0')
         })
@@ -137,7 +137,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/nodeinfo/2.0')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.version).toBe('2.0')
             expect(body.software.name).toBe('stellar-calendar')
             expect(body.protocols).toContain('activitypub')
@@ -151,7 +151,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('Person')
             expect(body.id).toBe(`${baseUrl}/users/${testUser.username}`)
             expect(body.preferredUsername).toBe(testUser.username)
@@ -175,7 +175,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${userWithoutKeys.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.publicKey).toBeDefined()
             expect(body.publicKey.publicKeyPem).toBeDefined()
 
@@ -191,7 +191,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/users/nonexistent')
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 
@@ -209,7 +209,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.summary).toBe('Test bio')
             expect(body.icon).toBeDefined()
             expect(body.image).toBeDefined()
@@ -234,7 +234,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/followers`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollection')
             expect(body.totalItems).toBeDefined()
         })
@@ -262,7 +262,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/followers?page=1`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollectionPage')
             expect(body.orderedItems).toBeDefined()
         })
@@ -298,7 +298,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/followers?page=1`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.orderedItems.length).toBeGreaterThan(0)
         })
 
@@ -320,7 +320,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/following`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollection')
             expect(body.totalItems).toBeDefined()
         })
@@ -347,7 +347,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/following?page=1`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollectionPage')
             expect(body.orderedItems).toBeDefined()
         })
@@ -376,7 +376,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/outbox`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollection')
             expect(body.totalItems).toBeDefined()
         })
@@ -385,7 +385,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/outbox?page=1`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('OrderedCollectionPage')
             expect(body.orderedItems).toBeDefined()
             if (body.orderedItems.length > 0) {
@@ -416,7 +416,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/users/${testUser.username}/outbox?page=1`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.orderedItems.length).toBeGreaterThan(0)
         })
 
@@ -465,7 +465,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(401)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Missing signature')
         })
 
@@ -486,7 +486,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(401)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid signature')
         })
 
@@ -506,7 +506,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid activity')
         })
 
@@ -531,7 +531,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(202)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.status).toBe('accepted')
         })
 
@@ -598,7 +598,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(401)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Missing signature')
         })
 
@@ -619,7 +619,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(401)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid signature')
         })
 
@@ -638,7 +638,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid activity')
         })
 
@@ -663,7 +663,7 @@ describe('ActivityPub API', () => {
             })
 
             expect(res.status).toBe(202)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.status).toBe('accepted')
         })
 
@@ -716,7 +716,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/events/${testEvent.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.type).toBe('Event')
             expect(body.id).toBe(`${baseUrl}/events/${testEvent.id}`)
             expect(body.name).toBe(testEvent.title)
@@ -727,7 +727,7 @@ describe('ActivityPub API', () => {
             const res = await app.request('/events/nonexistent-id')
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Event not found')
         })
 
@@ -748,7 +748,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/events/${testEvent.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.summary).toBe('Event summary')
             expect(body.location).toBe('Event location')
             expect(body.url).toBe('https://example.com/event')
@@ -779,7 +779,7 @@ describe('ActivityPub API', () => {
             const res = await app.request(`/events/${remoteEvent.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.attributedTo).toBe(remoteUser.externalActorUrl)
         })
 

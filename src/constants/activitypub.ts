@@ -80,37 +80,11 @@ export const ContentType = {
     JSON: 'application/json',
 } as const
 
-// HTTP Headers
-export const Headers = {
-    CONTENT_TYPE: 'Content-Type',
-    ACCEPT: 'Accept',
-    SIGNATURE: 'Signature',
-    DATE: 'Date',
-    DIGEST: 'Digest',
-    HOST: 'Host',
-} as const
-
 // Pagination
 export const PAGINATION = {
     DEFAULT_PAGE_SIZE: 20,
     MAX_PAGE_SIZE: 100,
 } as const
 
-// Deduplication
-export const ACTIVITY_TTL_DAYS = 30
-
-// Rate Limiting
-export const RATE_LIMITS = {
-    INBOX: {
-        WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-        MAX_REQUESTS: 100,
-    },
-    AUTH: {
-        WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-        MAX_REQUESTS: 5,
-    },
-    API: {
-        WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-        MAX_REQUESTS: 1000,
-    },
-} as const
+// Note: ACTIVITY_TTL_DAYS and RATE_LIMITS were removed as unused
+// If needed in the future, they can be re-added

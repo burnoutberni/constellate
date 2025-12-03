@@ -109,7 +109,7 @@ export async function verifySignature(
         }
 
         // Fetch the public key
-        let publicKey = await fetchPublicKey(keyId)
+        const publicKey = await fetchPublicKey(keyId)
         if (!publicKey) {
             console.error(`[Signature] Failed to fetch public key from: ${keyId}`)
             return false

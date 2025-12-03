@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { User, FollowStatus, Event } from '../../types'
+import type { UserProfile, FollowStatus, Event } from '../../types'
 
 interface UserProfileResponse {
-    user: User
+    user: UserProfile
     events: Event[]
 }
 
@@ -119,7 +119,7 @@ export function useFollowUser(username: string) {
 
             return { previousProfile, previousStatus }
         },
-        onError: (err, variables, context) => {
+        onError: (_err, _variables, context) => {
             // Rollback on error
             if (context?.previousProfile) {
                 queryClient.setQueryData(
@@ -213,7 +213,7 @@ export function useUnfollowUser(username: string) {
 
             return { previousProfile, previousStatus }
         },
-        onError: (err, variables, context) => {
+        onError: (_err, _variables, context) => {
             // Rollback on error
             if (context?.previousProfile) {
                 queryClient.setQueryData(

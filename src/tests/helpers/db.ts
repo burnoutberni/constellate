@@ -12,11 +12,12 @@ import { prisma } from '../../lib/prisma.js'
  */
 export async function cleanupTestData() {
     // Delete in order to respect foreign key constraints
-    await prisma.attendance.deleteMany()
-    await prisma.like.deleteMany()
+    await prisma.eventAttendance.deleteMany()
+    await prisma.eventLike.deleteMany()
     await prisma.comment.deleteMany()
     await prisma.event.deleteMany()
-    await prisma.follow.deleteMany()
+    await prisma.following.deleteMany()
+    await prisma.follower.deleteMany()
     await prisma.user.deleteMany()
 }
 
@@ -86,7 +87,7 @@ export async function createTestAttendance(data: {
     eventId: string
     status?: 'attending' | 'maybe' | 'not_attending'
 }) {
-    return await prisma.attendance.create({
+    return await prisma.eventAttendance.create({
         data: {
             userId: data.userId,
             eventId: data.eventId,
@@ -102,7 +103,7 @@ export async function createTestLike(data: {
     userId: string
     eventId: string
 }) {
-    return await prisma.like.create({
+    return await prisma.eventLike.create({
         data: {
             userId: data.userId,
             eventId: data.eventId,
@@ -117,10 +118,15 @@ export async function createTestFollow(data: {
     followerId: string
     followingId: string
 }) {
-    return await prisma.follow.create({
+    // Note: This is a simplified helper. In reality, Following requires actorUrl, username, etc.
+    // This function may need to be updated to match the actual Following model structure
+    return await (prisma as any).following.create({
         data: {
-            followerId: data.followerId,
-            followingId: data.followingId,
+            userId: data.followerId,
+            actorUrl: `https://example.com/users/${data.followingId}`,
+            username: `user_${data.followingId}`,
+            inboxUrl: `https://example.com/users/${data.followingId}/inbox`,
+            accepted: true,
         },
     })
 }

@@ -39,7 +39,7 @@ describe('Server Setup', () => {
             const res = await app.request('/health')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('status', 'ok')
             expect(body).toHaveProperty('timestamp')
             expect(typeof body.timestamp).toBe('string')
@@ -47,7 +47,7 @@ describe('Server Setup', () => {
 
         it('should include ISO timestamp', async () => {
             const res = await app.request('/health')
-            const body = await res.json()
+            const body = await res.json() as any as any
 
             // Should be valid ISO date string
             expect(() => new Date(body.timestamp)).not.toThrow()
@@ -59,7 +59,7 @@ describe('Server Setup', () => {
             const res = await app.request('/')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toEqual({
                 name: 'Stellar Calendar',
                 version: '1.0.0',
@@ -73,7 +73,7 @@ describe('Server Setup', () => {
             const res = await app.request('/doc')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('openapi')
             expect(body).toHaveProperty('info')
         })
@@ -87,7 +87,7 @@ describe('Server Setup', () => {
             const { app: newApp } = await import('../server.js')
 
             const res = await newApp.request('/doc')
-            const body = await res.json()
+            const body = await res.json() as any as any
 
             expect(body.servers).toBeDefined()
             expect(body.servers[0].url).toBe('https://example.com')
@@ -104,7 +104,7 @@ describe('Server Setup', () => {
             const { app: newApp } = await import('../server.js')
 
             const res = await newApp.request('/doc')
-            const body = await res.json()
+            const body = await res.json() as any as any
 
             expect(body.servers[0].url).toBe('http://localhost:3000')
 
@@ -136,8 +136,9 @@ describe('Server Setup', () => {
             const { Hono } = await import('hono')
             const testApp = new Hono()
             
-            // Import error handler
-            const errorHandler = (await import('../../server.js')).app.error
+            // Import error handler - app is exported from server.ts
+            const serverModule = await import('../../server.js')
+            const errorHandler = serverModule.app?.onError
             
             // Add error handler if it exists
             if (errorHandler) {
@@ -151,7 +152,7 @@ describe('Server Setup', () => {
             const res = await testApp.request('/test-error')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('error', 'TEST_ERROR')
             expect(body).toHaveProperty('message', 'Test error message')
         })
@@ -184,7 +185,7 @@ describe('Server Setup', () => {
             const res = await testApp.request('/test-zod-error')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('error', 'VALIDATION_ERROR')
             expect(body).toHaveProperty('message', 'Invalid input data')
         })
@@ -206,7 +207,7 @@ describe('Server Setup', () => {
             })
 
             const res = await newApp.request('/test-error-details')
-            const body = await res.json()
+            const body = await res.json() as any as any
 
             expect(body).toHaveProperty('details')
 
@@ -231,7 +232,7 @@ describe('Server Setup', () => {
             })
 
             const res = await newApp.request('/test-error-no-details')
-            const body = await res.json()
+            const body = await res.json() as any as any
 
             expect(body).not.toHaveProperty('details')
 
@@ -259,7 +260,7 @@ describe('Server Setup', () => {
             const res = await testApp.request('/test-unknown-error')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('error', 'INTERNAL_ERROR')
             expect(body).toHaveProperty('message', 'An internal error occurred')
         })

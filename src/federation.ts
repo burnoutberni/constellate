@@ -133,7 +133,7 @@ async function handleFollow(activity: any): Promise<void> {
     const remoteUser = await cacheRemoteUser(actor)
 
     // Check if user auto-accepts followers
-    const shouldAutoAccept = (targetUser as any).autoAcceptFollowers ?? true
+    const shouldAutoAccept = (targetUser as unknown as { autoAcceptFollowers?: boolean }).autoAcceptFollowers ?? true
 
     // Create or update follower record
     const follower = await prisma.follower.upsert({

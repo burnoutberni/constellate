@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './queries/keys'
 import { useUIStore } from '../stores'
+import type { EventDetail, EventUser } from '../types'
 
 interface UseRealtimeSSEOptions {
     userId?: string
@@ -139,11 +140,11 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
 
                 eventQueries.forEach(([queryKey, data]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
-                        const eventDetail = data as any
-                        const newLike = event.data.like
+                        const eventDetail = data as EventDetail
+                        const newLike = event.data.like as { user: EventUser }
                         // Check if like already exists (avoid duplicates)
                         const existingLike = eventDetail.likes?.find(
-                            (l: any) => l.user?.id === newLike.user?.id
+                            (l) => l.user?.id === newLike.user?.id
                         )
                         if (!existingLike) {
                             const updatedLikes = [...(eventDetail.likes || []), newLike]
@@ -172,9 +173,9 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
 
                 eventQueries.forEach(([queryKey, data]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
-                        const eventDetail = data as any
+                        const eventDetail = data as EventDetail
                         const updatedLikes = eventDetail.likes?.filter(
-                            (l: any) => l.user?.id !== event.data.userId
+                            (l) => l.user?.id !== event.data.userId
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -201,7 +202,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
 
                 eventQueries.forEach(([queryKey, data]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
-                        const eventDetail = data as any
+                        const eventDetail = data as EventDetail
                         const newComment = event.data.comment
                         const updatedComments = [...(eventDetail.comments || []), newComment]
                         queryClient.setQueryData(queryKey, {
@@ -228,9 +229,9 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
 
                 eventQueries.forEach(([queryKey, data]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
-                        const eventDetail = data as any
+                        const eventDetail = data as EventDetail
                         const updatedComments = eventDetail.comments?.filter(
-                            (c: any) => c.id !== event.data.commentId
+                            (c) => c.id !== event.data.commentId
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -278,7 +279,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                 if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
                     const profileData = queryClient.getQueryData(
                         queryKeys.users.profile(event.data.username)
-                    ) as any
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
                     if (profileData) {
                         queryClient.setQueryData(
                             queryKeys.users.profile(event.data.username),
@@ -316,7 +317,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                 if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
                     const profileData = queryClient.getQueryData(
                         queryKeys.users.profile(event.data.username)
-                    ) as any
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
                     if (profileData) {
                         queryClient.setQueryData(
                             queryKeys.users.profile(event.data.username),
@@ -400,7 +401,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                 if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
                     const profileData = queryClient.getQueryData(
                         queryKeys.users.profile(event.data.username)
-                    ) as any
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
                     if (profileData) {
                         queryClient.setQueryData(
                             queryKeys.users.profile(event.data.username),

@@ -6,14 +6,6 @@ interface EventsResponse {
     events: Event[]
 }
 
-interface CreateEventInput {
-    title: string
-    summary?: string
-    location?: string
-    url?: string
-    startTime: string
-    endTime?: string
-}
 
 interface RSVPInput {
     status: string
@@ -58,42 +50,6 @@ export function useEventDetail(username: string, eventId: string) {
     })
 }
 
-// Mutations
-export function useCreateEvent() {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: async (input: CreateEventInput) => {
-            const response = await fetch('/api/events', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    ...input,
-                    startTime: new Date(input.startTime).toISOString(),
-                    endTime: input.endTime
-                        ? new Date(input.endTime).toISOString()
-                        : undefined,
-                }),
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to create event',
-                }))
-                throw new Error(error.error || 'Failed to create event')
-            }
-
-            return response.json()
-        },
-        onSuccess: () => {
-            // Invalidate events list queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
-        },
-    })
-}
 
 export function useDeleteEvent(eventId: string) {
     const queryClient = useQueryClient()
@@ -175,12 +131,12 @@ export function useRSVP(eventId: string, userId?: string) {
             eventQueries.forEach(([queryKey, data]) => {
                 if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
                     previousData.set(queryKey, data)
-                    const eventDetail = data as any
+                    const eventDetail = data as unknown as EventDetail
 
                     if (input === null) {
                         // Remove attendance
                         const updatedAttendance = eventDetail.attendance?.filter(
-                            (a: any) => userId && a.user?.id !== userId
+                            (a: { user?: { id?: string } }) => userId && a.user?.id !== userId
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -193,9 +149,9 @@ export function useRSVP(eventId: string, userId?: string) {
                     } else {
                         // Add or update attendance
                         const existingIndex = userId
-                            ? eventDetail.attendance?.findIndex((a: any) => a.user?.id === userId) ?? -1
+                            ? eventDetail.attendance?.findIndex((a: { user?: { id?: string } }) => a.user?.id === userId) ?? -1
                             : -1
-                        
+
                         // We'll wait for SSE to add the actual attendance with full user data
                         // For now, just update the count optimistically if adding
                         if (existingIndex < 0) {
@@ -213,7 +169,7 @@ export function useRSVP(eventId: string, userId?: string) {
 
             return { previousData }
         },
-        onError: (err, variables, context) => {
+        onError: (_err, _variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
@@ -275,12 +231,12 @@ export function useLikeEvent(eventId: string, userId?: string) {
             eventQueries.forEach(([queryKey, data]) => {
                 if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
                     previousData.set(queryKey, data)
-                    const eventDetail = data as any
+                    const eventDetail = data as unknown as EventDetail
 
                     if (liked) {
                         // Remove like
                         const updatedLikes = eventDetail.likes?.filter(
-                            (l: any) => userId && l.user?.id !== userId
+                            (l: { user?: { id?: string } }) => userId && l.user?.id !== userId
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -306,7 +262,7 @@ export function useLikeEvent(eventId: string, userId?: string) {
 
             return { previousData }
         },
-        onError: (err, variables, context) => {
+        onError: (_err, _variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
@@ -341,7 +297,7 @@ export function useAddComment(eventId: string) {
 
             return response.json()
         },
-        onMutate: async (input) => {
+        onMutate: async (_input) => {
             // Cancel outgoing queries
             await queryClient.cancelQueries({
                 queryKey: queryKeys.events.details(),
@@ -358,7 +314,7 @@ export function useAddComment(eventId: string) {
             eventQueries.forEach(([queryKey, data]) => {
                 if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
                     previousData.set(queryKey, data)
-                    const eventDetail = data as any
+                    const eventDetail = data as unknown as EventDetail
 
                     queryClient.setQueryData(queryKey, {
                         ...eventDetail,
@@ -372,7 +328,7 @@ export function useAddComment(eventId: string) {
 
             return { previousData }
         },
-        onError: (err, variables, context) => {
+        onError: (_err, _variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
@@ -387,28 +343,4 @@ export function useAddComment(eventId: string) {
     })
 }
 
-export function useDeleteComment(commentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(`/api/events/comments/${commentId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to delete comment')
-            }
-
-            return response.json()
-        },
-        onSuccess: () => {
-            // Invalidate event detail queries
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.events.details(),
-            })
-        },
-    })
-}
 

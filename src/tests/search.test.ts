@@ -66,7 +66,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events).toBeDefined()
             expect(body.pagination).toBeDefined()
             expect(body.pagination.page).toBe(1)
@@ -77,7 +77,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?q=Team')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             expect(body.events[0].title).toContain('Team')
         })
@@ -86,7 +86,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?q=Weekly')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             expect(body.events.some((e: any) => e.summary?.includes('Weekly'))).toBe(true)
         })
@@ -95,7 +95,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?location=Conference')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             expect(body.events[0].location).toContain('Conference')
         })
@@ -107,7 +107,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request(`/?startDate=${encodeURIComponent(startDate)}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             body.events.forEach((event: any) => {
                 expect(new Date(event.startTime).getTime()).toBeGreaterThanOrEqual(tomorrow.getTime())
@@ -121,7 +121,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request(`/?endDate=${encodeURIComponent(endDate)}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             body.events.forEach((event: any) => {
                 expect(new Date(event.startTime).getTime()).toBeLessThanOrEqual(dayAfterTomorrow.getTime())
@@ -137,7 +137,7 @@ describe('Event Search API', () => {
             )
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             body.events.forEach((event: any) => {
                 const eventTime = new Date(event.startTime).getTime()
                 expect(eventTime).toBeGreaterThanOrEqual(tomorrow.getTime())
@@ -149,7 +149,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?status=EventScheduled')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             body.events.forEach((event: any) => {
                 expect(event.eventStatus).toBe('EventScheduled')
             })
@@ -159,7 +159,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?mode=OnlineEventAttendanceMode')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             body.events.forEach((event: any) => {
                 expect(event.eventAttendanceMode).toBe('OnlineEventAttendanceMode')
             })
@@ -169,7 +169,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request(`/?username=${testUser.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             body.events.forEach((event: any) => {
                 expect(event.user.username).toBe(testUser.username)
@@ -180,7 +180,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?username=nonexistent')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events).toHaveLength(0)
             expect(body.pagination.total).toBe(0)
         })
@@ -201,7 +201,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?page=1&limit=3')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(3)
             expect(body.pagination.page).toBe(1)
             expect(body.pagination.limit).toBe(3)
@@ -211,7 +211,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?limit=200')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.pagination.limit).toBe(100)
         })
 
@@ -219,7 +219,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?q=test&location=room')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.filters).toBeDefined()
             expect(body.filters.q).toBe('test')
             expect(body.filters.location).toBe('room')
@@ -229,7 +229,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?status=InvalidStatus')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid search parameters')
         })
 
@@ -237,7 +237,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/?startDate=invalid-date')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid search parameters')
         })
 
@@ -247,7 +247,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
 
@@ -255,7 +255,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             if (body.events.length > 0) {
                 expect(body.events[0]._count).toBeDefined()
                 expect(typeof body.events[0]._count.attendance).toBe('number')
@@ -268,7 +268,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             if (body.events.length > 1) {
                 for (let i = 1; i < body.events.length; i++) {
                     const prevTime = new Date(body.events[i - 1].startTime).getTime()
@@ -294,7 +294,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             body.events.forEach((event: any) => {
                 expect(new Date(event.startTime).getTime()).toBeGreaterThan(Date.now())
             })
@@ -316,7 +316,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming?limit=5')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(5)
         })
 
@@ -324,7 +324,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming?limit=100')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(50)
         })
 
@@ -332,7 +332,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(10)
         })
 
@@ -340,7 +340,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             if (body.events.length > 1) {
                 for (let i = 1; i < body.events.length; i++) {
                     const prevTime = new Date(body.events[i - 1].startTime).getTime()
@@ -356,7 +356,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/upcoming')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
     })
@@ -400,7 +400,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             
             // Popular event should have popularity score
@@ -429,7 +429,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             const pastEventInResults = body.events.find((e: any) => e.id === pastEvent.id)
             expect(pastEventInResults).toBeUndefined()
         })
@@ -438,7 +438,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular?limit=5')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(5)
         })
 
@@ -446,7 +446,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular?limit=100')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(50)
         })
 
@@ -454,7 +454,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(10)
         })
 
@@ -483,7 +483,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             const eventInResults = body.events.find((e: any) => e.id === event.id)
             if (eventInResults) {
                 expect(eventInResults.popularity).toBe(2) // 1 attendance + 1 like
@@ -494,7 +494,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             if (body.events.length > 1) {
                 for (let i = 1; i < body.events.length; i++) {
                     expect(body.events[i - 1].popularity).toBeGreaterThanOrEqual(body.events[i].popularity)
@@ -508,7 +508,7 @@ describe('Event Search API', () => {
             const res = await searchApp.request('/popular')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
     })

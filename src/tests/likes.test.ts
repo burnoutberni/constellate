@@ -100,7 +100,7 @@ describe('Likes API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.eventId).toBe(testEvent.id)
             expect(body.userId).toBe(testUser.id)
         })
@@ -327,7 +327,7 @@ describe('Likes API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify like is deleted
@@ -535,7 +535,7 @@ describe('Likes API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Already liked')
         })
 

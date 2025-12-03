@@ -9,5 +9,8 @@ export const queryKeys = {
         profile: (username: string) => ['users', 'profile', username] as const,
         followStatus: (username: string) => ['users', 'followStatus', username] as const,
     },
+    activity: {
+        feed: () => ['activity', 'feed'] as const,
+    },
 } as const
 

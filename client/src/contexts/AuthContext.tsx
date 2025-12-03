@@ -5,6 +5,7 @@ interface User {
     id: string
     email: string
     name?: string
+    username?: string
     image?: string | null
 }
 
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             password,
             name,
             username,
-        } as any)
+        } as unknown as Parameters<typeof authClient.signUp.email>[0])
 
         if (error) {
             throw error

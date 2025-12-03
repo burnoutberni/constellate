@@ -109,7 +109,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.content).toBe('Test comment')
             expect(body.authorId).toBe(testUser.id)
             expect(body.eventId).toBe(testEvent.id)
@@ -161,7 +161,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.content).toBe('Reply comment')
             expect(body.inReplyToId).toBe(parentComment.id)
         })
@@ -407,7 +407,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.comments).toHaveLength(2)
             expect(body.count).toBe(2)
         })
@@ -435,7 +435,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.comments).toHaveLength(1)
             expect(body.comments[0].replies).toHaveLength(1)
         })
@@ -446,7 +446,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.comments).toHaveLength(0)
             expect(body.count).toBe(0)
         })
@@ -504,7 +504,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify comment is deleted
@@ -913,7 +913,7 @@ describe('Comments API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
         })
 

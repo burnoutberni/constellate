@@ -59,7 +59,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser.username}/profile`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.username).toBe(testUser.username)
             expect(body.name).toBe(testUser.name)
             expect(body.id).toBe(testUser.id)
@@ -70,7 +70,7 @@ describe('Profile API', () => {
             const res = await app.request('/api/users/nonexistent/profile')
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 
@@ -87,7 +87,7 @@ describe('Profile API', () => {
 
             const res = await app.request(`/api/users/${testUser.username}/profile`)
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body._count.events).toBe(1)
             expect(body._count.followers).toBe(0)
             expect(body._count.following).toBe(0)
@@ -136,7 +136,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.name).toBe(updates.name)
             expect(body.bio).toBe(updates.bio)
             expect(body.displayColor).toBe(updates.displayColor)
@@ -210,7 +210,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.name).toBe('Only Name Updated')
         })
     })
@@ -247,7 +247,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(true)
             expect(body.isAccepted).toBe(true)
         })
@@ -269,7 +269,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(false)
             expect(body.isAccepted).toBe(false)
         })
@@ -278,7 +278,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(false)
             expect(body.isAccepted).toBe(false)
         })
@@ -330,7 +330,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify following was created
@@ -372,7 +372,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Cannot follow yourself')
         })
 
@@ -409,7 +409,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Already following')
         })
 
@@ -483,7 +483,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify following was deleted
@@ -525,7 +525,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Not following')
         })
 
@@ -573,7 +573,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -628,7 +628,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${remoteUser.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(true)
             expect(body.isAccepted).toBe(true)
         })
@@ -659,7 +659,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify following was created
@@ -727,7 +727,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify following was deleted
@@ -921,7 +921,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -936,7 +936,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser.username}/profile`)
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -974,7 +974,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(true)
             expect(body.isAccepted).toBe(false)
         })
@@ -1000,7 +1000,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -1013,7 +1013,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${testUser2.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBe(false)
             expect(body.isAccepted).toBe(false)
         })
@@ -1041,7 +1041,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 
@@ -1066,7 +1066,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Cannot follow yourself')
         })
 
@@ -1105,7 +1105,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Already following')
         })
 
@@ -1232,7 +1232,7 @@ describe('Profile API', () => {
             const res = await app.request(`/api/users/${remoteUser.username}/follow-status`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.isFollowing).toBeDefined()
             expect(body.isAccepted).toBeDefined()
         })
@@ -1418,7 +1418,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Check that following was deleted
@@ -1520,7 +1520,7 @@ describe('Profile API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Not following')
         })
     })

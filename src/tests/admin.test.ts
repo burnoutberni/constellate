@@ -18,7 +18,7 @@ describe('Admin API', () => {
 
     beforeEach(async () => {
         // Clean up
-        await prisma.apiKey.deleteMany({})
+        await (prisma as any).apiKey.deleteMany({})
         await prisma.comment.deleteMany({})
         await prisma.event.deleteMany({})
         await prisma.user.deleteMany({})
@@ -36,7 +36,7 @@ describe('Admin API', () => {
                 isRemote: false,
                 isAdmin: true,
                 isBot: false,
-            },
+            } as any,
         })
 
         regularUser = await prisma.user.create({
@@ -47,7 +47,7 @@ describe('Admin API', () => {
                 isRemote: false,
                 isAdmin: false,
                 isBot: false,
-            },
+            } as any,
         })
 
         botUser = await prisma.user.create({
@@ -58,7 +58,7 @@ describe('Admin API', () => {
                 isRemote: false,
                 isAdmin: false,
                 isBot: true,
-            },
+            } as any,
         })
 
         // Reset mocks
@@ -85,7 +85,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('users')
             expect(body).toHaveProperty('pagination')
             expect(Array.isArray(body.users)).toBe(true)
@@ -111,7 +111,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users.every((u: any) => u.isBot === true)).toBe(true)
         })
 
@@ -134,7 +134,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users.length).toBeGreaterThan(0)
             expect(body.users.some((u: any) => u.username === botUser.username)).toBe(true)
         })
@@ -158,7 +158,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users.length).toBeLessThanOrEqual(2)
             expect(body.pagination.page).toBe(1)
             expect(body.pagination.limit).toBe(2)
@@ -216,7 +216,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.id).toBe(regularUser.id)
             expect(body.username).toBe(regularUser.username)
             expect(body).toHaveProperty('_count')
@@ -325,7 +325,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.username).toBe(username)
             expect(body.isBot).toBe(true)
             expect(body.isAdmin).toBe(false)
@@ -454,7 +454,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.name).toBe('Updated Name')
             expect(body.isAdmin).toBe(true)
         })
@@ -517,7 +517,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify user is deleted
@@ -546,7 +546,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toContain('Cannot delete your own account')
         })
     })
@@ -557,7 +557,7 @@ describe('Admin API', () => {
             const rawKey = `sk_live_${Math.random().toString(36).substring(2, 15)}`
             const keyHash = createHash('sha256').update(rawKey).digest('hex')
 
-            await prisma.apiKey.create({
+            await (prisma as any).apiKey.create({
                 data: {
                     name: 'Test Key',
                     keyHash,
@@ -584,7 +584,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('apiKeys')
             expect(Array.isArray(body.apiKeys)).toBe(true)
             expect(body.apiKeys.length).toBeGreaterThan(0)
@@ -597,7 +597,7 @@ describe('Admin API', () => {
             const rawKey1 = `sk_live_${Math.random().toString(36).substring(2, 15)}`
             const keyHash1 = createHash('sha256').update(rawKey1).digest('hex')
 
-            await prisma.apiKey.create({
+            await (prisma as any).apiKey.create({
                 data: {
                     name: 'Bot Key',
                     keyHash: keyHash1,
@@ -609,7 +609,7 @@ describe('Admin API', () => {
             const rawKey2 = `sk_live_${Math.random().toString(36).substring(2, 15)}`
             const keyHash2 = createHash('sha256').update(rawKey2).digest('hex')
 
-            await prisma.apiKey.create({
+            await (prisma as any).apiKey.create({
                 data: {
                     name: 'Regular Key',
                     keyHash: keyHash2,
@@ -636,7 +636,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.apiKeys.every((k: any) => k.userId === botUser.id)).toBe(true)
         })
     })
@@ -669,7 +669,7 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body).toHaveProperty('key')
             expect(body).toHaveProperty('prefix')
             expect(body.key).toMatch(/^sk_live_/)
@@ -711,7 +711,7 @@ describe('Admin API', () => {
             const rawKey = `sk_live_${Math.random().toString(36).substring(2, 15)}`
             const keyHash = createHash('sha256').update(rawKey).digest('hex')
 
-            const apiKey = await prisma.apiKey.create({
+            const apiKey = await (prisma as any).apiKey.create({
                 data: {
                     name: 'Test Key',
                     keyHash,
@@ -738,11 +738,11 @@ describe('Admin API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify API key is deleted
-            const deleted = await prisma.apiKey.findUnique({
+            const deleted = await (prisma as any).apiKey.findUnique({
                 where: { id: apiKey.id },
             })
             expect(deleted).toBeNull()
@@ -776,7 +776,7 @@ describe('Admin API', () => {
             const rawKey = `sk_live_${Math.random().toString(36).substring(2, 15)}`
             const keyHash = createHash('sha256').update(rawKey).digest('hex')
 
-            await prisma.apiKey.create({
+            await (prisma as any).apiKey.create({
                 data: {
                     name: 'Test Key',
                     keyHash,

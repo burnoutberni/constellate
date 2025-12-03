@@ -86,7 +86,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=alice')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users).toEqual(mockUsers)
             // Date fields are serialized to ISO strings in JSON responses
             expect(body.events).toHaveLength(1)
@@ -141,7 +141,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=@bob@example.com')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.remoteAccountSuggestion).toEqual({
                 handle: '@bob@example.com',
                 username: 'bob',
@@ -157,7 +157,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=@bob@example.com')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users).toContainEqual(mockRemoteUser)
             expect(body.remoteAccountSuggestion).toBeNull()
         })
@@ -166,7 +166,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search')
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid search parameters')
         })
 
@@ -235,7 +235,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toEqual(cachedUser)
             expect(resolveWebFinger).toHaveBeenCalledWith('acct:bob@example.com')
             expect(fetchActor).toHaveBeenCalledWith('https://example.com/users/bob')
@@ -252,7 +252,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toEqual(mockLocalUser)
             expect(resolveWebFinger).not.toHaveBeenCalled()
         })
@@ -267,7 +267,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toEqual(mockRemoteUser)
             expect(resolveWebFinger).not.toHaveBeenCalled()
         })
@@ -283,7 +283,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to resolve account via WebFinger')
         })
 
@@ -299,7 +299,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to fetch actor')
         })
 
@@ -311,7 +311,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Invalid handle format')
         })
 
@@ -359,7 +359,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/alice')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toMatchObject({
                 id: 'user_123',
                 username: 'alice',
@@ -409,7 +409,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/bob@example.com')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user.username).toBe('bob@example.com')
             expect(resolveWebFinger).toHaveBeenCalled()
             expect(fetchActor).toHaveBeenCalled()
@@ -485,7 +485,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/nonexistent')
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 
@@ -508,7 +508,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/bob%40example.com')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user.username).toBe('bob@example.com')
         })
 
@@ -532,7 +532,7 @@ describe('UserSearch API', () => {
 
             // Should still return user profile even if outbox fetch fails
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user.username).toBe('bob@example.com')
             expect(body.events).toEqual([])
         })
@@ -559,7 +559,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/bob@example.com')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user.username).toBe('bob@example.com')
         })
 
@@ -606,7 +606,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/alice')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
     })
@@ -646,7 +646,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=not-a-valid-url-format')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.remoteAccountSuggestion).toBeNull()
         })
 
@@ -686,7 +686,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=Smith')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.users.length).toBeGreaterThan(0)
         })
 
@@ -710,7 +710,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=Test')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
             expect(body.events[0].title).toBe('Test Event')
         })
@@ -735,7 +735,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=Detailed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeGreaterThan(0)
         })
     })
@@ -747,7 +747,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search?q=test')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
 
@@ -761,7 +761,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
         })
 
@@ -780,7 +780,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to resolve account via WebFinger')
         })
 
@@ -796,7 +796,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to fetch actor')
         })
     })
@@ -816,7 +816,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toEqual(mockLocalUser)
         })
 
@@ -834,7 +834,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Local user not found')
         })
 
@@ -853,7 +853,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toEqual(mockRemoteUser)
         })
 
@@ -880,7 +880,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.user).toBeDefined()
         })
 
@@ -900,7 +900,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to resolve account via WebFinger')
         })
 
@@ -921,7 +921,7 @@ describe('UserSearch API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Failed to fetch actor')
         })
 
@@ -948,7 +948,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/alice/followers')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.followers).toBeDefined()
         })
 
@@ -959,7 +959,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/bob@example.com/followers')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.followers).toBeDefined()
         })
 
@@ -979,7 +979,7 @@ describe('UserSearch API', () => {
             const res = await app.request('/api/user-search/profile/nonexistent/followers')
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('User not found')
         })
 

@@ -41,7 +41,7 @@ export function expectStatus(response: Response, status: number) {
  * Assert response JSON
  */
 export async function expectJson(response: Response, expected: any) {
-    const body = await response.json()
+    const body = await response.json() as any
     if (JSON.stringify(body) !== JSON.stringify(expected)) {
         throw new Error(`Expected JSON ${JSON.stringify(expected)}, got ${JSON.stringify(body)}`)
     }

@@ -57,7 +57,7 @@ app.get('/.well-known/webfinger', async (c) => {
                     href: actorUrl,
                 },
                 {
-                    rel: 'http://webfinger.net/rel/profile-page',
+                    rel: 'https://webfinger.net/rel/profile-page',
                     type: 'text/html',
                     href: actorUrl,
                 },
@@ -75,7 +75,7 @@ app.get('/.well-known/nodeinfo', async (c) => {
     return c.json({
         links: [
             {
-                rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
+                rel: 'https://nodeinfo.diaspora.software/ns/schema/2.0',
                 href: `${baseUrl}/nodeinfo/2.0`,
             },
         ],

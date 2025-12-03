@@ -1,5 +1,4 @@
 import { useEvents } from '../hooks/queries/events'
-import { useUIStore } from '../stores'
 
 interface MiniCalendarProps {
     selectedDate: Date
@@ -112,22 +111,19 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
                         <button
                             key={day}
                             onClick={() => handleDayClick(day)}
-                            className={`aspect-square text-xs rounded hover:bg-blue-50 transition-colors relative ${
-                                isToday
+                            className={`aspect-square text-xs rounded hover:bg-blue-50 transition-colors relative ${isToday
                                     ? 'ring-1 ring-blue-500 font-semibold'
                                     : ''
-                            } ${
-                                isSelected
+                                } ${isSelected
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                     : 'text-gray-700'
-                            }`}
+                                }`}
                         >
                             {day}
                             {dayEvents.length > 0 && (
                                 <div
-                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                                        isSelected ? 'bg-white' : 'bg-blue-500'
-                                    }`}
+                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'
+                                        }`}
                                 />
                             )}
                         </button>

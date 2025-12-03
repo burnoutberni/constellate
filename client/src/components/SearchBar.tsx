@@ -127,7 +127,7 @@ export function SearchBar() {
 
     // Get all selectable items
     const getSelectableItems = () => {
-        const items: Array<{ type: 'user' | 'event' | 'remote'; data: any }> = []
+        const items: Array<{ type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }> = []
 
         if (results) {
             results.users.forEach(user => items.push({ type: 'user', data: user }))
@@ -170,7 +170,7 @@ export function SearchBar() {
     }
 
     // Handle item click
-    const handleItemClick = (item: { type: 'user' | 'event' | 'remote'; data: any }) => {
+    const handleItemClick = (item: { type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }) => {
         if (item.type === 'user') {
             const user = item.data as User
             const profilePath = user.isRemote ? `/@${user.username}` : `/@${user.username}`

@@ -303,7 +303,7 @@ export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number
             return null
         }
 
-        const collection = await response.json()
+        const collection = await response.json() as { totalItems?: number | string }
 
         // Extract totalItems from the collection
         if (collection.totalItems !== undefined) {

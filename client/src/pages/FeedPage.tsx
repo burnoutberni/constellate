@@ -7,14 +7,17 @@ import { ActivityFeedItem } from '../components/ActivityFeedItem'
 import { useAuth } from '../contexts/AuthContext'
 import { useEvents, useActivityFeed } from '../hooks/queries'
 import { useUIStore } from '../stores'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../hooks/queries/keys'
 
 export function FeedPage() {
     const { user, logout } = useAuth()
     const { data: eventsData, isLoading: eventsLoading } = useEvents(100)
     const { data: activityData, isLoading: activityLoading } = useActivityFeed()
-    const { openCreateEventModal, sseConnected } = useUIStore()
+    const { openCreateEventModal, closeCreateEventModal, createEventModalOpen, sseConnected } = useUIStore()
     const [selectedDate, setSelectedDate] = useState(new Date())
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
     const events = eventsData?.events || []
     const activities = activityData?.activities || []
@@ -59,22 +62,7 @@ export function FeedPage() {
         })
     }
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diff = date.getTime() - now.getTime()
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-        if (days === 0) return 'Today'
-        if (days === 1) return 'Tomorrow'
-        if (days > 1 && days < 7) return `In ${days} days`
-
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-        })
-    }
 
     const handleEventClick = (event: typeof events[0]) => {
         if (event.user?.username) {
@@ -257,7 +245,17 @@ export function FeedPage() {
             </div>
 
             {/* Create Event Modal */}
-            <CreateEventModal />
+            <CreateEventModal
+                isOpen={createEventModalOpen}
+                onClose={closeCreateEventModal}
+                onSuccess={() => {
+                    closeCreateEventModal()
+                    // Invalidate feed query
+                    queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
+                }}
+            />
         </div>
     )
+
 }

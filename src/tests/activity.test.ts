@@ -66,7 +66,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any as { activities: unknown[] }
             expect(body.activities).toEqual([])
         })
 
@@ -87,7 +87,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any as { activities: unknown[] }
             expect(body.activities).toEqual([])
         })
 
@@ -119,7 +119,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any as { activities: unknown[] }
             expect(body.activities).toEqual([])
         })
 
@@ -192,7 +192,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThan(0)
             
             const likeActivity = body.activities.find((a: any) => a.type === 'like')
@@ -249,7 +249,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThan(0)
             
             const rsvpActivity = body.activities.find((a: any) => a.type === 'rsvp')
@@ -306,7 +306,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThan(0)
             
             const commentActivity = body.activities.find((a: any) => a.type === 'comment')
@@ -354,7 +354,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThan(0)
             
             const eventActivity = body.activities.find((a: any) => a.type === 'event_created')
@@ -420,7 +420,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThanOrEqual(2)
             
             // Most recent should be first
@@ -480,7 +480,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeLessThanOrEqual(50)
         })
 
@@ -530,7 +530,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should not include activities from unaccepted follows
             expect(body.activities.length).toBe(0)
         })
@@ -590,7 +590,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.activities.length).toBeGreaterThan(0)
         })
 
@@ -615,7 +615,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -628,7 +628,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/debug')
 
             expect(res.status).toBe(401)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Not authenticated')
         })
 
@@ -681,7 +681,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/debug')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.userId).toBe(testUser.id)
             expect(body.following).toHaveLength(2)
             expect(body.followers).toHaveLength(1)
@@ -710,7 +710,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/debug')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore original
@@ -752,7 +752,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should handle remote users correctly
             expect(body.activities).toBeDefined()
         })
@@ -784,7 +784,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should handle gracefully when username cannot be extracted
             expect(body.activities).toBeDefined()
         })
@@ -816,7 +816,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should return empty feed when user not found
             expect(body.activities).toEqual([])
         })
@@ -851,7 +851,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore
@@ -888,7 +888,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore
@@ -925,7 +925,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore
@@ -962,7 +962,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore
@@ -996,7 +996,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should return empty feed when user not found
             expect(body.activities).toEqual([])
         })
@@ -1028,7 +1028,7 @@ describe('Activity Feed API', () => {
             const res = await app.request('/api/activity/feed')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any as any
             // Should handle gracefully when username cannot be extracted
             expect(body.activities).toBeDefined()
         })

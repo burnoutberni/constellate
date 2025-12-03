@@ -89,7 +89,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blockingUserId).toBe(testUser.id)
             expect(body.blockedUserId).toBe(testUser2.id)
         })
@@ -133,7 +133,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Cannot block yourself')
         })
 
@@ -218,7 +218,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify block was deleted
@@ -289,7 +289,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/block/users')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocks).toHaveLength(1)
             expect(body.blocks[0].blockedUserId).toBe(testUser2.id)
         })
@@ -327,7 +327,7 @@ describe('Moderation API', () => {
             const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocked).toBe(true)
             expect(body.block).not.toBeNull()
         })
@@ -349,7 +349,7 @@ describe('Moderation API', () => {
             const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocked).toBe(false)
             expect(body.block).toBeNull()
         })
@@ -407,7 +407,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.domain).toBe('spam.example.com')
             expect(body.reason).toBe('Spam domain')
         })
@@ -507,7 +507,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.success).toBe(true)
 
             // Verify block was deleted
@@ -571,7 +571,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/block/domains')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocks).toHaveLength(2)
         })
 
@@ -624,7 +624,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.reporterId).toBe(testUser.id)
             expect(body.reportedUserId).toBe(testUser2.id)
             expect(body.reason).toBe('Harassment')
@@ -668,7 +668,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.reporterId).toBe(testUser.id)
             expect(body.reportedUserId).toBeNull()
             expect(body.reason).toBe('Inappropriate content')
@@ -719,7 +719,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.reporterId).toBe(testUser.id)
         })
 
@@ -827,7 +827,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/reports')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.reports).toHaveLength(1)
             expect(body.pagination).toBeDefined()
         })
@@ -868,7 +868,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/reports?status=pending')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.reports).toHaveLength(1)
             expect(body.reports[0].status).toBe('pending')
         })
@@ -929,7 +929,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.status).toBe('resolved')
         })
 
@@ -1258,7 +1258,7 @@ describe('Moderation API', () => {
             // Test first page
             const res1 = await app.request('/api/moderation/reports?page=1&limit=10')
             expect(res1.status).toBe(200)
-            const body1 = await res1.json()
+            const body1 = await res1.json() as any as any
             expect(body1.reports.length).toBe(10)
             expect(body1.pagination.page).toBe(1)
             expect(body1.pagination.total).toBe(25)
@@ -1266,14 +1266,14 @@ describe('Moderation API', () => {
             // Test second page
             const res2 = await app.request('/api/moderation/reports?page=2&limit=10')
             expect(res2.status).toBe(200)
-            const body2 = await res2.json()
+            const body2 = await res2.json() as any as any
             expect(body2.reports.length).toBe(10)
             expect(body2.pagination.page).toBe(2)
 
             // Test last page
             const res3 = await app.request('/api/moderation/reports?page=3&limit=10')
             expect(res3.status).toBe(200)
-            const body3 = await res3.json()
+            const body3 = await res3.json() as any as any
             expect(body3.reports.length).toBe(5)
             expect(body3.pagination.page).toBe(3)
         })
@@ -1295,7 +1295,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/reports?limit=200')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.pagination.limit).toBe(100) // Should be capped at 100
         })
 
@@ -1316,7 +1316,7 @@ describe('Moderation API', () => {
             const res = await app.request('/api/moderation/reports?page=invalid')
 
             expect(res.status).toBe(200) // Should default to page 1
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.pagination.page).toBe(1)
         })
     })
@@ -1347,7 +1347,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Cannot block yourself')
         })
 
@@ -1384,7 +1384,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blockingUserId).toBe(testUser.id)
             expect(body.blockedUserId).toBe(testUser2.id)
         })
@@ -1420,7 +1420,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Event not found')
         })
 
@@ -1453,7 +1453,7 @@ describe('Moderation API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Comment not found')
         })
     })
@@ -1483,7 +1483,7 @@ describe('Moderation API', () => {
             const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocked).toBe(true)
             expect(body.block).toBeDefined()
         })
@@ -1505,7 +1505,7 @@ describe('Moderation API', () => {
             const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.blocked).toBe(false)
             expect(body.block).toBeNull()
         })
@@ -1530,7 +1530,7 @@ describe('Moderation API', () => {
             const res = await app.request(`/api/moderation/block/check/${testUser2.username}`)
 
             expect(res.status).toBe(500)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.error).toBe('Internal server error')
 
             // Restore

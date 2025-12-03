@@ -1,6 +1,6 @@
 import { Event, EventUser } from './event'
 
-export type ActivityType = 'like' | 'rsvp' | 'comment' | 'event_created'
+type ActivityType = 'like' | 'rsvp' | 'comment' | 'event_created'
 
 export interface Activity {
     id: string

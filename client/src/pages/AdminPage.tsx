@@ -44,7 +44,7 @@ export function AdminPage() {
     const [activeTab, setActiveTab] = useState<'users' | 'api-keys'>('users')
     const [showCreateUserModal, setShowCreateUserModal] = useState(false)
     const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+    const [, setSelectedUserId] = useState<string | null>(null)
     const [newApiKey, setNewApiKey] = useState<string | null>(null)
 
     // Check if user is admin
@@ -79,7 +79,7 @@ export function AdminPage() {
             if (!response.ok) {
                 throw new Error('Failed to fetch users')
             }
-            const data = await response.json() as { users: User[]; pagination: any }
+            const data = await response.json() as { users: User[]; pagination: { page: number; limit: number; total: number; pages: number } }
             console.log('[AdminPage] Fetched users:', data.users.length, 'users:', data.users.map(u => ({ username: u.username, isBot: u.isBot })))
             return data
         },
@@ -218,21 +218,19 @@ export function AdminPage() {
                     <nav className="-mb-px flex space-x-8">
                         <button
                             onClick={() => setActiveTab('users')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                                activeTab === 'users'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'users'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
                         >
                             Users
                         </button>
                         <button
                             onClick={() => setActiveTab('api-keys')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                                activeTab === 'api-keys'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'api-keys'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
                         >
                             API Keys
                         </button>
@@ -475,7 +473,7 @@ export function AdminPage() {
                             <p className="text-sm text-gray-600 mb-4">
                                 Save this key now. You will not be able to see it again.
                             </p>
-                            <div 
+                            <div
                                 id="api-key-display"
                                 className="bg-gray-100 p-4 rounded font-mono text-sm break-all mb-4 select-all cursor-text"
                                 onClick={(e) => {
@@ -508,7 +506,8 @@ export function AdminPage() {
                                                 document.execCommand('copy')
                                                 alert('Copied to clipboard!')
                                             } catch (err) {
-                                                // If all else fails, select the text so user can manually copy
+                                                console.error('Failed to copy to clipboard:', err)
+                                                // Fallback: select the text so user can manually copy
                                                 textarea.style.position = 'static'
                                                 textarea.style.opacity = '1'
                                                 textarea.focus()

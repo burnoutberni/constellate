@@ -47,8 +47,8 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
             // Close modal and trigger success callback
             onClose()
             onSuccess?.()
-        } catch (err: any) {
-            setError(err.message || 'Authentication failed. Please check your credentials.')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Authentication failed. Please check your credentials.')
             console.error(err)
         } finally {
             setLoading(false)

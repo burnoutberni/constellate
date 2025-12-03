@@ -73,7 +73,7 @@ app.get('/users', async (c) => {
         const skip = (page - 1) * limit
 
         // Build where clause
-        const where: any = {}
+        const where: { OR?: Array<{ username?: { contains: string }, name?: { contains: string }, email?: { contains: string } }>, isBot?: boolean } = {}
         if (query.search) {
             where.OR = [
                 { username: { contains: query.search } },
@@ -86,7 +86,7 @@ app.get('/users', async (c) => {
         if (query.isBot !== undefined && query.isBot !== null) {
             where.isBot = query.isBot
         }
-        
+
         // Debug logging
         console.log('[Admin] Listing users with filter:', JSON.stringify(where))
         console.log('[Admin] Query params:', { page, limit, search: query.search, isBot: query.isBot })
@@ -113,7 +113,7 @@ app.get('/users', async (c) => {
                             following: true,
                         },
                     },
-                },
+                } as unknown as Record<string, unknown>,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
@@ -171,9 +171,9 @@ app.get('/users/:id', async (c) => {
                         followers: true,
                         following: true,
                         apiKeys: true,
-                    },
+                    } as unknown as Record<string, unknown>,
                 },
-            },
+            } as unknown as Record<string, unknown>,
         })
 
         if (!user) {
@@ -230,8 +230,9 @@ app.post('/users', async (c) => {
                     email: data.email || `${data.username}@example.com`,
                     password: data.password,
                     name: data.name || data.username,
+                    username: data.username,
                 },
-            } as any)
+            })
 
             if (!result || !result.user) {
                 return c.json({ error: 'Failed to create user account' }, 500)
@@ -248,12 +249,12 @@ app.post('/users', async (c) => {
                     isBot: data.isBot || false,
                     displayColor: data.displayColor,
                     bio: data.bio,
-                },
+                } as unknown as Record<string, unknown>,
             })
         } else {
             // Create bot user directly (no password/auth needed)
             const user = await prisma.user.create({
-                data: {
+                data: ({
                     username: data.username,
                     email: data.email || null,
                     name: data.name || data.username,
@@ -262,7 +263,7 @@ app.post('/users', async (c) => {
                     displayColor: data.displayColor || '#3b82f6',
                     bio: data.bio,
                     isRemote: false,
-                },
+                } as unknown) as Parameters<typeof prisma.user.create>[0]['data'],
             })
 
             userId = user.id
@@ -284,7 +285,7 @@ app.post('/users', async (c) => {
                 displayColor: true,
                 bio: true,
                 createdAt: true,
-            },
+            } as unknown as Record<string, unknown>,
         })
 
         return c.json(user, 201)
@@ -348,7 +349,7 @@ app.put('/users/:id', async (c) => {
                 ...(data.isBot !== undefined && { isBot: data.isBot }),
                 ...(data.displayColor !== undefined && { displayColor: data.displayColor }),
                 ...(data.bio !== undefined && { bio: data.bio }),
-            },
+            } as unknown as Record<string, unknown>,
             select: {
                 id: true,
                 username: true,
@@ -359,7 +360,7 @@ app.put('/users/:id', async (c) => {
                 displayColor: true,
                 bio: true,
                 updatedAt: true,
-            },
+            } as unknown as Record<string, unknown>,
         })
 
         return c.json(user)
@@ -413,12 +414,12 @@ app.get('/api-keys', async (c) => {
 
         const userId = c.req.query('userId')
 
-        const where: any = {}
+        const where: { userId?: string } = {}
         if (userId) {
             where.userId = userId
         }
 
-        const apiKeys = await prisma.apiKey.findMany({
+        const apiKeys = await (prisma as unknown as { apiKey: { findMany: (args: { where?: { userId?: string }; include?: { user: { select: { id: boolean; username: boolean; name: boolean } } }; orderBy: { createdAt: string } }) => Promise<Array<{ id: string; name: string; description: string | null; prefix: string; userId: string; user: { id: string; username: string; name: string | null }; createdAt: Date; updatedAt: Date; lastUsedAt: Date | null }>> } }).apiKey.findMany({
             where,
             include: {
                 user: {
@@ -433,7 +434,7 @@ app.get('/api-keys', async (c) => {
         })
 
         // Don't return the full key hash, just the prefix
-        const sanitizedKeys = apiKeys.map((key) => ({
+        const sanitizedKeys = apiKeys.map((key: typeof apiKeys[0]) => ({
             id: key.id,
             name: key.name,
             description: key.description,
@@ -475,7 +476,7 @@ app.post('/api-keys', async (c) => {
         const prefix = rawKey.substring(0, 12) // "sk_live_xxxx"
 
         // Create API key record
-        const apiKey = await prisma.apiKey.create({
+        const apiKey = await (prisma as unknown as { apiKey: { create: (args: { data: { name: string; description?: string; keyHash: string; prefix: string; userId: string }; include?: { user: { select: { id: boolean; username: boolean; name: boolean } } } }) => Promise<{ id: string; name: string; description: string | null; prefix: string; userId: string; user: { id: string; username: string; name: string | null }; createdAt: Date }> } }).apiKey.create({
             data: {
                 name: data.name,
                 description: data.description,
@@ -523,7 +524,7 @@ app.delete('/api-keys/:id', async (c) => {
         const { id } = c.req.param()
 
         // Check if API key exists
-        const apiKey = await prisma.apiKey.findUnique({
+        const apiKey = await (prisma as unknown as { apiKey: { findUnique: (args: { where: { id: string } }) => Promise<{ id: string } | null> } }).apiKey.findUnique({
             where: { id },
         })
 
@@ -532,7 +533,7 @@ app.delete('/api-keys/:id', async (c) => {
         }
 
         // Delete API key
-        await prisma.apiKey.delete({
+        await (prisma as unknown as { apiKey: { delete: (args: { where: { id: string } }) => Promise<{ id: string }> } }).apiKey.delete({
             where: { id },
         })
 

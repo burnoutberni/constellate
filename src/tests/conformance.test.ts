@@ -115,7 +115,7 @@ describe('ActivityPub Conformance', () => {
             const res = await app.request(`/.well-known/webfinger?resource=${encodeURIComponent(resource)}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             
             // Validate against WebFinger schema
             const result = WebFingerSchema.safeParse(body)
@@ -144,7 +144,7 @@ describe('ActivityPub Conformance', () => {
         it('should serve NodeInfo discovery', async () => {
             const res = await app.request('/.well-known/nodeinfo')
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.links).toBeDefined()
             expect(Array.isArray(body.links)).toBe(true)
         })
@@ -152,7 +152,7 @@ describe('ActivityPub Conformance', () => {
         it('should serve NodeInfo 2.0', async () => {
             const res = await app.request('/nodeinfo/2.0')
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.version).toBe('2.0')
             expect(body.software.name).toBe('stellar-calendar')
             expect(body.protocols).toContain('activitypub')
@@ -166,7 +166,7 @@ describe('ActivityPub Conformance', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             const result = PersonSchema.safeParse(body)
             if (!result.success) {
                 console.error('Person validation errors:', result.error)
@@ -203,7 +203,7 @@ describe('ActivityPub Conformance', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.publicKey).toBeDefined()
             expect(body.publicKey.publicKeyPem).toBeDefined()
 
@@ -238,7 +238,7 @@ describe('ActivityPub Conformance', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.summary).toBe('Test bio')
             expect(body.icon).toBeDefined()
             expect(body.icon.url).toBe('https://example.com/avatar.jpg')
@@ -266,7 +266,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 const result = OrderedCollectionSchema.safeParse(body)
                 expect(result.success).toBe(true)
                 expect(body.type).toBe('OrderedCollection')
@@ -281,7 +281,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 expect(body.type).toBe('OrderedCollectionPage')
                 expect(body.orderedItems).toBeDefined()
                 expect(Array.isArray(body.orderedItems)).toBe(true)
@@ -313,7 +313,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 expect(body.orderedItems.length).toBeLessThanOrEqual(20) // Default page size
             })
 
@@ -332,7 +332,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 const result = OrderedCollectionSchema.safeParse(body)
                 expect(result.success).toBe(true)
                 expect(body.type).toBe('OrderedCollection')
@@ -365,7 +365,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 expect(body.type).toBe('OrderedCollectionPage')
                 expect(body.orderedItems).toBeDefined()
                 expect(Array.isArray(body.orderedItems)).toBe(true)
@@ -400,7 +400,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 // Should not include pending follower
                 const hasPending = body.orderedItems?.some((item: string) => 
                     item.includes('pendingfollower')
@@ -420,7 +420,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 const result = OrderedCollectionSchema.safeParse(body)
                 expect(result.success).toBe(true)
                 expect(body.type).toBe('OrderedCollection')
@@ -451,7 +451,7 @@ describe('ActivityPub Conformance', () => {
                 })
 
                 expect(res.status).toBe(200)
-                const body = await res.json() as any
+                const body = await res.json() as any as any as any
                 expect(body.type).toBe('OrderedCollectionPage')
                 expect(body.orderedItems).toBeDefined()
 
@@ -568,7 +568,7 @@ describe('ActivityPub Conformance', () => {
 
             const res = await createSignedRequest(`/users/${testUser.username}/inbox`, validActivity)
             expect(res.status).toBe(202)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.status).toBe('accepted')
 
             vi.restoreAllMocks()
@@ -635,7 +635,7 @@ describe('ActivityPub Conformance', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             const result = EventSchema.safeParse(body)
             expect(result.success).toBe(true)
             expect(body.type).toBe('Event')
@@ -669,7 +669,7 @@ describe('ActivityPub Conformance', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.summary).toBe('Event summary')
             expect(body.location).toBe('Test Location')
             expect(body.endTime).toBeDefined()
@@ -697,7 +697,7 @@ describe('ActivityPub Conformance', () => {
         it('should serve OpenAPI specification at /doc', async () => {
             const res = await app.request('/doc')
             expect(res.status).toBe(200)
-            const body = await res.json() as any
+            const body = await res.json() as any as any as any
             expect(body.openapi).toBe('3.0.0')
             expect(body.info.title).toBe('Stellar Calendar API')
             expect(body.info.description).toBeDefined()

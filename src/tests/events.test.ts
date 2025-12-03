@@ -97,7 +97,7 @@ describe('Events API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.title).toBe(eventData.title)
             expect(body.summary).toBe(eventData.summary)
             expect(body.location).toBe(eventData.location)
@@ -188,7 +188,7 @@ describe('Events API', () => {
             const res = await app.request('/api/events')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events).toBeDefined()
             expect(Array.isArray(body.events)).toBe(true)
             expect(body.pagination).toBeDefined()
@@ -208,7 +208,7 @@ describe('Events API', () => {
             const res = await app.request('/api/events?page=1&limit=10')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events.length).toBeLessThanOrEqual(10)
             expect(body.pagination.page).toBe(1)
             expect(body.pagination.limit).toBe(10)
@@ -244,7 +244,7 @@ describe('Events API', () => {
             const res = await app.request('/api/events')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             // Should return events (may be filtered based on auth)
             expect(body.events).toBeDefined()
         })
@@ -264,7 +264,7 @@ describe('Events API', () => {
             const res = await app.request(`/api/events/${event.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             // API returns ActivityPub URL format, not just the ID
             expect(body.id).toContain(event.id)
             expect(body.title).toBe(event.title)
@@ -298,7 +298,7 @@ describe('Events API', () => {
             const res = await app.request(`/api/events/${event.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.attendance).toBeDefined()
             expect(Array.isArray(body.attendance)).toBe(true)
         })
@@ -337,7 +337,7 @@ describe('Events API', () => {
 
             // May need auth, so check for 401 or success
             if (res.status === 200) {
-                const body = await res.json()
+                const body = await res.json() as any as any
                 expect(body.title).toBe(updateData.title)
             } else {
                 expect([401, 403, 404]).toContain(res.status)
@@ -433,7 +433,7 @@ describe('Events API', () => {
             const res = await app.request(`/api/events/by-user/${testUser.username}/${event.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             // API returns ActivityPub URL format, not just the ID
             expect(body.id).toContain(event.id)
             expect(body.title).toBe(event.title)
@@ -598,7 +598,7 @@ describe('Events API', () => {
             })
 
             expect(res.status).toBe(201)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.summary).toBe(eventData.summary)
             expect(body.location).toBe(eventData.location)
             expect(body.eventStatus).toBe(eventData.eventStatus)
@@ -678,7 +678,7 @@ describe('Events API', () => {
 
             const res = await app.request('/api/events')
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events).toBeDefined()
         })
 
@@ -701,7 +701,7 @@ describe('Events API', () => {
 
             const res = await app.request('/api/events')
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.events).toBeDefined()
         })
 
@@ -737,7 +737,7 @@ describe('Events API', () => {
             const res = await app.request('/api/events')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             const foundEvent = body.events.find((e: any) => e.id === remoteEvent.id)
             expect(foundEvent).toBeDefined()
             expect(foundEvent.user).toBeDefined()
@@ -758,7 +758,7 @@ describe('Events API', () => {
             const res = await app.request('/api/events')
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             const foundEvent = body.events.find((e: any) => e.id === orphanEvent.id)
             expect(foundEvent).toBeDefined()
             // User should be null or undefined
@@ -838,7 +838,7 @@ describe('Events API', () => {
             const res = await app.request(`/api/events/by-user/${remoteUser.username}/${remoteEvent.id}`)
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.id).toBe(remoteEvent.id)
         })
 
@@ -869,7 +869,7 @@ describe('Events API', () => {
 
             // Should still return the event (with cached data)
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.id).toBe(remoteEvent.id)
         })
 
@@ -903,7 +903,7 @@ describe('Events API', () => {
 
             // Should still return the event (with cached data)
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any as any
             expect(body.id).toBe(remoteEvent.id)
         })
 
