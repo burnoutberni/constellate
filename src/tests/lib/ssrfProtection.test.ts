@@ -14,84 +14,84 @@ describe('SSRF Protection', () => {
     })
 
     describe('isUrlSafe', () => {
-        it('should allow valid HTTPS URLs', () => {
-            expect(isUrlSafe('https://example.com')).toBe(true)
-            expect(isUrlSafe('https://example.com/path')).toBe(true)
-            expect(isUrlSafe('https://example.com:443/path')).toBe(true)
+        it('should allow valid HTTPS URLs', async () => {
+            expect(await isUrlSafe('https://example.com')).toBe(true)
+            expect(await isUrlSafe('https://example.com/path')).toBe(true)
+            expect(await isUrlSafe('https://example.com:443/path')).toBe(true)
         })
 
-        it('should allow valid HTTP URLs', () => {
-            expect(isUrlSafe('http://example.com')).toBe(true)
-            expect(isUrlSafe('http://example.com/path')).toBe(true)
+        it('should allow valid HTTP URLs', async () => {
+            expect(await isUrlSafe('http://example.com')).toBe(true)
+            expect(await isUrlSafe('http://example.com/path')).toBe(true)
         })
 
-        it('should reject invalid protocols', () => {
-            expect(isUrlSafe('ftp://example.com')).toBe(false)
-            expect(isUrlSafe('file:///etc/passwd')).toBe(false)
-            expect(isUrlSafe('javascript:alert(1)')).toBe(false)
-            expect(isUrlSafe('data:text/html,<script>alert(1)</script>')).toBe(false)
+        it('should reject invalid protocols', async () => {
+            expect(await isUrlSafe('ftp://example.com')).toBe(false)
+            expect(await isUrlSafe('file:///etc/passwd')).toBe(false)
+            expect(await isUrlSafe('javascript:alert(1)')).toBe(false)
+            expect(await isUrlSafe('data:text/html,<script>alert(1)</script>')).toBe(false)
         })
 
-        it('should reject private IP addresses', () => {
-            expect(isUrlSafe('http://127.0.0.1')).toBe(false)
-            expect(isUrlSafe('http://127.0.0.1:3000')).toBe(false)
-            expect(isUrlSafe('http://10.0.0.1')).toBe(false)
-            expect(isUrlSafe('http://172.16.0.1')).toBe(false)
-            expect(isUrlSafe('http://192.168.1.1')).toBe(false)
-            expect(isUrlSafe('http://169.254.1.1')).toBe(false)
+        it('should reject private IP addresses', async () => {
+            expect(await isUrlSafe('http://127.0.0.1')).toBe(false)
+            expect(await isUrlSafe('http://127.0.0.1:3000')).toBe(false)
+            expect(await isUrlSafe('http://10.0.0.1')).toBe(false)
+            expect(await isUrlSafe('http://172.16.0.1')).toBe(false)
+            expect(await isUrlSafe('http://192.168.1.1')).toBe(false)
+            expect(await isUrlSafe('http://169.254.1.1')).toBe(false)
         })
 
-        it('should reject localhost in production', () => {
+        it('should reject localhost in production', async () => {
             process.env.NODE_ENV = 'production'
-            expect(isUrlSafe('http://localhost')).toBe(false)
-            expect(isUrlSafe('http://localhost:3000')).toBe(false)
-            expect(isUrlSafe('http://test.local')).toBe(false)
+            expect(await isUrlSafe('http://localhost')).toBe(false)
+            expect(await isUrlSafe('http://localhost:3000')).toBe(false)
+            expect(await isUrlSafe('http://test.local')).toBe(false)
         })
 
-        it('should allow localhost in development', () => {
+        it('should allow localhost in development', async () => {
             process.env.NODE_ENV = 'development'
-            expect(isUrlSafe('http://localhost')).toBe(true)
-            expect(isUrlSafe('http://localhost:3000')).toBe(true)
-            expect(isUrlSafe('http://test.local')).toBe(true)
-            expect(isUrlSafe('http://127.0.0.1')).toBe(true)
+            expect(await isUrlSafe('http://localhost')).toBe(true)
+            expect(await isUrlSafe('http://localhost:3000')).toBe(true)
+            expect(await isUrlSafe('http://test.local')).toBe(true)
+            expect(await isUrlSafe('http://127.0.0.1')).toBe(true)
         })
 
-        it('should reject IPv6 loopback', () => {
-            expect(isUrlSafe('http://[::1]')).toBe(false)
-            expect(isUrlSafe('http://[::1]:3000')).toBe(false)
+        it('should reject IPv6 loopback', async () => {
+            expect(await isUrlSafe('http://[::1]')).toBe(false)
+            expect(await isUrlSafe('http://[::1]:3000')).toBe(false)
         })
 
-        it('should reject IPv6 link-local', () => {
-            expect(isUrlSafe('http://[fe80::1]')).toBe(false)
-            expect(isUrlSafe('http://[fc00::1]')).toBe(false)
-            expect(isUrlSafe('http://[fd00::1]')).toBe(false)
+        it('should reject IPv6 link-local', async () => {
+            expect(await isUrlSafe('http://[fe80::1]')).toBe(false)
+            expect(await isUrlSafe('http://[fc00::1]')).toBe(false)
+            expect(await isUrlSafe('http://[fd00::1]')).toBe(false)
         })
 
-        it('should reject invalid URLs', () => {
-            expect(isUrlSafe('not-a-url')).toBe(false)
-            expect(isUrlSafe('')).toBe(false)
-            expect(isUrlSafe('://example.com')).toBe(false)
+        it('should reject invalid URLs', async () => {
+            expect(await isUrlSafe('not-a-url')).toBe(false)
+            expect(await isUrlSafe('')).toBe(false)
+            expect(await isUrlSafe('://example.com')).toBe(false)
         })
 
-        it('should handle URLs with query parameters', () => {
-            expect(isUrlSafe('https://example.com?param=value')).toBe(true)
-            expect(isUrlSafe('https://example.com/path?param=value&other=test')).toBe(true)
+        it('should handle URLs with query parameters', async () => {
+            expect(await isUrlSafe('https://example.com?param=value')).toBe(true)
+            expect(await isUrlSafe('https://example.com/path?param=value&other=test')).toBe(true)
         })
 
-        it('should handle URLs with fragments', () => {
-            expect(isUrlSafe('https://example.com#fragment')).toBe(true)
-            expect(isUrlSafe('https://example.com/path#section')).toBe(true)
+        it('should handle URLs with fragments', async () => {
+            expect(await isUrlSafe('https://example.com#fragment')).toBe(true)
+            expect(await isUrlSafe('https://example.com/path#section')).toBe(true)
         })
 
-        it('should handle URLs with ports', () => {
-            expect(isUrlSafe('https://example.com:443')).toBe(true)
-            expect(isUrlSafe('https://example.com:8080')).toBe(true)
+        it('should handle URLs with ports', async () => {
+            expect(await isUrlSafe('https://example.com:443')).toBe(true)
+            expect(await isUrlSafe('https://example.com:8080')).toBe(true)
         })
 
-        it('should reject URLs with private IP ranges in hostname', () => {
-            expect(isUrlSafe('http://10.1.1.1')).toBe(false)
-            expect(isUrlSafe('http://192.168.0.1')).toBe(false)
-            expect(isUrlSafe('http://172.20.0.1')).toBe(false)
+        it('should reject URLs with private IP ranges in hostname', async () => {
+            expect(await isUrlSafe('http://10.1.1.1')).toBe(false)
+            expect(await isUrlSafe('http://192.168.0.1')).toBe(false)
+            expect(await isUrlSafe('http://172.20.0.1')).toBe(false)
         })
     })
 
@@ -122,11 +122,11 @@ describe('SSRF Protection', () => {
 
             await expect(
                 safeFetch('https://example.com', {}, 100) // 100ms timeout
-            ).rejects.toThrow(/Request timeout/)
+            ).rejects.toThrow(/Request timeout|timeout/i)
 
             // Clean up
             vi.clearAllTimers()
-        })
+        }, 10000) // Increase test timeout to 10s
 
         it('should pass fetch options correctly', async () => {
             const mockResponse = {

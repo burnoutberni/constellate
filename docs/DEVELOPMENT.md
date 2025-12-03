@@ -24,3 +24,4 @@ When running via `docker-compose up`:
 
 This is **not redundant** - it's a necessary pattern for Docker development with volume mounts.
 
+
