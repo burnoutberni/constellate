@@ -46,6 +46,12 @@ app.get('/:id/export.ics', async (c) => {
                 email: `${event.user?.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
             },
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+            repeating: event.recurrencePattern && event.recurrenceEndDate
+                ? {
+                    freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                    until: event.recurrenceEndDate,
+                }
+                : undefined,
         })
 
         // Return ICS file
@@ -97,6 +103,12 @@ app.get('/user/:username/export.ics', async (c) => {
                     email: `${username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
                 },
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+                repeating: event.recurrencePattern && event.recurrenceEndDate
+                    ? {
+                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        until: event.recurrenceEndDate,
+                    }
+                    : undefined,
             })
         }
 
@@ -155,6 +167,12 @@ app.get('/feed.ics', async (c) => {
                     }
                     : undefined,
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+                repeating: event.recurrencePattern && event.recurrenceEndDate
+                    ? {
+                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        until: event.recurrenceEndDate,
+                    }
+                    : undefined,
             })
         }
 

@@ -17,6 +17,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         url: '',
         startTime: '',
         endTime: '',
+        recurrencePattern: '',
+        recurrenceEndDate: '',
     })
     const [submitting, setSubmitting] = useState(false)
 
@@ -31,17 +33,46 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         }
         try {
             setSubmitting(true)
+
+            if (formData.recurrencePattern && !formData.recurrenceEndDate) {
+                setError('Please choose when the recurring event should stop.')
+                return
+            }
+
+            if (formData.recurrencePattern && formData.recurrenceEndDate) {
+                const startDate = new Date(formData.startTime)
+                const recurrenceEnd = new Date(formData.recurrenceEndDate)
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
+                    setError('Please provide valid dates for recurring events.')
+                    return
+                }
+                if (recurrenceEnd <= startDate) {
+                    setError('Recurrence end date must be after the start time.')
+                    return
+                }
+            }
+
+            const payload: Record<string, unknown> = {
+                title: formData.title,
+                summary: formData.summary,
+                location: formData.location,
+                url: formData.url,
+                startTime: new Date(formData.startTime).toISOString(),
+                endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+            }
+
+            if (formData.recurrencePattern) {
+                payload.recurrencePattern = formData.recurrencePattern
+                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate).toISOString()
+            }
+
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                    ...formData,
-                    startTime: new Date(formData.startTime).toISOString(),
-                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
-                }),
+                body: JSON.stringify(payload),
             })
             if (response.ok) {
                 setFormData({
@@ -51,6 +82,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     url: '',
                     startTime: '',
                     endTime: '',
+                    recurrencePattern: '',
+                    recurrenceEndDate: '',
                 })
                 onSuccess()
                 onClose()
@@ -164,6 +197,47 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 className="input"
                                 placeholder="https://..."
                             />
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Recurrence
+                            </label>
+                            <select
+                                className="input"
+                                value={formData.recurrencePattern}
+                                onChange={(e) => {
+                                    const value = e.target.value
+                                    setFormData({
+                                        ...formData,
+                                        recurrencePattern: value,
+                                        recurrenceEndDate: value ? formData.recurrenceEndDate : '',
+                                    })
+                                }}
+                            >
+                                <option value="">Does not repeat</option>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                                <option value="MONTHLY">Monthly</option>
+                            </select>
+                            {formData.recurrencePattern && (
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium mb-2">
+                                        Repeat until *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={formData.recurrenceEndDate}
+                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                        min={formData.startTime ? formData.startTime.split('T')[0] : undefined}
+                                        className="input"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recurring events show on the calendar up to this date.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex gap-3 pt-4">

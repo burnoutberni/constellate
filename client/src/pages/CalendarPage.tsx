@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
-import { useRealtime } from '../hooks/useRealtime'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtime, type RealtimeEvent } from '../hooks/useRealtime'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { Event } from '../types'
+import { eventsWithinRange } from '../lib/recurrence'
 
 export function CalendarPage() {
     const [events, setEvents] = useState<Event[]>([])
@@ -10,42 +11,98 @@ export function CalendarPage() {
     const [view] = useState<'month' | 'week' | 'day'>('month')
     const [loading, setLoading] = useState(true)
 
+    const monthRange = useMemo(() => {
+        const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+        const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
+        return {
+            start,
+            end,
+            startMs: start.getTime(),
+            endMs: end.getTime(),
+        }
+    }, [currentDate])
+
     const { user, logout } = useAuth();
 
     // Real-time updates
-    const { isConnected } = useRealtime({
-        onEvent: (event) => {
-            if (event.type === 'event:created') {
-                setEvents((prev) => [...prev, event.data.event])
-            } else if (event.type === 'event:updated') {
-                setEvents((prev) =>
-                    prev.map((e) => (e.id === event.data.event.id ? event.data.event : e))
-                )
-            } else if (event.type === 'event:deleted') {
-                setEvents((prev) => prev.filter((e) => e.id !== event.data.eventId))
+    const isEventRelevant = useCallback(
+        (event: Event) => {
+            const eventStartMs = new Date(event.startTime).getTime()
+            if (!Number.isNaN(eventStartMs) && eventStartMs >= monthRange.startMs && eventStartMs <= monthRange.endMs) {
+                return true
             }
+            if (event.recurrencePattern && event.recurrenceEndDate) {
+                const recurrenceEndMs = new Date(event.recurrenceEndDate).getTime()
+                return !Number.isNaN(recurrenceEndMs) && recurrenceEndMs >= monthRange.startMs
+            }
+            return false
         },
+        [monthRange.startMs, monthRange.endMs]
+    )
+
+    const handleRealtimeEvent = useCallback((eventMessage: RealtimeEvent) => {
+        if (eventMessage.type === 'event:created') {
+            const incoming = eventMessage.data.event
+            if (!isEventRelevant(incoming)) {
+                return
+            }
+            setEvents((prev) => {
+                const exists = prev.some((evt) => evt.id === incoming.id)
+                if (exists) {
+                    return prev.map((evt) => (evt.id === incoming.id ? incoming : evt))
+                }
+                return [...prev, incoming]
+            })
+        } else if (eventMessage.type === 'event:updated') {
+            const updated = eventMessage.data.event
+            setEvents((prev) => {
+                const exists = prev.some((evt) => evt.id === updated.id)
+                if (!exists) {
+                    if (!isEventRelevant(updated)) {
+                        return prev
+                    }
+                    return [...prev, updated]
+                }
+                return prev.map((evt) => (evt.id === updated.id ? updated : evt))
+            })
+        } else if (eventMessage.type === 'event:deleted') {
+            setEvents((prev) => prev.filter((evt) => evt.id !== eventMessage.data.eventId))
+        }
+    }, [isEventRelevant])
+
+    const { isConnected } = useRealtime({
+        onEvent: handleRealtimeEvent,
     })
 
     // Fetch events
     useEffect(() => {
-        fetchEvents()
-    }, [currentDate, view])
-
-    const fetchEvents = async () => {
-        try {
-            setLoading(true)
-            const response = await fetch('/api/events?limit=100')
-            const data = await response.json()
-            setEvents(data.events || [])
-        } catch (error) {
-            console.error('Error fetching events:', error)
-        } finally {
-            setLoading(false)
+        const fetchEvents = async () => {
+            try {
+                setLoading(true)
+                const params = new URLSearchParams({
+                    limit: '500',
+                    rangeStart: monthRange.start.toISOString(),
+                    rangeEnd: monthRange.end.toISOString(),
+                })
+                const response = await fetch(`/api/events?${params.toString()}`)
+                const data = await response.json()
+                setEvents(data.events || [])
+            } catch (error) {
+                console.error('Error fetching events:', error)
+            } finally {
+                setLoading(false)
+            }
         }
-    }
+
+        fetchEvents()
+    }, [monthRange.startMs, monthRange.endMs, view])
 
     // Calendar helpers
+    const monthEvents = useMemo(
+        () => eventsWithinRange(events, monthRange.start, monthRange.end),
+        [events, monthRange.start, monthRange.end]
+    )
+
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear()
         const month = date.getMonth()
@@ -63,11 +120,19 @@ export function CalendarPage() {
         const dayStart = new Date(dayDate.setHours(0, 0, 0, 0))
         const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999))
 
-        return events.filter((event) => {
+        return monthEvents.filter((event) => {
             const eventDate = new Date(event.startTime)
             return eventDate >= dayStart && eventDate <= dayEnd
         })
     }
+
+    const upcomingEvents = useMemo(() => {
+        const now = new Date()
+        const withinRange = eventsWithinRange(events, now, monthRange.end)
+        return withinRange
+            .filter((event) => new Date(event.startTime) >= now)
+            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    }, [events, monthRange.end])
 
     const previousMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
@@ -197,8 +262,7 @@ export function CalendarPage() {
                         <div className="card p-6">
                             <h2 className="font-bold text-lg mb-4">Upcoming Events</h2>
                             <div className="space-y-3">
-                                {events
-                                    .filter((e) => new Date(e.startTime) > new Date())
+                                {upcomingEvents
                                     .slice(0, 5)
                                     .map((event) => (
                                         <div

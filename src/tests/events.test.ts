@@ -217,6 +217,34 @@ describe('Events API', () => {
             // Should return events (may be filtered based on auth)
             expect(body.events).toBeDefined()
         })
+
+        it('should include recurring events that overlap the requested range', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Weekly Standup',
+                    startTime: new Date('2025-01-01T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2025-03-01T10:00:00Z'),
+                },
+            })
+
+            const params = new URLSearchParams({
+                rangeStart: '2025-02-01T00:00:00.000Z',
+                rangeEnd: '2025-02-28T23:59:59.000Z',
+                limit: '50',
+            })
+
+            const res = await app.request(`/api/events?${params.toString()}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const found = body.events.find((event: any) => event.id === recurringEvent.id)
+            expect(found).toBeDefined()
+            expect(found.recurrencePattern).toBe('WEEKLY')
+            expect(found.recurrenceEndDate).toBeDefined()
+        })
     })
 
     describe('GET /events/:id', () => {

@@ -9,6 +9,8 @@ export interface EventUser {
     isRemote: boolean
 }
 
+export type RecurrencePattern = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
 export interface Event {
     id: string
     title: string
@@ -23,6 +25,9 @@ export interface Event {
     eventStatus?: string | null
     eventAttendanceMode?: string | null
     maximumAttendeeCapacity?: number | null
+    recurrencePattern?: RecurrencePattern | null
+    recurrenceEndDate?: string | null
+    originalEventId?: string | null
     _count?: {
         attendance: number
         likes: number

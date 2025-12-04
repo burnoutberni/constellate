@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { CreateEventModal } from '../components/CreateEventModal'
@@ -9,6 +9,7 @@ import { useEvents, useActivityFeed } from '../hooks/queries'
 import { useUIStore } from '../stores'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../hooks/queries/keys'
+import { eventsWithinRange } from '../lib/recurrence'
 
 export function FeedPage() {
     const { user, logout } = useAuth()
@@ -41,19 +42,19 @@ export function FeedPage() {
         59,
         999
     )
-    const selectedDateEvents = events.filter((event) => {
-        const eventDate = new Date(event.startTime)
-        return eventDate >= selectedDateStart && eventDate <= selectedDateEnd
-    })
+    const selectedDateEvents = useMemo(
+        () => eventsWithinRange(events, selectedDateStart, selectedDateEnd),
+        [events, selectedDateStart.getTime(), selectedDateEnd.getTime()]
+    )
 
     // Get today's events
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-    const todayEvents = events.filter((event) => {
-        const eventDate = new Date(event.startTime)
-        return eventDate >= todayStart && eventDate <= todayEnd
-    })
+    const todayEvents = useMemo(
+        () => eventsWithinRange(events, todayStart, todayEnd),
+        [events, todayStart.getTime(), todayEnd.getTime()]
+    )
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString('en-US', {
@@ -66,7 +67,8 @@ export function FeedPage() {
 
     const handleEventClick = (event: typeof events[0]) => {
         if (event.user?.username) {
-            navigate(`/@${event.user.username}/${event.id}`)
+            const eventId = event.originalEventId || event.id
+            navigate(`/@${event.user.username}/${eventId}`)
         }
     }
 

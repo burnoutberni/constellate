@@ -3,6 +3,7 @@
  * CRUD operations for events with ActivityPub federation
  */
 
+import type { Prisma } from '@prisma/client'
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
@@ -13,6 +14,7 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { Person } from './lib/activitypubSchemas.js'
+import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -20,6 +22,8 @@ declare module 'hono' {
     }
 }
 const app = new Hono()
+
+const RecurrencePatternEnum = z.enum(RECURRENCE_PATTERNS)
 
 // Event validation schema
 const EventSchema = z.object({
@@ -34,6 +38,8 @@ const EventSchema = z.object({
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     maximumAttendeeCapacity: z.number().int().positive().optional(),
+    recurrencePattern: RecurrencePatternEnum.optional().nullable(),
+    recurrenceEndDate: z.string().datetime().optional().nullable(),
 })
 
 // Create event
@@ -47,6 +53,15 @@ app.post('/', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.parse(body)
+
+        const startTime = new Date(validatedData.startTime)
+        const endTime = validatedData.endTime ? new Date(validatedData.endTime) : null
+        const recurrencePattern = validatedData.recurrencePattern ?? null
+        const recurrenceEndDate = validatedData.recurrenceEndDate
+            ? new Date(validatedData.recurrenceEndDate)
+            : null
+
+        validateRecurrenceInput(startTime, recurrencePattern, recurrenceEndDate)
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -66,10 +81,12 @@ app.post('/', moderateRateLimit, async (c) => {
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
-                startTime: new Date(validatedData.startTime),
-                endTime: validatedData.endTime ? new Date(validatedData.endTime) : null,
+                startTime,
+                endTime,
                 userId,
                 attributedTo: actorUrl,
+                recurrencePattern,
+                recurrenceEndDate,
             },
             include: {
                 user: true,
@@ -116,6 +133,8 @@ app.post('/', moderateRateLimit, async (c) => {
                     startTime: event.startTime.toISOString(),
                     endTime: event.endTime?.toISOString(),
                     eventStatus: event.eventStatus,
+                    recurrencePattern: event.recurrencePattern,
+                    recurrenceEndDate: event.recurrenceEndDate?.toISOString(),
                     user: {
                         id: user.id,
                         username: user.username,
@@ -151,8 +170,48 @@ app.get('/', async (c) => {
         const limit = parseInt(c.req.query('limit') || '20')
         const skip = (page - 1) * limit
 
+        const rangeStartParam = c.req.query('rangeStart')
+        const rangeEndParam = c.req.query('rangeEnd')
+        let rangeStartDate: Date | undefined
+        let rangeEndDate: Date | undefined
+
+        if (rangeStartParam) {
+            const parsed = new Date(rangeStartParam)
+            if (!Number.isNaN(parsed.getTime())) {
+                rangeStartDate = parsed
+            }
+        }
+
+        if (rangeEndParam) {
+            const parsed = new Date(rangeEndParam)
+            if (!Number.isNaN(parsed.getTime())) {
+                rangeEndDate = parsed
+            }
+        }
+
+        let rangeFilter: Prisma.EventWhereInput | undefined
+        if (rangeStartDate && rangeEndDate) {
+            rangeFilter = {
+                OR: [
+                    {
+                        startTime: {
+                            gte: rangeStartDate,
+                            lte: rangeEndDate,
+                        },
+                    },
+                    {
+                        AND: [
+                            { recurrencePattern: { not: null } },
+                            { recurrenceEndDate: { gte: rangeStartDate } },
+                        ],
+                    },
+                ],
+            }
+        }
+
         // Get events from followed users + own events
         let events
+        let where: Prisma.EventWhereInput | undefined
         if (userId) {
             const following = await prisma.following.findMany({
                 where: { userId, accepted: true },
@@ -163,13 +222,21 @@ app.get('/', async (c) => {
             const baseUrl = getBaseUrl()
             const userActorUrl = `${baseUrl}/users/${userId}`
 
-            events = await prisma.event.findMany({
-                where: {
+            const filters: Prisma.EventWhereInput[] = [
+                {
                     OR: [
                         { attributedTo: { in: [...followedActorUrls, userActorUrl] } },
                         { userId },
                     ],
                 },
+            ]
+            if (rangeFilter) {
+                filters.push(rangeFilter)
+            }
+            where = filters.length === 1 ? filters[0] : { AND: filters }
+
+            events = await prisma.event.findMany({
+                where,
                 include: {
                     user: {
                         select: {
@@ -204,8 +271,15 @@ app.get('/', async (c) => {
                 take: limit,
             })
         } else {
+            const filters: Prisma.EventWhereInput[] = []
+            if (rangeFilter) {
+                filters.push(rangeFilter)
+            }
+            where = filters.length === 1 ? filters[0] : filters.length > 1 ? { AND: filters } : undefined
+
             // Public events only
             events = await prisma.event.findMany({
+                where,
                 include: {
                     user: {
                         select: {
@@ -251,7 +325,9 @@ app.get('/', async (c) => {
             })
         )
 
-        const total = await prisma.event.count()
+        const total = await prisma.event.count({
+            where,
+        })
 
         return c.json({
             events: eventsWithUsers,
@@ -775,6 +851,20 @@ app.put('/:id', moderateRateLimit, async (c) => {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
+        const nextStartTime = validatedData.startTime
+            ? new Date(validatedData.startTime)
+            : existingEvent.startTime
+        const nextRecurrencePattern =
+            validatedData.recurrencePattern !== undefined
+                ? (validatedData.recurrencePattern || null)
+                : existingEvent.recurrencePattern
+        const nextRecurrenceEndDate =
+            validatedData.recurrenceEndDate !== undefined
+                ? (validatedData.recurrenceEndDate ? new Date(validatedData.recurrenceEndDate) : null)
+                : existingEvent.recurrenceEndDate
+
+        validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
+
         // Update event with sanitized input
         const event = await prisma.event.update({
             where: { id },
@@ -783,8 +873,16 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
                 location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
-                startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
+                startTime: validatedData.startTime ? nextStartTime : undefined,
                 endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
+                recurrencePattern:
+                    validatedData.recurrencePattern !== undefined
+                        ? (validatedData.recurrencePattern || null)
+                        : undefined,
+                recurrenceEndDate:
+                    validatedData.recurrenceEndDate !== undefined
+                        ? (validatedData.recurrenceEndDate ? new Date(validatedData.recurrenceEndDate) : null)
+                        : undefined,
             },
             include: {
                 user: true,

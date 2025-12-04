@@ -137,6 +137,17 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "recurrencePattern": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Recurring frequency (DAILY, WEEKLY, MONTHLY)"
+                    },
+                    "recurrenceEndDate": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Last generated occurrence date"
+                    },
                     "user": {
                         "$ref": "#/components/schemas/User"
                     }
@@ -195,6 +206,20 @@
                     "maximumAttendeeCapacity": {
                         "type": "integer",
                         "minimum": 1
+                    },
+                    "recurrencePattern": {
+                        "type": "string",
+                        "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY"
+                        ],
+                        "description": "Recurring frequency for the event"
+                    },
+                    "recurrenceEndDate": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp for when the recurrence stops"
                     }
                 }
             },
