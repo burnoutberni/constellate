@@ -5,6 +5,7 @@
 
 /**
  * Normalizes an array of tags by:
+<<<<<<< HEAD
  * - Trimming leading/trailing whitespace
  * - Removing leading # characters
  * - Trimming again (to remove whitespace that may have been between # and content)
@@ -26,6 +27,18 @@ export function normalizeTags(tags: string[]): string[] {
             tag.trim().replace(/^#+/, '').trim().toLowerCase()
         )
         .filter(tag => tag.length > 0)
+=======
+ * - Converting to lowercase
+ * - Trimming whitespace
+ * - Removing leading # character
+ * - Filtering out empty strings
+ * - Removing duplicates
+ */
+export function normalizeTags(tags: string[]): string[] {
+    const normalized = tags.map(tag => 
+        tag.toLowerCase().trim().replace(/^#/, '')
+    ).filter(tag => tag.length > 0)
+>>>>>>> 334d1e9 (Resolve PR comments: add normalizeTags utility, fix tag validation and React key)
     
     return [...new Set(normalized)]
 }

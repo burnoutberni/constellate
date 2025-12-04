@@ -139,13 +139,15 @@ app.get('/', async (c) => {
 
         // Tag filter
         if (params.tags) {
-            const tagList = params.tags.split(',').map(t => t.trim().toLowerCase().replace(/^#/, ''))
-            where.tags = {
-                some: {
-                    tag: {
-                        in: tagList,
+            const tagList = normalizeTags(params.tags.split(','))
+            if (tagList.length > 0) {
+                filters.tags = {
+                    some: {
+                        tag: {
+                            in: tagList,
+                        },
                     },
-                },
+                }
             }
         }
 
