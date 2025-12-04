@@ -12,6 +12,7 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
+import { normalizeTags } from './lib/tags.js'
 import type { Person } from './lib/activitypubSchemas.js'
 
 declare module 'hono' {
@@ -75,9 +76,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 userId,
                 attributedTo: actorUrl,
                 tags: tags && tags.length > 0 ? {
-                    create: tags.map(tag => ({
-                        tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
-                    })),
+                    create: normalizeTags(tags).map(tag => ({ tag })),
                 } : undefined,
             },
             include: {
@@ -805,9 +804,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 ...(tags !== undefined ? {
                     tags: {
                         deleteMany: {}, // Delete all existing tags
-                        create: tags.map(tag => ({
-                            tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
-                        })),
+                        create: normalizeTags(tags).map(tag => ({ tag })),
                     },
                 } : {}),
             },

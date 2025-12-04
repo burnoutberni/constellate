@@ -185,7 +185,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                             if (e.key === 'Enter' && tagInput.trim()) {
                                                 e.preventDefault()
                                                 const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && !formData.tags.includes(tag)) {
+                                                if (tag && tag.length <= 50 && !formData.tags.includes(tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
@@ -199,7 +199,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         onClick={() => {
                                             if (tagInput.trim()) {
                                                 const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && !formData.tags.includes(tag)) {
+                                                if (tag && tag.length <= 50 && !formData.tags.includes(tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
@@ -212,9 +212,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 </div>
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
-                                        {formData.tags.map((tag, index) => (
+                                        {formData.tags.map((tag) => (
                                             <span
-                                                key={index}
+                                                key={tag}
                                                 className="badge badge-primary flex items-center gap-1"
                                             >
                                                 #{tag}
@@ -223,7 +223,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                                     onClick={() => {
                                                         setFormData({
                                                             ...formData,
-                                                            tags: formData.tags.filter((_, i) => i !== index),
+                                                            tags: formData.tags.filter((t) => t !== tag),
                                                         })
                                                     }}
                                                     className="ml-1 hover:text-red-600"
