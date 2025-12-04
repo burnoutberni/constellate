@@ -4,6 +4,8 @@ services:
       context: .
       target: production
     container_name: constellate-prod
+    ports:
+      - "127.0.0.1:8765:80"
     environment:
       - NODE_ENV=production
       - PORT=3000

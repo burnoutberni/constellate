@@ -125,8 +125,35 @@ app.get('/health', async (c) => {
     return c.json(health, statusCode)
 })
 
-// Root endpoint
-app.get('/', (c) => {
+// Root endpoint - serve frontend in production, JSON in development
+app.get('/', async (c) => {
+    // In production, serve the frontend index.html
+    if (process.env.NODE_ENV === 'production') {
+        const fs = await import('fs/promises')
+        const path = await import('path')
+        const { fileURLToPath } = await import('url')
+
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = path.dirname(__filename)
+        const indexPath = path.join(__dirname, '..', 'client', 'dist', 'index.html')
+
+        try {
+            const indexContent = await fs.readFile(indexPath)
+            return c.body(indexContent, 200, {
+                'Content-Type': 'text/html',
+            })
+        } catch (error) {
+            console.error('Error serving index.html:', error)
+            return c.json({
+                name: 'Constellate',
+                version: '1.0.0',
+                description: 'Federated event management platform',
+                error: 'Frontend not found',
+            })
+        }
+    }
+
+    // In development, return JSON
     return c.json({
         name: 'Constellate',
         version: '1.0.0',
@@ -202,6 +229,99 @@ app.route('/api/user-search', userSearchRoutes)
 app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)
+
+// Serve static frontend files in production
+// This should be after all API routes to ensure they take precedence
+if (process.env.NODE_ENV === 'production') {
+    app.get('*', async (c) => {
+        const fs = await import('fs/promises')
+        const path = await import('path')
+        const { fileURLToPath } = await import('url')
+
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = path.dirname(__filename)
+        const clientDistPath = path.join(__dirname, '..', 'client', 'dist')
+        const requestPath = c.req.path
+
+        // Skip if this is an API route or special route
+        if (
+            requestPath.startsWith('/api') ||
+            requestPath.startsWith('/doc') ||
+            requestPath.startsWith('/reference') ||
+            requestPath.startsWith('/health') ||
+            requestPath.startsWith('/.well-known') ||
+            requestPath.startsWith('/users') ||
+            requestPath.startsWith('/inbox') ||
+            requestPath.startsWith('/outbox') ||
+            requestPath.startsWith('/followers') ||
+            requestPath.startsWith('/following')
+        ) {
+            return c.notFound()
+        }
+
+        try {
+            // Try to serve the requested file
+            const filePath = path.join(clientDistPath, requestPath === '/' ? 'index.html' : requestPath)
+
+            // Security: ensure the file is within the dist directory
+            const resolvedPath = path.resolve(filePath)
+            const resolvedDistPath = path.resolve(clientDistPath)
+            if (!resolvedPath.startsWith(resolvedDistPath)) {
+                return c.notFound()
+            }
+
+            // Check if file exists
+            try {
+                const stats = await fs.stat(filePath)
+                if (stats.isFile()) {
+                    // Read the file content
+                    const fileContent = await fs.readFile(filePath)
+
+                    // Determine content type
+                    const ext = path.extname(filePath).toLowerCase()
+                    const contentTypes: Record<string, string> = {
+                        '.html': 'text/html',
+                        '.js': 'application/javascript',
+                        '.css': 'text/css',
+                        '.json': 'application/json',
+                        '.png': 'image/png',
+                        '.jpg': 'image/jpeg',
+                        '.jpeg': 'image/jpeg',
+                        '.gif': 'image/gif',
+                        '.svg': 'image/svg+xml',
+                        '.ico': 'image/x-icon',
+                        '.woff': 'font/woff',
+                        '.woff2': 'font/woff2',
+                        '.ttf': 'font/ttf',
+                        '.eot': 'application/vnd.ms-fontobject',
+                    }
+
+                    const contentType = contentTypes[ext] || 'application/octet-stream'
+
+                    return c.body(fileContent, 200, {
+                        'Content-Type': contentType,
+                    })
+                }
+            } catch {
+                // File doesn't exist, fall through to SPA routing
+            }
+
+            // SPA routing: serve index.html for any non-API route
+            const indexPath = path.join(clientDistPath, 'index.html')
+            try {
+                const indexContent = await fs.readFile(indexPath)
+                return c.body(indexContent, 200, {
+                    'Content-Type': 'text/html',
+                })
+            } catch {
+                return c.notFound()
+            }
+        } catch (error) {
+            console.error('Error serving static file:', error)
+            return c.notFound()
+        }
+    })
+}
 
 // Only start server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
