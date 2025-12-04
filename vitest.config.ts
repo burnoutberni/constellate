@@ -34,7 +34,7 @@ export default defineConfig({
       // Prisma schema requires PostgreSQL, so we always use PostgreSQL
       // CI environments should set DATABASE_URL to a PostgreSQL connection string
       // For local development, DATABASE_URL should point to a local PostgreSQL instance
-      // Default assumes PostgreSQL is running on localhost (e.g., via docker-compose)
+      // Default assumes PostgreSQL is running on localhost (e.g., via docker compose)
       DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public',
       // Better Auth configuration for tests
       BETTER_AUTH_URL: 'http://test.local',
