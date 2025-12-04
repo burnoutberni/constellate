@@ -1,0 +1,227 @@
+/**
+ * Event Template Management
+ * Save and reuse event configurations
+ */
+
+import { Hono, type Context } from 'hono'
+import { z, ZodError } from 'zod'
+import { prisma } from './lib/prisma.js'
+import { requireAuth } from './middleware/auth.js'
+import { sanitizeText } from './lib/sanitization.js'
+import { AppError, Errors } from './lib/errors.js'
+
+const app = new Hono()
+
+const TemplateDataSchema = z.object({
+    title: z.string().min(1).max(200),
+    summary: z.string().max(5000).optional(),
+    location: z.string().max(500).optional(),
+    headerImage: z.string().url().optional(),
+    url: z.string().url().optional(),
+    startTime: z.string().datetime().optional(),
+    endTime: z.string().datetime().optional(),
+    duration: z.string().optional(),
+    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
+    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
+    maximumAttendeeCapacity: z.number().int().positive().optional(),
+})
+
+const TemplateInputSchema = z.object({
+    name: z.string().min(1).max(120),
+    description: z.string().max(500).optional(),
+    data: TemplateDataSchema,
+})
+
+const TemplateUpdateSchema = z.object({
+    name: z.string().min(1).max(120).optional(),
+    description: z.string().max(500).optional(),
+    data: TemplateDataSchema.partial().optional(),
+}).refine((value) => Object.values(value).some((val) => val !== undefined), {
+    message: 'At least one field must be provided',
+})
+
+type TemplateData = z.infer<typeof TemplateDataSchema>
+
+function sanitizeTemplateData(data: Partial<TemplateData>): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(data) as [keyof TemplateData, TemplateData[keyof TemplateData]][]) {
+        if (value === undefined || value === null) {
+            continue
+        }
+
+        if (typeof value === 'string') {
+            sanitized[key] = sanitizeText(value)
+        } else {
+            sanitized[key] = value
+        }
+    }
+    return sanitized
+}
+
+function serializeTemplate(template: { id: string }): Record<string, unknown> {
+    return {
+        ...template,
+        updatedAt: (template as { updatedAt: Date }).updatedAt.toISOString?.() ?? template.updatedAt,
+        createdAt: (template as { createdAt: Date }).createdAt.toISOString?.() ?? template.createdAt,
+    }
+}
+
+function respondWithAppError(error: AppError, c: Context) {
+    return c.json({
+        error: error.code,
+        message: error.message,
+    }, error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500)
+}
+
+app.get('/event-templates', async (c) => {
+    try {
+        const userId = requireAuth(c)
+
+        const templates = await prisma.eventTemplate.findMany({
+            where: { userId },
+            orderBy: { updatedAt: 'desc' },
+        })
+
+        return c.json({
+            templates: templates.map((template) => serializeTemplate(template)),
+        })
+    } catch (error) {
+        console.error('Error listing event templates:', error)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+        }
+        if (error instanceof AppError) {
+            return respondWithAppError(error, c)
+        }
+        return c.json({ error: 'Internal server error' }, 500 as const)
+    }
+})
+
+app.post('/event-templates', async (c) => {
+    try {
+        const userId = requireAuth(c)
+        const payload = TemplateInputSchema.parse(await c.req.json())
+
+        const template = await prisma.eventTemplate.create({
+            data: {
+                userId,
+                name: sanitizeText(payload.name),
+                description: payload.description ? sanitizeText(payload.description) : null,
+                data: sanitizeTemplateData(payload.data),
+            },
+        })
+
+        return c.json(serializeTemplate(template), 201 as const)
+    } catch (error) {
+        console.error('Error creating event template:', error)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+        }
+
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+            return c.json({ error: 'Template name already exists' }, 409 as const)
+        }
+
+        if (error instanceof AppError) {
+            return respondWithAppError(error, c)
+        }
+
+        return c.json({ error: 'Internal server error' }, 500 as const)
+    }
+})
+
+app.get('/event-templates/:id', async (c) => {
+    try {
+        const { id } = c.req.param()
+        const userId = requireAuth(c)
+
+        const template = await prisma.eventTemplate.findUnique({
+            where: { id },
+        })
+
+        if (!template || template.userId !== userId) {
+            throw Errors.notFound('Event template')
+        }
+
+        return c.json(serializeTemplate(template))
+    } catch (error) {
+        console.error('Error fetching event template:', error)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+        }
+        if (error instanceof AppError) {
+            return respondWithAppError(error, c)
+        }
+        return c.json({ error: 'Internal server error' }, 500 as const)
+    }
+})
+
+app.put('/event-templates/:id', async (c) => {
+    try {
+        const { id } = c.req.param()
+        const userId = requireAuth(c)
+        const payload = TemplateUpdateSchema.parse(await c.req.json())
+
+        const template = await prisma.eventTemplate.findUnique({
+            where: { id },
+        })
+
+        if (!template || template.userId !== userId) {
+            throw Errors.notFound('Event template')
+        }
+
+        const updated = await prisma.eventTemplate.update({
+            where: { id },
+            data: {
+                name: payload.name ? sanitizeText(payload.name) : undefined,
+                description: payload.description !== undefined
+                    ? (payload.description ? sanitizeText(payload.description) : null)
+                    : undefined,
+                data: payload.data ? sanitizeTemplateData(payload.data) : undefined,
+            },
+        })
+
+        return c.json(serializeTemplate(updated))
+    } catch (error) {
+        console.error('Error updating event template:', error)
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+        }
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+            return c.json({ error: 'Template name already exists' }, 409 as const)
+        }
+        if (error instanceof AppError) {
+            return respondWithAppError(error, c)
+        }
+        return c.json({ error: 'Internal server error' }, 500 as const)
+    }
+})
+
+app.delete('/event-templates/:id', async (c) => {
+    try {
+        const { id } = c.req.param()
+        const userId = requireAuth(c)
+
+        const template = await prisma.eventTemplate.findUnique({
+            where: { id },
+        })
+
+        if (!template || template.userId !== userId) {
+            throw Errors.notFound('Event template')
+        }
+
+        await prisma.eventTemplate.delete({
+            where: { id },
+        })
+
+        return c.json({ success: true })
+    } catch (error) {
+        console.error('Error deleting event template:', error)
+        if (error instanceof AppError) {
+            return respondWithAppError(error, c)
+        }
+        return c.json({ error: 'Internal server error' }, 500 as const)
+    }
+})
+
+export default app

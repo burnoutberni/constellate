@@ -76,6 +76,39 @@ export const EventListSchema = z.object({
     }),
 }).openapi('EventList')
 
+export const EventTemplateDataSchema = z.object({
+    title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
+    summary: z.string().optional().openapi({ example: 'Weekly sync-up' }),
+    location: z.string().optional().openapi({ example: 'Conference Room A' }),
+    headerImage: z.string().url().optional().openapi({ example: 'https://example.com/event.jpg' }),
+    url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
+    startTime: z.string().datetime().optional().openapi({ example: '2024-12-01T10:00:00Z' }),
+    endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
+    duration: z.string().optional().openapi({ example: 'PT1H' }),
+    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
+    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
+    maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
+}).openapi('EventTemplateData')
+
+export const EventTemplateInputSchema = z.object({
+    name: z.string().min(1).max(120).openapi({ example: 'Weekly Standup' }),
+    description: z.string().max(500).optional().openapi({ example: 'Use for recurring standups' }),
+    data: EventTemplateDataSchema,
+}).openapi('EventTemplateInput')
+
+export const EventTemplateSchema = z.object({
+    id: z.string().openapi({ example: 'tmpl_123' }),
+    name: z.string().openapi({ example: 'Weekly Standup' }),
+    description: z.string().nullable().openapi({ example: 'Use for recurring standups' }),
+    data: EventTemplateDataSchema,
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+}).openapi('EventTemplate')
+
+export const EventTemplateListSchema = z.object({
+    templates: z.array(EventTemplateSchema),
+}).openapi('EventTemplateList')
+
 // Attendance schemas
 export const AttendanceInputSchema = z.object({
     status: z.enum(['attending', 'maybe', 'not_attending']).openapi({ example: 'attending' }),

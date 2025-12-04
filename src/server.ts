@@ -16,6 +16,7 @@ import commentsRoutes from './comments.js'
 import profileRoutes from './profile.js'
 import realtimeRoutes from './realtime.js'
 import calendarRoutes from './calendar.js'
+import templatesRoutes from './templates.js'
 import searchRoutes from './search.js'
 import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
@@ -223,6 +224,7 @@ app.route('/api/events', commentsRoutes)
 app.route('/api', profileRoutes)
 app.route('/api', realtimeRoutes)
 app.route('/api/calendar', calendarRoutes)
+app.route('/api', templatesRoutes)
 app.route('/api/search', searchRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)

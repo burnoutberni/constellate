@@ -78,6 +78,37 @@ async function main() {
 
     console.log('✅ Created sample events:', event1.title, event2.title)
 
+    await prisma.eventTemplate.upsert({
+        where: {
+            userId_name: {
+                userId: testUser.id,
+                name: 'Weekly Standup',
+            },
+        },
+        update: {
+            description: 'Template for our weekly team sync',
+            data: {
+                title: 'Weekly Standup',
+                summary: 'Share updates, blockers, and plans',
+                location: 'Conference Room A',
+                duration: 'PT30M',
+            },
+        },
+        create: {
+            userId: testUser.id,
+            name: 'Weekly Standup',
+            description: 'Template for our weekly team sync',
+            data: {
+                title: 'Weekly Standup',
+                summary: 'Share updates, blockers, and plans',
+                location: 'Conference Room A',
+                duration: 'PT30M',
+            },
+        },
+    })
+
+    console.log('✅ Added default event template for alice')
+
     console.log('🎉 Seeding complete!')
 }
 

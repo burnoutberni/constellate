@@ -20,6 +20,10 @@
             "description": "Event management"
         },
         {
+            "name": "Event Templates",
+            "description": "Save and reuse event configurations"
+        },
+        {
             "name": "Attendance",
             "description": "Event attendance"
         },
@@ -195,6 +199,122 @@
                     "maximumAttendeeCapacity": {
                         "type": "integer",
                         "minimum": 1
+                    }
+                }
+            },
+            "EventTemplateData": {
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "headerImage": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "eventStatus": {
+                        "type": "string",
+                        "enum": [
+                            "EventScheduled",
+                            "EventCancelled",
+                            "EventPostponed"
+                        ]
+                    },
+                    "eventAttendanceMode": {
+                        "type": "string",
+                        "enum": [
+                            "OfflineEventAttendanceMode",
+                            "OnlineEventAttendanceMode",
+                            "MixedEventAttendanceMode"
+                        ]
+                    },
+                    "maximumAttendeeCapacity": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            },
+            "EventTemplateInput": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "data"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/EventTemplateData"
+                    }
+                }
+            },
+            "EventTemplate": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/EventTemplateData"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "EventTemplateList": {
+                "type": "object",
+                "properties": {
+                    "templates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EventTemplate"
+                        }
                     }
                 }
             },
@@ -691,6 +811,191 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/api/event-templates": {
+            "get": {
+                "tags": [
+                    "Event Templates"
+                ],
+                "summary": "List event templates for the authenticated user",
+                "responses": {
+                    "200": {
+                        "description": "List of event templates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventTemplateList"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Event Templates"
+                ],
+                "summary": "Create a new event template",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventTemplateInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Template created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventTemplate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "409": {
+                        "description": "Duplicate template name"
+                    }
+                }
+            }
+        },
+        "/api/event-templates/{id}": {
+            "get": {
+                "tags": [
+                    "Event Templates"
+                ],
+                "summary": "Get an event template by ID",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventTemplate"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Template not found"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Event Templates"
+                ],
+                "summary": "Update an event template",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventTemplateInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated template",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventTemplate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Template not found"
+                    },
+                    "409": {
+                        "description": "Duplicate template name"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Event Templates"
+                ],
+                "summary": "Delete an event template",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deletion result",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Template not found"
                     }
                 }
             }
