@@ -324,6 +324,26 @@ export function EventDetailPage() {
                         </div>
                     )}
 
+                    {/* Tags */}
+                    {event.tags && event.tags.length > 0 && (
+                        <div className="mb-6">
+                            <div className="flex flex-wrap gap-2">
+                                {event.tags.map((tagObj, index) => (
+                                    <span
+                                        key={index}
+                                        className="badge badge-primary cursor-pointer hover:opacity-80"
+                                        onClick={() => {
+                                            // Navigate to search with tag filter
+                                            window.location.href = `/feed?tags=${encodeURIComponent(tagObj.tag)}`
+                                        }}
+                                    >
+                                        #{tagObj.tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* RSVP Buttons */}
                     <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
                         <button

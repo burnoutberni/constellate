@@ -23,6 +23,9 @@ export interface Event {
     eventStatus?: string | null
     eventAttendanceMode?: string | null
     maximumAttendeeCapacity?: number | null
+    tags?: Array<{
+        tag: string
+    }>
     _count?: {
         attendance: number
         likes: number

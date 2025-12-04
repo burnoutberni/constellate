@@ -34,6 +34,7 @@ const EventSchema = z.object({
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     maximumAttendeeCapacity: z.number().int().positive().optional(),
+    tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
 })
 
 // Create event
@@ -59,20 +60,29 @@ app.post('/', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...validatedData,
-                title: sanitizeText(validatedData.title),
-                summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
-                location: validatedData.location ? sanitizeText(validatedData.location) : null,
-                startTime: new Date(validatedData.startTime),
-                endTime: validatedData.endTime ? new Date(validatedData.endTime) : null,
+                ...eventData,
+                title: sanitizeText(eventData.title),
+                summary: eventData.summary ? sanitizeText(eventData.summary) : null,
+                location: eventData.location ? sanitizeText(eventData.location) : null,
+                startTime: new Date(eventData.startTime),
+                endTime: eventData.endTime ? new Date(eventData.endTime) : null,
                 userId,
                 attributedTo: actorUrl,
+                tags: tags && tags.length > 0 ? {
+                    create: tags.map(tag => ({
+                        tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                    })),
+                } : undefined,
             },
             include: {
                 user: true,
+                tags: true,
             },
         })
 
@@ -116,6 +126,7 @@ app.post('/', moderateRateLimit, async (c) => {
                     startTime: event.startTime.toISOString(),
                     endTime: event.endTime?.toISOString(),
                     eventStatus: event.eventStatus,
+                    tags: event.tags || [],
                     user: {
                         id: user.id,
                         username: user.username,
@@ -180,6 +191,7 @@ app.get('/', async (c) => {
                             profileImage: true,
                         },
                     },
+                    tags: true,
                     attendance: {
                         select: {
                             status: true,
@@ -216,6 +228,7 @@ app.get('/', async (c) => {
                             profileImage: true,
                         },
                     },
+                    tags: true,
                     _count: {
                         select: {
                             attendance: true,
@@ -308,6 +321,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                         isRemote: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -679,6 +693,7 @@ app.get('/:id', async (c) => {
                         externalActorUrl: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -775,19 +790,32 @@ app.put('/:id', moderateRateLimit, async (c) => {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Update event with sanitized input
         const event = await prisma.event.update({
             where: { id },
             data: {
-                ...validatedData,
-                title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
-                summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
-                location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
-                startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
-                endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
+                ...eventData,
+                title: eventData.title ? sanitizeText(eventData.title) : undefined,
+                summary: eventData.summary ? sanitizeText(eventData.summary) : undefined,
+                location: eventData.location ? sanitizeText(eventData.location) : undefined,
+                startTime: eventData.startTime ? new Date(eventData.startTime) : undefined,
+                endTime: eventData.endTime ? new Date(eventData.endTime) : undefined,
+                // Update tags: delete all existing and create new ones
+                ...(tags !== undefined ? {
+                    tags: {
+                        deleteMany: {},
+                        create: tags.map(tag => ({
+                            tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                        })),
+                    },
+                } : {}),
             },
             include: {
                 user: true,
+                tags: true,
             },
         })
 
