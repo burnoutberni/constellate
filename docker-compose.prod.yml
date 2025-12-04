@@ -19,7 +19,8 @@ services:
       - constellate-network
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     entrypoint: ["/app/scripts/prod-entrypoint.sh"]
     command: ["node", "dist/server.js"]
 
@@ -35,6 +36,11 @@ services:
     networks:
       - constellate-network
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-constellate}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   db-data:
