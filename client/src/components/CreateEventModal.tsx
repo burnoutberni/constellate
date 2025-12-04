@@ -36,6 +36,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         visibility: EventVisibility
         recurrencePattern: string
         recurrenceEndDate: string
+        tags: string[]
     }>({
         title: '',
         summary: '',
@@ -46,7 +47,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         visibility: 'PUBLIC',
         recurrencePattern: '',
         recurrenceEndDate: '',
+        tags: [] as string[],
     })
+    const [tagInput, setTagInput] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [templates, setTemplates] = useState<EventTemplate[]>([])
     const [templatesLoading, setTemplatesLoading] = useState(false)
@@ -111,7 +114,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 visibility: 'PUBLIC',
                 recurrencePattern: '',
                 recurrenceEndDate: '',
+                tags: [],
             })
+            setTagInput('')
             setSelectedTemplateId('')
             setSaveAsTemplate(false)
             setTemplateName('')
@@ -151,6 +156,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             visibility: formData.visibility,
             recurrencePattern: '',
             recurrenceEndDate: '',
+            tags: formData.tags,
         })
     }
 
@@ -263,12 +269,22 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    ...payload,
+                    tags: formData.tags.length > 0 ? formData.tags : undefined,
+                }),
             })
             if (response.ok) {
                 if (saveAsTemplate) {
                     try {
-                        await saveTemplateFromEvent(payload)
+                        await saveTemplateFromEvent({
+                            title: formData.title,
+                            summary: formData.summary,
+                            location: formData.location,
+                            url: formData.url,
+                            startTime: new Date(formData.startTime).toISOString(),
+                            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+                        })
                     } catch (err) {
                         console.error('Failed to save template', err)
                         window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
@@ -284,11 +300,13 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     visibility: 'PUBLIC',
                     recurrencePattern: '',
                     recurrenceEndDate: '',
+                    tags: [],
                 })
                 setSelectedTemplateId('')
                 setSaveAsTemplate(false)
                 setTemplateName('')
                 setTemplateDescription('')
+                setTagInput('')
                 onSuccess()
                 onClose()
             } else if (response.status === 401) {
@@ -510,6 +528,75 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     </p>
                                 </div>
                             )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Tags
+                            </label>
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && tagInput.trim()) {
+                                                e.preventDefault()
+                                                const tag = tagInput.trim().replace(/^#/, '')
+                                                if (tag && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+                                            }
+                                        }}
+                                        className="input flex-1"
+                                        placeholder="Add a tag (press Enter)"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (tagInput.trim()) {
+                                                const tag = tagInput.trim().replace(/^#/, '')
+                                                if (tag && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+                                            }
+                                        }}
+                                        className="btn btn-secondary"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                                {formData.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {formData.tags.map((tag, index) => (
+                                            <span
+                                                key={index}
+                                                className="badge badge-primary flex items-center gap-1"
+                                            >
+                                                #{tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData({
+                                                            ...formData,
+                                                            tags: formData.tags.filter((_, i) => i !== index),
+                                                        })
+                                                    }}
+                                                    className="ml-1 hover:text-red-600"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-500">
+                                    Add tags to help others discover your event
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-4">
