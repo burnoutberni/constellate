@@ -1,34 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-interface User {
-    id: string
-    username: string
-    name: string | null
-    profileImage: string | null
-    displayColor: string
-    isRemote: boolean
-    externalActorUrl: string | null
-}
-
-interface Event {
-    id: string
-    title: string
-    summary: string | null
-    startTime: string
-    location: string | null
-    user: {
-        id: string
-        username: string
-        name: string | null
-        displayColor: string
-        profileImage: string | null
-    } | null
-    _count: {
-        attendance: number
-        likes: number
-    }
-}
+import { User, Event } from '../types'
 
 interface RemoteAccountSuggestion {
     handle: string
@@ -312,7 +284,7 @@ export function SearchBar() {
                                 onClick={() =>
                                     handleItemClick({
                                         type: 'remote',
-                                        data: results.remoteAccountSuggestion,
+                                        data: results.remoteAccountSuggestion!,
                                     })
                                 }
                                 disabled={isResolving}

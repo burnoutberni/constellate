@@ -2,25 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRealtime } from '../hooks/useRealtime'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
-
-interface Event {
-    id: string
-    title: string
-    summary?: string
-    location?: string
-    startTime: string
-    endTime?: string
-    user: {
-        username: string
-        name?: string
-        displayColor?: string
-    }
-    _count?: {
-        attendance: number
-        likes: number
-        comments: number
-    }
-}
+import { Event } from '../types'
 
 export function CalendarPage() {
     const [events, setEvents] = useState<Event[]>([])
@@ -225,7 +207,7 @@ export function CalendarPage() {
                                         >
                                             <div
                                                 className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                style={{ backgroundColor: event.user.displayColor || '#3b82f6' }}
+                                                style={{ backgroundColor: event.user?.displayColor || '#3b82f6' }}
                                             >
                                                 {new Date(event.startTime).getDate()}
                                             </div>

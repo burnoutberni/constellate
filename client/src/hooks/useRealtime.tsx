@@ -4,12 +4,30 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { Event } from '../types'
 
-interface RealtimeEvent {
-    type: string
-    data: unknown
+interface BaseEvent {
     timestamp: string
 }
+
+interface EventCreated extends BaseEvent {
+    type: 'event:created'
+    data: { event: Event }
+}
+
+interface EventUpdated extends BaseEvent {
+    type: 'event:updated'
+    data: { event: Event }
+}
+
+interface EventDeleted extends BaseEvent {
+    type: 'event:deleted'
+    data: { eventId: string }
+}
+
+
+
+export type RealtimeEvent = EventCreated | EventUpdated | EventDeleted
 
 interface UseRealtimeOptions {
     userId?: string
@@ -22,12 +40,12 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
     const [isConnected, setIsConnected] = useState(false)
     const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null)
     const eventSourceRef = useRef<EventSource | null>(null)
-    
+
     // Use refs to store latest callbacks so they're always up-to-date
     const onEventRef = useRef(options.onEvent)
     const onConnectRef = useRef(options.onConnect)
     const onDisconnectRef = useRef(options.onDisconnect)
-    
+
     // Update refs when callbacks change
     useEffect(() => {
         onEventRef.current = options.onEvent
