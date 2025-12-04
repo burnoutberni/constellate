@@ -9,6 +9,8 @@ interface CreateEventModalProps {
     onSuccess: () => void
 }
 
+const MAX_TAG_LENGTH = 50
+
 interface EventTemplate {
     id: string
     name: string
@@ -448,7 +450,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                             if (e.key === 'Enter' && tagInput.trim()) {
                                                 e.preventDefault()
                                                 const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && tag.length <= 50 && !formData.tags.includes(tag)) {
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
@@ -462,7 +464,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         onClick={() => {
                                             if (tagInput.trim()) {
                                                 const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && tag.length <= 50 && !formData.tags.includes(tag)) {
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
