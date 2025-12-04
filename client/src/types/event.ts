@@ -49,7 +49,7 @@ export interface EventDetail extends Event {
         user: EventUser
     }>
     comments: Array<CommentWithMentions>
-    tags: Array<{
+    tags?: Array<{
         id: string
         tag: string
     }>

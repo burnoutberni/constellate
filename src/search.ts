@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from './lib/prisma.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
+import { normalizeTags } from './lib/tags.js'
 
 const app = new Hono()
 
@@ -111,13 +112,15 @@ app.get('/', async (c) => {
 
         // Tag filter
         if (params.tags) {
-            const tagList = params.tags.split(',').map(t => t.trim().toLowerCase().replace(/^#/, ''))
-            where.tags = {
-                some: {
-                    tag: {
-                        in: tagList,
+            const tagList = normalizeTags(params.tags.split(','))
+            if (tagList.length > 0) {
+                filters.tags = {
+                    some: {
+                        tag: {
+                            in: tagList,
+                        },
                     },
-                },
+                }
             }
         }
 
