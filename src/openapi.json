@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "Stellar Calendar API",
+        "title": "Constellate API",
         "version": "1.0.0",
         "description": "Federated event management platform implementing ActivityPub protocol",
         "license": {

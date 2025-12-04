@@ -61,7 +61,7 @@ describe('Server Setup', () => {
             expect(res.status).toBe(200)
             const body = await res.json() as any as any
             expect(body).toEqual({
-                name: 'Stellar Calendar',
+                name: 'Constellate',
                 version: '1.0.0',
                 description: 'Federated event management platform',
             })
@@ -135,16 +135,16 @@ describe('Server Setup', () => {
             // Create a new app instance for this test to avoid router build issues
             const { Hono } = await import('hono')
             const testApp = new Hono()
-            
+
             // Import error handler - app is exported from server.ts
             const serverModule = await import('../../server.js')
             const errorHandler = serverModule.app?.onError
-            
+
             // Add error handler if it exists
             if (errorHandler) {
                 testApp.onError(errorHandler)
             }
-            
+
             testApp.get('/test-error', () => {
                 throw new AppError('TEST_ERROR', 'Test error message', 400)
             })
@@ -161,15 +161,15 @@ describe('Server Setup', () => {
             // Create a new app instance for this test
             const { Hono } = await import('hono')
             const testApp = new Hono()
-            
+
             // Import error handler
             const errorHandler = (await import('../../server.js')).app.error
-            
+
             // Add error handler if it exists
             if (errorHandler) {
                 testApp.onError(errorHandler)
             }
-            
+
             testApp.get('/test-zod-error', () => {
                 throw new ZodError([
                     {
@@ -198,7 +198,7 @@ describe('Server Setup', () => {
             const { handleError } = await import('../lib/errors.js')
             const { Hono } = await import('hono')
             const { AppError } = await import('../lib/errors.js')
-            
+
             const newApp = new Hono()
             newApp.onError(handleError)
 
@@ -223,7 +223,7 @@ describe('Server Setup', () => {
             const { handleError } = await import('../lib/errors.js')
             const { Hono } = await import('hono')
             const { AppError } = await import('../lib/errors.js')
-            
+
             const newApp = new Hono()
             newApp.onError(handleError)
 
@@ -244,15 +244,15 @@ describe('Server Setup', () => {
             // Create a new app instance for this test
             const { Hono } = await import('hono')
             const testApp = new Hono()
-            
+
             // Import error handler
             const errorHandler = (await import('../../server.js')).app.error
-            
+
             // Add error handler if it exists
             if (errorHandler) {
                 testApp.onError(errorHandler)
             }
-            
+
             testApp.get('/test-unknown-error', () => {
                 throw new Error('Unknown error')
             })

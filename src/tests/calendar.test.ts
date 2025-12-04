@@ -317,7 +317,7 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('BEGIN:VCALENDAR')
             expect(icsContent).toContain('END:VCALENDAR')
-            expect(icsContent).toContain('X-WR-CALNAME:Stellar Calendar - Public Events')
+            expect(icsContent).toContain('X-WR-CALNAME:Constellate - Public Events')
             // Should contain future events
             expect(icsContent).toContain('SUMMARY:Future Event 1')
             expect(icsContent).toContain('SUMMARY:Future Event 2')
@@ -406,7 +406,7 @@ describe('Calendar Export', () => {
 
             expect(res.status).toBe(200)
             const icsContent = await res.text()
-            expect(icsContent).toContain(`X-WR-CALDESC:Public events from Stellar Calendar`)
+            expect(icsContent).toContain(`X-WR-CALDESC:Public events from Constellate`)
         })
     })
 

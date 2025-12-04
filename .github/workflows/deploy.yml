@@ -71,7 +71,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "docker-compose.prod.yml,scripts/prod-entrypoint.sh"
-          target: "~/stellar-calendar"
+          target: "~/constellate-calendar"
           
       - name: Deploy to server
         uses: appleboy/ssh-action@master
@@ -80,7 +80,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd ~/stellar-calendar
+            cd ~/constellate-calendar
             echo "${{ secrets.PRODUCTION_ENV }}" > .env
             chmod +x scripts/prod-entrypoint.sh
             docker-compose -f docker-compose.prod.yml pull

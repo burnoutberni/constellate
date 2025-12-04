@@ -256,7 +256,7 @@ export function HomePage() {
                                 <div className="text-center">
                                     <div className="text-4xl mb-3">✨</div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                        Join Stellar Calendar
+                                        Join Constellate
                                     </h3>
                                     <p className="text-gray-700 mb-4">
                                         Create events, RSVP, and connect with the federated community

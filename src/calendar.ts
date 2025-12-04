@@ -31,7 +31,7 @@ app.get('/:id/export.ics', async (c) => {
         }
 
         // Create calendar
-        const calendar = ical({ name: 'Stellar Calendar' })
+        const calendar = ical({ name: 'Constellate' })
 
         // Add event
         calendar.createEvent({
@@ -80,7 +80,7 @@ app.get('/user/:username/export.ics', async (c) => {
         // Create calendar
         const calendar = ical({
             name: `${user.name || username}'s Events`,
-            description: 'Events from Stellar Calendar',
+            description: 'Events from Constellate',
         })
 
         // Add all events
@@ -134,8 +134,8 @@ app.get('/feed.ics', async (c) => {
 
         // Create calendar
         const calendar = ical({
-            name: 'Stellar Calendar - Public Events',
-            description: 'Public events from Stellar Calendar',
+            name: 'Constellate - Public Events',
+            description: 'Public events from Constellate',
             url: `${process.env.BETTER_AUTH_URL}/api/calendar/feed.ics`,
         })
 

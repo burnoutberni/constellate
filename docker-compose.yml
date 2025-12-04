@@ -3,11 +3,11 @@ services:
     build:
       context: .
       target: development
-    container_name: stellar-test
+    container_name: constellate-test
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/stellar_test?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/constellate_test?schema=public
       - BETTER_AUTH_URL=http://test.local
       - BETTER_AUTH_SECRET=test-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
@@ -18,7 +18,7 @@ services:
       - /app/client/node_modules
       - test-keys:/app/.keys
     networks:
-      - stellar-network
+      - constellate-network
     depends_on:
       - db-test
     restart: "no"
@@ -26,26 +26,26 @@ services:
 
   db-test:
     image: postgres:15-alpine
-    container_name: stellar-db-test
+    container_name: constellate-db-test
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=stellar_test
+      - POSTGRES_DB=constellate_test
     volumes:
       - test-data:/var/lib/postgresql/data
     networks:
-      - stellar-network
+      - constellate-network
     restart: "no"
 
   app1:
     build:
       context: .
       target: development
-    container_name: stellar-app1
+    container_name: constellate-app1
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/stellar_app1?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/constellate_app1?schema=public
       - BETTER_AUTH_URL=http://app1.local
       - BETTER_AUTH_SECRET=app1-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
@@ -56,7 +56,7 @@ services:
       - /app/client/node_modules
       - app1-keys:/app/.keys
     networks:
-      - stellar-network
+      - constellate-network
     extra_hosts:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
@@ -70,11 +70,11 @@ services:
     build:
       context: .
       target: development
-    container_name: stellar-app2
+    container_name: constellate-app2
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/stellar_app2?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/constellate_app2?schema=public
       - BETTER_AUTH_URL=http://app2.local
       - BETTER_AUTH_SECRET=app2-secret-change-in-production
       - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
@@ -85,7 +85,7 @@ services:
       - /app/client/node_modules
       - app2-keys:/app/.keys
     networks:
-      - stellar-network
+      - constellate-network
     extra_hosts:
       - "app1.local:host-gateway"
       - "app2.local:host-gateway"
@@ -97,21 +97,21 @@ services:
 
   db-dev:
     image: postgres:15-alpine
-    container_name: stellar-db-dev
+    container_name: constellate-db-dev
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_MULTIPLE_DATABASES=stellar_app1,stellar_app2
+      - POSTGRES_MULTIPLE_DATABASES=constellate_app1,constellate_app2
     volumes:
       - db-dev-data:/var/lib/postgresql/data
       - ./scripts/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
     networks:
-      - stellar-network
+      - constellate-network
     restart: unless-stopped
 
   caddy:
     image: caddy:2-alpine
-    container_name: stellar-caddy
+    container_name: constellate-caddy
     ports:
       - "80:80"
     volumes:
@@ -120,7 +120,7 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     networks:
-      - stellar-network
+      - constellate-network
     restart: unless-stopped
     depends_on:
       - app1
@@ -136,5 +136,5 @@ volumes:
   caddy-config:
 
 networks:
-  stellar-network:
+  constellate-network:
     driver: bridge

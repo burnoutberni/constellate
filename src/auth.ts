@@ -61,7 +61,7 @@ export const auth = betterAuth({
         sendMagicLink: async ({ email, token, url }: { email: string; token: string; url: string }, request?: Request) => {
             await sendEmail({
                 to: email,
-                subject: 'Login to Stellar Calendar',
+                subject: 'Login to Constellate',
                 text: `Click here to login: ${url}`,
                 html: `<a href="${url}">Click here to login</a>`,
             })

@@ -139,7 +139,7 @@ describe('ActivityPub API', () => {
             expect(res.status).toBe(200)
             const body = await res.json() as any as any
             expect(body.version).toBe('2.0')
-            expect(body.software.name).toBe('stellar-calendar')
+            expect(body.software.name).toBe('constellate')
             expect(body.protocols).toContain('activitypub')
             expect(body.usage).toBeDefined()
             expect(body.metadata).toBeDefined()

@@ -28,7 +28,7 @@ export function Navbar({ isConnected, user, onLogout }: {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link to={user ? "/feed" : "/"} className="text-2xl font-bold text-blue-600">
-              Stellar Calendar
+              Constellate
             </Link>
             <div className="hidden md:flex items-center gap-1">
               <Link to="/feed" className="nav-link">
@@ -45,7 +45,7 @@ export function Navbar({ isConnected, user, onLogout }: {
           <div className="hidden md:block flex-1 max-w-md">
             <SearchBar />
           </div>
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
             {user ? (
               <>
                 {isAdmin && (

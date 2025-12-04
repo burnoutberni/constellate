@@ -91,7 +91,7 @@ export function EventDetailPage() {
     const handleCommentSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!comment.trim()) return
-        
+
         if (!user) {
             setPendingAction('comment')
             setSignupModalOpen(true)
@@ -109,7 +109,7 @@ export function EventDetailPage() {
     // Handle successful signup - perform the pending action
     const handleSignupSuccess = async () => {
         if (!pendingAction) return
-        
+
         // The modal will close, and we'll wait for user state to update
         // The useEffect below will handle executing the action
     }
@@ -134,7 +134,7 @@ export function EventDetailPage() {
                     setPendingRSVPStatus(null)
                 }
             }
-            
+
             // Small delay to ensure mutations are ready
             const timer = setTimeout(executeAction, 100)
             return () => clearTimeout(timer)
@@ -229,7 +229,7 @@ export function EventDetailPage() {
                             ← Back
                         </button>
                         <Link to="/" className="text-xl font-bold text-blue-600">
-                            Stellar Calendar
+                            Constellate
                         </Link>
                         <div className="w-20" />
                     </div>

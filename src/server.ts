@@ -128,7 +128,7 @@ app.get('/health', async (c) => {
 // Root endpoint
 app.get('/', (c) => {
     return c.json({
-        name: 'Stellar Calendar',
+        name: 'Constellate',
         version: '1.0.0',
         description: 'Federated event management platform',
     })

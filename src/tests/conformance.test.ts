@@ -90,7 +90,7 @@ describe('ActivityPub Conformance', () => {
         it('should return 404 for non-existent users', async () => {
             const domain = new URL(baseUrl).hostname
             const res = await app.request(`/.well-known/webfinger?resource=acct:nonexistent@${domain}`)
-            
+
             expect(res.status).toBe(404)
         })
 
@@ -116,23 +116,23 @@ describe('ActivityPub Conformance', () => {
 
             expect(res.status).toBe(200)
             const body = await res.json() as any as any as any
-            
+
             // Validate against WebFinger schema
             const result = WebFingerSchema.safeParse(body)
             expect(result.success).toBe(true)
-            
+
             // Check required fields
             expect(body.subject).toBe(resource)
             expect(body.links).toBeDefined()
             expect(Array.isArray(body.links)).toBe(true)
             expect(body.links.length).toBeGreaterThan(0)
-            
+
             // Check that links contain required ActivityPub link
             const selfLink = body.links.find((link: any) => link.rel === 'self')
             expect(selfLink).toBeDefined()
             expect(selfLink.type).toBe('application/activity+json')
             expect(selfLink.href).toBe(`${baseUrl}/users/${testUser.username}`)
-            
+
             // Check aliases
             expect(body.aliases).toBeDefined()
             expect(Array.isArray(body.aliases)).toBe(true)
@@ -154,7 +154,7 @@ describe('ActivityPub Conformance', () => {
             expect(res.status).toBe(200)
             const body = await res.json() as any as any as any
             expect(body.version).toBe('2.0')
-            expect(body.software.name).toBe('stellar-calendar')
+            expect(body.software.name).toBe('constellate')
             expect(body.protocols).toContain('activitypub')
         })
     })
@@ -286,7 +286,7 @@ describe('ActivityPub Conformance', () => {
                 expect(body.orderedItems).toBeDefined()
                 expect(Array.isArray(body.orderedItems)).toBe(true)
                 expect(body.orderedItems.length).toBeGreaterThan(0)
-                
+
                 // Check first activity
                 const activity = body.orderedItems[0]
                 expect(activity.type).toBe('Create')
@@ -402,7 +402,7 @@ describe('ActivityPub Conformance', () => {
                 expect(res.status).toBe(200)
                 const body = await res.json() as any as any as any
                 // Should not include pending follower
-                const hasPending = body.orderedItems?.some((item: string) => 
+                const hasPending = body.orderedItems?.some((item: string) =>
                     item.includes('pendingfollower')
                 )
                 expect(hasPending).toBe(false)
@@ -473,7 +473,7 @@ describe('ActivityPub Conformance', () => {
             const body = JSON.stringify(activity)
             const digest = await createDigest(body)
             const date = new Date().toUTCString()
-            
+
             const headers: Record<string, string> = {
                 host: url.hostname,
                 date,
@@ -699,7 +699,7 @@ describe('ActivityPub Conformance', () => {
             expect(res.status).toBe(200)
             const body = await res.json() as any as any as any
             expect(body.openapi).toBe('3.0.0')
-            expect(body.info.title).toBe('Stellar Calendar API')
+            expect(body.info.title).toBe('Constellate API')
             expect(body.info.description).toBeDefined()
         })
 

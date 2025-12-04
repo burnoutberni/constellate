@@ -7,7 +7,7 @@ export function AboutPage() {
             <div className="bg-white border-b border-gray-200">
                 <div className="max-w-4xl mx-auto px-4 py-16 text-center">
                     <h1 className="text-5xl font-bold text-gray-900 mb-4">
-                        Stellar Calendar
+                        Constellate
                     </h1>
                     <p className="text-xl text-gray-600 mb-8">
                         Open source, federated event management for the fediverse
@@ -37,9 +37,9 @@ export function AboutPage() {
                 <section>
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">Open Source</h2>
                     <p className="text-lg text-gray-700 leading-relaxed">
-                        Stellar Calendar is built with open source principles at its core. 
-                        We believe that event management should be decentralized, transparent, 
-                        and accessible to everyone. The codebase is freely available, allowing 
+                        Constellate is built with open source principles at its core.
+                        We believe that event management should be decentralized, transparent,
+                        and accessible to everyone. The codebase is freely available, allowing
                         communities to run their own instances and contribute to the project.
                     </p>
                 </section>
@@ -48,7 +48,7 @@ export function AboutPage() {
                 <section>
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">The Power of Federation</h2>
                     <p className="text-lg text-gray-700 leading-relaxed mb-4">
-                        Federation enables a truly interconnected network of independent servers. 
+                        Federation enables a truly interconnected network of independent servers.
                         Unlike centralized platforms, federated systems give you:
                     </p>
                     <ul className="space-y-3 text-lg text-gray-700">

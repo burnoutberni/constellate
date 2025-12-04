@@ -1,4 +1,4 @@
-# Stellar Calendar
+# Constellate
 
 A federated event management platform implementing the ActivityPub protocol for decentralized event sharing and discovery across multiple instances.
 
@@ -30,8 +30,8 @@ npm install
 cd client && npm install && cd ..
 
 # Set up PostgreSQL database (make sure PostgreSQL is running)
-# Create database: createdb stellar_dev
-export DATABASE_URL="postgresql://user:password@localhost:5432/stellar_dev?schema=public"
+# Create database: createdb constellate_dev
+export DATABASE_URL="postgresql://user:password@localhost:5432/constellate_dev?schema=public"
 
 # Set up database
 npx prisma generate
@@ -70,10 +70,10 @@ BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
 CORS_ORIGINS=https://yourdomain.com
 
 # Database
-DATABASE_URL=postgresql://user:password@db:5432/stellar?schema=public
+DATABASE_URL=postgresql://user:password@db:5432/constellate?schema=public
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<strong-password>
-POSTGRES_DB=stellar
+POSTGRES_DB=constellate
 
 # Encryption (for private keys)
 ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>

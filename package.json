@@ -1,5 +1,5 @@
 {
-  "name": "stellar-calendar",
+  "name": "constellate",
   "version": "1.0.0",
   "description": "Federated event management platform implementing ActivityPub protocol",
   "type": "module",
@@ -37,7 +37,7 @@
     "events",
     "decentralized"
   ],
-  "author": "Bernhard Hayden <stellar@bhayden.at>",
+  "author": "Bernhard Hayden <constellate@bhayden.at>",
   "license": "AGPL-3.0",
   "dependencies": {
     "@hono/node-server": "^1.13.7",

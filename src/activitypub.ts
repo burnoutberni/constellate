@@ -89,7 +89,7 @@ app.get('/nodeinfo/2.0', async (c) => {
     return c.json({
         version: '2.0',
         software: {
-            name: 'stellar-calendar',
+            name: 'constellate',
             version: '1.0.0',
         },
         protocols: ['activitypub'],
@@ -105,7 +105,7 @@ app.get('/nodeinfo/2.0', async (c) => {
             localPosts: eventCount,
         },
         metadata: {
-            nodeName: 'Stellar Calendar',
+            nodeName: 'Constellate',
             nodeDescription: 'Federated event management platform',
         },
     })

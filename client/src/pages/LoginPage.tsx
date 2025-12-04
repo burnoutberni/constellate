@@ -37,7 +37,7 @@ export function LoginPage() {
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="card w-full max-w-md p-8 bg-white shadow-xl rounded-xl">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-blue-600 mb-2">Stellar Calendar</h1>
+                    <h1 className="text-3xl font-bold text-blue-600 mb-2">Constellate</h1>
                     <p className="text-gray-600">
                         {isLogin ? 'Sign in to manage your events' : 'Create an account'}
                     </p>

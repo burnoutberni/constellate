@@ -30,7 +30,7 @@ async function main() {
             email: 'alice@localhost',
             name: 'Alice Wonder',
             displayColor: '#8b5cf6',
-            bio: 'Test user for Stellar Calendar',
+            bio: 'Test user for Constellate',
             publicKey,
             privateKey,
             isRemote: false,
