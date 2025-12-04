@@ -35,8 +35,6 @@ const EventSchema = z.object({
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     maximumAttendeeCapacity: z.number().int().positive().optional(),
     tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
-    recurrencePattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(), // Recurrence pattern
-    recurrenceEndDate: z.string().datetime().optional(), // When recurrence ends
 })
 
 // Create event
@@ -74,8 +72,6 @@ app.post('/', moderateRateLimit, async (c) => {
                 location: eventData.location ? sanitizeText(eventData.location) : null,
                 startTime: new Date(eventData.startTime),
                 endTime: eventData.endTime ? new Date(eventData.endTime) : null,
-                recurrencePattern: eventData.recurrencePattern || null,
-                recurrenceEndDate: eventData.recurrenceEndDate ? new Date(eventData.recurrenceEndDate) : null,
                 userId,
                 attributedTo: actorUrl,
                 tags: tags && tags.length > 0 ? {
@@ -807,8 +803,6 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 location: eventData.location ? sanitizeText(eventData.location) : undefined,
                 startTime: eventData.startTime ? new Date(eventData.startTime) : undefined,
                 endTime: eventData.endTime ? new Date(eventData.endTime) : undefined,
-                recurrencePattern: eventData.recurrencePattern !== undefined ? (eventData.recurrencePattern || null) : undefined,
-                recurrenceEndDate: eventData.recurrenceEndDate !== undefined ? (eventData.recurrenceEndDate ? new Date(eventData.recurrenceEndDate) : null) : undefined,
                 // Update tags: delete all existing and create new ones
                 ...(tags !== undefined ? {
                     tags: {

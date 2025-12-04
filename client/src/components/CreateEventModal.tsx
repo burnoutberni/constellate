@@ -18,8 +18,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         startTime: '',
         endTime: '',
         tags: [] as string[],
-        recurrencePattern: '' as '' | 'daily' | 'weekly' | 'monthly' | 'yearly',
-        recurrenceEndDate: '',
     })
     const [tagInput, setTagInput] = useState('')
     const [submitting, setSubmitting] = useState(false)
@@ -46,8 +44,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     startTime: new Date(formData.startTime).toISOString(),
                     endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
                     tags: formData.tags.length > 0 ? formData.tags : undefined,
-                    recurrencePattern: formData.recurrencePattern || undefined,
-                    recurrenceEndDate: formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
                 }),
             })
             if (response.ok) {
@@ -59,8 +55,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     startTime: '',
                     endTime: '',
                     tags: [],
-                    recurrencePattern: '',
-                    recurrenceEndDate: '',
                 })
                 setTagInput('')
                 onSuccess()
@@ -175,39 +169,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 className="input"
                                 placeholder="https://..."
                             />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Recurrence
-                            </label>
-                            <div className="space-y-2">
-                                <select
-                                    value={formData.recurrencePattern}
-                                    onChange={(e) => setFormData({ ...formData, recurrencePattern: e.target.value as typeof formData.recurrencePattern })}
-                                    className="input"
-                                >
-                                    <option value="">No recurrence</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="yearly">Yearly</option>
-                                </select>
-                                {formData.recurrencePattern && (
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">
-                                            Recurrence End Date (optional)
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={formData.recurrenceEndDate}
-                                            onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                            className="input"
-                                            min={formData.startTime ? formData.startTime.split('T')[0] : undefined}
-                                        />
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         <div>
