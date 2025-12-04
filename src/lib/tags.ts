@@ -39,7 +39,7 @@ export function normalizeTags(tags: string[]): string[] {
  */
 export function normalizeTags(tags: string[]): string[] {
     const normalized = tags.map(tag => 
-        tag.toLowerCase().trim().replace(/^#/, '')
+        tag.replace(/^#/, '').trim().toLowerCase()
     ).filter(tag => tag.length > 0)
 >>>>>>> 334d1e9 (Resolve PR comments: add normalizeTags utility, fix tag validation and React key)
     
