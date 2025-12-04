@@ -291,7 +291,7 @@ describe('activitypubHelpers', () => {
                 update: {
                     name: 'bob',
                     publicKey: null,
-                    inboxUrl: undefined,
+                    inboxUrl: 'https://example.com/users/bob/inbox',
                     sharedInboxUrl: null,
                     profileImage: null,
                     headerImage: null,
@@ -304,7 +304,7 @@ describe('activitypubHelpers', () => {
                     externalActorUrl: 'https://example.com/users/bob',
                     isRemote: true,
                     publicKey: null,
-                    inboxUrl: undefined,
+                    inboxUrl: 'https://example.com/users/bob/inbox',
                     sharedInboxUrl: null,
                     profileImage: null,
                     headerImage: null,
