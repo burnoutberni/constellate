@@ -139,6 +139,21 @@
                     },
                     "user": {
                         "$ref": "#/components/schemas/User"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "tag": {
+                                    "type": "string",
+                                    "description": "Tag name (without # prefix)"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -195,6 +210,16 @@
                     "maximumAttendeeCapacity": {
                         "type": "integer",
                         "minimum": 1
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 50,
+                            "description": "Tag name (without # prefix, will be normalized to lowercase)"
+                        },
+                        "description": "Array of tags to categorize the event"
                     }
                 }
             },
@@ -1333,10 +1358,78 @@
                     {
                         "name": "q",
                         "in": "query",
-                        "required": true,
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "description": "Search query (searches in title and summary)"
+                    },
+                    {
+                        "name": "location",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by location"
+                    },
+                    {
+                        "name": "startDate",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Filter events starting from this date"
+                    },
+                    {
+                        "name": "endDate",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Filter events ending before this date"
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "EventScheduled",
+                                "EventCancelled",
+                                "EventPostponed"
+                            ]
+                        },
+                        "description": "Filter by event status"
+                    },
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "OfflineEventAttendanceMode",
+                                "OnlineEventAttendanceMode",
+                                "MixedEventAttendanceMode"
+                            ]
+                        },
+                        "description": "Filter by attendance mode"
+                    },
+                    {
+                        "name": "username",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by organizer username"
+                    },
+                    {
+                        "name": "tags",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Comma-separated list of tags to filter by"
                     },
                     {
                         "name": "page",
@@ -1344,6 +1437,15 @@
                         "schema": {
                             "type": "integer",
                             "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100
                         }
                     }
                 ],
