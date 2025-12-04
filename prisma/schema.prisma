@@ -83,9 +83,10 @@ model Event {
   url         String? // External URL for more info
 
   // Timing
-  startTime DateTime
-  endTime   DateTime?
-  duration  String? // ISO 8601 duration format
+  startTime  DateTime
+  endTime    DateTime?
+  duration   String? // ISO 8601 duration format
+  visibility EventVisibility @default(PUBLIC)
 
   // ActivityPub extended properties
   eventStatus            String? // EventScheduled, EventCancelled, EventPostponed
@@ -107,6 +108,13 @@ model Event {
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
+}
+
+enum EventVisibility {
+    PUBLIC
+    FOLLOWERS
+    PRIVATE
+    UNLISTED
 }
 
 // Following relationship - who the user follows

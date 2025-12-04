@@ -12,6 +12,7 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
@@ -31,6 +32,11 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
 
         if (!event) {
             return c.json({ error: 'Event not found' }, 404)
+        }
+
+        const canView = await canUserViewEvent(event, userId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
         }
 
         const user = await prisma.user.findUnique({
@@ -91,9 +97,8 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
             }
         }
 
-        // Determine if event is public (default to true for now)
-        // Events created with to: [PUBLIC_COLLECTION] are public
-        const isPublic = true
+        const isPublic = isPublicVisibility(event.visibility)
+        const shouldNotifyFollowers = isPublic || event.visibility === 'FOLLOWERS'
 
         const activity = buildLikeActivity(
             user,
@@ -107,7 +112,7 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
         await deliverToActors(activity, [eventAuthorUrl], userId)
 
         // Also deliver to event author's followers if event is public
-        if (eventAuthorFollowersUrl && event.user) {
+        if (eventAuthorFollowersUrl && event.user && shouldNotifyFollowers) {
             await deliverToFollowers(activity, event.user.id)
         }
 
@@ -151,6 +156,11 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
             return c.json({ error: 'Not liked' }, 404)
         }
 
+        const canView = await canUserViewEvent(like.event, userId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
+        }
+
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -186,7 +196,8 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
             }
         }
 
-        const isPublic = true
+        const isPublic = isPublicVisibility(like.event.visibility)
+        const shouldNotifyFollowers = isPublic || like.event.visibility === 'FOLLOWERS'
 
         const likeActivity = buildLikeActivity(
             user,
@@ -200,8 +211,8 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
         // Deliver to event author and their followers
         await deliverToActors(undoActivity, [eventAuthorUrl], userId)
 
-        // Also deliver to event author's followers if event is public
-        if (eventAuthorFollowersUrl && like.event.user) {
+        // Also deliver to event author's followers if allowed
+        if (eventAuthorFollowersUrl && like.event.user && shouldNotifyFollowers) {
             await deliverToFollowers(undoActivity, like.event.user.id)
         }
 

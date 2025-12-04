@@ -11,6 +11,8 @@ import {
 } from '../hooks/queries/events'
 import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
+import { getVisibilityMeta } from '../lib/visibility'
+import type { EventVisibility } from '../types'
 
 type AuthUser = ReturnType<typeof useAuth>['user']
 type RSVPStatus = 'attending' | 'maybe'
@@ -221,6 +223,7 @@ export function EventDetailPage() {
 
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
+    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -284,7 +287,13 @@ export function EventDetailPage() {
                     </div>
 
                     {/* Event Title */}
-                    <h1 className="text-3xl font-bold mb-4">{event.title}</h1>
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <h1 className="text-3xl font-bold">{event.title}</h1>
+                        <span className={`badge ${visibilityMeta.badgeClass}`}>
+                            {visibilityMeta.icon} {visibilityMeta.label}
+                        </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">{visibilityMeta.helper}</p>
 
                     {/* Event Details */}
                     <div className="space-y-3 mb-6">

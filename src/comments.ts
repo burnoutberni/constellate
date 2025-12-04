@@ -12,6 +12,7 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { sanitizeText } from './lib/sanitization.js'
 
 const app = new Hono()
@@ -39,6 +40,11 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 
         if (!event) {
             return c.json({ error: 'Event not found' }, 404)
+        }
+
+        const canView = await canUserViewEvent(event, userId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
         }
 
         const user = await prisma.user.findUnique({
@@ -78,14 +84,17 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventAuthorUrl = event.attributedTo!
 
-        // Get event author's followers URL
+        // Get event author's followers URL only when needed
+        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
         let eventAuthorFollowersUrl: string | undefined
-        if (event.user) {
-            eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
-        } else if (eventAuthorUrl.startsWith(baseUrl)) {
-            const username = eventAuthorUrl.split('/').pop()
-            if (username) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+        if (shouldNotifyFollowers) {
+            if (event.user) {
+                eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
+            } else if (eventAuthorUrl.startsWith(baseUrl)) {
+                const username = eventAuthorUrl.split('/').pop()
+                if (username) {
+                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+                }
             }
         }
 
@@ -103,8 +112,8 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
             }
         }
 
-        // Determine if event is public (default to true)
-        const isPublic = true
+        // Determine if event is public
+        const isPublic = isPublicVisibility(event.visibility)
 
         const activity = buildCreateCommentActivity(
             comment,
@@ -123,8 +132,8 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         // Deliver to direct recipients
         await deliverToActors(activity, recipients, userId)
 
-        // Also deliver to event author's followers if event is public
-        if (eventAuthorFollowersUrl && event.user) {
+        // Also deliver to event author's followers if event allows it
+        if (eventAuthorFollowersUrl && event.user && shouldNotifyFollowers) {
             await deliverToFollowers(activity, event.user.id)
         }
 
@@ -254,12 +263,15 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
 
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
-        if (comment.event.user) {
-            eventAuthorFollowersUrl = `${baseUrl}/users/${comment.event.user.username}/followers`
-        } else if (eventAuthorUrl.startsWith(baseUrl)) {
-            const username = eventAuthorUrl.split('/').pop()
-            if (username) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+        const shouldNotifyFollowers = comment.event.visibility === 'PUBLIC' || comment.event.visibility === 'FOLLOWERS'
+        if (shouldNotifyFollowers) {
+            if (comment.event.user) {
+                eventAuthorFollowersUrl = `${baseUrl}/users/${comment.event.user.username}/followers`
+            } else if (eventAuthorUrl.startsWith(baseUrl)) {
+                const username = eventAuthorUrl.split('/').pop()
+                if (username) {
+                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+                }
             }
         }
 
@@ -270,7 +282,7 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
                 `${baseUrl}/users/${comment.inReplyTo.author.username}`
         }
 
-        const isPublic = true
+        const isPublic = isPublicVisibility(comment.event.visibility)
 
         // Build Delete activity before deleting
         const activity = buildDeleteCommentActivity(
@@ -296,7 +308,7 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
         await deliverToActors(activity, recipients, userId)
 
         // Also deliver to event author's followers if event is public
-        if (eventAuthorFollowersUrl && comment.event.user) {
+        if (eventAuthorFollowersUrl && comment.event.user && shouldNotifyFollowers) {
             await deliverToFollowers(activity, comment.event.user.id)
         }
 

@@ -6,13 +6,14 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
-import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
+import { deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { Person } from './lib/activitypubSchemas.js'
+import { buildVisibilityWhere, canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -21,7 +22,20 @@ declare module 'hono' {
 }
 const app = new Hono()
 
+function buildAddressingFromActivity(activity: { to?: string | string[]; cc?: string | string[] }) {
+    const toArray = Array.isArray(activity.to) ? activity.to : activity.to ? [activity.to] : []
+    const ccArray = Array.isArray(activity.cc) ? activity.cc : activity.cc ? [activity.cc] : []
+
+    return {
+        to: toArray,
+        cc: ccArray,
+        bcc: [] as string[],
+    }
+}
+
 // Event validation schema
+const VisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
+
 const EventSchema = z.object({
     title: z.string().min(1).max(200),
     summary: z.string().optional(),
@@ -34,6 +48,7 @@ const EventSchema = z.object({
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     maximumAttendeeCapacity: z.number().int().positive().optional(),
+    visibility: VisibilitySchema.optional(),
 })
 
 // Create event
@@ -47,6 +62,8 @@ app.post('/', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.parse(body)
+        const { visibility: requestedVisibility, ...eventInput } = validatedData
+        const visibility = requestedVisibility ?? 'PUBLIC'
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -62,7 +79,7 @@ app.post('/', moderateRateLimit, async (c) => {
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...validatedData,
+                ...eventInput,
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
@@ -70,6 +87,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 endTime: validatedData.endTime ? new Date(validatedData.endTime) : null,
                 userId,
                 attributedTo: actorUrl,
+                visibility,
             },
             include: {
                 user: true,
@@ -80,56 +98,41 @@ app.post('/', moderateRateLimit, async (c) => {
         // Ensure event object includes user property for activity builder
         const activity = buildCreateEventActivity({ ...event, user }, userId)
 
-        // Use deliverActivity with proper addressing to reach all recipients
-        let toArray: string[] = []
-        if (Array.isArray(activity.to)) {
-            toArray = activity.to
-        } else if (activity.to) {
-            toArray = [activity.to]
-        }
-
-        let ccArray: string[] = []
-        if (Array.isArray(activity.cc)) {
-            ccArray = activity.cc
-        } else if (activity.cc) {
-            ccArray = [activity.cc]
-        }
-
-        const addressing = {
-            to: toArray,
-            cc: ccArray,
-            bcc: [] as string[],
-        }
+        const addressing = buildAddressingFromActivity(activity)
         await deliverActivity(activity, addressing, userId)
 
         // Broadcast real-time update
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
-        await broadcast({
-            type: BroadcastEvents.EVENT_CREATED,
-            data: {
-                event: {
-                    id: event.id,
-                    title: event.title,
-                    summary: event.summary,
-                    location: event.location,
-                    url: event.url,
-                    startTime: event.startTime.toISOString(),
-                    endTime: event.endTime?.toISOString(),
-                    eventStatus: event.eventStatus,
-                    user: {
-                        id: user.id,
-                        username: user.username,
-                        name: user.name,
-                        displayColor: user.displayColor,
-                        profileImage: user.profileImage,
-                    },
-                    _count: {
-                        attendance: 0,
-                        likes: 0,
-                        comments: 0,
-                    },
+        const broadcastPayload = {
+            event: {
+                id: event.id,
+                title: event.title,
+                summary: event.summary,
+                location: event.location,
+                url: event.url,
+                startTime: event.startTime.toISOString(),
+                endTime: event.endTime?.toISOString(),
+                eventStatus: event.eventStatus,
+                visibility: event.visibility,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    name: user.name,
+                    displayColor: user.displayColor,
+                    profileImage: user.profileImage,
+                },
+                _count: {
+                    attendance: 0,
+                    likes: 0,
+                    comments: 0,
                 },
             },
+        }
+        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
+        await broadcast({
+            type: BroadcastEvents.EVENT_CREATED,
+            data: broadcastPayload,
+            ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
         })
 
         return c.json(event, 201)
@@ -151,84 +154,62 @@ app.get('/', async (c) => {
         const limit = parseInt(c.req.query('limit') || '20')
         const skip = (page - 1) * limit
 
-        // Get events from followed users + own events
-        let events
+        let followedActorUrls: string[] = []
         if (userId) {
             const following = await prisma.following.findMany({
                 where: { userId, accepted: true },
                 select: { actorUrl: true },
             })
-
-            const followedActorUrls = following.map(f => f.actorUrl)
-            const baseUrl = getBaseUrl()
-            const userActorUrl = `${baseUrl}/users/${userId}`
-
-            events = await prisma.event.findMany({
-                where: {
-                    OR: [
-                        { attributedTo: { in: [...followedActorUrls, userActorUrl] } },
-                        { userId },
-                    ],
-                },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                        },
-                    },
-                    attendance: {
-                        select: {
-                            status: true,
-                            userId: true,
-                        },
-                    },
-                    likes: {
-                        select: {
-                            userId: true,
-                        },
-                    },
-                    _count: {
-                        select: {
-                            attendance: true,
-                            likes: true,
-                            comments: true,
-                        },
-                    },
-                },
-                orderBy: { startTime: 'asc' },
-                skip,
-                take: limit,
-            })
-        } else {
-            // Public events only
-            events = await prisma.event.findMany({
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                        },
-                    },
-                    _count: {
-                        select: {
-                            attendance: true,
-                            likes: true,
-                            comments: true,
-                        },
-                    },
-                },
-                orderBy: { startTime: 'asc' },
-                skip,
-                take: limit,
-            })
+            followedActorUrls = following.map(f => f.actorUrl)
         }
+
+        const where = userId
+            ? buildVisibilityWhere({ userId, followedActorUrls })
+            : { visibility: 'PUBLIC' as const }
+
+        const baseInclude = {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                },
+            },
+            _count: {
+                select: {
+                    attendance: true,
+                    likes: true,
+                    comments: true,
+                },
+            },
+        }
+
+        const authenticatedInclude = userId
+            ? {
+                ...baseInclude,
+                attendance: {
+                    select: {
+                        status: true,
+                        userId: true,
+                    },
+                },
+                likes: {
+                    select: {
+                        userId: true,
+                    },
+                },
+            }
+            : baseInclude
+
+        const events = await prisma.event.findMany({
+            where,
+            include: authenticatedInclude,
+            orderBy: { startTime: 'asc' },
+            skip,
+            take: limit,
+        })
 
         // For events without user (remote events), populate from cached remote users
         const eventsWithUsers = await Promise.all(
@@ -251,7 +232,7 @@ app.get('/', async (c) => {
             })
         )
 
-        const total = await prisma.event.count()
+        const total = await prisma.event.count({ where })
 
         return c.json({
             events: eventsWithUsers,
@@ -378,6 +359,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
 
         if (!event) {
             return c.json({ error: 'Event not found' }, 404)
+        }
+
+        const viewerId = c.get('userId') as string | undefined
+        const canView = await canUserViewEvent(event, viewerId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
         }
 
         // If it's a remote event, fetch fresh data from the remote server and cache it
@@ -745,6 +732,12 @@ app.get('/:id', async (c) => {
             return c.json({ error: 'Event not found' }, 404)
         }
 
+        const viewerId = c.get('userId') as string | undefined
+        const canView = await canUserViewEvent(event, viewerId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
+        }
+
         return c.json(event)
     } catch (error) {
         console.error('Error getting event:', error)
@@ -760,6 +753,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.partial().parse(body)
+        const { visibility: requestedVisibility, ...eventInput } = validatedData
 
         // Check ownership
         const existingEvent = await prisma.event.findUnique({
@@ -776,16 +770,22 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         // Update event with sanitized input
+        const updateData: Record<string, unknown> = {
+            ...eventInput,
+            title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
+            summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
+            location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
+            startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
+            endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
+        }
+
+        if (requestedVisibility) {
+            updateData.visibility = requestedVisibility
+        }
+
         const event = await prisma.event.update({
             where: { id },
-            data: {
-                ...validatedData,
-                title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
-                summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
-                location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
-                startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
-                endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
-            },
+            data: updateData,
             include: {
                 user: true,
             },
@@ -794,7 +794,24 @@ app.put('/:id', moderateRateLimit, async (c) => {
         // Build and deliver Update activity
         // Ensure event object includes user property for activity builder
         const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
-        await deliverToFollowers(activity, (event.user as { id: string } | undefined)?.id ?? userId)
+        const addressing = buildAddressingFromActivity(activity)
+        await deliverActivity(activity, addressing, userId)
+
+        const { broadcast, BroadcastEvents } = await import('./realtime.js')
+        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
+        await broadcast({
+            type: BroadcastEvents.EVENT_UPDATED,
+            data: {
+                event: {
+                    ...event,
+                    startTime: event.startTime.toISOString(),
+                    endTime: event.endTime?.toISOString(),
+                    createdAt: event.createdAt.toISOString(),
+                    updatedAt: event.updatedAt.toISOString(),
+                },
+            },
+            ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
+        })
 
         return c.json(event)
     } catch (error) {
@@ -834,7 +851,7 @@ app.delete('/:id', moderateRateLimit, async (c) => {
         }
 
         // Build Delete activity before deleting
-        const activity = buildDeleteEventActivity(id, user)
+        const activity = buildDeleteEventActivity(id, user, event.visibility)
 
         // Get event externalId for broadcast
         const eventExternalId = event.externalId || `${getBaseUrl()}/events/${id}`
@@ -844,17 +861,19 @@ app.delete('/:id', moderateRateLimit, async (c) => {
             where: { id },
         })
 
-        // Deliver Delete activity to followers
-        await deliverToFollowers(activity, userId)
+        const addressing = buildAddressingFromActivity(activity)
+        await deliverActivity(activity, addressing, userId)
 
         // Broadcast real-time update
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
+        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
         await broadcast({
             type: BroadcastEvents.EVENT_DELETED,
             data: {
                 eventId: id,
                 externalId: eventExternalId,
             },
+            ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
         })
 
         return c.json({ success: true })

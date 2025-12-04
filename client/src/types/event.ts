@@ -1,4 +1,4 @@
-
+export type EventVisibility = 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED'
 
 export interface EventUser {
     id: string
@@ -20,6 +20,7 @@ export interface Event {
     endTime?: string | null
     user?: EventUser
     userId?: string
+    visibility?: EventVisibility
     eventStatus?: string | null
     eventAttendanceMode?: string | null
     maximumAttendeeCapacity?: number | null

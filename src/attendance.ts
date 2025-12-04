@@ -17,6 +17,7 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { broadcast } from './realtime.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
@@ -43,6 +44,13 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         if (!event) {
             return c.json({ error: 'Event not found' }, 404)
         }
+
+        const canView = await canUserViewEvent(event, userId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
+        }
+
+        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -77,20 +85,22 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
-        if (event.user) {
-            eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
-        } else if (eventAuthorUrl.startsWith(baseUrl)) {
-            const username = eventAuthorUrl.split('/').pop()
-            if (username) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+        if (shouldNotifyFollowers) {
+            if (event.user) {
+                eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
+            } else if (eventAuthorUrl.startsWith(baseUrl)) {
+                const username = eventAuthorUrl.split('/').pop()
+                if (username) {
+                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+                }
             }
         }
 
         // Get user's followers URL
         const userFollowersUrl = `${baseUrl}/users/${user.username}/followers`
 
-        // Determine if event is public (default to true)
-        const isPublic = true
+        // Determine if event is public
+        const isPublic = isPublicVisibility(event.visibility)
 
         let activity
         if (status === AttendanceStatus.ATTENDING) {
@@ -196,6 +206,11 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
             return c.json({ error: 'Attendance not found' }, 404)
         }
 
+        const canView = await canUserViewEvent(attendance.event, userId)
+        if (!canView) {
+            return c.json({ error: 'Forbidden' }, 403)
+        }
+
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -222,19 +237,22 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
-        if (attendance.event.user) {
-            eventAuthorFollowersUrl = `${baseUrl}/users/${attendance.event.user.username}/followers`
-        } else if (eventAuthorUrl.startsWith(baseUrl)) {
-            const username = eventAuthorUrl.split('/').pop()
-            if (username) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+        const shouldNotifyFollowers = attendance.event.visibility === 'PUBLIC' || attendance.event.visibility === 'FOLLOWERS'
+        if (shouldNotifyFollowers) {
+            if (attendance.event.user) {
+                eventAuthorFollowersUrl = `${baseUrl}/users/${attendance.event.user.username}/followers`
+            } else if (eventAuthorUrl.startsWith(baseUrl)) {
+                const username = eventAuthorUrl.split('/').pop()
+                if (username) {
+                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+                }
             }
         }
 
         // Get user's followers URL
         const userFollowersUrl = `${baseUrl}/users/${user.username}/followers`
 
-        const isPublic = true
+        const isPublic = isPublicVisibility(attendance.event.visibility)
 
         let originalActivity
         if (attendance.status === AttendanceStatus.ATTENDING) {

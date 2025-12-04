@@ -5,6 +5,7 @@
 
 import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent } from './lib/eventVisibility.js'
 
 interface FeedActivity {
     id: string
@@ -158,6 +159,10 @@ app.get('/activity/feed', async (c) => {
         })
 
         for (const like of likes) {
+            const canView = await canUserViewEvent(like.event, userId)
+            if (!canView) {
+                continue
+            }
             activities.push({
                 id: `like-${like.id}`,
                 type: 'like',
@@ -211,6 +216,10 @@ app.get('/activity/feed', async (c) => {
         })
 
         for (const rsvp of rsvps) {
+            const canView = await canUserViewEvent(rsvp.event, userId)
+            if (!canView) {
+                continue
+            }
             activities.push({
                 id: `rsvp-${rsvp.id}`,
                 type: 'rsvp',
@@ -264,6 +273,10 @@ app.get('/activity/feed', async (c) => {
         })
 
         for (const comment of comments) {
+            const canView = await canUserViewEvent(comment.event, userId)
+            if (!canView) {
+                continue
+            }
             activities.push({
                 id: `comment-${comment.id}`,
                 type: 'comment',
@@ -305,6 +318,10 @@ app.get('/activity/feed', async (c) => {
         })
 
         for (const event of newEvents) {
+            const canView = await canUserViewEvent(event, userId)
+            if (!canView) {
+                continue
+            }
             activities.push({
                 id: `event-${event.id}`,
                 type: 'event_created',

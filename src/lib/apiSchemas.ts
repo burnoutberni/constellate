@@ -26,6 +26,8 @@ export const UserSchema = z.object({
 }).openapi('User')
 
 // Event schemas
+const EventVisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
+
 export const EventInputSchema = z.object({
     title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
     summary: z.string().optional().openapi({ example: 'Weekly team sync' }),
@@ -38,6 +40,7 @@ export const EventInputSchema = z.object({
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
     maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
+    visibility: EventVisibilitySchema.optional().openapi({ example: 'FOLLOWERS' }),
 }).openapi('EventInput')
 
 export const EventSchema = z.object({
@@ -58,6 +61,7 @@ export const EventSchema = z.object({
     externalId: z.string().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    visibility: EventVisibilitySchema,
     user: UserSchema.nullable(),
     _count: z.object({
         attendance: z.number(),

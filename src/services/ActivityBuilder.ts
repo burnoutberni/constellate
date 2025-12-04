@@ -38,14 +38,22 @@ export function buildCreateEventActivity(
     const eventUrl = `${baseUrl}/events/${event.id}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
+    const visibility = event.visibility || 'PUBLIC'
+    const addressing =
+        visibility === 'PUBLIC'
+            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
+            : visibility === 'FOLLOWERS'
+                ? { to: [followersUrl], cc: [] as string[] }
+                : { to: [] as string[], cc: [] as string[] }
+
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/${event.id}/create`,
         type: ActivityType.CREATE,
         actor: actorUrl,
         published: event.createdAt.toISOString(),
-        to: [PUBLIC_COLLECTION],
-        cc: [followersUrl],
+        to: addressing.to.length ? addressing.to : undefined,
+        cc: addressing.cc.length ? addressing.cc : undefined,
         object: {
             type: ObjectType.EVENT,
             id: eventUrl,
@@ -69,8 +77,8 @@ export function buildCreateEventActivity(
                     },
                 ]
                 : undefined,
-            to: [PUBLIC_COLLECTION],
-            cc: [followersUrl],
+            to: addressing.to.length ? addressing.to : undefined,
+            cc: addressing.cc.length ? addressing.cc : undefined,
         },
     }
 }
@@ -88,14 +96,22 @@ export function buildUpdateEventActivity(
     const eventUrl = `${baseUrl}/events/${event.id}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
+    const visibility = event.visibility || 'PUBLIC'
+    const addressing =
+        visibility === 'PUBLIC'
+            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
+            : visibility === 'FOLLOWERS'
+                ? { to: [followersUrl], cc: [] as string[] }
+                : { to: [] as string[], cc: [] as string[] }
+
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
         id: `${actorUrl}/activities/${event.id}/update-${randomUUID()}`,
         type: ActivityType.UPDATE,
         actor: actorUrl,
         published: new Date().toISOString(),
-        to: [PUBLIC_COLLECTION],
-        cc: [followersUrl],
+        to: addressing.to.length ? addressing.to : undefined,
+        cc: addressing.cc.length ? addressing.cc : undefined,
         object: {
             type: ObjectType.EVENT,
             id: eventUrl,
@@ -119,8 +135,8 @@ export function buildUpdateEventActivity(
                     },
                 ]
                 : undefined,
-            to: [PUBLIC_COLLECTION],
-            cc: [followersUrl],
+            to: addressing.to.length ? addressing.to : undefined,
+            cc: addressing.cc.length ? addressing.cc : undefined,
         },
     }
 }
@@ -130,12 +146,20 @@ export function buildUpdateEventActivity(
  */
 export function buildDeleteEventActivity(
     eventId: string,
-    user: User
+    user: User,
+    visibility?: Event['visibility'] | null
 ): DeleteActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
     const eventUrl = `${baseUrl}/events/${eventId}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    const addressing =
+        !visibility || visibility === 'PUBLIC'
+            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
+            : visibility === 'FOLLOWERS'
+                ? { to: [followersUrl], cc: [] as string[] }
+                : { to: [] as string[], cc: [] as string[] }
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
@@ -143,8 +167,8 @@ export function buildDeleteEventActivity(
         type: ActivityType.DELETE,
         actor: actorUrl,
         published: new Date().toISOString(),
-        to: [PUBLIC_COLLECTION],
-        cc: [followersUrl],
+        to: addressing.to.length ? addressing.to : undefined,
+        cc: addressing.cc.length ? addressing.cc : undefined,
         object: {
             type: ObjectType.TOMBSTONE,
             id: eventUrl,

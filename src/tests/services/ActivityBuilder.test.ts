@@ -60,6 +60,7 @@ describe('ActivityBuilder', () => {
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
         user: mockUser,
+        visibility: 'PUBLIC',
     } as Event & { user: User | null }
 
     beforeEach(() => {
@@ -131,6 +132,17 @@ describe('ActivityBuilder', () => {
                 },
             ])
         })
+
+        it('should scope addressing for follower-only events', () => {
+            const followerOnlyEvent = {
+                ...mockEvent,
+                visibility: 'FOLLOWERS',
+            }
+
+            const activity = buildCreateEventActivity(followerOnlyEvent, 'user_123')
+            expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
+            expect(activity.cc).toBeUndefined()
+        })
     })
 
     describe('buildUpdateEventActivity', () => {
@@ -160,7 +172,7 @@ describe('ActivityBuilder', () => {
 
     describe('buildDeleteEventActivity', () => {
         it('should build a Delete activity for an event', () => {
-            const activity = buildDeleteEventActivity('event_123', mockUser)
+            const activity = buildDeleteEventActivity('event_123', mockUser, 'PUBLIC')
 
             expect(activity).toMatchObject({
                 type: ActivityType.DELETE,

@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import ical, { ICalEventStatus } from 'ical-generator'
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
@@ -28,6 +29,12 @@ app.get('/:id/export.ics', async (c) => {
 
         if (!event) {
             return c.text('Event not found', 404)
+        }
+
+        const viewerId = c.get('userId') as string | undefined
+        const canView = await canUserViewEvent(event, viewerId)
+        if (!canView) {
+            return c.text('Forbidden', 403)
         }
 
         // Create calendar
@@ -84,7 +91,13 @@ app.get('/user/:username/export.ics', async (c) => {
         })
 
         // Add all events
-        for (const event of user.events) {
+        const viewerId = c.get('userId') as string | undefined
+        const includeAll = viewerId === user.id
+        const eventsToInclude = includeAll
+            ? user.events
+            : user.events.filter((event) => event.visibility === 'PUBLIC')
+
+        for (const event of eventsToInclude) {
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
@@ -119,6 +132,7 @@ app.get('/feed.ics', async (c) => {
                 startTime: {
                     gte: new Date(), // Only future events
                 },
+                visibility: 'PUBLIC',
             },
             include: {
                 user: {

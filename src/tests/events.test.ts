@@ -53,6 +53,107 @@ describe('Events API', () => {
         vi.clearAllMocks()
     })
 
+    describe('Event visibility', () => {
+        it('defaults new events to PUBLIC visibility', async () => {
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Visibility Default',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            expect(event.visibility).toBe('PUBLIC')
+        })
+
+        it('blocks access to private events for other users', async () => {
+            const privateEvent = await prisma.event.create({
+                data: {
+                    title: 'Secret Meeting',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PRIVATE',
+                },
+            })
+
+            const otherUser = await prisma.user.create({
+                data: {
+                    username: 'bob_private',
+                    email: 'bob_private@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: otherUser.id,
+                    username: otherUser.username,
+                    email: otherUser.email,
+                },
+                session: {
+                    id: 'session-private',
+                    userId: otherUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/by-user/${testUser.username}/${privateEvent.id}`)
+            expect(res.status).toBe(403)
+
+            sessionSpy.mockRestore()
+        })
+
+        it('allows followers to view follower-only events', async () => {
+            const follower = await prisma.user.create({
+                data: {
+                    username: 'charlie_follow',
+                    email: 'charlie_follow@test.com',
+                    isRemote: false,
+                },
+            })
+
+            await prisma.following.create({
+                data: {
+                    userId: follower.id,
+                    actorUrl: `${baseUrl}/users/${testUser.username}`,
+                    username: testUser.username,
+                    inboxUrl: `${baseUrl}/users/${testUser.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            const followerOnlyEvent = await prisma.event.create({
+                data: {
+                    title: 'Followers Hangout',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: follower.id,
+                    username: follower.username,
+                    email: follower.email,
+                },
+                session: {
+                    id: 'session-follow',
+                    userId: follower.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/by-user/${testUser.username}/${followerOnlyEvent.id}`)
+            expect(res.status).toBe(200)
+
+            sessionSpy.mockRestore()
+        })
+    })
+
     describe('POST /events', () => {
 
         it('should return 401 when not authenticated', async () => {

@@ -9,6 +9,8 @@ import { useEvents, useActivityFeed } from '../hooks/queries'
 import { useUIStore } from '../stores'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../hooks/queries/keys'
+import type { EventVisibility } from '../types'
+import { getVisibilityMeta } from '../lib/visibility'
 
 export function FeedPage() {
     const { user, logout } = useAuth()
@@ -134,21 +136,29 @@ export function FeedPage() {
 
         return (
             <div className="space-y-2">
-                {todayEvents.slice(0, 5).map((event) => (
-                    <div
-                        key={event.id}
-                        onClick={() => handleEventClick(event)}
-                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                        <div className="font-medium text-sm text-gray-900">
-                            {event.title}
+                {todayEvents.slice(0, 5).map((event) => {
+                    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
+                    return (
+                        <div
+                            key={event.id}
+                            onClick={() => handleEventClick(event)}
+                            className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                            <div className="font-medium text-sm text-gray-900">
+                                {event.title}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                {formatTime(event.startTime)}
+                                {event.location && ` • ${event.location}`}
+                            </div>
+                            <div className="mt-1">
+                                <span className={`badge ${visibilityMeta.badgeClass} text-xs`}>
+                                    {visibilityMeta.icon} {visibilityMeta.label}
+                                </span>
+                            </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                            {formatTime(event.startTime)}
-                            {event.location && ` • ${event.location}`}
-                        </div>
-                    </div>
-                ))}
+                    )
+                })}
                 {todayEvents.length > 5 && (
                     <div className="text-xs text-gray-400 text-center pt-2">
                         +{todayEvents.length - 5} more
@@ -177,26 +187,34 @@ export function FeedPage() {
 
         return (
             <div className="space-y-2">
-                {selectedDateEvents.map((event) => (
-                    <div
-                        key={event.id}
-                        onClick={() => handleEventClick(event)}
-                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                        <div className="font-medium text-sm text-gray-900">
-                            {event.title}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                            {formatTime(event.startTime)}
-                            {event.location && ` • ${event.location}`}
-                        </div>
-                        {event.user && (
-                            <div className="text-xs text-gray-400 mt-1">
-                                by @{event.user.username}
+                {selectedDateEvents.map((event) => {
+                    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
+                    return (
+                        <div
+                            key={event.id}
+                            onClick={() => handleEventClick(event)}
+                            className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                            <div className="font-medium text-sm text-gray-900">
+                                {event.title}
                             </div>
-                        )}
-                    </div>
-                ))}
+                            <div className="text-xs text-gray-500">
+                                {formatTime(event.startTime)}
+                                {event.location && ` • ${event.location}`}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {event.user && (
+                                    <div className="text-xs text-gray-400">
+                                        by @{event.user.username}
+                                    </div>
+                                )}
+                                <span className={`badge ${visibilityMeta.badgeClass} text-xs`}>
+                                    {visibilityMeta.icon} {visibilityMeta.label}
+                                </span>
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
         )
     }
@@ -245,7 +263,7 @@ export function FeedPage() {
                         {/* Today's Events */}
                         <div className="card p-4">
                             <h2 className="font-bold text-lg mb-4">Today's Events</h2>
-                            {renderTodayEvents()}
+{renderTodayEvents()}
                         </div>
 
                         {/* Selected Date Events */}
