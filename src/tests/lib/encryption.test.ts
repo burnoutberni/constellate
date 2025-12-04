@@ -86,35 +86,28 @@ JTUt9Us8cKjMzEfYyjiWA4R4/M2b50Z8pXqnU1X8vC7VJTUt9Us8cKjMzEfYyjiWA4R
             expect(decryptPrivateKey(null)).toBeNull()
         })
 
-        it('should return null for invalid format (not 3 parts)', () => {
+        it('should throw error for invalid format (not 3 parts)', () => {
             const invalid = 'invalid:format'
-            const result = decryptPrivateKey(invalid)
 
-            // In development, it returns the original value for legacy support
-            // In production, it would throw
-            if (config.isProduction) {
-                expect(result).toBeNull()
-            } else {
-                expect(result).toBe(invalid)
-            }
+            expect(() => decryptPrivateKey(invalid)).toThrow(
+                'Invalid encrypted key format'
+            )
         })
 
-        it('should return null for corrupted encrypted data', () => {
+        it('should throw error for corrupted encrypted data', () => {
             const corrupted = 'a'.repeat(32) + ':' + 'b'.repeat(32) + ':' + 'c'.repeat(32)
-            const result = decryptPrivateKey(corrupted)
 
-            // Should return null on decryption error in development
-            expect(result).toBeNull()
+            expect(() => decryptPrivateKey(corrupted)).toThrow(
+                'Failed to decrypt private key'
+            )
         })
 
-        it('should handle legacy plaintext keys in development', () => {
+        it('should reject plaintext keys with clear error', () => {
             const plaintext = 'plaintext-key'
-            const result = decryptPrivateKey(plaintext)
 
-            // In development, returns plaintext for migration support
-            if (!config.isProduction) {
-                expect(result).toBe(plaintext)
-            }
+            expect(() => decryptPrivateKey(plaintext)).toThrow(
+                'Invalid encrypted key format'
+            )
         })
     })
 
