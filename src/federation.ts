@@ -691,11 +691,11 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
     const personObj = person as Person
     const personId = personObj.id
-    const personName = personObj.name || null
-    const personSummary = personObj.summary || null
-    const personDisplayColor = personObj.displayColor || null
-    const personIconUrl = personObj.icon?.url || null
-    const personImageUrl = personObj.image?.url || null
+    const personName = personObj.name || undefined
+    const personSummary = personObj.summary || undefined
+    const personDisplayColor = personObj.displayColor || undefined
+    const personIconUrl = personObj.icon?.url || undefined
+    const personImageUrl = personObj.image?.url || undefined
     const personPreferredUsername = personObj.preferredUsername
 
     await prisma.user.updateMany({
@@ -853,23 +853,32 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
 
     if (!object) return
     
-    const objectType = typeof object === 'object' && object !== null && 'type' in object && typeof object.type === 'string'
-        ? object.type
-        : null
+    // Only process object activities, not string URLs
+    if (typeof object === 'string') {
+        return
+    }
     
+    if (typeof object !== 'object' || object === null || !('type' in object)) {
+        return
+    }
+    
+    const objectType = typeof object.type === 'string' ? object.type : null
     if (!objectType) return
+
+    // Type guard: ensure object is a Record for the handlers
+    const objectRecord = object as Record<string, unknown>
 
     switch (objectType) {
         case ActivityType.LIKE:
-            await handleUndoLike(activity, object)
+            await handleUndoLike(activity, objectRecord)
             break
         case ActivityType.FOLLOW:
-            await handleUndoFollow(activity, object)
+            await handleUndoFollow(activity, objectRecord)
             break
         case ActivityType.ACCEPT:
         case ActivityType.TENTATIVE_ACCEPT:
         case ActivityType.REJECT:
-            await handleUndoAttendance(activity, object)
+            await handleUndoAttendance(activity, objectRecord)
             break
         default:
             console.log(`Unhandled Undo object type: ${objectType}`)
