@@ -55,7 +55,7 @@ export interface EventDetail extends Event {
             author: EventUser
         }>
     }>
-    tags: Array<{
+    tags?: Array<{
         id: string
         tag: string
     }>
