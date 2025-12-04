@@ -88,10 +88,6 @@ model Event {
   duration   String? // ISO 8601 duration format
   visibility EventVisibility @default(PUBLIC)
 
-  // Recurrence
-  recurrencePattern String? // 'daily', 'weekly', 'monthly', 'yearly'
-  recurrenceEndDate DateTime? // When recurrence ends
-
   // ActivityPub extended properties
   eventStatus            String? // EventScheduled, EventCancelled, EventPostponed
   eventAttendanceMode    String? // OfflineEventAttendanceMode, OnlineEventAttendanceMode, MixedEventAttendanceMode
