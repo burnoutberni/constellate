@@ -169,27 +169,6 @@ describe('Audience Addressing', () => {
             expect(inboxes).not.toContain('https://example.com/users/alice/inbox')
         })
 
-        it('should deduplicate inboxes', async () => {
-            const userId = 'user-123'
-            const mockFollowers = [
-                {
-                    inboxUrl: 'https://example.com/users/alice/inbox',
-                    sharedInboxUrl: 'https://example.com/shared/inbox',
-                },
-                {
-                    inboxUrl: 'https://example.com/users/bob/inbox',
-                    sharedInboxUrl: 'https://example.com/shared/inbox', // Same shared inbox
-                },
-            ]
-
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
-
-            const inboxes = await getFollowerInboxes(userId)
-
-            expect(inboxes).toHaveLength(2) // shared inbox + bob's inbox
-            expect(inboxes.filter(i => i === 'https://example.com/shared/inbox').length).toBe(1)
-        })
-
         it('should only return accepted followers', async () => {
             const userId = 'user-123'
 

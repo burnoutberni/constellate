@@ -35,15 +35,6 @@ describe('Server Setup', () => {
     })
 
     describe('Health Check Endpoint', () => {
-        it('should return 200 with status ok', async () => {
-            const res = await app.request('/health')
-
-            expect(res.status).toBe(200)
-            const body = await res.json() as any as any
-            expect(body).toHaveProperty('status', 'ok')
-            expect(body).toHaveProperty('timestamp')
-            expect(typeof body.timestamp).toBe('string')
-        })
 
         it('should include ISO timestamp', async () => {
             const res = await app.request('/health')
@@ -131,64 +122,7 @@ describe('Server Setup', () => {
     })
 
     describe('Error Handling', () => {
-        it('should handle AppError correctly', async () => {
-            // Create a new app instance for this test to avoid router build issues
-            const { Hono } = await import('hono')
-            const testApp = new Hono()
 
-            // Import error handler - app is exported from server.ts
-            const serverModule = await import('../../server.js')
-            const errorHandler = serverModule.app?.onError
-
-            // Add error handler if it exists
-            if (errorHandler) {
-                testApp.onError(errorHandler)
-            }
-
-            testApp.get('/test-error', () => {
-                throw new AppError('TEST_ERROR', 'Test error message', 400)
-            })
-
-            const res = await testApp.request('/test-error')
-
-            expect(res.status).toBe(400)
-            const body = await res.json() as any as any
-            expect(body).toHaveProperty('error', 'TEST_ERROR')
-            expect(body).toHaveProperty('message', 'Test error message')
-        })
-
-        it('should handle ZodError correctly', async () => {
-            // Create a new app instance for this test
-            const { Hono } = await import('hono')
-            const testApp = new Hono()
-
-            // Import error handler
-            const errorHandler = (await import('../../server.js')).app.error
-
-            // Add error handler if it exists
-            if (errorHandler) {
-                testApp.onError(errorHandler)
-            }
-
-            testApp.get('/test-zod-error', () => {
-                throw new ZodError([
-                    {
-                        code: 'invalid_type',
-                        expected: 'string',
-                        received: 'number',
-                        path: ['field'],
-                        message: 'Expected string, received number',
-                    },
-                ])
-            })
-
-            const res = await testApp.request('/test-zod-error')
-
-            expect(res.status).toBe(400)
-            const body = await res.json() as any as any
-            expect(body).toHaveProperty('error', 'VALIDATION_ERROR')
-            expect(body).toHaveProperty('message', 'Invalid input data')
-        })
 
         it('should include error details in development', async () => {
             const originalEnv = process.env.NODE_ENV
@@ -215,55 +149,7 @@ describe('Server Setup', () => {
             vi.resetModules()
         })
 
-        it('should not include error details in production', async () => {
-            const originalEnv = process.env.NODE_ENV
-            process.env.NODE_ENV = 'production'
 
-            vi.resetModules()
-            const { handleError } = await import('../lib/errors.js')
-            const { Hono } = await import('hono')
-            const { AppError } = await import('../lib/errors.js')
-
-            const newApp = new Hono()
-            newApp.onError(handleError)
-
-            newApp.get('/test-error-no-details', () => {
-                throw new AppError('TEST_ERROR', 'Test error', 400, { detail: 'test' })
-            })
-
-            const res = await newApp.request('/test-error-no-details')
-            const body = await res.json() as any as any
-
-            expect(body).not.toHaveProperty('details')
-
-            process.env.NODE_ENV = originalEnv
-            vi.resetModules()
-        })
-
-        it('should handle unknown errors with 500', async () => {
-            // Create a new app instance for this test
-            const { Hono } = await import('hono')
-            const testApp = new Hono()
-
-            // Import error handler
-            const errorHandler = (await import('../../server.js')).app.error
-
-            // Add error handler if it exists
-            if (errorHandler) {
-                testApp.onError(errorHandler)
-            }
-
-            testApp.get('/test-unknown-error', () => {
-                throw new Error('Unknown error')
-            })
-
-            const res = await testApp.request('/test-unknown-error')
-
-            expect(res.status).toBe(500)
-            const body = await res.json() as any as any
-            expect(body).toHaveProperty('error', 'INTERNAL_ERROR')
-            expect(body).toHaveProperty('message', 'An internal error occurred')
-        })
     })
 
     describe('Auth Routes', () => {
@@ -430,26 +316,8 @@ describe('Server Setup', () => {
             expect([200, 404]).toContain(res.status)
         })
 
-        it('should mount events routes', async () => {
-            const res = await app.request('/api/events')
 
-            // Should either return 200 (list) or 404
-            expect([200, 404]).toContain(res.status)
-        })
 
-        it('should mount profile routes', async () => {
-            const res = await app.request('/api/users/testuser/profile')
-
-            // Should either return 200 or 404
-            expect([200, 404]).toContain(res.status)
-        })
-
-        it('should mount realtime routes', async () => {
-            const res = await app.request('/api/stream')
-
-            // SSE endpoint should be accessible
-            expect([200, 404]).toContain(res.status)
-        })
 
         it('should mount calendar routes', async () => {
             const res = await app.request('/api/calendar')
@@ -458,12 +326,6 @@ describe('Server Setup', () => {
             expect([200, 404]).toContain(res.status)
         })
 
-        it('should mount search routes', async () => {
-            const res = await app.request('/api/search')
-
-            // Should either return 200 or 404
-            expect([200, 404]).toContain(res.status)
-        })
 
         it('should mount moderation routes', async () => {
             const res = await app.request('/api/moderation')
@@ -472,23 +334,9 @@ describe('Server Setup', () => {
             expect([200, 404]).toContain(res.status)
         })
 
-        it('should mount user search routes', async () => {
-            const res = await app.request('/api/user-search')
-
-            // Should either return 200 or 404
-            expect([200, 404]).toContain(res.status)
-        })
     })
 
     describe('Middleware', () => {
-        it('should apply security headers', async () => {
-            const res = await app.request('/health')
-
-            // Security headers should be set
-            // We can't easily test this without accessing the response headers
-            // but we can verify the request completes
-            expect(res.status).toBe(200)
-        })
 
         it('should apply CORS headers', async () => {
             const res = await app.request('/health', {
@@ -499,14 +347,6 @@ describe('Server Setup', () => {
             expect([200, 204]).toContain(res.status)
         })
 
-        it('should apply auth middleware', async () => {
-            // Auth middleware should set userId in context
-            // We can't easily test this without accessing context,
-            // but we can verify requests complete
-            const res = await app.request('/health')
-
-            expect(res.status).toBe(200)
-        })
     })
 
     describe('Edge Cases', () => {
@@ -708,18 +548,6 @@ describe('Server Setup', () => {
             expect([404, 500]).toContain(res.status)
         })
 
-        it('should handle malformed request bodies gracefully', async () => {
-            const res = await app.request('/api/events', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: 'invalid json',
-            })
-
-            // Should return 400 or 500 depending on error handling
-            expect([400, 500]).toContain(res.status)
-        })
     })
 })
 

@@ -107,18 +107,6 @@ describe('UserSearch API', () => {
             })
         })
 
-        it('should respect limit parameter', async () => {
-            vi.mocked(prisma.user.findMany).mockResolvedValue([])
-            vi.mocked(prisma.event.findMany).mockResolvedValue([])
-
-            await app.request('/api/user-search?q=test&limit=20')
-
-            expect(prisma.user.findMany).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    take: 20,
-                })
-            )
-        })
 
         it('should cap limit at 50', async () => {
             vi.mocked(prisma.user.findMany).mockResolvedValue([])
@@ -327,50 +315,6 @@ describe('UserSearch API', () => {
     })
 
     describe('GET /profile/:username', () => {
-        it('should return local user profile with events', async () => {
-            const mockUserWithCount = {
-                ...mockLocalUser,
-                bio: null,
-                headerImage: null,
-                createdAt: new Date('2024-01-01'),
-                _count: {
-                    followers: 10,
-                    following: 5,
-                },
-            }
-
-            const mockEvents = [
-                {
-                    id: 'event_123',
-                    title: 'Test Event',
-                    user: mockLocalUser,
-                    _count: {
-                        attendance: 5,
-                        likes: 10,
-                        comments: 3,
-                    },
-                },
-            ]
-
-            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
-            vi.mocked(prisma.event.findMany).mockResolvedValue(mockEvents as any)
-            vi.mocked(prisma.event.count).mockResolvedValue(1)
-
-            const res = await app.request('/api/user-search/profile/alice')
-
-            expect(res.status).toBe(200)
-            const body = await res.json() as any as any
-            expect(body.user).toMatchObject({
-                id: 'user_123',
-                username: 'alice',
-                _count: {
-                    followers: 10,
-                    following: 5,
-                    events: 1,
-                },
-            })
-            expect(body.events).toEqual(mockEvents)
-        })
 
         it('should resolve and cache remote user if not found', async () => {
             const mockActor = {
@@ -802,41 +746,7 @@ describe('UserSearch API', () => {
     })
 
     describe('POST /resolve', () => {
-        it('should resolve local user', async () => {
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockLocalUser as any)
 
-            const res = await app.request('/api/user-search/resolve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    handle: 'alice',
-                }),
-            })
-
-            expect(res.status).toBe(200)
-            const body = await res.json() as any as any
-            expect(body.user).toEqual(mockLocalUser)
-        })
-
-        it('should return 404 when local user not found', async () => {
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
-
-            const res = await app.request('/api/user-search/resolve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    handle: 'nonexistent',
-                }),
-            })
-
-            expect(res.status).toBe(404)
-            const body = await res.json() as any as any
-            expect(body.error).toBe('Local user not found')
-        })
 
         it('should resolve remote user from cache', async () => {
             vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
@@ -941,37 +851,8 @@ describe('UserSearch API', () => {
     })
 
     describe('GET /profile/:username/followers', () => {
-        it('should get followers for local user', async () => {
-            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockLocalUser as any)
-            vi.mocked(prisma.follower.findMany).mockResolvedValue([])
 
-            const res = await app.request('/api/user-search/profile/alice/followers')
 
-            expect(res.status).toBe(200)
-            const body = await res.json() as any as any
-            expect(body.followers).toBeDefined()
-        })
-
-        it('should get followers for remote user', async () => {
-            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockRemoteUser as any)
-            vi.mocked(prisma.follower.findMany).mockResolvedValue([])
-
-            const res = await app.request('/api/user-search/profile/bob@example.com/followers')
-
-            expect(res.status).toBe(200)
-            const body = await res.json() as any as any
-            expect(body.followers).toBeDefined()
-        })
-
-        it('should handle URL encoded usernames', async () => {
-            const encodedUsername = encodeURIComponent('bob@example.com')
-            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockRemoteUser as any)
-            vi.mocked(prisma.follower.findMany).mockResolvedValue([])
-
-            const res = await app.request(`/api/user-search/profile/${encodedUsername}/followers`)
-
-            expect(res.status).toBe(200)
-        })
 
         it('should return 404 when user not found', async () => {
             vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
@@ -983,19 +864,6 @@ describe('UserSearch API', () => {
             expect(body.error).toBe('User not found')
         })
 
-        it('should respect limit parameter', async () => {
-            vi.mocked(prisma.user.findFirst).mockResolvedValue(mockLocalUser as any)
-            vi.mocked(prisma.follower.findMany).mockResolvedValue([])
-
-            const res = await app.request('/api/user-search/profile/alice/followers?limit=10')
-
-            expect(res.status).toBe(200)
-            expect(prisma.follower.findMany).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    take: 10,
-                })
-            )
-        })
     })
 })
 

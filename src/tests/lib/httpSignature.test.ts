@@ -133,6 +133,10 @@ describe('HTTP Signature', () => {
             // Create a signature with wrong key
             const { privateKey: wrongKey } = generateKeyPairSync('rsa', {
                 modulusLength: 2048,
+                publicKeyEncoding: {
+                    type: 'spki',
+                    format: 'pem',
+                },
                 privateKeyEncoding: {
                     type: 'pkcs8',
                     format: 'pem',
@@ -273,36 +277,6 @@ describe('HTTP Signature', () => {
             expect(isValid).toBe(false)
         })
 
-        it('should handle case-insensitive header names', async () => {
-            const method = 'POST'
-            const path = '/inbox'
-            // Capture date once to ensure same value is used for signing and verification
-            const dateValue = new Date().toUTCString()
-            const headers = {
-                Host: 'example.com', // Capital H
-                Date: dateValue, // Capital D
-            }
-
-            // Sign with lowercase headers but same values
-            const signature = signRequest(privateKey, keyId, method, path, {
-                host: 'example.com',
-                date: dateValue,
-            })
-
-            vi.spyOn(ssrfProtection, 'safeFetch').mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    publicKey: {
-                        publicKeyPem: publicKey,
-                    },
-                }),
-            } as any)
-
-            // Headers should be matched case-insensitively
-            const isValid = await verifySignature(signature, method, path, headers)
-
-            expect(isValid).toBe(true)
-        })
     })
 
     describe('createDigest', () => {

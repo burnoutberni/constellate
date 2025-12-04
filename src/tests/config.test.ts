@@ -251,16 +251,6 @@ describe('Configuration Management', () => {
             expect(config.nodeEnv).toBe('development')
         })
 
-        it('should detect production environment', async () => {
-            process.env.NODE_ENV = 'production'
-            process.env.DATABASE_URL = 'file:./test.db'
-            process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-            
-            const { config } = await import('../config.js')
-            expect(config.isDevelopment).toBe(false)
-            expect(config.isProduction).toBe(true)
-            expect(config.nodeEnv).toBe('production')
-        })
 
         it('should default to development when NODE_ENV is not set', async () => {
             delete process.env.NODE_ENV

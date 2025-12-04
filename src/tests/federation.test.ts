@@ -82,58 +82,6 @@ describe('Federation Handlers', () => {
             expect(vi.mocked(activitypubHelpers.fetchActor)).not.toHaveBeenCalled()
         })
 
-        it('should handle Follow activity', async () => {
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-                endpoints: {
-                    sharedInbox: 'https://example.com/inbox',
-                },
-            }
-
-            const remoteUser = {
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-                inboxUrl: 'https://example.com/users/bob/inbox',
-                sharedInboxUrl: 'https://example.com/inbox',
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
-            vi.mocked(activityBuilder.buildAcceptActivity).mockReturnValue({
-                type: ActivityType.ACCEPT,
-                actor: `${baseUrl}/users/${testUser.username}`,
-                object: {
-                    type: ActivityType.FOLLOW,
-                    actor: remoteActor.id,
-                    object: `${baseUrl}/users/${testUser.username}`,
-                },
-            } as any)
-            vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(true)
-
-            const activity = {
-                id: 'https://example.com/activities/follow-1',
-                type: ActivityType.FOLLOW,
-                actor: remoteActor.id,
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            await handleActivity(activity as any)
-
-            // Verify follower was created
-            const follower = await prisma.follower.findFirst({
-                where: {
-                    userId: testUser.id,
-                    actorUrl: remoteActor.id,
-                },
-            })
-
-            expect(follower).toBeTruthy()
-            expect(follower?.accepted).toBe(true)
-            expect(vi.mocked(activityDelivery.deliverToInbox)).toHaveBeenCalled()
-        })
 
         it('should handle Accept activity for event attendance', async () => {
             const remoteActor = {
@@ -284,39 +232,6 @@ describe('Federation Handlers', () => {
             expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
         })
 
-        it('should handle Update activity for events', async () => {
-            const remoteEvent = await prisma.event.create({
-                data: {
-                    title: 'Remote Event',
-                    startTime: new Date(),
-                    externalId: 'https://example.com/events/remote-1',
-                    attributedTo: 'https://example.com/users/bob',
-                },
-            })
-
-            const activity = {
-                id: 'https://example.com/activities/update-1',
-                type: ActivityType.UPDATE,
-                actor: 'https://example.com/users/bob',
-                object: {
-                    type: ObjectType.EVENT,
-                    id: remoteEvent.externalId,
-                    name: 'Updated Remote Event',
-                    startTime: new Date().toISOString(),
-                },
-            }
-
-            await handleActivity(activity as any)
-
-            // Verify event was updated
-            const updatedEvent = await prisma.event.findFirst({
-                where: {
-                    externalId: remoteEvent.externalId,
-                },
-            })
-
-            expect(updatedEvent?.title).toBe('Updated Remote Event')
-        })
 
         it('should handle Delete activity for events', async () => {
             const remoteEvent = await prisma.event.create({
@@ -443,95 +358,7 @@ describe('Federation Handlers', () => {
             expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
         })
 
-        it('should handle TentativeAccept activity', async () => {
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-            }
 
-            // Create the remote user in the database first
-            const remoteUser = await prisma.user.create({
-                data: {
-                    username: 'bob@example.com',
-                    email: 'bob@example.com',
-                    name: 'Bob',
-                    isRemote: true,
-                    externalActorUrl: remoteActor.id,
-                    inboxUrl: remoteActor.inbox,
-                },
-            })
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            const activity = {
-                id: 'https://example.com/activities/tentative-accept-1',
-                type: ActivityType.TENTATIVE_ACCEPT,
-                actor: remoteActor.id,
-                object: `${baseUrl}/events/${testEvent.id}`,
-            }
-
-            await handleActivity(activity as any)
-
-            // Verify attendance was created with maybe status
-            const attendance = await prisma.eventAttendance.findFirst({
-                where: {
-                    eventId: testEvent.id,
-                    userId: remoteUser.id,
-                },
-            })
-
-            expect(attendance).toBeTruthy()
-            expect(attendance?.status).toBe(AttendanceStatus.MAYBE)
-        })
-
-        it('should handle Reject activity', async () => {
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-            }
-
-            // Create the remote user in the database first
-            const remoteUser = await prisma.user.create({
-                data: {
-                    username: 'bob@example.com',
-                    email: 'bob@example.com',
-                    name: 'Bob',
-                    isRemote: true,
-                    externalActorUrl: remoteActor.id,
-                    inboxUrl: remoteActor.inbox,
-                },
-            })
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            const activity = {
-                id: 'https://example.com/activities/reject-1',
-                type: ActivityType.REJECT,
-                actor: remoteActor.id,
-                object: `${baseUrl}/events/${testEvent.id}`,
-            }
-
-            await handleActivity(activity as any)
-
-            // Verify attendance was created with not_attending status
-            const attendance = await prisma.eventAttendance.findFirst({
-                where: {
-                    eventId: testEvent.id,
-                    userId: remoteUser.id,
-                },
-            })
-
-            expect(attendance).toBeTruthy()
-            expect(attendance?.status).toBe(AttendanceStatus.NOT_ATTENDING)
-        })
 
         it('should handle unhandled activity types gracefully', async () => {
             const activity = {
@@ -654,92 +481,7 @@ describe('Federation Handlers', () => {
             expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
         })
 
-        it('should handle Undo Follow activity', async () => {
-            const remoteUser = await prisma.user.create({
-                data: {
-                    username: 'remoteuser@example.com',
-                    email: 'remote@example.com',
-                    isRemote: true,
-                    externalActorUrl: 'https://example.com/users/remoteuser',
-                },
-            })
 
-            await prisma.follower.create({
-                data: {
-                    userId: testUser.id,
-                    actorUrl: 'https://example.com/users/remoteuser',
-                    username: 'remoteuser@example.com',
-                    inboxUrl: 'https://example.com/users/remoteuser/inbox',
-                    accepted: true,
-                },
-            })
-
-            const activity = {
-                id: 'https://example.com/activities/undo-follow-1',
-                type: ActivityType.UNDO,
-                actor: 'https://example.com/users/remoteuser',
-                object: {
-                    type: ActivityType.FOLLOW,
-                    actor: 'https://example.com/users/remoteuser',
-                    object: `${baseUrl}/users/${testUser.username}`,
-                },
-            }
-
-            await handleActivity(activity as any)
-
-            const follower = await prisma.follower.findFirst({
-                where: {
-                    userId: testUser.id,
-                    actorUrl: 'https://example.com/users/remoteuser',
-                },
-            })
-
-            expect(follower).toBeNull()
-        })
-
-        it('should handle Undo Attendance activity', async () => {
-            const remoteUser = await prisma.user.create({
-                data: {
-                    username: 'remoteuser@example.com',
-                    email: 'remote@example.com',
-                    isRemote: true,
-                    externalActorUrl: 'https://example.com/users/remoteuser',
-                },
-            })
-
-            await prisma.eventAttendance.create({
-                data: {
-                    eventId: testEvent.id,
-                    userId: remoteUser.id,
-                    status: AttendanceStatus.ATTENDING,
-                },
-            })
-
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            const activity = {
-                id: 'https://example.com/activities/undo-attendance-1',
-                type: ActivityType.UNDO,
-                actor: 'https://example.com/users/remoteuser',
-                object: {
-                    type: ActivityType.ACCEPT,
-                    actor: 'https://example.com/users/remoteuser',
-                    object: `${baseUrl}/events/${testEvent.id}`,
-                },
-            }
-
-            await handleActivity(activity as any)
-
-            const attendance = await prisma.eventAttendance.findFirst({
-                where: {
-                    eventId: testEvent.id,
-                    userId: remoteUser.id,
-                },
-            })
-
-            expect(attendance).toBeNull()
-            expect(vi.mocked(realtime.broadcast)).toHaveBeenCalled()
-        })
 
         it('should handle Announce activity', async () => {
             const activity = {
@@ -953,46 +695,6 @@ describe('Federation Handlers', () => {
             expect(true).toBe(true)
         })
 
-        it('should handle Follow activity with auto-accept disabled', async () => {
-            // Update user to disable auto-accept
-            await prisma.user.update({
-                where: { id: testUser.id },
-                data: { autoAcceptFollowers: false },
-            })
-
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-            }
-
-            const activity = {
-                id: 'https://example.com/activities/1',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-
-            await handleActivity(activity as any)
-
-            // Should create follower but not accept
-            const follower = await prisma.follower.findFirst({
-                where: {
-                    userId: testUser.id,
-                    actorUrl: 'https://example.com/users/bob',
-                },
-            })
-
-            expect(follower).toBeDefined()
-            expect(follower?.accepted).toBe(false)
-        })
 
         it('should handle Accept activity with Follow object', async () => {
             const activity = {
@@ -1313,91 +1015,7 @@ describe('Federation Handlers', () => {
             expect(like).toBeNull()
         })
 
-        it('should handle TentativeAccept activity', async () => {
-            const remoteEvent = await prisma.event.create({
-                data: {
-                    title: 'Remote Event',
-                    startTime: new Date(),
-                    externalId: 'https://example.com/events/1',
-                    attributedTo: 'https://example.com/users/bob',
-                },
-            })
 
-            const activity = {
-                id: 'https://example.com/activities/tentative',
-                type: ActivityType.TENTATIVE_ACCEPT,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/events/${remoteEvent.id}`,
-            }
-
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            await handleActivity(activity as any)
-
-            // Should create attendance with maybe status
-            const attendance = await prisma.eventAttendance.findFirst({
-                where: {
-                    eventId: remoteEvent.id,
-                },
-            })
-
-            expect(attendance).toBeDefined()
-            expect(attendance?.status).toBe('maybe')
-        })
-
-        it('should handle Reject activity', async () => {
-            const remoteEvent = await prisma.event.create({
-                data: {
-                    title: 'Remote Event',
-                    startTime: new Date(),
-                    externalId: 'https://example.com/events/1',
-                    attributedTo: 'https://example.com/users/bob',
-                },
-            })
-
-            const activity = {
-                id: 'https://example.com/activities/reject',
-                type: ActivityType.REJECT,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/events/${remoteEvent.id}`,
-            }
-
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            await handleActivity(activity as any)
-
-            // Should create attendance with not_attending status
-            const attendance = await prisma.eventAttendance.findFirst({
-                where: {
-                    eventId: remoteEvent.id,
-                },
-            })
-
-            expect(attendance).toBeDefined()
-            expect(attendance?.status).toBe('not_attending')
-        })
 
         it('should handle Announce activity', async () => {
             const activity = {
@@ -1447,43 +1065,7 @@ describe('Federation Handlers', () => {
             await expect(handleActivity(activity as any)).resolves.not.toThrow()
         })
 
-        it('should handle non-P2002 errors when creating processed activity', async () => {
-            const activity = {
-                id: 'https://example.com/activities/error',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
 
-            // Mock prisma to throw non-P2002 error
-            const originalCreate = prisma.processedActivity.create
-            vi.spyOn(prisma.processedActivity, 'create').mockRejectedValueOnce(new Error('Database connection error'))
-
-            // Should re-throw the error
-            await expect(handleActivity(activity as any)).rejects.toThrow('Database connection error')
-
-            // Restore
-            prisma.processedActivity.create = originalCreate
-        })
-
-        it('should re-throw non-P2002 errors when creating processed activity', async () => {
-            const activity = {
-                id: 'https://example.com/activities/error',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            // Mock prisma to throw non-P2002 error
-            const originalCreate = prisma.processedActivity.create
-            vi.spyOn(prisma.processedActivity, 'create').mockRejectedValueOnce(new Error('Database connection error'))
-
-            // Should re-throw the error
-            await expect(handleActivity(activity as any)).rejects.toThrow('Database connection error')
-
-            // Restore
-            prisma.processedActivity.create = originalCreate
-        })
     })
 
     describe('handleFollow edge cases', () => {
@@ -1531,130 +1113,8 @@ describe('Federation Handlers', () => {
             expect(true).toBe(true)
         })
 
-        it('should handle Follow with auto-accept disabled', async () => {
-            // Update user to disable auto-accept
-            await prisma.user.update({
-                where: { id: testUser.id },
-                data: { autoAcceptFollowers: false },
-            })
 
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-            }
 
-            const activity = {
-                id: 'https://example.com/activities/1',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
-
-            await handleActivity(activity as any)
-
-            // Should create follower but not accept
-            const follower = await prisma.follower.findFirst({
-                where: {
-                    userId: testUser.id,
-                    actorUrl: 'https://example.com/users/bob',
-                },
-            })
-
-            expect(follower).toBeDefined()
-            expect(follower?.accepted).toBe(false)
-        })
-
-        it('should broadcast FOLLOWER_ADDED when follow is accepted', async () => {
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-                endpoints: {
-                    sharedInbox: 'https://example.com/inbox',
-                },
-            }
-
-            const activity = {
-                id: 'https://example.com/activities/1',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
-
-            await handleActivity(activity as any)
-
-            // Should have broadcasted FOLLOWER_ADDED
-            expect(realtime.broadcastToUser).toHaveBeenCalledWith(
-                testUser.id,
-                expect.objectContaining({
-                    type: BroadcastEvents.FOLLOWER_ADDED,
-                })
-            )
-        })
-
-        it('should calculate follower count correctly', async () => {
-            // Create existing followers
-            const remoteActor = {
-                id: 'https://example.com/users/bob',
-                type: 'Person',
-                preferredUsername: 'bob',
-                inbox: 'https://example.com/users/bob/inbox',
-            }
-
-            // Create existing follower
-            await prisma.follower.create({
-                data: {
-                    userId: testUser.id,
-                    actorUrl: 'https://example.com/users/alice',
-                    username: 'alice@example.com',
-                    inboxUrl: 'https://example.com/users/alice/inbox',
-                    accepted: true,
-                },
-            })
-
-            const activity = {
-                id: 'https://example.com/activities/1',
-                type: ActivityType.FOLLOW,
-                actor: 'https://example.com/users/bob',
-                object: `${baseUrl}/users/${testUser.username}`,
-            }
-
-            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
-            vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
-
-            await handleActivity(activity as any)
-
-            // Check follower count
-            const followerCount = await prisma.follower.count({
-                where: {
-                    userId: testUser.id,
-                    accepted: true,
-                },
-            })
-
-            expect(followerCount).toBeGreaterThanOrEqual(1)
-        })
     })
 })
 

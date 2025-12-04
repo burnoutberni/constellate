@@ -25,7 +25,7 @@ describe('Error Handling', () => {
     describe('AppError', () => {
         it('should create error with code and message', () => {
             const error = new AppError('TEST_ERROR', 'Test error message')
-            
+
             expect(error).toBeInstanceOf(Error)
             expect(error).toBeInstanceOf(AppError)
             expect(error.code).toBe('TEST_ERROR')
@@ -36,14 +36,14 @@ describe('Error Handling', () => {
 
         it('should create error with custom status code', () => {
             const error = new AppError('NOT_FOUND', 'Resource not found', 404)
-            
+
             expect(error.statusCode).toBe(404)
         })
 
         it('should create error with details', () => {
             const details = { field: 'value' }
             const error = new AppError('TEST_ERROR', 'Test error', 400, details)
-            
+
             expect(error.details).toEqual(details)
         })
     })
@@ -52,7 +52,7 @@ describe('Error Handling', () => {
         it('should handle AppError', () => {
             const error = new AppError('TEST_ERROR', 'Test error', 400)
             const response = handleError(error, mockContext)
-            
+
             expect(mockJson).toHaveBeenCalledWith(
                 {
                     error: 'TEST_ERROR',
@@ -66,9 +66,9 @@ describe('Error Handling', () => {
         it('should include details in development mode', () => {
             const details = { field: 'value' }
             const error = new AppError('TEST_ERROR', 'Test error', 400, details)
-            
+
             handleError(error, mockContext)
-            
+
             expect(mockJson).toHaveBeenCalledWith(
                 expect.objectContaining({
                     details: details,
@@ -79,9 +79,9 @@ describe('Error Handling', () => {
 
         it('should not include details when undefined', () => {
             const error = new AppError('TEST_ERROR', 'Test error', 400)
-            
+
             handleError(error, mockContext)
-            
+
             const call = mockJson.mock.calls[0][0]
             expect(call.details).toBeUndefined()
         })
@@ -91,14 +91,13 @@ describe('Error Handling', () => {
                 {
                     code: 'invalid_type',
                     expected: 'string',
-                    received: 'number',
                     path: ['field'],
                     message: 'Expected string, received number',
-                },
+                } as any,
             ])
-            
+
             handleError(zodError, mockContext)
-            
+
             expect(mockJson).toHaveBeenCalledWith(
                 {
                     error: 'VALIDATION_ERROR',
@@ -112,19 +111,18 @@ describe('Error Handling', () => {
         it('should handle ZodError without details in production', () => {
             // Mock production mode
             vi.mocked(config).isDevelopment = false
-            
+
             const zodError = new ZodError([
                 {
                     code: 'invalid_type',
                     expected: 'string',
-                    received: 'number',
                     path: ['field'],
                     message: 'Expected string, received number',
-                },
+                } as any,
             ])
-            
+
             handleError(zodError, mockContext)
-            
+
             expect(mockJson).toHaveBeenCalledWith(
                 {
                     error: 'VALIDATION_ERROR',
@@ -132,17 +130,17 @@ describe('Error Handling', () => {
                 },
                 400
             )
-            
+
             // Reset to development mode
             vi.mocked(config).isDevelopment = true
         })
 
         it('should handle unknown errors', () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
             const unknownError = new Error('Unknown error')
-            
+
             handleError(unknownError, mockContext)
-            
+
             expect(consoleErrorSpy).toHaveBeenCalledWith('[Error Handler] Unhandled error:', unknownError)
             expect(mockJson).toHaveBeenCalledWith(
                 {
@@ -151,16 +149,16 @@ describe('Error Handling', () => {
                 },
                 500
             )
-            
+
             consoleErrorSpy.mockRestore()
         })
 
         it('should handle non-Error objects', () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
             const unknownError = 'String error'
-            
+
             handleError(unknownError, mockContext)
-            
+
             expect(consoleErrorSpy).toHaveBeenCalledWith('[Error Handler] Unhandled error:', unknownError)
             expect(mockJson).toHaveBeenCalledWith(
                 {
@@ -169,7 +167,7 @@ describe('Error Handling', () => {
                 },
                 500
             )
-            
+
             consoleErrorSpy.mockRestore()
         })
     })
@@ -178,7 +176,7 @@ describe('Error Handling', () => {
         describe('notFound', () => {
             it('should create 404 error with default message', () => {
                 const error = Errors.notFound()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('NOT_FOUND')
                 expect(error.message).toBe('Resource not found')
@@ -187,7 +185,7 @@ describe('Error Handling', () => {
 
             it('should create 404 error with custom resource name', () => {
                 const error = Errors.notFound('User')
-                
+
                 expect(error.message).toBe('User not found')
             })
         })
@@ -195,7 +193,7 @@ describe('Error Handling', () => {
         describe('unauthorized', () => {
             it('should create 401 error with default message', () => {
                 const error = Errors.unauthorized()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('UNAUTHORIZED')
                 expect(error.message).toBe('Authentication required')
@@ -204,7 +202,7 @@ describe('Error Handling', () => {
 
             it('should create 401 error with custom message', () => {
                 const error = Errors.unauthorized('Invalid token')
-                
+
                 expect(error.message).toBe('Invalid token')
             })
         })
@@ -212,7 +210,7 @@ describe('Error Handling', () => {
         describe('forbidden', () => {
             it('should create 403 error with default message', () => {
                 const error = Errors.forbidden()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('FORBIDDEN')
                 expect(error.message).toBe('Access forbidden')
@@ -221,7 +219,7 @@ describe('Error Handling', () => {
 
             it('should create 403 error with custom message', () => {
                 const error = Errors.forbidden('Insufficient permissions')
-                
+
                 expect(error.message).toBe('Insufficient permissions')
             })
         })
@@ -229,7 +227,7 @@ describe('Error Handling', () => {
         describe('badRequest', () => {
             it('should create 400 error with default message', () => {
                 const error = Errors.badRequest()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('BAD_REQUEST')
                 expect(error.message).toBe('Bad request')
@@ -238,7 +236,7 @@ describe('Error Handling', () => {
 
             it('should create 400 error with custom message', () => {
                 const error = Errors.badRequest('Invalid input')
-                
+
                 expect(error.message).toBe('Invalid input')
             })
         })
@@ -246,7 +244,7 @@ describe('Error Handling', () => {
         describe('conflict', () => {
             it('should create 409 error with default message', () => {
                 const error = Errors.conflict()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('CONFLICT')
                 expect(error.message).toBe('Resource conflict')
@@ -255,7 +253,7 @@ describe('Error Handling', () => {
 
             it('should create 409 error with custom message', () => {
                 const error = Errors.conflict('Resource already exists')
-                
+
                 expect(error.message).toBe('Resource already exists')
             })
         })
@@ -263,7 +261,7 @@ describe('Error Handling', () => {
         describe('tooManyRequests', () => {
             it('should create 429 error with default message', () => {
                 const error = Errors.tooManyRequests()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('TOO_MANY_REQUESTS')
                 expect(error.message).toBe('Too many requests')
@@ -272,7 +270,7 @@ describe('Error Handling', () => {
 
             it('should create 429 error with custom message', () => {
                 const error = Errors.tooManyRequests('Rate limit exceeded')
-                
+
                 expect(error.message).toBe('Rate limit exceeded')
             })
         })
@@ -280,7 +278,7 @@ describe('Error Handling', () => {
         describe('internal', () => {
             it('should create 500 error with default message', () => {
                 const error = Errors.internal()
-                
+
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.code).toBe('INTERNAL_ERROR')
                 expect(error.message).toBe('Internal server error')
@@ -289,7 +287,7 @@ describe('Error Handling', () => {
 
             it('should create 500 error with custom message', () => {
                 const error = Errors.internal('Database connection failed')
-                
+
                 expect(error.message).toBe('Database connection failed')
             })
         })

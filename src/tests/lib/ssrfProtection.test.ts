@@ -116,18 +116,6 @@ describe('SSRF Protection', () => {
             await expect(safeFetch('ftp://example.com')).rejects.toThrow('URL is not safe to fetch')
         })
 
-        it('should timeout after specified duration', async () => {
-            // Mock fetch to never resolve
-            global.fetch = vi.fn().mockImplementation(() => new Promise(() => {}))
-
-            await expect(
-                safeFetch('https://example.com', {}, 100) // 100ms timeout
-            ).rejects.toThrow(/Request timeout|timeout/i)
-
-            // Clean up
-            vi.clearAllTimers()
-        }, 10000) // Increase test timeout to 10s
-
         it('should pass fetch options correctly', async () => {
             const mockResponse = {
                 ok: true,

@@ -110,21 +110,21 @@ describe('ActivityBuilder', () => {
 
             const activity = buildCreateEventActivity(eventWithoutOptional, 'user_123')
 
-            expect(activity.object.summary).toBeUndefined()
-            expect(activity.object.location).toBeUndefined()
-            expect(activity.object.url).toBeUndefined()
-            expect(activity.object.endTime).toBeUndefined()
-            expect(activity.object.duration).toBeUndefined()
-            expect(activity.object.eventStatus).toBeUndefined()
-            expect(activity.object.eventAttendanceMode).toBeUndefined()
-            expect(activity.object.maximumAttendeeCapacity).toBeUndefined()
-            expect(activity.object.attachment).toBeUndefined()
+            expect((activity.object as any).summary).toBeUndefined()
+            expect((activity.object as any).location).toBeUndefined()
+            expect((activity.object as any).url).toBeUndefined()
+            expect((activity.object as any).endTime).toBeUndefined()
+            expect((activity.object as any).duration).toBeUndefined()
+            expect((activity.object as any).eventStatus).toBeUndefined()
+            expect((activity.object as any).eventAttendanceMode).toBeUndefined()
+            expect((activity.object as any).maximumAttendeeCapacity).toBeUndefined()
+            expect((activity.object as any).attachment).toBeUndefined()
         })
 
         it('should include attachment when headerImage is present', () => {
             const activity = buildCreateEventActivity(mockEvent, 'user_123')
 
-            expect(activity.object.attachment).toEqual([
+            expect((activity.object as any).attachment).toEqual([
                 {
                     type: ObjectType.IMAGE,
                     url: 'https://example.com/event.jpg',
@@ -196,7 +196,7 @@ describe('ActivityBuilder', () => {
                 actor: 'https://example.com/users/bob',
                 object: 'http://localhost:3000/users/alice',
             }
-            const activity = buildAcceptActivity(mockUser, followActivity)
+            const activity = buildAcceptActivity(mockUser, followActivity as any)
 
             expect(activity).toMatchObject({
                 type: ActivityType.ACCEPT,
@@ -431,7 +431,7 @@ describe('ActivityBuilder', () => {
 
             expect(activity.to).toContain(eventAuthorUrl)
             expect(activity.to).toContain(parentCommentAuthorUrl)
-            expect(activity.object.inReplyTo).toContain('comment_123')
+            expect((activity.object as any).inReplyTo).toContain('comment_123')
         })
     })
 
@@ -514,8 +514,8 @@ describe('ActivityBuilder', () => {
 
             expect(activity.object.name).toBe('alice') // Falls back to username
             expect(activity.object.summary).toBeUndefined()
-            expect(activity.object.icon).toBeUndefined()
-            expect(activity.object.image).toBeUndefined()
+            expect((activity.object as any).icon).toBeUndefined()
+            expect((activity.object as any).image).toBeUndefined()
         })
     })
 })

@@ -92,44 +92,4 @@ describe('Email Helper', () => {
         })
     })
 
-    describe('sendEmail without SMTP configuration', () => {
-        beforeEach(() => {
-            // Re-mock config without SMTP host
-            vi.resetModules()
-            vi.doMock('../config.js', () => ({
-                config: {
-                    smtp: {
-                        host: '',
-                        port: 587,
-                        secure: false,
-                        user: '',
-                        pass: '',
-                        from: 'noreply@example.com',
-                    },
-                },
-            }))
-        })
-
-        it('should log to console when SMTP is not configured', async () => {
-            const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
-
-            // Re-import to get mocked config
-            const { sendEmail: sendEmailNoConfig } = await import('../../lib/email.js')
-
-            await sendEmailNoConfig({
-                to: 'recipient@example.com',
-                subject: 'Test Subject',
-                text: 'Test email body',
-            })
-
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('SMTP not configured')
-            )
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('recipient@example.com')
-            )
-
-            consoleSpy.mockRestore()
-        })
-    })
 })

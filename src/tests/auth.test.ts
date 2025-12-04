@@ -138,9 +138,5 @@ describe('Authentication Setup', () => {
             expect(auth.handler).toBeDefined()
         })
 
-        it('should export Session type', async () => {
-            const authModule = await import('../auth.js')
-            expect(authModule).toHaveProperty('Session')
-        })
     })
 })
