@@ -11,20 +11,21 @@ import { join } from 'path'
  * Ensure test database is migrated before running tests
  */
 export default async function setup() {
-    // Ensure we use the test database URL (Prisma creates it relative to schema file)
-    const testDbUrl = process.env.DATABASE_URL || 'file:./prisma/test.db'
-    const testDbPath = join(process.cwd(), 'prisma', 'test.db')
-    const testDbExists = existsSync(testDbPath)
+    // Ensure we use the test database URL
+    // In CI, DATABASE_URL should be set to a PostgreSQL connection string
+    // Locally, it can be SQLite (file:./prisma/test.db) or PostgreSQL
+    const testDbUrl = process.env.DATABASE_URL
+    if (!testDbUrl) {
+        throw new Error('DATABASE_URL environment variable is required for tests')
+    }
 
     // Log to stderr so it shows up even if stdout is suppressed
     console.error('[Test Setup] Ensuring test database is migrated...')
-    console.error(`[Test Setup] Test database URL: ${testDbUrl}`)
-    console.error(`[Test Setup] Test database path: ${testDbPath}`)
-    console.error(`[Test Setup] Database exists: ${testDbExists}`)
+    console.error(`[Test Setup] Test database URL: ${testDbUrl.replace(/:[^:@]+@/, ':****@')}`) // Hide password in logs
 
     try {
-        // Always use migrations for PostgreSQL (consistent with production)
-        console.error('[Test Setup] Using migrations for PostgreSQL database...')
+        // Always use migrations (works for both PostgreSQL and SQLite)
+        console.error('[Test Setup] Running database migrations...')
         execSync('npx prisma migrate deploy', {
             stdio: 'inherit',
             env: {

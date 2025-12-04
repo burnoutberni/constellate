@@ -668,7 +668,7 @@ app.get('/profile/:username', async (c) => {
                     },
                 })
 
-                if (response.ok) {
+                if (response && response.ok) {
                     const outbox = await response.json() as { orderedItems?: unknown[] } | undefined
                     const activities = outbox?.orderedItems || []
 
