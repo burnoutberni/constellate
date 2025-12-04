@@ -17,7 +17,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         url: '',
         startTime: '',
         endTime: '',
+        tags: [] as string[],
     })
+    const [tagInput, setTagInput] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
     if (!isOpen) return null
@@ -41,6 +43,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     ...formData,
                     startTime: new Date(formData.startTime).toISOString(),
                     endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+                    tags: formData.tags.length > 0 ? formData.tags : undefined,
                 }),
             })
             if (response.ok) {
@@ -51,7 +54,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     url: '',
                     startTime: '',
                     endTime: '',
+                    tags: [],
                 })
+                setTagInput('')
                 onSuccess()
                 onClose()
             } else if (response.status === 401) {
@@ -164,6 +169,75 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 className="input"
                                 placeholder="https://..."
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Tags
+                            </label>
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && tagInput.trim()) {
+                                                e.preventDefault()
+                                                const tag = tagInput.trim().replace(/^#/, '')
+                                                if (tag && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+                                            }
+                                        }}
+                                        className="input flex-1"
+                                        placeholder="Add a tag (press Enter)"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (tagInput.trim()) {
+                                                const tag = tagInput.trim().replace(/^#/, '')
+                                                if (tag && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+                                            }
+                                        }}
+                                        className="btn btn-secondary"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                                {formData.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {formData.tags.map((tag, index) => (
+                                            <span
+                                                key={index}
+                                                className="badge badge-primary flex items-center gap-1"
+                                            >
+                                                #{tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData({
+                                                            ...formData,
+                                                            tags: formData.tags.filter((_, i) => i !== index),
+                                                        })
+                                                    }}
+                                                    className="ml-1 hover:text-red-600"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-500">
+                                    Add tags to help others discover your event
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-4">
