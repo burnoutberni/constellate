@@ -137,6 +137,18 @@ app.get('/', async (c) => {
             throw error
         }
 
+        // Tag filter
+        if (params.tags) {
+            const tagList = params.tags.split(',').map(t => t.trim().toLowerCase().replace(/^#/, ''))
+            where.tags = {
+                some: {
+                    tag: {
+                        in: tagList,
+                    },
+                },
+            }
+        }
+
         // Execute search
         const userId = c.get('userId') as string | undefined
         let visibilityFilter: Prisma.EventWhereInput
