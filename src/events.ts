@@ -67,6 +67,7 @@ const EventSchema = z.object({
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     maximumAttendeeCapacity: z.number().int().positive().optional(),
     visibility: VisibilitySchema.optional(),
+    tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
 })
 
 // Create event
@@ -94,10 +95,13 @@ app.post('/', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...eventInput,
+                ...eventData,
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
@@ -106,9 +110,15 @@ app.post('/', moderateRateLimit, async (c) => {
                 userId,
                 attributedTo: actorUrl,
                 visibility,
+                tags: tags && tags.length > 0 ? {
+                    create: tags.map(tag => ({
+                        tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                    })),
+                } : undefined,
             },
             include: {
                 user: true,
+                tags: true,
             },
         })
 
@@ -195,6 +205,7 @@ app.get('/', async (c) => {
                     profileImage: true,
                 },
             },
+            tags: true,
             _count: {
                 select: {
                     attendance: true,
@@ -307,6 +318,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                         isRemote: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -684,6 +696,7 @@ app.get('/:id', async (c) => {
                         externalActorUrl: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -787,6 +800,9 @@ app.put('/:id', moderateRateLimit, async (c) => {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Update event with sanitized input
         const updateData: Record<string, unknown> = {
             ...eventInput,
@@ -801,11 +817,22 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.visibility = requestedVisibility
         }
 
+        // Update tags if provided
+        if (tags !== undefined) {
+            updateData.tags = {
+                deleteMany: {}, // Delete all existing tags
+                create: tags.map(tag => ({
+                    tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                })),
+            }
+        }
+
         const event = await prisma.event.update({
             where: { id },
             data: updateData,
             include: {
                 user: true,
+                tags: true,
             },
         })
 

@@ -26,6 +26,7 @@ const SearchSchema = z.object({
     status: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     mode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     username: z.string().max(200).optional(), // Filter by organizer
+    tags: z.string().optional(), // Comma-separated tags
     page: z.string().optional(),
     limit: z.string().optional(),
 })
@@ -41,6 +42,7 @@ app.get('/', async (c) => {
             status: c.req.query('status'),
             mode: c.req.query('mode'),
             username: c.req.query('username'),
+            tags: c.req.query('tags'),
             page: c.req.query('page'),
             limit: c.req.query('limit'),
         })
@@ -107,6 +109,18 @@ app.get('/', async (c) => {
             }
         }
 
+        // Tag filter
+        if (params.tags) {
+            const tagList = params.tags.split(',').map(t => t.trim().toLowerCase().replace(/^#/, ''))
+            where.tags = {
+                some: {
+                    tag: {
+                        in: tagList,
+                    },
+                },
+            }
+        }
+
         // Execute search
         const userId = c.get('userId') as string | undefined
         let visibilityFilter: Prisma.EventWhereInput
@@ -137,6 +151,7 @@ app.get('/', async (c) => {
                             profileImage: true,
                         },
                     },
+                    tags: true,
                     _count: {
                         select: {
                             attendance: true,
@@ -168,6 +183,7 @@ app.get('/', async (c) => {
                 status: params.status,
                 mode: params.mode,
                 username: params.username,
+                tags: params.tags,
             },
         })
     } catch (error) {
