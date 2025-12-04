@@ -170,15 +170,23 @@ app.put('/event-templates/:id', async (c) => {
             throw Errors.notFound('Event template')
         }
 
+        const updateData: Record<string, unknown> = {}
+
+        if (payload.name) {
+            updateData.name = sanitizeText(payload.name)
+        }
+
+        if (payload.description !== undefined) {
+            updateData.description = payload.description ? sanitizeText(payload.description) : null
+        }
+
+        if (payload.data) {
+            updateData.data = sanitizeTemplateData(payload.data)
+        }
+
         const updated = await prisma.eventTemplate.update({
             where: { id },
-            data: {
-                name: payload.name ? sanitizeText(payload.name) : undefined,
-                description: payload.description !== undefined
-                    ? (payload.description ? sanitizeText(payload.description) : null)
-                    : undefined,
-                data: payload.data ? sanitizeTemplateData(payload.data) : undefined,
-            },
+            data: updateData,
         })
 
         return c.json(serializeTemplate(updated))
