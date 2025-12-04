@@ -3,17 +3,7 @@
  * Validates URLs to prevent Server-Side Request Forgery attacks
  */
 
-const PRIVATE_IP_RANGES = [
-    /^127\./,                    // 127.0.0.0/8 - Loopback
-    /^10\./,                     // 10.0.0.0/8 - Private
-    /^172\.(1[6-9]|2\d|3[01])\./, // 172.16.0.0/12 - Private
-    /^192\.168\./,               // 192.168.0.0/16 - Private
-    /^169\.254\./,               // 169.254.0.0/16 - Link-local
-    /^::1$/,                     // IPv6 loopback
-    /^fe80:/,                    // IPv6 link-local
-    /^fc00:/,                    // IPv6 unique local
-    /^fd00:/,                    // IPv6 unique local
-]
+
 
 const ALLOWED_PROTOCOLS = ['http:', 'https:']
 
@@ -137,7 +127,7 @@ export async function isUrlSafe(urlString: string): Promise<boolean> {
         }
 
         return true
-    } catch (error) {
+    } catch {
         // Invalid URL
         return false
     }
@@ -195,9 +185,9 @@ export async function safeFetch(
             }
 
             return response
-        } catch (error: any) {
+        } catch (error: unknown) {
             clearTimeout(timeoutId)
-            if (error.name === 'AbortError') {
+            if (error instanceof Error && error.name === 'AbortError') {
                 throw new Error(`Request timeout after ${timeoutMs}ms: ${currentUrl}`)
             }
             throw error

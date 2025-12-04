@@ -5,12 +5,12 @@
 
 import { Hono } from 'hono'
 import { buildLikeActivity, buildUndoActivity } from './services/ActivityBuilder.js'
-import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
+import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
-import { getPublicAddressing } from './lib/audience.js'
+
 import { prisma } from './lib/prisma.js'
 
 const app = new Hono()
@@ -78,7 +78,7 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventUrl = event.externalId || `${baseUrl}/events/${id}`
         const eventAuthorUrl = event.attributedTo!
-        
+
         // Get event author's followers URL (if local user)
         let eventAuthorFollowersUrl: string | undefined
         if (event.user) {
@@ -90,7 +90,7 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         // Determine if event is public (default to true for now)
         // Events created with to: [PUBLIC_COLLECTION] are public
         const isPublic = true
@@ -102,10 +102,10 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
             eventAuthorFollowersUrl,
             isPublic
         )
-        
+
         // Deliver to event author and their followers
         await deliverToActors(activity, [eventAuthorUrl], userId)
-        
+
         // Also deliver to event author's followers if event is public
         if (eventAuthorFollowersUrl && event.user) {
             await deliverToFollowers(activity, event.user.id)
@@ -174,7 +174,7 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventUrl = like.event.externalId || `${baseUrl}/events/${id}`
         const eventAuthorUrl = like.event.attributedTo!
-        
+
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
         if (like.event.user) {
@@ -185,7 +185,7 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         const isPublic = true
 
         const likeActivity = buildLikeActivity(
@@ -199,7 +199,7 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
 
         // Deliver to event author and their followers
         await deliverToActors(undoActivity, [eventAuthorUrl], userId)
-        
+
         // Also deliver to event author's followers if event is public
         if (eventAuthorFollowersUrl && like.event.user) {
             await deliverToFollowers(undoActivity, like.event.user.id)

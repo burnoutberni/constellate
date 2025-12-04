@@ -4,7 +4,7 @@
  */
 
 import { Context } from 'hono'
-import { z, ZodError } from 'zod'
+import { ZodError } from 'zod'
 import { config } from '../config.js'
 
 /**
@@ -40,32 +40,32 @@ export function handleError(error: unknown, c: Context): Response {
             error: error.code,
             message: error.message,
         }
-        
+
         // Only include details in development
         if (config.isDevelopment && error.details !== undefined) {
             response.details = error.details
         }
-        
+
         return c.json(response, error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500)
     }
-    
+
     // Handle Zod validation errors
     if (error instanceof ZodError) {
         const response: ErrorResponse = {
             error: 'VALIDATION_ERROR',
             message: 'Invalid input data',
         }
-        
+
         if (config.isDevelopment) {
             response.details = error.issues
         }
-        
+
         return c.json(response, 400 as const)
     }
-    
+
     // Log full error server-side (for debugging)
     console.error('[Error Handler] Unhandled error:', error)
-    
+
     // Return generic error to client (no sensitive information)
     return c.json({
         error: 'INTERNAL_ERROR',
@@ -77,24 +77,24 @@ export function handleError(error: unknown, c: Context): Response {
  * Common error factories
  */
 export const Errors = {
-    notFound: (resource: string = 'Resource') => 
+    notFound: (resource: string = 'Resource') =>
         new AppError('NOT_FOUND', `${resource} not found`, 404),
-    
+
     unauthorized: (message: string = 'Authentication required') =>
         new AppError('UNAUTHORIZED', message, 401),
-    
+
     forbidden: (message: string = 'Access forbidden') =>
         new AppError('FORBIDDEN', message, 403),
-    
+
     badRequest: (message: string = 'Bad request') =>
         new AppError('BAD_REQUEST', message, 400),
-    
+
     conflict: (message: string = 'Resource conflict') =>
         new AppError('CONFLICT', message, 409),
-    
+
     tooManyRequests: (message: string = 'Too many requests') =>
         new AppError('TOO_MANY_REQUESTS', message, 429),
-    
+
     internal: (message: string = 'Internal server error') =>
         new AppError('INTERNAL_ERROR', message, 500),
 }

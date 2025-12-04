@@ -185,13 +185,28 @@ function parseSignatureHeader(header: string): {
     signature: string
 } | null {
     try {
+        // Limit header length to prevent ReDoS attacks
+        if (header.length > 10000) {
+            return null
+        }
+
         const params: Record<string, string> = {}
 
-        // Parse key="value" pairs
-        const regex = /(\w+)="([^"]+)"/g
-        let match
-        while ((match = regex.exec(header)) !== null) {
-            params[match[1]] = match[2]
+        // Parse key="value" pairs using a safer method to avoid ReDoS
+        // Split by comma first, then parse each pair
+        const pairs = header.split(',')
+        for (const pair of pairs) {
+            const trimmed = pair.trim()
+            const equalIndex = trimmed.indexOf('=')
+            if (equalIndex === -1) continue
+            
+            const key = trimmed.substring(0, equalIndex).trim()
+            const valueWithQuotes = trimmed.substring(equalIndex + 1).trim()
+            
+            // Remove surrounding quotes
+            if (valueWithQuotes.startsWith('"') && valueWithQuotes.endsWith('"')) {
+                params[key] = valueWithQuotes.slice(1, -1)
+            }
         }
 
         if (!params.keyId || !params.algorithm || !params.headers || !params.signature) {
@@ -204,7 +219,7 @@ function parseSignatureHeader(header: string): {
             headers: params.headers.split(' '),
             signature: params.signature,
         }
-    } catch (error) {
+    } catch {
         return null
     }
 }
@@ -236,7 +251,7 @@ async function fetchPublicKey(keyId: string): Promise<string | null> {
             return null
         }
 
-        const actor: any = await response.json()
+        const actor = await response.json() as { publicKey?: { publicKeyPem?: string } }
 
         // Extract public key
         let publicKey: string | null = null

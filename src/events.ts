@@ -3,7 +3,7 @@
  * CRUD operations for events with ActivityPub federation
  */
 
-import { Hono, Context } from 'hono'
+import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
@@ -80,10 +80,23 @@ app.post('/', moderateRateLimit, async (c) => {
         const activity = buildCreateEventActivity({ ...event, user }, userId)
 
         // Use deliverActivity with proper addressing to reach all recipients
-        const { getPublicAddressing } = await import('./lib/audience.js')
+        let toArray: string[] = []
+        if (Array.isArray(activity.to)) {
+            toArray = activity.to
+        } else if (activity.to) {
+            toArray = [activity.to]
+        }
+
+        let ccArray: string[] = []
+        if (Array.isArray(activity.cc)) {
+            ccArray = activity.cc
+        } else if (activity.cc) {
+            ccArray = [activity.cc]
+        }
+
         const addressing = {
-            to: Array.isArray(activity.to) ? activity.to : activity.to ? [activity.to] : [],
-            cc: Array.isArray(activity.cc) ? activity.cc : activity.cc ? [activity.cc] : [],
+            to: toArray,
+            cc: ccArray,
             bcc: [] as string[],
         }
         await deliverActivity(activity, addressing, userId)
@@ -468,9 +481,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     if (likes?.items) {
                         for (const like of likes.items) {
                             const likeObj = like as Record<string, unknown> | string
-                            const actorUrl = typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj
-                                ? (likeObj.actor as string)
-                                : typeof likeObj === 'string' ? likeObj : undefined
+                            let actorUrl: string | undefined
+                            if (typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj) {
+                                actorUrl = likeObj.actor as string
+                            } else if (typeof likeObj === 'string') {
+                                actorUrl = likeObj
+                            }
 
                             let likerUser = await prisma.user.findFirst({
                                 where: { externalActorUrl: actorUrl },

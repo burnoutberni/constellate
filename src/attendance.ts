@@ -11,7 +11,6 @@ import {
     buildMaybeAttendingActivity,
     buildUndoActivity,
 } from './services/ActivityBuilder.js'
-import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { AttendanceStatus } from './constants/activitypub.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
@@ -75,7 +74,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventUrl = event.externalId || `${baseUrl}/events/${id}`
         const eventAuthorUrl = event.attributedTo!
-        
+
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
         if (event.user) {
@@ -86,10 +85,10 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         // Get user's followers URL
         const userFollowersUrl = `${baseUrl}/users/${user.username}/followers`
-        
+
         // Determine if event is public (default to true)
         const isPublic = true
 
@@ -131,7 +130,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             cc: activity.cc || [],
             bcc: [],
         }
-        
+
         // Deliver using addressing (will resolve all recipients and deduplicate inboxes)
         await deliverActivity(activity, addressing, userId)
 
@@ -204,7 +203,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventUrl = attendance.event.externalId || `${baseUrl}/events/${id}`
         const eventAuthorUrl = attendance.event.attributedTo!
-        
+
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
         if (attendance.event.user) {
@@ -215,10 +214,10 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
                 eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
             }
         }
-        
+
         // Get user's followers URL
         const userFollowersUrl = `${baseUrl}/users/${user.username}/followers`
-        
+
         const isPublic = true
 
         let originalActivity
@@ -256,12 +255,27 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         // Build addressing from undo activity's to/cc fields
         // The original activity already includes userFollowersUrl in cc, which is preserved in undo
         const { deliverActivity } = await import('./services/ActivityDelivery.js')
+        
+        let toArray: string[] = []
+        if (Array.isArray(undoActivity.to)) {
+            toArray = undoActivity.to
+        } else if (undoActivity.to) {
+            toArray = [undoActivity.to]
+        }
+
+        let ccArray: string[] = []
+        if (Array.isArray(undoActivity.cc)) {
+            ccArray = undoActivity.cc
+        } else if (undoActivity.cc) {
+            ccArray = [undoActivity.cc]
+        }
+
         const addressing = {
-            to: Array.isArray(undoActivity.to) ? undoActivity.to : undoActivity.to ? [undoActivity.to] : [],
-            cc: Array.isArray(undoActivity.cc) ? undoActivity.cc : undoActivity.cc ? [undoActivity.cc] : [],
+            to: toArray,
+            cc: ccArray,
             bcc: [] as string[],
         }
-        
+
         // Deliver using addressing (will resolve all recipients and deduplicate inboxes)
         await deliverActivity(undoActivity, addressing, userId)
 

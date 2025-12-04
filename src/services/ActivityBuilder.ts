@@ -9,7 +9,6 @@ import {
     ObjectType,
     ACTIVITYPUB_CONTEXTS,
     PUBLIC_COLLECTION,
-    AttendanceStatus,
 } from '../constants/activitypub.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
 import type { Event, User, Comment } from '@prisma/client'
@@ -24,7 +23,6 @@ import type {
     UndoActivity,
     AnnounceActivity,
     TentativeAcceptActivity,
-    Activity,
 } from '../lib/activitypubSchemas.js'
 
 /**
@@ -32,7 +30,7 @@ import type {
  */
 export function buildCreateEventActivity(
     event: Event & { user: User | null },
-    userId: string
+    _userId: string
 ): CreateActivity {
     const baseUrl = getBaseUrl()
     const user = event.user!
@@ -82,7 +80,7 @@ export function buildCreateEventActivity(
  */
 export function buildUpdateEventActivity(
     event: Event & { user: User | null },
-    userId: string
+    _userId: string
 ): UpdateActivity {
     const baseUrl = getBaseUrl()
     const user = event.user!
@@ -211,7 +209,7 @@ export function buildRejectFollowActivity(
         id: `${actorUrl}/rejects/${randomUUID()}`,
         type: ActivityType.REJECT,
         actor: actorUrl,
-        object: typeof followActivity === 'string' ? followActivity : followActivity,
+        object: followActivity,
         published: new Date().toISOString(),
     }
 }
@@ -299,7 +297,7 @@ export function buildAttendingActivity(
     eventAuthorFollowersUrl?: string,
     userFollowersUrl?: string,
     isPublic: boolean = true
-): any {
+): AcceptActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
 
@@ -501,7 +499,6 @@ export function buildDeleteCommentActivity(
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${comment.author.username}`
     const commentUrl = comment.externalId || `${baseUrl}/comments/${comment.id}`
-    const followersUrl = `${baseUrl}/users/${comment.author.username}/followers`
 
     // Determine addressing (same as original comment)
     const to: string[] = [eventAuthorUrl]

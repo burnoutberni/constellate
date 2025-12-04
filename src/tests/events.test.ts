@@ -119,22 +119,28 @@ describe('Events API', () => {
 
     describe('GET /events', () => {
         it('should list events', async () => {
-            // Create test events
-            await prisma.event.createMany({
-                data: [
-                    {
-                        title: 'Event 1',
-                        startTime: new Date(Date.now() + 86400000),
-                        userId: testUser.id,
-                        attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    },
-                    {
-                        title: 'Event 2',
-                        startTime: new Date(Date.now() + 172800000),
-                        userId: testUser.id,
-                        attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    },
-                ],
+            // Ensure user exists before creating events
+            const user = await prisma.user.findUnique({ where: { id: testUser.id } })
+            if (!user) {
+                throw new Error('Test user not found')
+            }
+
+            // Create test events using individual create calls to avoid foreign key issues
+            await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+            await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 172800000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
             })
 
             const res = await app.request('/api/events')
@@ -147,15 +153,25 @@ describe('Events API', () => {
         })
 
         it('should support pagination', async () => {
-            // Create multiple events
-            await prisma.event.createMany({
-                data: Array.from({ length: 25 }, (_, i) => ({
-                    title: `Event ${i + 1}`,
-                    startTime: new Date(Date.now() + (i + 1) * 86400000),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                })),
-            })
+            // Ensure user exists before creating events
+            const user = await prisma.user.findUnique({ where: { id: testUser.id } })
+            if (!user) {
+                throw new Error('Test user not found')
+            }
+
+            // Create multiple events using Promise.all to avoid foreign key issues
+            await Promise.all(
+                Array.from({ length: 25 }, (_, i) =>
+                    prisma.event.create({
+                        data: {
+                            title: `Event ${i + 1}`,
+                            startTime: new Date(Date.now() + (i + 1) * 86400000),
+                            userId: testUser.id,
+                            attributedTo: `${baseUrl}/users/${testUser.username}`,
+                        },
+                    })
+                )
+            )
 
             const res = await app.request('/api/events?page=1&limit=10')
 
@@ -176,21 +192,22 @@ describe('Events API', () => {
                 },
             })
 
-            await prisma.event.createMany({
-                data: [
-                    {
-                        title: 'My Event',
-                        startTime: new Date(Date.now() + 86400000),
-                        userId: testUser.id,
-                        attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    },
-                    {
-                        title: 'Other Event',
-                        startTime: new Date(Date.now() + 86400000),
-                        userId: otherUser.id,
-                        attributedTo: `${baseUrl}/users/${otherUser.username}`,
-                    },
-                ],
+            // Create events using individual create calls to avoid foreign key issues
+            await prisma.event.create({
+                data: {
+                    title: 'My Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+            await prisma.event.create({
+                data: {
+                    title: 'Other Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: otherUser.id,
+                    attributedTo: `${baseUrl}/users/${otherUser.username}`,
+                },
             })
 
             const res = await app.request('/api/events')

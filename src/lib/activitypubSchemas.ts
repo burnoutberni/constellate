@@ -13,7 +13,6 @@ import {
 } from '../constants/activitypub.js'
 
 // Base schemas
-const urlOrObject = z.union([z.string().url(), z.record(z.string(), z.unknown())])
 const urlOrArray = z.union([z.string().url(), z.array(z.string().url())])
 
 // Image schema
@@ -110,17 +109,7 @@ export const TombstoneSchema = z.object({
 })
 
 // Generic object schema
-const ObjectSchema = z.union([
-    z.string().url(),
-    EventSchema,
-    PersonSchema,
-    NoteSchema,
-    TombstoneSchema,
-    z.object({
-        id: z.string().url(),
-        type: z.string(),
-    }),
-])
+
 
 // Activity base schema
 const BaseActivitySchema = z.object({

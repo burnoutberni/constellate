@@ -58,7 +58,7 @@ export const auth = betterAuth({
     },
     magicLink: {
         enabled: true,
-        sendMagicLink: async ({ email, token, url }: { email: string; token: string; url: string }, request?: Request) => {
+        sendMagicLink: async ({ email, token: _token, url }: { email: string; token: string; url: string }, _request?: Request) => {
             await sendEmail({
                 to: email,
                 subject: 'Login to Constellate',

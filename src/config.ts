@@ -83,7 +83,7 @@ export const config = {
                 console.log('   This key will persist across container restarts in development.')
             }
             return devKey
-        } catch (error) {
+        } catch {
             // If file operations fail (e.g., in tests or read-only filesystem), fall back to in-memory key
             const devKey = randomBytes(32).toString('hex')
             if (!isTest) {

@@ -8,10 +8,10 @@ import {
     ACTIVITYPUB_CONTEXTS,
     CollectionType,
     ContentType,
-    PAGINATION,
 } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
+import type { Person } from './activitypubSchemas.js'
 
 /**
  * Gets the base URL for this instance
@@ -34,7 +34,7 @@ export async function resolveWebFinger(resource: string): Promise<string | null>
             return null
         }
 
-        const [, username, domain] = match
+        const [, , domain] = match
 
         // Use http:// for .local domains in development, https:// otherwise
         const protocol = (process.env.NODE_ENV === 'development' && domain.endsWith('.local')) ? 'http' : 'https'
@@ -50,11 +50,11 @@ export async function resolveWebFinger(resource: string): Promise<string | null>
             return null
         }
 
-        const data: any = await response.json()
+        const data = await response.json() as { links?: Array<{ rel: string; type?: string; href?: string }> }
 
         // Find the ActivityPub link
         const apLink = data.links?.find(
-            (link: any) => link.rel === 'self' && link.type === ContentType.ACTIVITY_JSON
+            (link) => link.rel === 'self' && link.type === ContentType.ACTIVITY_JSON
         )
 
         return apLink?.href || null
@@ -69,7 +69,7 @@ export async function resolveWebFinger(resource: string): Promise<string | null>
  * @param actorUrl - Actor URL
  * @returns Actor object
  */
-export async function fetchActor(actorUrl: string): Promise<any | null> {
+export async function fetchActor(actorUrl: string): Promise<Record<string, unknown> | null> {
     try {
         const response = await safeFetch(actorUrl, {
             headers: {
@@ -81,7 +81,7 @@ export async function fetchActor(actorUrl: string): Promise<any | null> {
             return null
         }
 
-        return await response.json()
+        return await response.json() as Record<string, unknown>
     } catch (error) {
         console.error('Error fetching actor:', error)
         return null
@@ -93,11 +93,11 @@ export async function fetchActor(actorUrl: string): Promise<any | null> {
  * @param actor - Actor object from remote instance
  * @returns User record
  */
-export async function cacheRemoteUser(actor: any) {
+export async function cacheRemoteUser(actor: Person) {
     const actorUrl = actor.id
 
     // Extract username from actor URL or preferredUsername
-    const username = actor.preferredUsername || actorUrl.split('/').pop()
+    const username = actor.preferredUsername || new URL(actorUrl).pathname.split('/').pop()
 
     // Extract inbox URLs
     const inboxUrl = actor.inbox
@@ -144,7 +144,7 @@ export async function cacheRemoteUser(actor: any) {
  */
 export function createOrderedCollection(
     id: string,
-    items: any[],
+    items: unknown[],
     totalItems?: number
 ) {
     return {
@@ -167,12 +167,12 @@ export function createOrderedCollection(
  */
 export function createOrderedCollectionPage(
     id: string,
-    items: any[],
+    items: unknown[],
     partOf: string,
     next?: string,
     prev?: string
 ) {
-    const page: any = {
+    const page: Record<string, unknown> = {
         '@context': ACTIVITYPUB_CONTEXTS,
         id,
         type: CollectionType.ORDERED_COLLECTION_PAGE,
@@ -203,7 +203,7 @@ export function parseActivityId(id: string): {
             path: url.pathname,
             protocol: url.protocol,
         }
-    } catch (error) {
+    } catch {
         return null
     }
 }

@@ -100,9 +100,7 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             // Should not contain past event
             expect(icsContent).not.toContain('SUMMARY:Past Event')
-
-            // Cleanup
-            await prisma.event.delete({ where: { id: pastEvent.id } })
+            // Note: Cleanup is handled by afterEach hook
         })
 
         it('should handle events without user', async () => {
@@ -121,9 +119,7 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('SUMMARY:Event Without User')
             // Should handle missing user gracefully
-
-            // Cleanup
-            await prisma.event.delete({ where: { id: eventWithoutUser.id } })
+            // Note: Cleanup is handled by afterEach hook
         })
 
         it('should include calendar URL in feed', async () => {
@@ -229,9 +225,7 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('SUMMARY:Event Without User')
             // Should handle missing user gracefully
-
-            // Cleanup
-            await prisma.event.delete({ where: { id: eventWithoutUser.id } })
+            // Note: Cleanup is handled by afterEach hook
         })
 
     })

@@ -4,8 +4,33 @@
  */
 
 import { Hono } from 'hono'
-import { requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+
+interface FeedActivity {
+    id: string
+    type: string
+    createdAt: string
+    user: {
+        id: string
+        username: string
+        name: string | null
+        displayColor: string
+        profileImage: string | null
+    } | null
+    event: {
+        id: string
+        title: string
+        startTime: string
+        location: string | null
+        user: {
+            id: string
+            username: string
+            name: string | null
+            displayColor: string
+        } | null
+    }
+    data?: Record<string, unknown>
+}
 
 const app = new Hono()
 
@@ -13,7 +38,7 @@ const app = new Hono()
 app.get('/activity/feed', async (c) => {
     try {
         const userId = c.get('userId')
-        
+
         // If not authenticated, return empty feed
         if (!userId) {
             return c.json({ activities: [] })
@@ -55,16 +80,16 @@ app.get('/activity/feed', async (c) => {
         // Extract user IDs from actor URLs (both local and remote)
         const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
         const followedUserIds: string[] = []
-        
+
         for (const follow of following) {
             let user = null
-            
+
             if (follow.actorUrl.startsWith(baseUrl)) {
                 // Local user - find by username
                 const username = follow.actorUrl.split('/').pop()
                 if (username) {
                     user = await prisma.user.findUnique({
-                        where: { 
+                        where: {
                             username,
                             isRemote: false,
                         },
@@ -74,14 +99,14 @@ app.get('/activity/feed', async (c) => {
             } else {
                 // Remote user - find by externalActorUrl
                 user = await prisma.user.findFirst({
-                    where: { 
+                    where: {
                         externalActorUrl: follow.actorUrl,
                         isRemote: true,
                     },
                     select: { id: true },
                 })
             }
-            
+
             if (user) {
                 followedUserIds.push(user.id)
             } else {
@@ -91,7 +116,7 @@ app.get('/activity/feed', async (c) => {
 
         console.log(`[Activity Feed] User ${userId} follows ${followedUserIds.length} users (after resolving actorUrls):`, followedUserIds)
 
-        const activities: any[] = []
+        const activities: FeedActivity[] = []
 
         // If no followed users, return empty feed
         if (followedUserIds.length === 0) {
@@ -316,7 +341,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
     app.get('/activity/debug', async (c) => {
         try {
             const userId = c.get('userId')
-            
+
             if (!userId) {
                 return c.json({ error: 'Not authenticated' }, 401)
             }
@@ -327,7 +352,6 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
                     actorUrl: true,
                     username: true,
                     accepted: true,
-                    createdAt: true,
                 },
             })
 

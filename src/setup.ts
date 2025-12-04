@@ -15,16 +15,18 @@ app.get('/status', async (c) => {
 
 // Create first admin user
 app.post('/', async (c) => {
-    const userCount = await prisma.user.count()
-    if (userCount > 0) {
-        return c.json({ error: 'Setup already completed' }, 403)
-    }
-
     const body = await c.req.json()
     const { email, password, name, username } = body
 
+    // Validate input first
     if (!email || !username || !name) {
         return c.json({ error: 'Missing required fields' }, 400)
+    }
+
+    // Then check if setup is already completed
+    const userCount = await prisma.user.count()
+    if (userCount > 0) {
+        return c.json({ error: 'Setup already completed' }, 403)
     }
 
     try {

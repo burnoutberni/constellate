@@ -11,6 +11,7 @@ import type { Addressing } from '../lib/audience.js'
 import { ContentType } from '../constants/activitypub.js'
 import { decryptPrivateKey } from '../lib/encryption.js'
 import { prisma } from '../lib/prisma.js'
+import type { Activity } from '../lib/activitypubSchemas.js'
 
 /**
  * Delivers an activity to a single inbox
@@ -19,7 +20,7 @@ import { prisma } from '../lib/prisma.js'
  * @param user - User sending the activity
  */
 export async function deliverToInbox(
-    activity: any,
+    activity: Activity,
     inboxUrl: string,
     user: { username: string; privateKey: string | null }
 ): Promise<boolean> {
@@ -98,7 +99,7 @@ export async function deliverToInbox(
  * @param user - User sending the activity
  */
 export async function deliverToInboxes(
-    activity: any,
+    activity: Activity,
     inboxUrls: string[],
     user: { username: string; privateKey: string | null }
 ): Promise<void> {
@@ -119,7 +120,7 @@ export async function deliverToInboxes(
  * @param userId - User ID
  */
 export async function deliverToFollowers(
-    activity: any,
+    activity: Activity,
     userId: string
 ): Promise<void> {
     const user = await prisma.user.findUnique({
@@ -157,7 +158,7 @@ export async function deliverToFollowers(
  * @param userId - User ID sending the activity
  */
 export async function deliverToActors(
-    activity: any,
+    activity: Activity,
     actorUrls: string[],
     userId: string
 ): Promise<void> {
@@ -198,7 +199,7 @@ export async function deliverToActors(
  * @param userId - User ID sending the activity
  */
 export async function deliverActivity(
-    activity: any,
+    activity: Activity,
     addressing: Addressing,
     userId: string
 ): Promise<void> {
@@ -224,7 +225,7 @@ export async function deliverActivity(
  * @param maxRetries - Maximum number of retries
  */
 export async function deliverWithRetry(
-    activity: any,
+    activity: Activity,
     inboxUrl: string,
     user: { username: string; privateKey: string | null },
     maxRetries: number = 3

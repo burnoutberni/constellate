@@ -86,11 +86,14 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
                    c.req.header('x-real-ip') || 
                    'unknown'
         
-        const key = finalConfig.keyGenerator 
-            ? finalConfig.keyGenerator(c)
-            : userId 
-                ? `user:${userId}` 
-                : `ip:${ip}`
+        let key: string
+        if (finalConfig.keyGenerator) {
+            key = finalConfig.keyGenerator(c)
+        } else if (userId) {
+            key = `user:${userId}`
+        } else {
+            key = `ip:${ip}`
+        }
         
         const now = Date.now()
         const entry = rateLimitStore.get(key)

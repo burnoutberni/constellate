@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { buildCreateCommentActivity, buildDeleteCommentActivity } from './services/ActivityBuilder.js'
-import { deliverToActors, deliverToFollowers, deliverActivity } from './services/ActivityDelivery.js'
+import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'

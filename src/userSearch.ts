@@ -6,8 +6,8 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { resolveWebFinger, fetchActor, cacheRemoteUser, getBaseUrl } from './lib/activitypubHelpers.js'
+import type { Person } from './lib/activitypubSchemas.js'
 import { prisma } from './lib/prisma.js'
-import { safeFetch } from './lib/ssrfProtection.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 
 const app = new Hono()
@@ -302,7 +302,7 @@ app.post('/resolve', async (c) => {
         }
 
         // Cache remote user
-        const remoteUser = await cacheRemoteUser(actor)
+        const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
         return c.json({
             user: {
@@ -556,7 +556,7 @@ app.get('/profile/:username', async (c) => {
 
                     if (actor) {
                         // Cache remote user
-                        const cachedUser = await cacheRemoteUser(actor)
+                        const cachedUser = await cacheRemoteUser(actor as unknown as Person)
 
                         // Re-fetch the user with all fields
                         const refetchedUser = await prisma.user.findFirst({
@@ -694,12 +694,20 @@ app.get('/profile/:username', async (c) => {
 
                             if (!eventId || !eventName || !eventStartTime) continue
 
+                            // Extract location value
+                            let locationValue: string | null = null
+                            if (typeof eventLocation === 'string') {
+                                locationValue = eventLocation
+                            } else if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation) {
+                                locationValue = eventLocation.name as string
+                            }
+
                             await prisma.event.upsert({
                                 where: { externalId: eventId },
                                 update: {
                                     title: eventName,
                                     summary: eventSummary || null,
-                                    location: typeof eventLocation === 'string' ? eventLocation : (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation ? eventLocation.name as string : null),
+                                    location: locationValue,
                                     startTime: new Date(eventStartTime),
                                     endTime: eventEndTime ? new Date(eventEndTime) : null,
                                     duration: eventDuration || null,
@@ -714,7 +722,7 @@ app.get('/profile/:username', async (c) => {
                                     externalId: eventId,
                                     title: eventName,
                                     summary: eventSummary || null,
-                                    location: typeof eventLocation === 'string' ? eventLocation : (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation ? eventLocation.name as string : null),
+                                    location: locationValue,
                                     startTime: new Date(eventStartTime),
                                     endTime: eventEndTime ? new Date(eventEndTime) : null,
                                     duration: eventDuration || null,

@@ -36,7 +36,7 @@ app.post('/block/user', async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const { username, reason } = BlockUserSchema.parse(body)
+        const { username } = BlockUserSchema.parse(body)
 
         // Find target user
         const targetUser = await prisma.user.findUnique({
@@ -196,7 +196,7 @@ app.post('/report', async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const { targetType, targetId, reason, category } = ReportSchema.parse(body)
+        const { targetType, targetId, reason } = ReportSchema.parse(body)
 
         // Verify target exists
         if (targetType === 'user') {

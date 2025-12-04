@@ -58,7 +58,7 @@ app.get('/doc', async (c) => {
         ]
 
         return c.json(openapi)
-    } catch (error) {
+    } catch {
         return c.json({ error: 'OpenAPI spec not found' }, 500)
     }
 })
@@ -173,7 +173,7 @@ app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
                         })
                     }
                 }
-            } catch (err) {
+            } catch {
                 // If we can't parse the response, that's okay - continue
                 // This might happen if the response isn't JSON or is already consumed
             }

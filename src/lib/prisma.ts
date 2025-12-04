@@ -12,11 +12,14 @@ const globalForPrisma = globalThis as unknown as {
 // Determine log level based on environment
 // Set PRISMA_LOG_QUERIES=true to enable query logging
 const shouldLogQueries = process.env.PRISMA_LOG_QUERIES === 'true'
-const logLevel: Prisma.LogLevel[] = shouldLogQueries 
-    ? ['query', 'error', 'warn']
-    : process.env.NODE_ENV === 'development'
-    ? ['error', 'warn']
-    : ['error']
+let logLevel: Prisma.LogLevel[]
+if (shouldLogQueries) {
+    logLevel = ['query', 'error', 'warn']
+} else if (process.env.NODE_ENV === 'development') {
+    logLevel = ['error', 'warn']
+} else {
+    logLevel = ['error']
+}
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
     log: logLevel,

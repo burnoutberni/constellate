@@ -12,11 +12,17 @@ import { requireAuth } from './middleware/auth.js'
 const app = new Hono()
 
 
+interface SSEStream {
+    writeSSE(message: { data: string; event?: string; id?: string; retry?: number }): Promise<void>
+    sleep(ms: number): Promise<unknown>
+    close(): Promise<void>
+}
+
 // Connected clients registry
 interface Client {
     id: string
     userId: string // Now required
-    stream: any // Hono SSE stream
+    stream: SSEStream // Hono SSE stream
 }
 
 const clients = new Map<string, Client>()
@@ -31,7 +37,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
     const clientId = crypto.randomUUID()
 
 
-    return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (stream: SSEStream) => {
         // Store client
         const client: Client = {
             id: clientId,
@@ -60,7 +66,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
                     data: JSON.stringify({ type: 'heartbeat' }),
                     event: 'heartbeat',
                 })
-            } catch (error) {
+            } catch {
                 console.log(`❌ Heartbeat failed for client ${clientId}`)
                 clearInterval(heartbeatInterval)
                 clients.delete(clientId)
@@ -86,7 +92,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
  */
 export async function broadcast(event: {
     type: string
-    data: any
+    data: Record<string, unknown>
     userId?: string
     targetUserId?: string // If set, only send to this specific user's clients
 }) {
@@ -136,24 +142,24 @@ export async function broadcast(event: {
 /**
  * Broadcast to specific user's clients
  */
-export async function broadcastToUser(userId: string, event: { type: string; data: any }) {
-    const message = {
-        ...event,
-        timestamp: new Date().toISOString(),
-    }
+export async function broadcastToUser(userId: string, event: { type: string; data: Record<string, unknown> }) {
+    const { type, data } = event
 
     let count = 0
-    const promises = Array.from(clients.entries()).map(async ([id, client]) => {
+    const promises = Array.from(clients.entries()).map(async ([clientId, client]) => {
         if (client.userId === userId) {
             try {
-                await client.stream.writeSSE({
-                    data: JSON.stringify(message),
-                    event: event.type,
+                // We can't easily type the stream write method without Hono's internal types
+                const stream = client.stream
+                await stream.writeSSE({
+                    data: JSON.stringify(data),
+                    event: type,
+                    id: String(Date.now()),
                 })
                 count++
             } catch (error) {
-                console.error(`Failed to send to client ${id}:`, error)
-                clients.delete(id)
+                console.error(`Failed to send to client ${clientId}:`, error)
+                clients.delete(clientId)
             }
         }
     })

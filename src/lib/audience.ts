@@ -144,7 +144,6 @@ export async function resolveInboxes(
     userId: string
 ): Promise<string[]> {
     const inboxes = new Set<string>()
-    const baseUrl = getBaseUrl()
 
     // Process 'to' field
     for (const recipient of addressing.to) {

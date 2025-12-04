@@ -9,8 +9,7 @@ import {
     AttendanceStatus,
 } from './constants/activitypub.js'
 import {
-    isActivityProcessed,
-    markActivityProcessed,
+
     cacheRemoteUser,
     fetchActor,
     getBaseUrl,
@@ -24,7 +23,19 @@ import {
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
-import type { Activity } from './lib/activitypubSchemas.js'
+import type {
+    Activity,
+    FollowActivity,
+    AcceptActivity,
+    CreateActivity,
+    UpdateActivity,
+    DeleteActivity,
+    LikeActivity,
+    UndoActivity,
+    Person,
+    Event as ActivityPubEvent,
+    Note as ActivityPubNote,
+} from './lib/activitypubSchemas.js'
 
 /**
  * Main activity handler - routes to specific handlers
@@ -59,25 +70,25 @@ export async function handleActivity(activity: Activity): Promise<void> {
         // Route to specific handler
         switch (activity.type) {
             case ActivityType.FOLLOW:
-                await handleFollow(activity)
+                await handleFollow(activity as FollowActivity)
                 break
             case ActivityType.ACCEPT:
-                await handleAccept(activity)
+                await handleAccept(activity as AcceptActivity)
                 break
             case ActivityType.CREATE:
-                await handleCreate(activity)
+                await handleCreate(activity as CreateActivity)
                 break
             case ActivityType.UPDATE:
-                await handleUpdate(activity)
+                await handleUpdate(activity as UpdateActivity)
                 break
             case ActivityType.DELETE:
-                await handleDelete(activity)
+                await handleDelete(activity as DeleteActivity)
                 break
             case ActivityType.LIKE:
-                await handleLike(activity)
+                await handleLike(activity as LikeActivity)
                 break
             case ActivityType.UNDO:
-                await handleUndo(activity)
+                await handleUndo(activity as UndoActivity)
                 break
             case ActivityType.ANNOUNCE:
                 await handleAnnounce(activity)
@@ -102,7 +113,7 @@ export async function handleActivity(activity: Activity): Promise<void> {
 /**
  * Handle Follow activity
  */
-async function handleFollow(activity: any): Promise<void> {
+async function handleFollow(activity: FollowActivity): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = activity.object
 
@@ -130,13 +141,13 @@ async function handleFollow(activity: any): Promise<void> {
         return
     }
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
     // Check if user auto-accepts followers
     const shouldAutoAccept = (targetUser as unknown as { autoAcceptFollowers?: boolean }).autoAcceptFollowers ?? true
 
     // Create or update follower record
-    const follower = await prisma.follower.upsert({
+    await prisma.follower.upsert({
         where: {
             userId_actorUrl: {
                 userId: targetUser.id,
@@ -194,7 +205,7 @@ async function handleFollow(activity: any): Promise<void> {
 /**
  * Handle Accept activity (for our Follow requests)
  */
-async function handleAccept(activity: any): Promise<void> {
+async function handleAccept(activity: AcceptActivity): Promise<void> {
     const actorUrl = activity.actor
     const object = activity.object
 
@@ -222,14 +233,14 @@ async function handleAccept(activity: any): Promise<void> {
     console.log(`[handleAccept] Full object: ${JSON.stringify(object, null, 2)}`)
 }
 
-async function handleAcceptEvent(activity: any, object: any): Promise<void> {
+async function handleAcceptEvent(activity: AcceptActivity, object: string | ActivityPubEvent | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = typeof object === 'string' ? object : object.id
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
     const event = await prisma.event.findFirst({
         where: {
@@ -281,7 +292,7 @@ async function handleAcceptEvent(activity: any, object: any): Promise<void> {
     console.log(`✅ Attending from ${actorUrl}`)
 }
 
-async function handleAcceptFollow(activity: any, followActivity: any): Promise<void> {
+async function handleAcceptFollow(activity: AcceptActivity, followActivity: FollowActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
 
     const followerUrl = followActivity.actor
@@ -300,7 +311,7 @@ async function handleAcceptFollow(activity: any, followActivity: any): Promise<v
 
     const username = followerUrl.split('/').pop()
     console.log(`[handleAcceptFollow] Looking up local user: ${username}`)
-    
+
     const localUser = await prisma.user.findUnique({
         where: { username, isRemote: false },
     })
@@ -364,7 +375,7 @@ async function handleAcceptFollow(activity: any, followActivity: any): Promise<v
 /**
  * Handle Create activity
  */
-async function handleCreate(activity: any): Promise<void> {
+async function handleCreate(activity: CreateActivity): Promise<void> {
     const object = activity.object
 
     if (!object || !object.type) {
@@ -387,7 +398,7 @@ async function handleCreate(activity: any): Promise<void> {
 /**
  * Handle Create Event
  */
-async function handleCreateEvent(activity: any, event: any): Promise<void> {
+async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
 
     // Cache remote user
@@ -397,7 +408,7 @@ async function handleCreateEvent(activity: any, event: any): Promise<void> {
         return
     }
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
     // Create event in database
     const createdEvent = await prisma.event.upsert({
@@ -470,14 +481,14 @@ async function handleCreateEvent(activity: any, event: any): Promise<void> {
 /**
  * Handle Create Note (comment)
  */
-async function handleCreateNote(activity: any, note: any): Promise<void> {
+async function handleCreateNote(activity: CreateActivity, note: ActivityPubNote | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
 
     // Cache remote user
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
     // Find the event this comment is for
     const inReplyTo = note.inReplyTo
@@ -547,7 +558,7 @@ async function handleCreateNote(activity: any, note: any): Promise<void> {
 /**
  * Handle Update activity
  */
-async function handleUpdate(activity: any): Promise<void> {
+async function handleUpdate(activity: UpdateActivity): Promise<void> {
     const object = activity.object
 
     if (!object || !object.type) return
@@ -567,7 +578,7 @@ async function handleUpdate(activity: any): Promise<void> {
 /**
  * Handle Update Event
  */
-async function handleUpdateEvent(event: any): Promise<void> {
+async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
     await prisma.event.updateMany({
         where: { externalId: event.id },
         data: {
@@ -586,7 +597,7 @@ async function handleUpdateEvent(event: any): Promise<void> {
 /**
  * Handle Update Person (profile)
  */
-async function handleUpdatePerson(person: any): Promise<void> {
+async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
     await prisma.user.updateMany({
         where: { externalActorUrl: person.id },
         data: {
@@ -604,7 +615,7 @@ async function handleUpdatePerson(person: any): Promise<void> {
 /**
  * Handle Delete activity
  */
-async function handleDelete(activity: any): Promise<void> {
+async function handleDelete(activity: DeleteActivity): Promise<void> {
     const object = activity.object
     const objectId = typeof object === 'string' ? object : object.id
     const formerType = typeof object === 'object' ? object.formerType : null
@@ -649,7 +660,7 @@ async function handleDelete(activity: any): Promise<void> {
 
     if (deletedEvents.length > 0) {
         const eventIds = deletedEvents.map(e => e.id)
-        
+
         // Delete events
         await prisma.event.deleteMany({
             where: { externalId: objectId },
@@ -675,7 +686,7 @@ async function handleDelete(activity: any): Promise<void> {
 /**
  * Handle Like activity
  */
-async function handleLike(activity: any): Promise<void> {
+async function handleLike(activity: LikeActivity): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = activity.object
 
@@ -683,7 +694,7 @@ async function handleLike(activity: any): Promise<void> {
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
 
     // Find event
     const event = await prisma.event.findFirst({
@@ -728,7 +739,7 @@ async function handleLike(activity: any): Promise<void> {
 /**
  * Handle Undo activity
  */
-async function handleUndo(activity: any): Promise<void> {
+async function handleUndo(activity: UndoActivity): Promise<void> {
     const object = activity.object
 
     if (!object || !object.type) return
@@ -753,7 +764,7 @@ async function handleUndo(activity: any): Promise<void> {
 /**
  * Handle Undo Like
  */
-async function handleUndoLike(activity: any, likeActivity: any): Promise<void> {
+async function handleUndoLike(activity: UndoActivity, likeActivity: LikeActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = likeActivity.object
 
@@ -796,7 +807,7 @@ async function handleUndoLike(activity: any, likeActivity: any): Promise<void> {
 /**
  * Handle Undo Follow
  */
-async function handleUndoFollow(activity: any, followActivity: any): Promise<void> {
+async function handleUndoFollow(activity: UndoActivity, followActivity: FollowActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = followActivity.object
 
@@ -844,7 +855,7 @@ async function handleUndoFollow(activity: any, followActivity: any): Promise<voi
 /**
  * Handle Undo Attendance
  */
-async function handleUndoAttendance(activity: any, attendanceActivity: any): Promise<void> {
+async function handleUndoAttendance(activity: UndoActivity | Record<string, unknown>, attendanceActivity: AcceptActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = attendanceActivity.object
 
@@ -894,76 +905,15 @@ async function handleUndoAttendance(activity: any, attendanceActivity: any): Pro
 /**
  * Handle Announce activity (for "maybe" attendance or shares)
  */
-async function handleAnnounce(activity: any): Promise<void> {
+async function handleAnnounce(activity: Activity | Record<string, unknown>): Promise<void> {
     // Announce handling for shares/boosts can be implemented here
     console.log(`Received Announce from ${activity.actor}`)
 }
 
 /**
- * Handle "maybe" attendance
+ * Handle TentativeAccept activity (maybe attending)
  */
-async function handleMaybeAttendance(activity: any): Promise<void> {
-    const actorUrl = activity.actor
-    const objectUrl = activity.object
-
-    const actor = await fetchActor(actorUrl)
-    if (!actor) return
-
-    const remoteUser = await cacheRemoteUser(actor)
-
-    const event = await prisma.event.findFirst({
-        where: {
-            OR: [
-                { externalId: objectUrl },
-                { id: objectUrl.split('/').pop() },
-            ],
-        },
-    })
-
-    if (!event) return
-
-    await prisma.eventAttendance.upsert({
-        where: {
-            eventId_userId: {
-                eventId: event.id,
-                userId: remoteUser.id,
-            },
-        },
-        update: {
-            status: AttendanceStatus.MAYBE,
-        },
-        create: {
-            eventId: event.id,
-            userId: remoteUser.id,
-            status: AttendanceStatus.MAYBE,
-            externalId: activity.id,
-        },
-    })
-
-    // Broadcast update
-    await broadcast({
-        type: BroadcastEvents.ATTENDANCE_UPDATED,
-        data: {
-            eventId: event.id,
-            userId: remoteUser.id,
-            status: AttendanceStatus.MAYBE,
-            user: {
-                id: remoteUser.id,
-                username: remoteUser.username,
-                name: remoteUser.name,
-                profileImage: remoteUser.profileImage,
-                isRemote: true,
-            },
-        },
-    })
-
-    console.log(`✅ Maybe attending from ${actorUrl}`)
-}
-
-/**
- * Handle TentativeAccept activity (attending)
- */
-async function handleTentativeAccept(activity: any): Promise<void> {
+async function handleTentativeAccept(activity: Activity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const objectUrl = activity.object
 
@@ -1024,7 +974,7 @@ async function handleTentativeAccept(activity: any): Promise<void> {
 /**
  * Handle Reject activity (not attending or follow rejection)
  */
-async function handleReject(activity: any): Promise<void> {
+async function handleReject(activity: Activity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
     const object = activity.object
     const baseUrl = getBaseUrl()

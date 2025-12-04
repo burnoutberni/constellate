@@ -3,7 +3,7 @@
  * Protects against Cross-Site Request Forgery attacks
  */
 
-import { Context, Next } from 'hono'
+
 import { csrf } from 'hono/csrf'
 import { config } from '../config.js'
 

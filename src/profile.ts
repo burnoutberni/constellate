@@ -375,7 +375,7 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
             })
 
             // Create following record - for local users, accepted status matches auto-accept setting
-            const following = await prisma.following.create({
+            await prisma.following.create({
                 data: {
                     userId,
                     actorUrl: targetActorUrl,
@@ -391,7 +391,7 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
             // The records are already in the correct state
         } else {
             // Remote user - create following record as unaccepted, will be updated when they accept
-            const following = await prisma.following.create({
+            await prisma.following.create({
                 data: {
                     userId,
                     actorUrl: targetActorUrl,
