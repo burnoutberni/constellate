@@ -125,9 +125,25 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         // Build addressing from activity's to/cc fields
         // The activity already includes userFollowersUrl in cc, so we just use the activity's addressing
         const { deliverActivity } = await import('./services/ActivityDelivery.js')
+        
+        // Normalize to/cc to string arrays
+        let toArray: string[] = []
+        if (Array.isArray(activity.to)) {
+            toArray = activity.to
+        } else if (activity.to) {
+            toArray = [activity.to]
+        }
+
+        let ccArray: string[] = []
+        if (Array.isArray(activity.cc)) {
+            ccArray = activity.cc
+        } else if (activity.cc) {
+            ccArray = [activity.cc]
+        }
+
         const addressing = {
-            to: activity.to || [],
-            cc: activity.cc || [],
+            to: toArray,
+            cc: ccArray,
             bcc: [],
         }
 

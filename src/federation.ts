@@ -141,7 +141,8 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
         return
     }
 
-    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
 
     // Check if user auto-accepts followers
     const shouldAutoAccept = (targetUser as unknown as { autoAcceptFollowers?: boolean }).autoAcceptFollowers ?? true
@@ -161,9 +162,9 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
             userId: targetUser.id,
             actorUrl,
             username: remoteUser.username,
-            inboxUrl: actor.inbox,
-            sharedInboxUrl: actor.endpoints?.sharedInbox || null,
-            iconUrl: actor.icon?.url || null,
+            inboxUrl: actorPerson.inbox,
+            sharedInboxUrl: actorPerson.endpoints?.sharedInbox || null,
+            iconUrl: actorPerson.icon?.url || null,
             accepted: shouldAutoAccept,
         },
     })
@@ -194,7 +195,7 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
     // Send Accept activity only if auto-accepting
     if (shouldAutoAccept) {
         const acceptActivity = buildAcceptActivity(targetUser, activity)
-        const inboxUrl = actor.endpoints?.sharedInbox || actor.inbox
+        const inboxUrl = actorPerson.endpoints?.sharedInbox || actorPerson.inbox
         await deliverToInbox(acceptActivity, inboxUrl, targetUser)
         console.log(`✅ Auto-accepted follow from ${actorUrl}`)
     } else {
@@ -235,12 +236,20 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 
 async function handleAcceptEvent(activity: AcceptActivity, object: string | ActivityPubEvent | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
-    const objectUrl = typeof object === 'string' ? object : object.id
+    let objectUrl: string
+    if (typeof object === 'string') {
+        objectUrl = object
+    } else if (typeof object === 'object' && object !== null && 'id' in object) {
+        objectUrl = object.id as string
+    } else {
+        objectUrl = ''
+    }
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
 
     const event = await prisma.event.findFirst({
         where: {
@@ -295,7 +304,9 @@ async function handleAcceptEvent(activity: AcceptActivity, object: string | Acti
 async function handleAcceptFollow(activity: AcceptActivity, followActivity: FollowActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
 
-    const followerUrl = followActivity.actor
+    const followerUrl = (typeof followActivity === 'object' && followActivity !== null && 'actor' in followActivity) 
+        ? followActivity.actor as string 
+        : ''
     const baseUrl = getBaseUrl()
 
     console.log(`[handleAcceptFollow] Processing Accept activity:`)
@@ -396,6 +407,54 @@ async function handleCreate(activity: CreateActivity): Promise<void> {
 }
 
 /**
+ * Extract event properties from ActivityPub event object
+ */
+function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
+    const eventObj = event as Record<string, unknown>
+    const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
+    const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
+    const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+    const eventContent = typeof eventObj.content === 'string' ? eventObj.content : null
+    const eventLocation = eventObj.location
+    const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
+    const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
+    const eventDuration = typeof eventObj.duration === 'string' ? eventObj.duration : null
+    const eventUrl = typeof eventObj.url === 'string' ? eventObj.url : null
+    const eventStatus = eventObj.eventStatus
+    const eventAttendanceMode = eventObj.eventAttendanceMode
+    const eventMaxCapacity = typeof eventObj.maximumAttendeeCapacity === 'number' ? eventObj.maximumAttendeeCapacity : null
+    const eventAttachment = Array.isArray(eventObj.attachment) ? eventObj.attachment : null
+    const attachmentUrl = eventAttachment && eventAttachment[0] && typeof eventAttachment[0] === 'object' && eventAttachment[0] !== null && 'url' in eventAttachment[0]
+        ? eventAttachment[0].url as string
+        : null
+
+    let locationValue: string | null
+    if (typeof eventLocation === 'string') {
+        locationValue = eventLocation
+    } else if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation && typeof eventLocation.name === 'string') {
+        locationValue = eventLocation.name
+    } else {
+        locationValue = null
+    }
+
+    return {
+        eventId,
+        eventName,
+        eventSummary,
+        eventContent,
+        locationValue,
+        eventStartTime,
+        eventEndTime,
+        eventDuration,
+        eventUrl,
+        eventStatus,
+        eventAttendanceMode,
+        eventMaxCapacity,
+        attachmentUrl,
+    }
+}
+
+/**
  * Handle Create Event
  */
 async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
@@ -408,39 +467,48 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
         return
     }
 
-    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
+
+    // Extract event properties
+    const {
+        eventId,
+        eventName,
+        eventSummary,
+        eventContent,
+        locationValue,
+        eventStartTime,
+        eventEndTime,
+        eventDuration,
+        eventUrl,
+        eventStatus,
+        eventAttendanceMode,
+        eventMaxCapacity,
+        attachmentUrl,
+    } = extractEventProperties(event)
 
     // Create event in database
+    const eventData = {
+        title: eventName,
+        summary: eventSummary || eventContent || null,
+        location: locationValue,
+        startTime: new Date(eventStartTime),
+        endTime: eventEndTime ? new Date(eventEndTime) : null,
+        duration: eventDuration || null,
+        url: eventUrl || null,
+        eventStatus: eventStatus as string | null,
+        eventAttendanceMode: eventAttendanceMode as string | null,
+        maximumAttendeeCapacity: eventMaxCapacity,
+        headerImage: attachmentUrl,
+        attributedTo: actorUrl,
+    }
+
     const createdEvent = await prisma.event.upsert({
-        where: { externalId: event.id },
-        update: {
-            title: event.name,
-            summary: event.summary || event.content || null,
-            location: typeof event.location === 'string' ? event.location : event.location?.name || null,
-            startTime: new Date(event.startTime),
-            endTime: event.endTime ? new Date(event.endTime) : null,
-            duration: event.duration || null,
-            url: event.url || null,
-            eventStatus: event.eventStatus || null,
-            eventAttendanceMode: event.eventAttendanceMode || null,
-            maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
-            headerImage: event.attachment?.[0]?.url || null,
-            attributedTo: actorUrl,
-        },
+        where: { externalId: eventId },
+        update: eventData,
         create: {
-            externalId: event.id,
-            title: event.name,
-            summary: event.summary || event.content || null,
-            location: typeof event.location === 'string' ? event.location : event.location?.name || null,
-            startTime: new Date(event.startTime),
-            endTime: event.endTime ? new Date(event.endTime) : null,
-            duration: event.duration || null,
-            url: event.url || null,
-            eventStatus: event.eventStatus || null,
-            eventAttendanceMode: event.eventAttendanceMode || null,
-            maximumAttendeeCapacity: event.maximumAttendeeCapacity || null,
-            headerImage: event.attachment?.[0]?.url || null,
-            attributedTo: actorUrl,
+            ...eventData,
+            externalId: eventId,
             userId: null, // Remote event
         },
     })
@@ -475,7 +543,7 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
         },
     })
 
-    console.log(`✅ Cached remote event: ${event.name}`)
+    console.log(`✅ Cached remote event: ${eventName}`)
 }
 
 /**
@@ -488,11 +556,16 @@ async function handleCreateNote(activity: CreateActivity, note: ActivityPubNote 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
 
-    // Find the event this comment is for
-    const inReplyTo = note.inReplyTo
+    // Type guard for note properties
+    const noteObj = note as Record<string, unknown>
+    const inReplyTo = typeof noteObj.inReplyTo === 'string' ? noteObj.inReplyTo : null
     if (!inReplyTo) return
+
+    const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
+    const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
 
     // Check if it's replying to an event
     const event = await prisma.event.findFirst({
@@ -512,8 +585,8 @@ async function handleCreateNote(activity: CreateActivity, note: ActivityPubNote 
     // Create comment
     const comment = await prisma.comment.create({
         data: {
-            externalId: note.id,
-            content: note.content,
+            externalId: noteId,
+            content: noteContent,
             eventId: event.id,
             authorId: remoteUser.id,
         },
@@ -532,17 +605,18 @@ async function handleCreateNote(activity: CreateActivity, note: ActivityPubNote 
     })
 
     // Broadcast update
+    const commentWithAuthor = comment as typeof comment & { author: NonNullable<typeof comment.author> }
     const broadcastData = {
         eventId: event.id,
         comment: {
-            id: comment.id,
-            content: comment.content,
-            createdAt: comment.createdAt.toISOString(),
+            id: commentWithAuthor.id,
+            content: commentWithAuthor.content,
+            createdAt: commentWithAuthor.createdAt.toISOString(),
             author: {
-                id: comment.author.id,
-                username: comment.author.username,
-                name: comment.author.name,
-                displayColor: comment.author.displayColor,
+                id: commentWithAuthor.author.id,
+                username: commentWithAuthor.author.username,
+                name: commentWithAuthor.author.name,
+                displayColor: commentWithAuthor.author.displayColor,
             },
         },
     }
@@ -579,37 +653,63 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
  * Handle Update Event
  */
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
+    const eventObj = event as Record<string, unknown>
+    const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
+    const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
+    const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+    const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
+    const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
+    const eventStatus = eventObj.eventStatus
+    const eventLocation = eventObj.location
+    let locationValue: string | null
+    if (typeof eventLocation === 'string') {
+        locationValue = eventLocation
+    } else if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation && typeof eventLocation.name === 'string') {
+        locationValue = eventLocation.name
+    } else {
+        locationValue = null
+    }
+
     await prisma.event.updateMany({
-        where: { externalId: event.id },
+        where: { externalId: eventId },
         data: {
-            title: event.name,
-            summary: event.summary || null,
-            location: typeof event.location === 'string' ? event.location : event.location?.name || null,
-            startTime: new Date(event.startTime),
-            endTime: event.endTime ? new Date(event.endTime) : null,
-            eventStatus: event.eventStatus || null,
+            title: eventName,
+            summary: eventSummary || null,
+            location: locationValue,
+            startTime: new Date(eventStartTime),
+            endTime: eventEndTime ? new Date(eventEndTime) : null,
+            eventStatus: eventStatus as string | null,
         },
     })
 
-    console.log(`✅ Updated remote event: ${event.name}`)
+    console.log(`✅ Updated remote event: ${eventName}`)
 }
 
 /**
  * Handle Update Person (profile)
  */
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
+    const personObj = person as Person
+    const personId = personObj.id
+    const personName = personObj.name || null
+    const personSummary = personObj.summary || null
+    const personDisplayColor = personObj.displayColor || null
+    const personIconUrl = personObj.icon?.url || null
+    const personImageUrl = personObj.image?.url || null
+    const personPreferredUsername = personObj.preferredUsername
+
     await prisma.user.updateMany({
-        where: { externalActorUrl: person.id },
+        where: { externalActorUrl: personId },
         data: {
-            name: person.name || null,
-            bio: person.summary || null,
-            displayColor: person.displayColor || null,
-            profileImage: person.icon?.url || null,
-            headerImage: person.image?.url || null,
+            name: personName,
+            bio: personSummary,
+            displayColor: personDisplayColor,
+            profileImage: personIconUrl,
+            headerImage: personImageUrl,
         },
     })
 
-    console.log(`✅ Updated remote user profile: ${person.preferredUsername}`)
+    console.log(`✅ Updated remote user profile: ${personPreferredUsername}`)
 }
 
 /**
@@ -617,8 +717,17 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
  */
 async function handleDelete(activity: DeleteActivity): Promise<void> {
     const object = activity.object
-    const objectId = typeof object === 'string' ? object : object.id
-    const formerType = typeof object === 'object' ? object.formerType : null
+    let objectId: string
+    if (typeof object === 'string') {
+        objectId = object
+    } else if (typeof object === 'object' && object !== null && 'id' in object && typeof object.id === 'string') {
+        objectId = object.id
+    } else {
+        objectId = ''
+    }
+    const formerType = typeof object === 'object' && object !== null && 'formerType' in object && typeof object.formerType === 'string'
+        ? object.formerType
+        : null
 
     // Handle comment deletion (Note/Tombstone)
     if (formerType === ObjectType.NOTE || objectId.includes('/comments/')) {
@@ -742,9 +851,15 @@ async function handleLike(activity: LikeActivity): Promise<void> {
 async function handleUndo(activity: UndoActivity): Promise<void> {
     const object = activity.object
 
-    if (!object || !object.type) return
+    if (!object) return
+    
+    const objectType = typeof object === 'object' && object !== null && 'type' in object && typeof object.type === 'string'
+        ? object.type
+        : null
+    
+    if (!objectType) return
 
-    switch (object.type) {
+    switch (objectType) {
         case ActivityType.LIKE:
             await handleUndoLike(activity, object)
             break
@@ -757,7 +872,7 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
             await handleUndoAttendance(activity, object)
             break
         default:
-            console.log(`Unhandled Undo object type: ${object.type}`)
+            console.log(`Unhandled Undo object type: ${objectType}`)
     }
 }
 
@@ -766,7 +881,12 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
  */
 async function handleUndoLike(activity: UndoActivity, likeActivity: LikeActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
-    const objectUrl = likeActivity.object
+    let objectUrl: string
+    if (typeof likeActivity === 'object' && likeActivity !== null && 'object' in likeActivity) {
+        objectUrl = typeof likeActivity.object === 'string' ? likeActivity.object : ''
+    } else {
+        objectUrl = ''
+    }
 
     const remoteUser = await prisma.user.findUnique({
         where: { externalActorUrl: actorUrl },
@@ -809,10 +929,15 @@ async function handleUndoLike(activity: UndoActivity, likeActivity: LikeActivity
  */
 async function handleUndoFollow(activity: UndoActivity, followActivity: FollowActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
-    const objectUrl = followActivity.object
+    let objectUrl: string
+    if (typeof followActivity === 'object' && followActivity !== null && 'object' in followActivity) {
+        objectUrl = typeof followActivity.object === 'string' ? followActivity.object : ''
+    } else {
+        objectUrl = ''
+    }
 
     const baseUrl = getBaseUrl()
-    if (!objectUrl.startsWith(baseUrl)) return
+    if (!objectUrl || !objectUrl.startsWith(baseUrl)) return
 
     const username = objectUrl.split('/').pop()
     const targetUser = await prisma.user.findUnique({
@@ -856,8 +981,18 @@ async function handleUndoFollow(activity: UndoActivity, followActivity: FollowAc
  * Handle Undo Attendance
  */
 async function handleUndoAttendance(activity: UndoActivity | Record<string, unknown>, attendanceActivity: AcceptActivity | Record<string, unknown>): Promise<void> {
-    const actorUrl = activity.actor
-    const objectUrl = attendanceActivity.object
+    let actorUrl: string
+    if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
+        actorUrl = activity.actor
+    } else {
+        actorUrl = ''
+    }
+    let objectUrl: string
+    if (typeof attendanceActivity === 'object' && attendanceActivity !== null && 'object' in attendanceActivity) {
+        objectUrl = typeof attendanceActivity.object === 'string' ? attendanceActivity.object : ''
+    } else {
+        objectUrl = ''
+    }
 
     const remoteUser = await prisma.user.findUnique({
         where: { externalActorUrl: actorUrl },
@@ -907,20 +1042,37 @@ async function handleUndoAttendance(activity: UndoActivity | Record<string, unkn
  */
 async function handleAnnounce(activity: Activity | Record<string, unknown>): Promise<void> {
     // Announce handling for shares/boosts can be implemented here
-    console.log(`Received Announce from ${activity.actor}`)
+    const actorUrl = (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string')
+        ? activity.actor
+        : 'unknown'
+    console.log(`Received Announce from ${actorUrl}`)
 }
 
 /**
  * Handle TentativeAccept activity (maybe attending)
  */
 async function handleTentativeAccept(activity: Activity | Record<string, unknown>): Promise<void> {
-    const actorUrl = activity.actor
-    const objectUrl = activity.object
+    let actorUrl: string
+    if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
+        actorUrl = activity.actor
+    } else {
+        actorUrl = ''
+    }
+    let objectUrl: string
+    if (typeof activity === 'object' && activity !== null && 'object' in activity) {
+        objectUrl = typeof activity.object === 'string' ? activity.object : ''
+    } else {
+        objectUrl = ''
+    }
+    const activityId = (typeof activity === 'object' && activity !== null && 'id' in activity && typeof activity.id === 'string')
+        ? activity.id
+        : null
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
 
     const event = await prisma.event.findFirst({
         where: {
@@ -947,7 +1099,7 @@ async function handleTentativeAccept(activity: Activity | Record<string, unknown
             eventId: event.id,
             userId: remoteUser.id,
             status: AttendanceStatus.MAYBE,
-            externalId: activity.id,
+            externalId: activityId,
         },
     })
 
@@ -972,65 +1124,97 @@ async function handleTentativeAccept(activity: Activity | Record<string, unknown
 }
 
 /**
+ * Handle Reject for a Follow activity
+ */
+async function handleFollowReject(
+    actorUrl: string,
+    followActivity: Record<string, unknown>,
+    remoteUser: { username: string }
+): Promise<boolean> {
+    const baseUrl = getBaseUrl()
+    const followerUrl = (typeof followActivity.actor === 'string') ? followActivity.actor : ''
+
+    // Check if the follower is local
+    if (!followerUrl || !followerUrl.startsWith(baseUrl)) {
+        return false
+    }
+
+    const username = followerUrl.split('/').pop()
+    const localUser = await prisma.user.findUnique({
+        where: { username, isRemote: false },
+    })
+
+    if (!localUser) {
+        return false
+    }
+
+    // Update Following record to mark as rejected
+    // We could delete it, but keeping it with accepted: false allows tracking
+    await prisma.following.updateMany({
+        where: {
+            userId: localUser.id,
+            actorUrl,
+        },
+        data: {
+            accepted: false, // Explicitly rejected
+        },
+    })
+
+    // Broadcast FOLLOW_REJECTED to the follower's clients
+    await broadcastToUser(localUser.id, {
+        type: BroadcastEvents.FOLLOW_REJECTED,
+        data: {
+            username: remoteUser.username,
+            actorUrl,
+            isAccepted: false,
+        },
+    })
+
+    console.log(`❌ Follow request rejected by ${actorUrl}`)
+    return true
+}
+
+/**
  * Handle Reject activity (not attending or follow rejection)
  */
 async function handleReject(activity: Activity | Record<string, unknown>): Promise<void> {
-    const actorUrl = activity.actor
-    const object = activity.object
-    const baseUrl = getBaseUrl()
+    let actorUrl: string
+    if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
+        actorUrl = activity.actor
+    } else {
+        actorUrl = ''
+    }
+    const object = (typeof activity === 'object' && activity !== null && 'object' in activity)
+        ? activity.object
+        : null
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
 
-    const remoteUser = await cacheRemoteUser(actor)
+    const actorPerson = actor as unknown as Person
+    const remoteUser = await cacheRemoteUser(actorPerson)
 
     // Check if this is a Reject for a Follow activity
     // The object could be a Follow activity object or a string URL
-    const isFollowReject = typeof object === 'object' && object.type === ActivityType.FOLLOW
+    const isFollowReject = typeof object === 'object' && object !== null && 'type' in object && object.type === ActivityType.FOLLOW
 
     if (isFollowReject) {
-        // This is a Reject for a follow request
-        const followActivity = object
-        const followerUrl = followActivity.actor
-
-        // Check if the follower is local
-        if (followerUrl && followerUrl.startsWith(baseUrl)) {
-            const username = followerUrl.split('/').pop()
-            const localUser = await prisma.user.findUnique({
-                where: { username, isRemote: false },
-            })
-
-            if (localUser) {
-                // Update Following record to mark as rejected
-                // We could delete it, but keeping it with accepted: false allows tracking
-                await prisma.following.updateMany({
-                    where: {
-                        userId: localUser.id,
-                        actorUrl,
-                    },
-                    data: {
-                        accepted: false, // Explicitly rejected
-                    },
-                })
-
-                // Broadcast FOLLOW_REJECTED to the follower's clients
-                await broadcastToUser(localUser.id, {
-                    type: BroadcastEvents.FOLLOW_REJECTED,
-                    data: {
-                        username: remoteUser.username,
-                        actorUrl,
-                        isAccepted: false,
-                    },
-                })
-
-                console.log(`❌ Follow request rejected by ${actorUrl}`)
-                return
-            }
+        const followActivity = object as Record<string, unknown>
+        const handled = await handleFollowReject(actorUrl, followActivity, remoteUser)
+        if (handled) {
+            return
         }
     }
 
     // Otherwise, treat as event attendance rejection
-    const objectUrl = typeof object === 'string' ? object : object.id
+    let objectUrl: string
+    if (typeof object === 'string') {
+        objectUrl = object
+    } else if (typeof object === 'object' && object !== null && 'id' in object && typeof object.id === 'string') {
+        objectUrl = object.id
+    } else {
+        objectUrl = ''
+    }
     const event = await prisma.event.findFirst({
         where: {
             OR: [
@@ -1041,6 +1225,10 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
     })
 
     if (!event) return
+
+    const activityId = (typeof activity === 'object' && activity !== null && 'id' in activity && typeof activity.id === 'string')
+        ? activity.id
+        : null
 
     await prisma.eventAttendance.upsert({
         where: {
@@ -1056,7 +1244,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
             eventId: event.id,
             userId: remoteUser.id,
             status: AttendanceStatus.NOT_ATTENDING,
-            externalId: activity.id,
+            externalId: activityId,
         },
     })
 

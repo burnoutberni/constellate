@@ -12,6 +12,7 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
+import type { Person } from './lib/activitypubSchemas.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -411,7 +412,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                         const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
                                         const actor = actorUrl ? await fetchActor(actorUrl) : null
                                         if (actor) {
-                                            attendeeUser = await cacheRemoteUser(actor)
+                                            attendeeUser = await cacheRemoteUser(actor as unknown as Person)
                                         }
                                     }
 
@@ -453,7 +454,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                         const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
                                         const actor = await fetchActor(actorUrl)
                                         if (actor) {
-                                            authorUser = await cacheRemoteUser(actor)
+                                            authorUser = await cacheRemoteUser(actor as unknown as Person)
                                         }
                                     }
 
@@ -496,7 +497,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                                 const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
                                 const actor = await fetchActor(actorUrl)
                                 if (actor) {
-                                    likerUser = await cacheRemoteUser(actor)
+                                    likerUser = await cacheRemoteUser(actor as unknown as Person)
                                 }
                             }
 

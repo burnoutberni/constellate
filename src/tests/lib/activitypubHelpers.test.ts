@@ -16,6 +16,7 @@ import {
 import { prisma } from '../../lib/prisma.js'
 import { safeFetch } from '../../lib/ssrfProtection.js'
 import { ContentType } from '../../constants/activitypub.js'
+import type { Person } from '../../lib/activitypubSchemas.js'
 
 // Mock dependencies
 vi.mock('../../lib/prisma.js', () => ({
@@ -204,10 +205,12 @@ describe('activitypubHelpers', () => {
     describe('cacheRemoteUser', () => {
         it('should create a new remote user', async () => {
             const mockActor = {
+                type: 'Person',
                 id: 'https://example.com/users/alice',
                 preferredUsername: 'alice',
                 name: 'Alice Smith',
                 inbox: 'https://example.com/users/alice/inbox',
+                outbox: 'https://example.com/users/alice/outbox',
                 endpoints: {
                     sharedInbox: 'https://example.com/inbox',
                 },
@@ -233,7 +236,7 @@ describe('activitypubHelpers', () => {
 
             vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-            const result = await cacheRemoteUser(mockActor)
+            const result = await cacheRemoteUser(mockActor as unknown as Person)
             expect(result).toEqual(mockUser)
             expect(prisma.user.upsert).toHaveBeenCalledWith({
                 where: { externalActorUrl: 'https://example.com/users/alice' },
@@ -265,7 +268,11 @@ describe('activitypubHelpers', () => {
 
         it('should handle actor without optional fields', async () => {
             const mockActor = {
+                type: 'Person',
                 id: 'https://example.com/users/bob',
+                preferredUsername: 'bob',
+                inbox: 'https://example.com/users/bob/inbox',
+                outbox: 'https://example.com/users/bob/outbox',
             }
 
             const mockUser = {
@@ -277,7 +284,7 @@ describe('activitypubHelpers', () => {
 
             vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-            const result = await cacheRemoteUser(mockActor)
+            const result = await cacheRemoteUser(mockActor as unknown as Person)
             expect(result).toEqual(mockUser)
             expect(prisma.user.upsert).toHaveBeenCalledWith({
                 where: { externalActorUrl: 'https://example.com/users/bob' },
@@ -309,7 +316,11 @@ describe('activitypubHelpers', () => {
 
         it('should extract username from URL when preferredUsername is missing', async () => {
             const mockActor = {
+                type: 'Person',
                 id: 'https://example.com/users/charlie',
+                preferredUsername: 'charlie',
+                inbox: 'https://example.com/users/charlie/inbox',
+                outbox: 'https://example.com/users/charlie/outbox',
             }
 
             const mockUser = {
@@ -319,7 +330,7 @@ describe('activitypubHelpers', () => {
 
             vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-            await cacheRemoteUser(mockActor)
+            await cacheRemoteUser(mockActor as unknown as Person)
             expect(prisma.user.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
                     create: expect.objectContaining({

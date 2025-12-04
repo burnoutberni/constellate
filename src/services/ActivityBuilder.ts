@@ -261,7 +261,7 @@ export function buildLikeActivity(
  */
 export function buildUndoActivity(
     user: User,
-    originalActivity: LikeActivity | FollowActivity | AnnounceActivity | TentativeAcceptActivity
+    originalActivity: LikeActivity | FollowActivity | AnnounceActivity | TentativeAcceptActivity | AcceptActivity | RejectActivity
 ): UndoActivity {
     const baseUrl = getBaseUrl()
     const actorUrl = `${baseUrl}/users/${user.username}`
