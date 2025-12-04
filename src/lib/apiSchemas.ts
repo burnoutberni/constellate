@@ -41,6 +41,8 @@ export const EventInputSchema = z.object({
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
     maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
     visibility: EventVisibilitySchema.optional().openapi({ example: 'FOLLOWERS' }),
+    recurrencePattern: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).optional().openapi({ example: 'WEEKLY' }),
+    recurrenceEndDate: z.string().datetime().optional().openapi({ example: '2025-03-01T09:00:00Z' }),
 }).openapi('EventInput')
 
 export const EventSchema = z.object({
@@ -56,6 +58,8 @@ export const EventSchema = z.object({
     eventStatus: z.string().nullable(),
     eventAttendanceMode: z.string().nullable(),
     maximumAttendeeCapacity: z.number().nullable(),
+    recurrencePattern: z.string().nullable().optional(),
+    recurrenceEndDate: z.string().datetime().nullable().optional(),
     userId: z.string().nullable(),
     attributedTo: z.string(),
     externalId: z.string().nullable(),

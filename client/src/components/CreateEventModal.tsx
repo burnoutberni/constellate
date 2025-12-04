@@ -34,6 +34,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         startTime: string
         endTime: string
         visibility: EventVisibility
+        recurrencePattern: string
+        recurrenceEndDate: string
     }>({
         title: '',
         summary: '',
@@ -42,6 +44,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         startTime: '',
         endTime: '',
         visibility: 'PUBLIC',
+        recurrencePattern: '',
+        recurrenceEndDate: '',
     })
     const [submitting, setSubmitting] = useState(false)
     const [templates, setTemplates] = useState<EventTemplate[]>([])
@@ -105,6 +109,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 startTime: '',
                 endTime: '',
                 visibility: 'PUBLIC',
+                recurrencePattern: '',
+                recurrenceEndDate: '',
             })
             setSelectedTemplateId('')
             setSaveAsTemplate(false)
@@ -143,6 +149,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             startTime: '',
             endTime: '',
             visibility: formData.visibility,
+            recurrencePattern: '',
+            recurrenceEndDate: '',
         })
     }
 
@@ -206,10 +214,41 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         }
         try {
             setSubmitting(true)
-            const payload = {
-                ...formData,
+
+            if (formData.recurrencePattern && !formData.recurrenceEndDate) {
+                setError('Please choose when the recurring event should stop.')
+                setSubmitting(false)
+                return
+            }
+
+            if (formData.recurrencePattern && formData.recurrenceEndDate) {
+                const startDate = new Date(formData.startTime)
+                const recurrenceEnd = new Date(formData.recurrenceEndDate)
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
+                    setError('Please provide valid dates for recurring events.')
+                    setSubmitting(false)
+                    return
+                }
+                if (recurrenceEnd <= startDate) {
+                    setError('Recurrence end date must be after the start time.')
+                    setSubmitting(false)
+                    return
+                }
+            }
+
+            const payload: Record<string, unknown> = {
+                title: formData.title,
+                summary: formData.summary,
+                location: formData.location,
+                url: formData.url,
                 startTime: new Date(formData.startTime).toISOString(),
                 endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+                visibility: formData.visibility,
+            }
+
+            if (formData.recurrencePattern) {
+                payload.recurrencePattern = formData.recurrencePattern
+                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate).toISOString()
             }
             const response = await fetch('/api/events', {
                 method: 'POST',
@@ -236,6 +275,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     startTime: '',
                     endTime: '',
                     visibility: 'PUBLIC',
+                    recurrencePattern: '',
+                    recurrenceEndDate: '',
                 })
                 setSelectedTemplateId('')
                 setSaveAsTemplate(false)
@@ -393,35 +434,76 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                             />
                         </div>
 
-<div>
-    <label className="block text-sm font-medium mb-2">
-        Visibility
-    </label>
-    <div className="grid gap-2">
-        {VISIBILITY_OPTIONS.map((option) => {
-            const selected = formData.visibility === option.value
-            return (
-                <label
-                    key={option.value}
-                    className={`flex gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
-                >
-                    <input
-                        type="radio"
-                        name="visibility"
-                        value={option.value}
-                        checked={selected}
-                        onChange={() => setFormData({ ...formData, visibility: option.value })}
-                        className="sr-only"
-                    />
-                    <div>
-                        <div className="font-medium text-gray-900">{option.label}</div>
-                        <div className="text-sm text-gray-500">{option.description}</div>
-                    </div>
-                </label>
-            )
-        })}
-    </div>
-</div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Visibility
+                            </label>
+                            <div className="grid gap-2">
+                                {VISIBILITY_OPTIONS.map((option) => {
+                                    const selected = formData.visibility === option.value
+                                    return (
+                                        <label
+                                            key={option.value}
+                                            className={`flex gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="visibility"
+                                                value={option.value}
+                                                checked={selected}
+                                                onChange={() => setFormData({ ...formData, visibility: option.value })}
+                                                className="sr-only"
+                                            />
+                                            <div>
+                                                <div className="font-medium text-gray-900">{option.label}</div>
+                                                <div className="text-sm text-gray-500">{option.description}</div>
+                                            </div>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Recurrence
+                            </label>
+                            <select
+                                className="input"
+                                value={formData.recurrencePattern}
+                                onChange={(e) => {
+                                    const value = e.target.value
+                                    setFormData({
+                                        ...formData,
+                                        recurrencePattern: value,
+                                        recurrenceEndDate: value ? formData.recurrenceEndDate : '',
+                                    })
+                                }}
+                            >
+                                <option value="">Does not repeat</option>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                                <option value="MONTHLY">Monthly</option>
+                            </select>
+                            {formData.recurrencePattern && (
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium mb-2">
+                                        Repeat until *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={formData.recurrenceEndDate}
+                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                        min={formData.startTime ? formData.startTime.split('T')[0] : undefined}
+                                        className="input"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recurring events show on the calendar up to this date.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
                         <div className="flex gap-3 pt-4">
                             <button
