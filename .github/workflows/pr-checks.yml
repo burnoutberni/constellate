@@ -1,0 +1,357 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Lint root
+        run: npm run lint
+
+      - name: Lint client
+        run: npm run lint --prefix client
+
+  tree-shaking:
+    name: Tree-shaking Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Run knip (tree-shaking analysis)
+        run: npm run analyze:unused
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: constellate_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
+      BETTER_AUTH_URL: http://test.local
+      BETTER_AUTH_SECRET: test-secret-change-in-production
+      BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  coverage-base:
+    name: Coverage (Base Branch)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: constellate_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
+      BETTER_AUTH_URL: http://test.local
+      BETTER_AUTH_SECRET: test-secret-change-in-production
+      BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload base coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-base
+          path: coverage/coverage-final.json
+          retention-days: 7
+
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    needs: [test, coverage-base]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Download PR coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-pr/
+
+      - name: Download base coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-base
+          path: coverage-base/
+
+      - name: Check if base coverage exists
+        id: check_base
+        run: |
+          if [ -f "coverage-base/coverage-final.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compare coverage
+        if: steps.check_base.outputs.exists == 'true'
+        run: |
+          node scripts/compare-coverage.js coverage-pr/coverage-final.json coverage-base/coverage-final.json
+        continue-on-error: false
+
+      - name: Skip coverage comparison (first PR)
+        if: steps.check_base.outputs.exists != 'true'
+        run: |
+          echo "⚠️  No base coverage found. This might be the first PR to main."
+          echo "Coverage comparison skipped. Future PRs will be checked against this baseline."
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: constellate_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
+      BETTER_AUTH_URL: http://test.local
+      BETTER_AUTH_SECRET: test-secret-change-in-production
+      BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Check for integration test config
+        id: check_config
+        run: |
+          if [ -f "vitest.integration.config.ts" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run integration tests
+        if: steps.check_config.outputs.exists == 'true'
+        run: npm run test:integration
+
+      - name: Skip integration tests
+        if: steps.check_config.outputs.exists != 'true'
+        run: echo "Integration test config not found, skipping integration tests"
+
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [lint, tree-shaking, test, coverage-check, integration-test, e2e-test]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          # Required checks (must pass)
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "❌ Lint check failed"
+            exit 1
+          fi
+          if [ "${{ needs.tree-shaking.result }}" != "success" ]; then
+            echo "❌ Tree-shaking check failed"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ Test check failed"
+            exit 1
+          fi
+          
+          # Coverage check (required for PRs, but may be skipped for first PR)
+          if [ "${{ github.event_name }}" == "pull_request" ] && \
+             [ "${{ needs.coverage-check.result }}" != "success" ] && \
+             [ "${{ needs.coverage-check.result }}" != "skipped" ]; then
+            echo "❌ Coverage check failed"
+            exit 1
+          fi
+          
+          # Integration tests (optional if config doesn't exist)
+          if [ "${{ needs.integration-test.result }}" != "success" ] && \
+             [ "${{ needs.integration-test.result }}" != "skipped" ]; then
+            echo "❌ Integration test check failed"
+            exit 1
+          fi
+          
+          # E2E tests (required)
+          if [ "${{ needs.e2e-test.result }}" != "success" ]; then
+            echo "❌ E2E test check failed"
+            exit 1
+          fi
+          
+          echo "✅ All checks passed!"
+
