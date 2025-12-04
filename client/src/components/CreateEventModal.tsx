@@ -449,8 +449,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && tagInput.trim()) {
                                                 e.preventDefault()
-                                                const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
+                                                const tag = tagInput.trim().replace(/^#/, '').toLowerCase()
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
@@ -463,8 +463,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         type="button"
                                         onClick={() => {
                                             if (tagInput.trim()) {
-                                                const tag = tagInput.trim().replace(/^#/, '')
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
+                                                const tag = tagInput.trim().replace(/^#/, '').toLowerCase()
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag)) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
