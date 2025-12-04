@@ -23,6 +23,8 @@ export interface Event {
     eventStatus?: string | null
     eventAttendanceMode?: string | null
     maximumAttendeeCapacity?: number | null
+    recurrencePattern?: string | null
+    recurrenceEndDate?: string | null
     tags?: Array<{
         tag: string
     }>

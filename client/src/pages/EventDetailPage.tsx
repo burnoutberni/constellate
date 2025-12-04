@@ -324,6 +324,25 @@ export function EventDetailPage() {
                         </div>
                     )}
 
+                    {/* Recurrence Info */}
+                    {event.recurrencePattern && (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-blue-700">
+                                <span className="text-xl">🔄</span>
+                                <div>
+                                    <div className="font-semibold">
+                                        Repeats {event.recurrencePattern.charAt(0).toUpperCase() + event.recurrencePattern.slice(1)}
+                                    </div>
+                                    {event.recurrenceEndDate && (
+                                        <div className="text-sm text-blue-600">
+                                            Until {formatDate(event.recurrenceEndDate)}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Tags */}
                     {event.tags && event.tags.length > 0 && (
                         <div className="mb-6">
