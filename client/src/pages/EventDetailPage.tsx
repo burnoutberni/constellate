@@ -601,6 +601,20 @@ export function EventDetailPage() {
                         </div>
                     )}
 
+                    {/* Tags */}
+                    {event.tags && event.tags.length > 0 && (
+                        <div className="mb-6 flex flex-wrap gap-2">
+                            {event.tags.map((tag) => (
+                                <span
+                                    key={tag.id}
+                                    className="badge badge-primary"
+                                >
+                                    #{tag.tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
                     {/* RSVP Buttons */}
                     <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
                         <button

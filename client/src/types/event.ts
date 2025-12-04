@@ -29,6 +29,10 @@ export interface Event {
     recurrencePattern?: RecurrencePattern | null
     recurrenceEndDate?: string | null
     originalEventId?: string | null
+    tags?: Array<{
+        id: string
+        tag: string
+    }>
     _count?: {
         attendance: number
         likes: number
@@ -46,6 +50,7 @@ export interface EventDetail extends Event {
     }>
     comments: Array<CommentWithMentions>
     tags: Array<{
+        id: string
         tag: string
     }>
 }

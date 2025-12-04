@@ -92,6 +92,7 @@ const EventSchema = z.object({
     visibility: VisibilitySchema.optional(),
     recurrencePattern: RecurrencePatternEnum.optional().nullable(),
     recurrenceEndDate: z.string().datetime().optional().nullable(),
+    tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
 })
 
 // Create event
@@ -128,10 +129,13 @@ app.post('/', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...eventInput,
+                ...eventData,
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
@@ -142,9 +146,15 @@ app.post('/', moderateRateLimit, async (c) => {
                 visibility,
                 recurrencePattern,
                 recurrenceEndDate,
+                tags: tags && tags.length > 0 ? {
+                    create: tags.map(tag => ({
+                        tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                    })),
+                } : undefined,
             },
             include: {
                 user: true,
+                tags: true,
             },
         })
 
@@ -281,6 +291,7 @@ app.get('/', async (c) => {
                     profileImage: true,
                 },
             },
+            tags: true,
             _count: {
                 select: {
                     attendance: true,
@@ -393,6 +404,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                         isRemote: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -748,6 +760,7 @@ app.get('/:id', async (c) => {
                         externalActorUrl: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -861,6 +874,9 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
 
+        // Extract tags from validated data
+        const { tags, ...eventData } = validatedData
+
         // Update event with sanitized input
         const updateData: Record<string, unknown> = {
             ...eventInput,
@@ -882,11 +898,22 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.recurrenceEndDate = nextRecurrenceEndDate
         }
 
+        // Update tags if provided
+        if (tags !== undefined) {
+            updateData.tags = {
+                deleteMany: {}, // Delete all existing tags
+                create: tags.map(tag => ({
+                    tag: tag.toLowerCase().trim().replace(/^#/, ''), // Remove # if present, normalize
+                })),
+            }
+        }
+
         const event = await prisma.event.update({
             where: { id },
             data: updateData,
             include: {
                 user: true,
+                tags: true,
             },
         })
 
