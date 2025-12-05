@@ -143,12 +143,8 @@ export function SearchBar() {
     const handleItemClick = (item: { type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }) => {
         if (item.type === 'user') {
             const user = item.data as User
-<<<<<<< HEAD
-            navigate(`/@${user.username}`)
-=======
             const profilePath = `/@${user.username}`
             navigate(profilePath)
->>>>>>> 5aec5b7 (Refactor conditional rendering to use IIFEs)
         } else if (item.type === 'event') {
             const event = item.data as Event
             const username = event.user?.username
