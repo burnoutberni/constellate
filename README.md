@@ -106,6 +106,16 @@ npm test
 
 The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
 
+## Notifications API
+
+Constellate now ships with a backend notification service that powers both the REST API and real-time delivery channel:
+
+- `GET /api/notifications?limit=20` — returns the most recent notifications plus the unread count.
+- `POST /api/notifications/:notificationId/read` — marks a single notification as read.
+- `POST /api/notifications/mark-all-read` — marks all notifications for the authenticated user as read.
+
+Notifications are streamed in real time over the existing SSE endpoint as `notification:created` events, so the frontend can immediately surface unread counts without polling.
+
 ## License
 
 AGPL-3.0

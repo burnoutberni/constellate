@@ -14,6 +14,7 @@ import attendanceRoutes from './attendance.js'
 import likesRoutes from './likes.js'
 import commentsRoutes from './comments.js'
 import profileRoutes from './profile.js'
+import notificationsRoutes from './notifications.js'
 import realtimeRoutes from './realtime.js'
 import calendarRoutes from './calendar.js'
 import templatesRoutes from './templates.js'
@@ -222,6 +223,7 @@ app.route('/api/events', attendanceRoutes)
 app.route('/api/events', likesRoutes)
 app.route('/api/events', commentsRoutes)
 app.route('/api', profileRoutes)
+app.route('/api/notifications', notificationsRoutes)
 app.route('/api', realtimeRoutes)
 app.route('/api/calendar', calendarRoutes)
 app.route('/api', templatesRoutes)
