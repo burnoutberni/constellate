@@ -2,6 +2,7 @@ import { prisma } from './prisma.js'
 import { getBaseUrl } from './activitypubHelpers.js'
 
 const mentionPattern = /@([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9.-]+)?)/g
+const boundaryCharacters = new Set(['(', '{', '[', '>'])
 
 interface MentionCandidate {
     normalized: string
@@ -42,7 +43,11 @@ function extractMentionCandidates(content: string): MentionCandidate[] {
         if (!raw) continue
         const startIndex = match.index ?? 0
         const prevChar = startIndex > 0 ? content[startIndex - 1] : ' '
-        if (!/[\s({\[>]/.test(prevChar) && startIndex !== 0) {
+        if (
+            startIndex !== 0 &&
+            !/\s/.test(prevChar) &&
+            !boundaryCharacters.has(prevChar)
+        ) {
             continue
         }
         const normalized = raw.toLowerCase()
