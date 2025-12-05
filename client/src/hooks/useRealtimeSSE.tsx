@@ -37,11 +37,19 @@ const isValidEventData = (data: unknown, eventId: string): data is EventDetail &
 }
 
 const updateLikeInCache = (
+<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newLike: { user: EventUser },
     qClient: QueryClient
+=======
+    queryKey: unknown,
+    data: unknown,
+    eventId: string,
+    newLike: { user: EventUser },
+    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -61,11 +69,19 @@ const updateLikeInCache = (
 }
 
 const removeLikeFromCache = (
+<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     userId: string,
     qClient: QueryClient
+=======
+    queryKey: unknown,
+    data: unknown,
+    eventId: string,
+    userId: string,
+    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -81,11 +97,19 @@ const removeLikeFromCache = (
 }
 
 const removeCommentFromCache = (
+<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     commentId: string,
     qClient: QueryClient
+=======
+    queryKey: unknown,
+    data: unknown,
+    eventId: string,
+    commentId: string,
+    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -101,11 +125,19 @@ const removeCommentFromCache = (
 }
 
 const addCommentToCache = (
+<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newComment: unknown,
     qClient: QueryClient
+=======
+    queryKey: unknown,
+    data: unknown,
+    eventId: string,
+    newComment: unknown,
+    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -123,6 +155,7 @@ const addCommentToCache = (
 
 const setupEventListeners = (
     eventSource: EventSource,
+<<<<<<< HEAD
     queryClient: QueryClient,
     queryKeys: QueryKeys,
     setSSEConnected: (connected: boolean) => void,
@@ -139,6 +172,13 @@ const setupEventListeners = (
         author?: { id?: string; username?: string; name?: string }
         createdAt: string
     }) => void
+=======
+    queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
+    queryKeys: typeof import('./queries/keys').queryKeys,
+    setSSEConnected: (connected: boolean) => void,
+    setIsConnected: (connected: boolean) => void,
+    options: UseRealtimeSSEOptions
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     eventSource.addEventListener('connected', (e) => {
         console.log('✅ SSE connected:', JSON.parse(e.data))
@@ -404,6 +444,7 @@ const setupEventListeners = (
                     isAccepted: true,
                 }
             )
+<<<<<<< HEAD
             if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
                 const profileData = queryClient.getQueryData(
                     queryKeys.users.profile(event.data.username)
@@ -446,11 +487,14 @@ const setupEventListeners = (
                     isAccepted: false,
                 }
             )
+=======
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
             queryClient.invalidateQueries({
                 queryKey: queryKeys.users.profile(event.data.username),
             })
         }
     })
+<<<<<<< HEAD
 
     if (addMentionNotification) {
         eventSource.addEventListener('mention:received', (e) => {
@@ -483,6 +527,8 @@ const setupEventListeners = (
             }
         })
     }
+=======
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 }
 
 export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
@@ -504,8 +550,372 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
 
         eventSourceRef.current = eventSource
 
+<<<<<<< HEAD
         setupEventListeners(eventSource, queryClient, queryKeys, setSSEConnected, setIsConnected, options, addMentionNotification)
 
+=======
+        setupEventListeners(eventSource, queryClient, queryKeys, setSSEConnected, setIsConnected, options)
+
+        eventSource.onerror = (error) => {
+            console.error('❌ SSE error:', error)
+            setIsConnected(false)
+            setSSEConnected(false)
+            options.onDisconnect?.()
+        }
+
+        return () => {
+            eventSource.close()
+            setIsConnected(false)
+            setSSEConnected(false)
+        }
+
+        // Heartbeat
+        eventSource.addEventListener('heartbeat', () => {
+            // Silent heartbeat
+        })
+
+        // Event updates
+        eventSource.addEventListener('event:created', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Event created:', event)
+            // Invalidate events list queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
+        })
+
+        eventSource.addEventListener('event:updated', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Event updated:', event)
+            const updatedEvent = event.data.event
+
+            // Update specific event in cache if it exists
+            if (updatedEvent?.user?.username && updatedEvent?.id) {
+                queryClient.setQueryData(
+                    queryKeys.events.detail(updatedEvent.user.username, updatedEvent.id),
+                    updatedEvent
+                )
+            }
+
+            // Invalidate events list queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
+        })
+
+        eventSource.addEventListener('event:deleted', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Event deleted:', event)
+            const eventId = event.data.eventId || event.data.externalId
+
+            // Remove from cache if we know the username
+            if (event.data.username && eventId) {
+                queryClient.removeQueries({
+                    queryKey: queryKeys.events.detail(event.data.username, eventId),
+                })
+            }
+
+            // Invalidate events list queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
+        })
+
+        // Attendance updates
+        eventSource.addEventListener('attendance:added', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Attendance added:', event)
+            if (event.data?.eventId) {
+                // Invalidate to get fresh data from server (attendance includes full user objects)
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.events.details(),
+                })
+            }
+        })
+
+        eventSource.addEventListener('attendance:updated', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Attendance updated:', event)
+            if (event.data?.eventId) {
+                // Invalidate to get fresh data from server (attendance can be complex with status changes)
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.events.details(),
+                })
+            }
+        })
+
+        eventSource.addEventListener('attendance:removed', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Attendance removed:', event)
+            if (!event.data?.eventId) return
+            const eventQueries = queryClient.getQueriesData({
+                queryKey: queryKeys.events.details(),
+            })
+            for (const [queryKey, data] of eventQueries) {
+                if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
+                    queryClient.invalidateQueries({ queryKey })
+                }
+            }
+        })
+
+        // Like updates
+        eventSource.addEventListener('like:added', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Like added:', event)
+            if (!event.data?.eventId || !event.data?.like) return
+            const eventQueries = queryClient.getQueriesData({
+                queryKey: queryKeys.events.details(),
+            })
+            const newLike = event.data.like as { user: EventUser }
+            for (const [queryKey, data] of eventQueries) {
+                updateLikeInCache(queryKey, data, event.data.eventId, newLike, queryClient)
+            }
+        })
+
+        eventSource.addEventListener('like:removed', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Like removed:', event)
+            if (!event.data?.eventId || !event.data?.userId) return
+            const eventQueries = queryClient.getQueriesData({
+                queryKey: queryKeys.events.details(),
+            })
+            for (const [queryKey, data] of eventQueries) {
+                removeLikeFromCache(queryKey, data, event.data.eventId, event.data.userId, queryClient)
+            }
+        })
+
+        // Comment updates
+        eventSource.addEventListener('comment:added', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Comment added:', event)
+            if (!event.data?.eventId || !event.data?.comment) return
+            const eventQueries = queryClient.getQueriesData({
+                queryKey: queryKeys.events.details(),
+            })
+            for (const [queryKey, data] of eventQueries) {
+                addCommentToCache(queryKey, data, event.data.eventId, event.data.comment, queryClient)
+            }
+        })
+
+        eventSource.addEventListener('comment:deleted', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Comment deleted:', event)
+            if (!event.data?.eventId || !event.data?.commentId) return
+            const eventQueries = queryClient.getQueriesData({
+                queryKey: queryKeys.events.details(),
+            })
+            for (const [queryKey, data] of eventQueries) {
+                removeCommentFromCache(queryKey, data, event.data.eventId, event.data.commentId, queryClient)
+            }
+        })
+
+        // Profile updates
+        eventSource.addEventListener('profile:updated', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Profile updated:', event)
+            if (event.data?.username) {
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.profile(event.data.username),
+                })
+            }
+        })
+
+        // Follow updates
+        eventSource.addEventListener('follow:added', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follow added:', event)
+            if (event.data?.username) {
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.profile(event.data.username),
+                })
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.followStatus(event.data.username),
+                })
+            }
+        })
+
+        eventSource.addEventListener('follower:added', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follower added:', event)
+            if (event.data?.username) {
+                // Update profile with new follower count if provided
+                if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
+                    const profileData = queryClient.getQueryData(
+                        queryKeys.users.profile(event.data.username)
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
+                    if (profileData) {
+                        queryClient.setQueryData(
+                            queryKeys.users.profile(event.data.username),
+                            {
+                                ...profileData,
+                                user: {
+                                    ...profileData.user,
+                                    _count: {
+                                        ...profileData.user._count,
+                                        followers: event.data.followerCount,
+                                    },
+                                },
+                            }
+                        )
+                    } else {
+                        // If profile not in cache, invalidate to refetch
+                        queryClient.invalidateQueries({
+                            queryKey: queryKeys.users.profile(event.data.username),
+                        })
+                    }
+                } else {
+                    // Invalidate to refetch if count not provided
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.users.profile(event.data.username),
+                    })
+                }
+            }
+        })
+
+        eventSource.addEventListener('follower:removed', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follower removed:', event)
+            if (event.data?.username) {
+                // Update profile with new follower count if provided
+                if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
+                    const profileData = queryClient.getQueryData(
+                        queryKeys.users.profile(event.data.username)
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
+                    if (profileData) {
+                        queryClient.setQueryData(
+                            queryKeys.users.profile(event.data.username),
+                            {
+                                ...profileData,
+                                user: {
+                                    ...profileData.user,
+                                    _count: {
+                                        ...profileData.user._count,
+                                        followers: event.data.followerCount,
+                                    },
+                                },
+                            }
+                        )
+                    } else {
+                        // If profile not in cache, invalidate to refetch
+                        queryClient.invalidateQueries({
+                            queryKey: queryKeys.users.profile(event.data.username),
+                        })
+                    }
+                } else {
+                    // Invalidate to refetch if count not provided
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.users.profile(event.data.username),
+                    })
+                }
+            }
+        })
+
+        eventSource.addEventListener('follow:removed', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follow removed:', event)
+            if (event.data?.username) {
+                // Update follow status to not following
+                queryClient.setQueryData(
+                    queryKeys.users.followStatus(event.data.username),
+                    {
+                        isFollowing: false,
+                        isAccepted: false,
+                    }
+                )
+
+                // Invalidate profile to refresh
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.profile(event.data.username),
+                })
+            }
+        })
+
+        // Follow pending event - when we send a follow request to a remote user
+        eventSource.addEventListener('follow:pending', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follow pending:', event)
+            if (event.data?.username) {
+                // Update follow status to pending
+                queryClient.setQueryData(
+                    queryKeys.users.followStatus(event.data.username),
+                    {
+                        isFollowing: true,
+                        isAccepted: false,
+                    }
+                )
+            }
+        })
+
+        // Follow accepted event - when a remote user accepts our follow request
+        eventSource.addEventListener('follow:accepted', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follow accepted:', event)
+            if (event.data?.username) {
+                // Update follow status
+                queryClient.setQueryData(
+                    queryKeys.users.followStatus(event.data.username),
+                    {
+                        isFollowing: true,
+                        isAccepted: true,
+                    }
+                )
+
+                // Update profile with new follower count if provided
+                if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
+                    const profileData = queryClient.getQueryData(
+                        queryKeys.users.profile(event.data.username)
+                    ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
+                    if (profileData) {
+                        queryClient.setQueryData(
+                            queryKeys.users.profile(event.data.username),
+                            {
+                                ...profileData,
+                                user: {
+                                    ...profileData.user,
+                                    _count: {
+                                        ...profileData.user._count,
+                                        followers: event.data.followerCount,
+                                    },
+                                },
+                            }
+                        )
+                    } else {
+                        // If profile not in cache, invalidate to refetch
+                        queryClient.invalidateQueries({
+                            queryKey: queryKeys.users.profile(event.data.username),
+                        })
+                    }
+                } else {
+                    // Invalidate to refetch if count not provided
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.users.profile(event.data.username),
+                    })
+                }
+
+                // Also invalidate follow status to ensure consistency
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.followStatus(event.data.username),
+                })
+            }
+        })
+
+        // Follow rejected event - when a remote user rejects our follow request
+        eventSource.addEventListener('follow:rejected', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Follow rejected:', event)
+            if (event.data?.username) {
+                // Update follow status to rejected (not following)
+                queryClient.setQueryData(
+                    queryKeys.users.followStatus(event.data.username),
+                    {
+                        isFollowing: false,
+                        isAccepted: false,
+                    }
+                )
+
+                // Invalidate profile to refresh
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.profile(event.data.username),
+                })
+            }
+        })
+
+        // Error handling
+>>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
         eventSource.onerror = (error) => {
             console.error('❌ SSE error:', error)
             setIsConnected(false)
