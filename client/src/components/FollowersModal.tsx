@@ -49,56 +49,57 @@ export function FollowersModal({ isOpen, onClose, username, type }: FollowersMod
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
-                    {isLoading && (
+                    {isLoading ? (
                         <div className="flex items-center justify-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
                         </div>
-                    )}
-
-                    {!isLoading && (!users || users.length === 0) && (
-                        <div className="text-center py-8 text-gray-500">
-                            {type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
-                        </div>
-                    )}
-
-                    {!isLoading && users && users.length > 0 && (
-                        <div className="space-y-2">
-                            {users.map((user) => (
-                                <Link
-                                    key={user.id}
-                                    to={`/@${user.username}`}
-                                    onClick={onClose}
-                                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    {user.profileImage ? (
-                                        <img
-                                            src={user.profileImage}
-                                            alt={user.name || user.username}
-                                            className="w-12 h-12 rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <div
-                                            className="avatar w-12 h-12"
-                                            style={{ backgroundColor: user.displayColor || '#3b82f6' }}
-                                        >
-                                            {(user.name || user.username)[0].toUpperCase()}
+                    ) : (() => {
+                        if (!users || users.length === 0) {
+                            return (
+                                <div className="text-center py-8 text-gray-500">
+                                    {type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
+                                </div>
+                            )
+                        }
+                        return (
+                            <div className="space-y-2">
+                                {users.map((user) => (
+                                    <Link
+                                        key={user.id}
+                                        to={`/@${user.username}`}
+                                        onClick={onClose}
+                                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        {user.profileImage ? (
+                                            <img
+                                                src={user.profileImage}
+                                                alt={user.name || user.username}
+                                                className="w-12 h-12 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div
+                                                className="avatar w-12 h-12"
+                                                style={{ backgroundColor: user.displayColor || '#3b82f6' }}
+                                            >
+                                                {(user.name || user.username)[0].toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-semibold text-gray-900">
+                                                {user.name || user.username}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                @{user.username}
+                                                {user.isRemote && (
+                                                    <span className="ml-2 text-xs text-blue-600">Remote</span>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-semibold text-gray-900">
-                                            {user.name || user.username}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            @{user.username}
-                                            {user.isRemote && (
-                                                <span className="ml-2 text-xs text-blue-600">Remote</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+                                    </Link>
+                                ))}
+                            </div>
+                        )
+                    })()}
                 </div>
             </div>
         </div>

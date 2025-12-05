@@ -137,7 +137,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                     queryKey: queryKeys.events.details(),
                 })
 
-                for (const [queryKey, data] of eventQueries) {
+                const updateLikeInCache = ([queryKey, data]: [unknown, unknown]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
                         const eventDetail = data as EventDetail
                         const newLike = event.data.like as { user: EventUser }
@@ -157,6 +157,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                         }
                     }
                 }
+
+                eventQueries.forEach(updateLikeInCache)
             }
         })
 
@@ -169,7 +171,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                     queryKey: queryKeys.events.details(),
                 })
 
-                for (const [queryKey, data] of eventQueries) {
+                const removeLikeFromCache = ([queryKey, data]: [unknown, unknown]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
                         const eventDetail = data as EventDetail
                         const updatedLikes = eventDetail.likes?.filter(
@@ -185,6 +187,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                         })
                     }
                 }
+
+                eventQueries.forEach(removeLikeFromCache)
             }
         })
 
@@ -225,7 +229,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                     queryKey: queryKeys.events.details(),
                 })
 
-                for (const [queryKey, data] of eventQueries) {
+                const removeCommentFromCache = ([queryKey, data]: [unknown, unknown]) => {
                     if (data && typeof data === 'object' && 'id' in data && data.id === event.data.eventId) {
                         const eventDetail = data as EventDetail
                         const updatedComments = eventDetail.comments?.filter(
@@ -241,6 +245,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                         })
                     }
                 }
+
+                eventQueries.forEach(removeCommentFromCache)
             }
         })
 
