@@ -1242,6 +1242,8 @@ describe('Events API', () => {
 
     describe('Event Tags', () => {
         it('should create event with tags', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
@@ -1320,6 +1322,8 @@ describe('Events API', () => {
         })
 
         it('should normalize tags to lowercase', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
@@ -1362,6 +1366,8 @@ describe('Events API', () => {
         })
 
         it('should remove # prefix from tags', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
@@ -1456,6 +1462,8 @@ describe('Events API', () => {
         })
 
         it('should update event tags', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
@@ -1514,6 +1522,8 @@ describe('Events API', () => {
         })
 
         it('should handle empty tags array', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
@@ -1557,6 +1567,8 @@ describe('Events API', () => {
         })
 
         it('should handle missing tags field', async () => {
+            // Ensure clean mock state
+            vi.restoreAllMocks()
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
                     id: testUser.id,
