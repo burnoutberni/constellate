@@ -36,14 +36,6 @@ export function isPublicVisibility(visibility?: EventVisibility | null): boolean
     return (visibility || DEFAULT_VISIBILITY) === 'PUBLIC'
 }
 
-export function isFollowersVisibility(visibility?: EventVisibility | null): boolean {
-    return visibility === 'FOLLOWERS'
-}
-
-export function isUnlistedVisibility(visibility?: EventVisibility | null): boolean {
-    return visibility === 'UNLISTED'
-}
-
 export function buildVisibilityWhere(options: VisibilityFilterOptions = {}): Prisma.EventWhereInput {
     const { userId, followedActorUrls = [], includeUnlisted = false } = options
 
