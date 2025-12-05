@@ -4,31 +4,6 @@ A federated event management platform implementing the ActivityPub protocol for 
 
 **Status: Public Beta** - The project is ready for beta testing. See deployment section for production setup.
 
-<<<<<<< HEAD
-## Event Templates
-
-Event creators can now save reusable templates that capture the full event configuration (title, summary, location, URLs, timing, etc.). Templates live under the authenticated user's account and can be selected directly in the event creation modal to prefill the form.
-
-- `GET /api/event-templates` – list the authenticated user's templates
-- `POST /api/event-templates` – create a new template (send `name`, optional `description`, and `data` that mirrors the event payload)
-- `GET /api/event-templates/:id` – fetch a specific template
-- `PUT /api/event-templates/:id` – update template metadata or data
-- `DELETE /api/event-templates/:id` – remove a template
-
-All endpoints require an authenticated session cookie. See `src/openapi.json` for the full schema.
-=======
-## Event Visibility Levels
-
-Constellate now supports granular audience controls on events. When creating or editing an event you can choose one of four `visibility` levels:
-
-- **`PUBLIC`** – indexed everywhere and federated to the public collection.
-- **`FOLLOWERS`** – delivered only to followers of the event organizer.
-- **`UNLISTED`** – accessible via direct link but hidden from feeds and searches.
-- **`PRIVATE`** – visible only to the organizer.
-
-Expose the chosen level via the `visibility` field in the Events API (see OpenAPI docs) or the “Visibility” selector in the Create Event dialog.
->>>>>>> 4b8b7b7 (Add event visibility controls across stack)
-
 ## Development
 
 ### Using Docker (Recommended)
