@@ -277,6 +277,29 @@ export function useLikeEvent(eventId: string, userId?: string) {
     })
 }
 
+export function useShareEvent(eventId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: async () => {
+            const response = await fetch(`/api/events/${eventId}/share`, {
+                method: 'POST',
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({
+                    error: 'Failed to share event',
+                }))
+                throw new Error(error.error || 'Failed to share event')
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+        },
+    })
+}
+
 export function useAddComment(eventId: string) {
     const queryClient = useQueryClient()
 

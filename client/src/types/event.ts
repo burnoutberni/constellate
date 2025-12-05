@@ -11,6 +11,19 @@ export interface EventUser {
 
 export type RecurrencePattern = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
+export interface SharedEventSummary {
+    id: string
+    title: string
+    summary?: string | null
+    location?: string | null
+    url?: string | null
+    headerImage?: string | null
+    startTime: string
+    endTime?: string | null
+    visibility?: EventVisibility
+    user?: EventUser
+}
+
 export interface Event {
     id: string
     title: string
@@ -38,6 +51,7 @@ export interface Event {
         likes: number
         comments: number
     }
+    sharedEvent?: SharedEventSummary | null
 }
 
 /**

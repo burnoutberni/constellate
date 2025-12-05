@@ -141,11 +141,16 @@ model Event {
   tags       EventTag[]
   recurrencePattern RecurrencePattern?
   recurrenceEndDate DateTime?
+  sharedEventId String?
+  sharedEvent   Event?   @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
+  shares        Event[]  @relation("EventShares")
 
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
   @@index([recurrenceEndDate])
+  @@index([sharedEventId])
+  @@unique([userId, sharedEventId])
 }
 
 enum EventVisibility {

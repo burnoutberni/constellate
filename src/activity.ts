@@ -7,6 +7,20 @@ import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 
+interface FeedEventSummary {
+    id: string
+    title: string
+    startTime: string
+    location: string | null
+    visibility?: string | null
+    user: {
+        id: string
+        username: string
+        name: string | null
+        displayColor: string
+    } | null
+}
+
 export interface FeedActivity {
     id: string
     type: string
@@ -18,22 +32,8 @@ export interface FeedActivity {
         displayColor: string
         profileImage: string | null
     } | null
-    event: {
-        id: string
-        title: string
-        startTime: string
-        location: string | null
-        user: {
-            id: string
-            username: string
-            name: string | null
-            displayColor: string
-        } | null
-        tags: Array<{
-            id: string
-            tag: string
-        }>
-    }
+    event: FeedEventSummary
+    sharedEvent?: FeedEventSummary
     data?: Record<string, unknown>
 }
 
@@ -123,19 +123,16 @@ function buildEventSummary(event: {
     title: string
     startTime: Date
     location: string | null
-    user: FeedActivity['event']['user']
-    tags: Array<{
-        id: string
-        tag: string
-    }>
-}) {
+    visibility?: string | null
+    user: FeedEventSummary['user']
+}): FeedEventSummary {
     return {
         id: event.id,
         title: event.title,
         startTime: event.startTime.toISOString(),
         location: event.location,
+        visibility: event.visibility,
         user: event.user,
-        tags: event.tags,
     }
 }
 
@@ -319,6 +316,7 @@ async function fetchNewEventActivities(followedUserIds: string[], viewerId: stri
             userId: {
                 in: followedUserIds,
             },
+            sharedEventId: null,
         },
         include: {
             user: {
@@ -350,15 +348,74 @@ async function fetchNewEventActivities(followedUserIds: string[], viewerId: stri
     )
 }
 
+async function fetchSharedEventActivities(followedUserIds: string[], viewerId: string) {
+    const shares = await prisma.event.findMany({
+        where: {
+            userId: {
+                in: followedUserIds,
+            },
+            sharedEventId: {
+                not: null,
+            },
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                },
+            },
+            sharedEvent: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            displayColor: true,
+                        },
+                    },
+                },
+            },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+    })
+
+    const sharesWithEvent = shares.filter((share) => share.sharedEvent)
+
+    return filterVisibleActivities(
+        sharesWithEvent,
+        viewerId,
+        (share) => share.sharedEvent!,
+        (share) => ({
+            id: `share-${share.id}`,
+            type: 'event_shared',
+            createdAt: share.createdAt.toISOString(),
+            user: share.user,
+            event: buildEventSummary(share.sharedEvent!),
+            sharedEvent: buildEventSummary(share.sharedEvent!),
+            data: {
+                sharedEventId: share.id,
+                originalEventId: share.sharedEventId,
+            },
+        })
+    )
+}
+
 async function collectActivities(followedUserIds: string[], viewerId: string) {
-    const [likes, rsvps, comments, newEvents] = await Promise.all([
+    const [likes, rsvps, comments, newEvents, shares] = await Promise.all([
         fetchLikeActivities(followedUserIds, viewerId),
         fetchRsvpActivities(followedUserIds, viewerId),
         fetchCommentActivities(followedUserIds, viewerId),
         fetchNewEventActivities(followedUserIds, viewerId),
+        fetchSharedEventActivities(followedUserIds, viewerId),
     ])
 
-    const combined = [...likes, ...rsvps, ...comments, ...newEvents]
+    const combined = [...likes, ...rsvps, ...comments, ...newEvents, ...shares]
     combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     return combined.slice(0, 50)
 }
@@ -447,5 +504,6 @@ export const __testExports = {
     fetchRsvpActivities,
     fetchCommentActivities,
     fetchNewEventActivities,
+    fetchSharedEventActivities,
 }
 

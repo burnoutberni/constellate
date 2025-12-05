@@ -56,6 +56,158 @@ describe('Events API', () => {
         vi.clearAllMocks()
     })
 
+    const mockAnnounceActivity = (eventId: string) => {
+        vi.mocked(activityBuilder.buildAnnounceEventActivity).mockReturnValue({
+            '@context': [],
+            id: `${baseUrl}/users/${testUser.username}/activities/share-${eventId}`,
+            type: 'Announce',
+            actor: `${baseUrl}/users/${testUser.username}`,
+            object: `${baseUrl}/events/${eventId}`,
+            to: ['https://www.w3.org/ns/activitystreams#Public'],
+            cc: [],
+            published: new Date().toISOString(),
+        } as any)
+    }
+
+    describe('POST /events/:id/share', () => {
+        it('allows sharing a public event', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_source',
+                    email: 'source@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Public Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'share-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            mockAnnounceActivity(event.id)
+
+            const res = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.share).toBeDefined()
+            expect(body.share.sharedEventId).toBe(event.id)
+            expect(body.alreadyShared).toBe(false)
+
+            sessionSpy.mockRestore()
+        })
+
+        it('prevents sharing non-public events', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_private',
+                    email: 'source_private@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Private Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'PRIVATE',
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'share-session-private',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(403)
+
+            sessionSpy.mockRestore()
+        })
+
+        it('is idempotent when sharing the same event twice', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_dupe',
+                    email: 'source_dupe@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Duplicate Share Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'share-session-dup',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            mockAnnounceActivity(event.id)
+
+            const first = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+            expect(first.status).toBe(201)
+
+            const second = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+            expect(second.status).toBe(200)
+            const body = await second.json() as any
+            expect(body.alreadyShared).toBe(true)
+
+            sessionSpy.mockRestore()
+        })
+    })
+
     describe('Event visibility', () => {
         it('defaults new events to PUBLIC visibility', async () => {
             const event = await prisma.event.create({

@@ -454,6 +454,38 @@ export function buildMaybeAttendingActivity(
 }
 
 /**
+ * Builds an Announce activity for sharing/reposting an event
+ */
+export function buildAnnounceEventActivity(
+    user: User,
+    eventUrl: string,
+    visibility: Event['visibility'] | null | undefined,
+    originalActorUrl?: string
+): AnnounceActivity {
+    const baseUrl = getBaseUrl()
+    const actorUrl = `${baseUrl}/users/${user.username}`
+    const followersUrl = `${baseUrl}/users/${user.username}/followers`
+
+    const addressing = buildVisibilityAddressing(visibility, followersUrl)
+    const cc = addressing.cc ? [...addressing.cc] : []
+
+    if (originalActorUrl && !cc.includes(originalActorUrl)) {
+        cc.push(originalActorUrl)
+    }
+
+    return {
+        '@context': [...ACTIVITYPUB_CONTEXTS],
+        id: `${actorUrl}/activities/share-${randomUUID()}`,
+        type: ActivityType.ANNOUNCE,
+        actor: actorUrl,
+        object: eventUrl,
+        to: addressing.to && addressing.to.length > 0 ? addressing.to : undefined,
+        cc: cc.length > 0 ? cc : undefined,
+        published: new Date().toISOString(),
+    }
+}
+
+/**
  * Builds a Create activity for a comment (Note)
  */
 export function buildCreateCommentActivity(
