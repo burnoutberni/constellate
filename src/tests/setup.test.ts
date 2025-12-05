@@ -169,4 +169,37 @@ describe('Setup Routes', () => {
             expect(signUpCall?.body?.password).toBe('mySecurePassword123')
         })
     })
+
+    describe('GET /api/setup/status', () => {
+        it('should return setupRequired: true when no users exist', async () => {
+            await prisma.user.deleteMany()
+
+            const res = await app.request('/api/setup/status', {
+                method: 'GET',
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as { setupRequired: boolean }
+            expect(body.setupRequired).toBe(true)
+        })
+
+        it('should return setupRequired: false when users exist', async () => {
+            await prisma.user.create({
+                data: {
+                    username: 'existing_user',
+                    email: 'existing@example.com',
+                    name: 'Existing User',
+                    isRemote: false,
+                },
+            })
+
+            const res = await app.request('/api/setup/status', {
+                method: 'GET',
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as { setupRequired: boolean }
+            expect(body.setupRequired).toBe(false)
+        })
+    })
 })

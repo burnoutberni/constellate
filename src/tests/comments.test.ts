@@ -290,6 +290,158 @@ describe('Comments API', () => {
         })
     })
 
+    describe('POST /:id/comments - edge cases', () => {
+        it('should handle event with null user but external URL', async () => {
+            // Create event with null user (external/federated event)
+            const externalEvent = await prisma.event.create({
+                data: {
+                    title: 'External Event',
+                    summary: 'External event description',
+                    startTime: new Date(Date.now() + 86400000),
+                    endTime: new Date(Date.now() + 86400000 + 3600000),
+                    userId: null,
+                    attributedTo: `${baseUrl}/users/external_user`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${externalEvent.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: 'Comment on external event',
+                }),
+            })
+
+            expect(res.status).toBe(201)
+        })
+
+        it('should not set parentCommentAuthorUrl when replying to own comment', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            // Create parent comment by same user
+            const parentComment = await prisma.comment.create({
+                data: {
+                    content: 'Parent comment',
+                    eventId: testEvent.id,
+                    authorId: testUser.id,
+                },
+            })
+
+            const res = await app.request(`/api/events/${testEvent.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: 'Reply to own comment',
+                    inReplyToId: parentComment.id,
+                }),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.content).toBe('Reply to own comment')
+        })
+
+        it('should handle event with FOLLOWERS visibility', async () => {
+            const followersEvent = await prisma.event.create({
+                data: {
+                    title: 'Followers Event',
+                    summary: 'Followers only event',
+                    startTime: new Date(Date.now() + 86400000),
+                    endTime: new Date(Date.now() + 86400000 + 3600000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${followersEvent.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: 'Comment on followers event',
+                }),
+            })
+
+            expect(res.status).toBe(201)
+        })
+
+        it('should return 404 when user not found after authentication', async () => {
+            // Create a user ID that doesn't exist in the database
+            const fakeUserId = 'non-existent-user-id'
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: fakeUserId,
+                    username: 'fakeuser',
+                    email: 'fake@example.com',
+                },
+                session: {
+                    id: 'test-session',
+                    userId: fakeUserId,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${testEvent.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: 'Test comment',
+                }),
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json() as any
+            expect(body.error).toBe('User not found')
+        })
+    })
+
     describe('DELETE /comments/:commentId', () => {
 
 
@@ -410,6 +562,87 @@ describe('Comments API', () => {
 
 
 
+        it('should handle delete comment with inReplyTo and different author', async () => {
+            // Create parent comment by testUser2
+            const parentComment = await prisma.comment.create({
+                data: {
+                    content: 'Parent comment',
+                    eventId: testEvent.id,
+                    authorId: testUser2.id,
+                },
+            })
+
+            // Create reply by testUser
+            const replyComment = await prisma.comment.create({
+                data: {
+                    content: 'Reply comment',
+                    eventId: testEvent.id,
+                    authorId: testUser.id,
+                    inReplyToId: parentComment.id,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/comments/${replyComment.id}`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(200)
+        })
+
+        it('should handle delete comment with event that has null user', async () => {
+            // Create event with null user
+            const externalEvent = await prisma.event.create({
+                data: {
+                    title: 'External Event',
+                    summary: 'External event description',
+                    startTime: new Date(Date.now() + 86400000),
+                    endTime: new Date(Date.now() + 86400000 + 3600000),
+                    userId: null,
+                    attributedTo: `${baseUrl}/users/external_user`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const comment = await prisma.comment.create({
+                data: {
+                    content: 'Comment on external event',
+                    eventId: externalEvent.id,
+                    authorId: testUser.id,
+                },
+            })
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/comments/${comment.id}`, {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(200)
+        })
     })
 })
 
