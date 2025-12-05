@@ -546,7 +546,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                             if (e.key === 'Enter' && tagInput.trim()) {
                                                 e.preventDefault()
                                                 const tag = tagInput.trim().replace(/^#/, '').toLowerCase()
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag)) {
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag.toLowerCase())) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }
@@ -560,7 +560,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         onClick={() => {
                                             if (tagInput.trim()) {
                                                 const tag = tagInput.trim().replace(/^#/, '').toLowerCase()
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag)) {
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.some(t => t.toLowerCase() === tag.toLowerCase())) {
                                                     setFormData({ ...formData, tags: [...formData.tags, tag] })
                                                     setTagInput('')
                                                 }

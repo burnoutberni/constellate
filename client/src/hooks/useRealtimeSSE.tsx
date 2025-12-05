@@ -4,10 +4,12 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { queryKeys } from './queries/keys'
 import { useUIStore } from '../stores'
 import type { EventDetail, EventUser } from '../types'
+
+type QueryKeys = typeof queryKeys
 
 interface UseRealtimeSSEOptions {
     userId?: string
@@ -39,7 +41,7 @@ const updateLikeInCache = (
     data: unknown,
     eventId: string,
     newLike: { user: EventUser },
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    qClient: QueryClient
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -63,7 +65,7 @@ const removeLikeFromCache = (
     data: unknown,
     eventId: string,
     userId: string,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    qClient: QueryClient
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -83,7 +85,7 @@ const removeCommentFromCache = (
     data: unknown,
     eventId: string,
     commentId: string,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    qClient: QueryClient
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -103,7 +105,7 @@ const addCommentToCache = (
     data: unknown,
     eventId: string,
     newComment: unknown,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    qClient: QueryClient
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -121,8 +123,8 @@ const addCommentToCache = (
 
 const setupEventListeners = (
     eventSource: EventSource,
-    queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
-    queryKeys: typeof import('./queries/keys').queryKeys,
+    queryClient: QueryClient,
+    queryKeys: QueryKeys,
     setSSEConnected: (connected: boolean) => void,
     setIsConnected: (connected: boolean) => void,
     options: UseRealtimeSSEOptions
