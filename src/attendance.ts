@@ -229,11 +229,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         if (error instanceof HttpError) {
-<<<<<<< HEAD
             return c.json(error.body, error.status as HttpErrorStatus)
-=======
-            return c.json(error.body, error.status as 400 | 401 | 403 | 404 | 500)
->>>>>>> f9bebca (Fix type/lint issues)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
