@@ -21,19 +21,17 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
     const [isConnected, setIsConnected] = useState(false)
     const eventSourceRef = useRef<EventSource | null>(null)
 
-    const applyToEventDetailCache = (
-        eventId: string,
-        handler: (params: { queryKey: unknown; detail: EventDetail }) => void
-    ) => {
+    const getEventDetailContexts = (eventId: string) => {
         const eventQueries = queryClient.getQueriesData({
             queryKey: queryKeys.events.details(),
         })
 
-        eventQueries.forEach(([queryKey, data]) => {
-            if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
-                handler({ queryKey, detail: data as EventDetail })
-            }
-        })
+        return eventQueries
+            .filter(([_, data]) => data && typeof data === 'object' && 'id' in data && data.id === eventId)
+            .map(([queryKey, data]) => ({
+                queryKey,
+                detail: data as EventDetail,
+            }))
     }
 
     useEffect(() => {
@@ -129,9 +127,10 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             const event = JSON.parse(e.data)
             console.log('[SSE] Attendance removed:', event)
             if (event.data?.eventId) {
-                applyToEventDetailCache(event.data.eventId, ({ queryKey }) => {
+                const contexts = getEventDetailContexts(event.data.eventId)
+                for (const { queryKey } of contexts) {
                     queryClient.invalidateQueries({ queryKey })
-                })
+                }
             }
         })
 
@@ -140,13 +139,14 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             const event = JSON.parse(e.data)
             console.log('[SSE] Like added:', event)
             if (event.data?.eventId && event.data?.like) {
-                applyToEventDetailCache(event.data.eventId, ({ queryKey, detail }) => {
-                    const newLike = event.data.like as { user: EventUser }
+                const newLike = event.data.like as { user: EventUser }
+                const contexts = getEventDetailContexts(event.data.eventId)
+                for (const { queryKey, detail } of contexts) {
                     const existingLike = detail.likes?.find(
                         (like) => like.user?.id === newLike.user?.id
                     )
                     if (existingLike) {
-                        return
+                        continue
                     }
                     const updatedLikes = [...(detail.likes || []), newLike]
                     queryClient.setQueryData(queryKey, {
@@ -157,7 +157,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                             likes: updatedLikes.length,
                         },
                     })
-                })
+                }
             }
         })
 
@@ -165,7 +165,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             const event = JSON.parse(e.data)
             console.log('[SSE] Like removed:', event)
             if (event.data?.eventId && event.data?.userId) {
-                applyToEventDetailCache(event.data.eventId, ({ queryKey, detail }) => {
+                const contexts = getEventDetailContexts(event.data.eventId)
+                for (const { queryKey, detail } of contexts) {
                     const updatedLikes = detail.likes?.filter(
                         (like) => like.user?.id !== event.data.userId
                     ) || []
@@ -177,7 +178,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                             likes: updatedLikes.length,
                         },
                     })
-                })
+                }
             }
         })
 
@@ -186,7 +187,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             const event = JSON.parse(e.data)
             console.log('[SSE] Comment added:', event)
             if (event.data?.eventId && event.data?.comment) {
-                applyToEventDetailCache(event.data.eventId, ({ queryKey, detail }) => {
+                const contexts = getEventDetailContexts(event.data.eventId)
+                for (const { queryKey, detail } of contexts) {
                     const newComment = event.data.comment
                     const updatedComments = [...(detail.comments || []), newComment]
                     queryClient.setQueryData(queryKey, {
@@ -197,7 +199,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                             comments: updatedComments.length,
                         },
                     })
-                })
+                }
             }
         })
 
@@ -205,7 +207,8 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             const event = JSON.parse(e.data)
             console.log('[SSE] Comment deleted:', event)
             if (event.data?.eventId && event.data?.commentId) {
-                applyToEventDetailCache(event.data.eventId, ({ queryKey, detail }) => {
+                const contexts = getEventDetailContexts(event.data.eventId)
+                for (const { queryKey, detail } of contexts) {
                     const updatedComments = detail.comments?.filter(
                         (comment) => comment.id !== event.data.commentId
                     ) || []
@@ -217,7 +220,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
                             comments: updatedComments.length,
                         },
                     })
-                })
+                }
             }
         })
 

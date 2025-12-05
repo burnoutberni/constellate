@@ -102,13 +102,9 @@ export function UserProfilePage() {
 
         const showPendingState = followStatus?.isFollowing && !followStatus?.isAccepted
 
-        return (
-            <button
-                onClick={handleFollow}
-                disabled={followMutation.isPending || followMutation.isSuccess}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-                {followMutation.isPending ? (
+        const getFollowButtonContent = () => {
+            if (followMutation.isPending) {
+                return (
                     <>
                         <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -116,16 +112,30 @@ export function UserProfilePage() {
                         </svg>
                         <span>Following...</span>
                     </>
-                ) : showPendingState ? (
+                )
+            }
+
+            if (showPendingState) {
+                return (
                     <>
                         <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>Pending...</span>
                     </>
-                ) : (
-                    'Follow'
-                )}
+                )
+            }
+
+            return 'Follow'
+        }
+
+        return (
+            <button
+                onClick={handleFollow}
+                disabled={followMutation.isPending || followMutation.isSuccess}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                {getFollowButtonContent()}
             </button>
         )
     }
