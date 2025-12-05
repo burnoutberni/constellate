@@ -83,8 +83,6 @@ export function FeedPage() {
         )
     }
 
-
-
     return (
         <div className="min-h-screen bg-gray-100">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -223,34 +221,26 @@ export function FeedPage() {
                                     }
                                     return (
                                         <div className="space-y-2">
-                                            {selectedDateEvents.map((event) => {
-                                                const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
-                                                return (
-                                                    <div
-                                                        key={event.id}
-                                                        onClick={() => handleEventClick(event)}
-                                                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                                                    >
-                                                        <div className="font-medium text-sm text-gray-900">
-                                                            {event.title}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {formatTime(event.startTime)}
-                                                            {event.location && ` • ${event.location}`}
-                                                        </div>
-                                                        {event.user && (
-                                                            <div className="text-xs text-gray-400 mt-1">
-                                                                by @{event.user.username}
-                                                            </div>
-                                                        )}
-                                                        <div className="mt-1">
-                                                            <span className={`badge ${visibilityMeta.badgeClass}`}>
-                                                                {visibilityMeta.icon} {visibilityMeta.label}
-                                                            </span>
-                                                        </div>
+                                            {selectedDateEvents.map((event) => (
+                                                <div
+                                                    key={event.id}
+                                                    onClick={() => handleEventClick(event)}
+                                                    className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                                >
+                                                    <div className="font-medium text-sm text-gray-900">
+                                                        {event.title}
                                                     </div>
-                                                )
-                                            })}
+                                                    <div className="text-xs text-gray-500">
+                                                        {formatTime(event.startTime)}
+                                                        {event.location && ` • ${event.location}`}
+                                                    </div>
+                                                    {event.user && (
+                                                        <div className="text-xs text-gray-400 mt-1">
+                                                            by @{event.user.username}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     )
                                 })()}
