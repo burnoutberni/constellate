@@ -913,6 +913,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Extract tags from validated data
         const { tags } = validatedData
+        let normalizedTags: string[] | undefined
 
         // Update event with sanitized input
         const updateData: Record<string, unknown> = {
@@ -937,35 +938,54 @@ app.put('/:id', moderateRateLimit, async (c) => {
         // Update tags if provided
         if (tags !== undefined) {
             try {
-                const normalizedTags = tags && Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
-                if (normalizedTags && normalizedTags.length > 0) {
-                    updateData.tags = {
-                        deleteMany: {}, // Delete all existing tags
-                        create: normalizedTags.map(tag => ({ tag })),
-                    }
-                } else {
-                    // Delete all existing tags if tags array is empty
-                    updateData.tags = {
-                        deleteMany: {},
-                    }
-                }
+                normalizedTags = Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
             } catch (error) {
                 console.error('Error normalizing tags in update:', error)
-                // If normalization fails, delete all existing tags
-                updateData.tags = {
-                    deleteMany: {},
-                }
+                normalizedTags = []
             }
         }
 
-        const event = await prisma.event.update({
-            where: { id },
-            data: updateData,
-            include: {
-                user: true,
-                tags: true,
-            },
+        const event = await prisma.$transaction(async (tx) => {
+            const updatedEvent = await tx.event.update({
+                where: { id },
+                data: updateData,
+                include: {
+                    user: true,
+                    tags: true,
+                },
+            })
+
+            if (normalizedTags === undefined) {
+                return updatedEvent
+            }
+
+            await tx.eventTag.deleteMany({
+                where: { eventId: id },
+            })
+
+            if (normalizedTags.length > 0) {
+                await tx.eventTag.createMany({
+                    data: normalizedTags.map(tag => ({
+                        eventId: id,
+                        tag,
+                    })),
+                })
+            }
+
+            const refreshedEvent = await tx.event.findUnique({
+                where: { id },
+                include: {
+                    user: true,
+                    tags: true,
+                },
+            })
+
+            return refreshedEvent ?? updatedEvent
         })
+
+        if (!event) {
+            throw new Error('Event not found after update transaction')
+        }
 
         // Build and deliver Update activity
         // Ensure event object includes user property for activity builder
@@ -980,10 +1000,10 @@ app.put('/:id', moderateRateLimit, async (c) => {
             data: {
                 event: {
                     ...event,
-                    startTime: event.startTime.toISOString(),
+                    startTime: event.startTime?.toISOString(),
                     endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt.toISOString(),
-                    updatedAt: event.updatedAt.toISOString(),
+                    createdAt: event.createdAt?.toISOString(),
+                    updatedAt: event.updatedAt?.toISOString(),
                 },
             },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
