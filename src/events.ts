@@ -159,7 +159,7 @@ app.post('/', moderateRateLimit, async (c) => {
             }
         }
 
-        // Create event with sanitized input
+        // Create event with sanitized input - use spread operator for cleaner code
         const event = await prisma.event.create({
             data: {
                 title: sanitizeText(validatedData.title),
@@ -236,14 +236,6 @@ app.post('/', moderateRateLimit, async (c) => {
         return c.json(event, 201)
     } catch (error) {
         console.error('Error creating event:', error)
-        if (error instanceof Error) {
-            console.error('Error stack:', error.stack)
-        }
-        // Check if prisma is properly initialized
-        if (error instanceof TypeError && error.message.includes('prisma') && error.message.includes('is not a function')) {
-            console.error('Prisma client issue detected. Prisma type:', typeof prisma)
-            console.error('Prisma.event type:', typeof prisma?.event)
-        }
         return handleError(error, c)
     }
 })
@@ -1111,7 +1103,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const { tags } = validatedData
         let normalizedTags: string[] | undefined
 
-        // Update event with sanitized input
+        // Update event with sanitized input - use spread operator for cleaner code
         const updateData: Record<string, unknown> = {
             ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
             ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),

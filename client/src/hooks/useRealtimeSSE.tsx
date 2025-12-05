@@ -37,19 +37,11 @@ const isValidEventData = (data: unknown, eventId: string): data is EventDetail &
 }
 
 const updateLikeInCache = (
-<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newLike: { user: EventUser },
     qClient: QueryClient
-=======
-    queryKey: unknown,
-    data: unknown,
-    eventId: string,
-    newLike: { user: EventUser },
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -69,19 +61,11 @@ const updateLikeInCache = (
 }
 
 const removeLikeFromCache = (
-<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     userId: string,
     qClient: QueryClient
-=======
-    queryKey: unknown,
-    data: unknown,
-    eventId: string,
-    userId: string,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -97,19 +81,11 @@ const removeLikeFromCache = (
 }
 
 const removeCommentFromCache = (
-<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     commentId: string,
     qClient: QueryClient
-=======
-    queryKey: unknown,
-    data: unknown,
-    eventId: string,
-    commentId: string,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -125,19 +101,11 @@ const removeCommentFromCache = (
 }
 
 const addCommentToCache = (
-<<<<<<< HEAD
     queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newComment: unknown,
     qClient: QueryClient
-=======
-    queryKey: unknown,
-    data: unknown,
-    eventId: string,
-    newComment: unknown,
-    qClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     if (!isValidEventData(data, eventId)) return
     const eventDetail = data as EventDetail
@@ -155,7 +123,6 @@ const addCommentToCache = (
 
 const setupEventListeners = (
     eventSource: EventSource,
-<<<<<<< HEAD
     queryClient: QueryClient,
     queryKeys: QueryKeys,
     setSSEConnected: (connected: boolean) => void,
@@ -172,11 +139,6 @@ const setupEventListeners = (
         author?: { id?: string; username?: string; name?: string }
         createdAt: string
     }) => void
-=======
-    queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
-    queryKeys: typeof import('./queries/keys').queryKeys,
-    setSSEConnected: (connected: boolean) => void,
-    setIsConnected: (connected: boolean) => void,
     options: UseRealtimeSSEOptions
 >>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
