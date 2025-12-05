@@ -5,6 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
+import type { Event, User, EventAttendance } from '@prisma/client'
 import {
     buildAttendingActivity,
     buildNotAttendingActivity,
@@ -20,6 +21,9 @@ import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 
 const app = new Hono()
+
+type EventWithOwner = Event & { user: User | null }
+type AttendanceState = (typeof AttendanceStatus)[keyof typeof AttendanceStatus]
 
 class HttpError extends Error {
     status: number
@@ -39,18 +43,18 @@ function requireResource<T>(value: T | null | undefined, status: number, message
     return value
 }
 
-async function ensureViewerCanAccess(event: any, viewerId: string) {
+async function ensureViewerCanAccess(event: EventWithOwner, viewerId: string) {
     const canView = await canUserViewEvent(event, viewerId)
     if (!canView) {
         throw new HttpError(403, { error: 'Forbidden' })
     }
 }
 
-function shouldNotifyFollowers(visibility: string | null | undefined) {
+function shouldNotifyFollowers(visibility: Event['visibility'] | null | undefined) {
     return visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
 }
 
-function resolveEventFollowersUrl(event: any, baseUrl: string, notifyFollowers: boolean) {
+function resolveEventFollowersUrl(event: EventWithOwner, baseUrl: string, notifyFollowers: boolean) {
     if (!notifyFollowers) {
         return undefined
     }
@@ -69,7 +73,7 @@ function resolveEventFollowersUrl(event: any, baseUrl: string, notifyFollowers: 
     return undefined
 }
 
-function getUserFollowersUrl(user: { username: string }, baseUrl: string) {
+function getUserFollowersUrl(user: Pick<User, 'username'>, baseUrl: string) {
     return `${baseUrl}/users/${user.username}/followers`
 }
 
@@ -80,7 +84,12 @@ function normalizeRecipientsField(value?: string | string[]) {
     return Array.isArray(value) ? value : [value]
 }
 
-async function deliverNormalizedActivity(activity: any, userId: string) {
+interface AddressableActivity {
+    to?: string | string[]
+    cc?: string | string[]
+}
+
+async function deliverNormalizedActivity(activity: AddressableActivity, userId: string) {
     const { deliverActivity } = await import('./services/ActivityDelivery.js')
     const addressing = {
         to: normalizeRecipientsField(activity.to),
@@ -99,7 +108,7 @@ interface AttendanceContext {
     isPublic: boolean
 }
 
-function buildAttendanceContext(event: any, user: any) {
+function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceContext {
     const baseUrl = getBaseUrl()
     const eventAuthorUrl = event.attributedTo!
     const notifyFollowers = shouldNotifyFollowers(event.visibility)
@@ -114,10 +123,10 @@ function buildAttendanceContext(event: any, user: any) {
 }
 
 function buildAttendanceActivityForStatus(
-    status: string,
-    user: any,
+    status: AttendanceState,
+    user: User,
     context: AttendanceContext
-) {
+): AddressableActivity {
     if (status === AttendanceStatus.ATTENDING) {
         return buildAttendingActivity(
             user,
@@ -165,10 +174,10 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         const { status } = AttendanceSchema.parse(body)
 
         const event = requireResource(
-            await prisma.event.findUnique({
+            (await prisma.event.findUnique({
                 where: { id },
                 include: { user: true },
-            }),
+            })) as EventWithOwner | null,
             404,
             'Event not found'
         )
@@ -237,7 +246,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         const userId = requireAuth(c)
 
         const attendance = requireResource(
-            await prisma.eventAttendance.findUnique({
+            (await prisma.eventAttendance.findUnique({
                 where: {
                     eventId_userId: {
                         eventId: id,
@@ -248,7 +257,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
                     event: { include: { user: true } },
                     user: true,
                 },
-            }),
+            })) as (EventAttendance & { event: EventWithOwner; user: User }) | null,
             404,
             'Attendance not found'
         )

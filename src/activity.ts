@@ -130,10 +130,12 @@ function buildEventSummary(event: {
     }
 }
 
+type VisibilityTarget = Parameters<typeof canUserViewEvent>[0]
+
 async function filterVisibleActivities<T>(
     records: T[],
     viewerId: string,
-    getEvent: (record: T) => any,
+    getEvent: (record: T) => VisibilityTarget,
     buildActivity: (record: T) => FeedActivity
 ) {
     const visibleActivities: FeedActivity[] = []
