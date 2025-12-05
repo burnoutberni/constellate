@@ -103,6 +103,15 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Upload Vitest JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-junit
+          path: reports/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
@@ -247,74 +256,10 @@ jobs:
           echo "⚠️  No base coverage found. This might be the first PR to main."
           echo "Coverage comparison skipped. Future PRs will be checked against this baseline."
 
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: constellate_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
-      BETTER_AUTH_URL: http://test.local
-      BETTER_AUTH_SECRET: test-secret-change-in-production
-      BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
-      NODE_ENV: test
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install root dependencies
-        run: npm ci
-
-      - name: Install client dependencies
-        run: npm ci --prefix client
-
-      - name: Generate Prisma Client
-        run: npm run db:generate
-
-      - name: Run database migrations
-        run: npx prisma migrate deploy
-
-      - name: Check for integration test config
-        id: check_config
-        run: |
-          if [ -f "vitest.integration.config.ts" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run integration tests
-        if: steps.check_config.outputs.exists == 'true'
-        run: npm run test:integration
-
-      - name: Skip integration tests
-        if: steps.check_config.outputs.exists != 'true'
-        run: echo "Integration test config not found, skipping integration tests"
-
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint, tree-shaking, test, coverage-check, integration-test]
+    needs: [lint, tree-shaking, test, coverage-check]
     if: always()
     steps:
       - name: Check all jobs
@@ -338,13 +283,6 @@ jobs:
              [ "${{ needs.coverage-check.result }}" != "success" ] && \
              [ "${{ needs.coverage-check.result }}" != "skipped" ]; then
             echo "❌ Coverage check failed"
-            exit 1
-          fi
-          
-          # Integration tests (optional if config doesn't exist)
-          if [ "${{ needs.integration-test.result }}" != "success" ] && \
-             [ "${{ needs.integration-test.result }}" != "skipped" ]; then
-            echo "❌ Integration test check failed"
             exit 1
           fi
           

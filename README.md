@@ -91,16 +91,20 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
 
 ## Testing
 
+Testing runs entirely against an in-memory Prisma mock (via `@pkgverse/prismock`), so no local database or Docker services are required. Just install dependencies with `npm install` (and `npm install` inside `client/` when touching frontend code) and use the scripts below:
+
 ```bash
-# Run tests once
-npm test
+# Run deterministic Vitest suite with coverage + JUnit (reports/junit.xml)
+npm run test:coverage
 
 # Watch mode (run in separate terminal from dev servers)
 npm run test:watch
 
-# Run all test suites
-npm run test:all
+# Run test suite
+npm test
 ```
+
+The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
 
 ## License
 

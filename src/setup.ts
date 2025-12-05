@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { randomBytes } from 'crypto'
 import { prisma } from './lib/prisma.js'
 import { auth } from './auth.js'
 import { generateUserKeys } from './auth.js'
@@ -31,10 +32,14 @@ app.post('/', async (c) => {
 
     try {
         // Create user using better-auth
+        const generatedPassword = password && password.trim().length > 0
+            ? password
+            : randomBytes(24).toString('hex')
+
         const user = await auth.api.signUpEmail({
             body: {
                 email,
-                password,
+                password: generatedPassword,
                 name,
                 username,
             },
