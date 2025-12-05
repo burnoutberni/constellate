@@ -141,6 +141,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Restore cached base coverage
         id: base_cache
