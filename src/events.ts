@@ -909,8 +909,14 @@ app.put('/:id', moderateRateLimit, async (c) => {
             title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
             summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
             location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
+            headerImage: validatedData.headerImage !== undefined ? validatedData.headerImage : undefined,
+            url: validatedData.url !== undefined ? validatedData.url : undefined,
             startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
             endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
+            duration: validatedData.duration !== undefined ? validatedData.duration : undefined,
+            eventStatus: validatedData.eventStatus !== undefined ? validatedData.eventStatus : undefined,
+            eventAttendanceMode: validatedData.eventAttendanceMode !== undefined ? validatedData.eventAttendanceMode : undefined,
+            maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity !== undefined ? validatedData.maximumAttendeeCapacity : undefined,
         }
 
         if (requestedVisibility) {
