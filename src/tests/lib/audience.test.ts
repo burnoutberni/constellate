@@ -181,6 +181,8 @@ describe('audience helpers', () => {
         it('should only return accepted followers', async () => {
             const userId = 'user-123'
 
+            mockFollowerFind.mockResolvedValue([])
+
             await getFollowerInboxes(userId)
 
             expect(mockFollowerFind).toHaveBeenCalledWith({
