@@ -25,8 +25,8 @@ vi.mock('../../lib/activitypubHelpers.js', () => ({
     getBaseUrl: vi.fn(() => 'http://localhost:3000'),
 }))
 
-const mockUserFind = prisma.user.findUnique as unknown as vi.Mock
-const mockFollowerFind = prisma.follower.findMany as unknown as vi.Mock
+const mockUserFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>
+const mockFollowerFind = prisma.follower.findMany as unknown as ReturnType<typeof vi.fn>
 
 describe('audience helpers', () => {
     beforeEach(() => {
@@ -234,7 +234,7 @@ describe('audience helpers', () => {
         })
 
         it('should skip local non-remote users and returns remote inboxes', async () => {
-            mockUserFind.mockImplementation(async ({ where }) => {
+            mockUserFind.mockImplementation(async ({ where }: { where?: { username?: string; externalActorUrl?: string; isRemote?: boolean } }) => {
                 if (where?.username === 'localuser') {
                     return { id: 'local', isRemote: false }
                 }
@@ -333,7 +333,7 @@ describe('audience helpers', () => {
                     { inboxUrl: 'target-follow', sharedInboxUrl: null },
                 ])
 
-            mockUserFind.mockImplementation(async ({ where }) => {
+            mockUserFind.mockImplementation(async ({ where }: { where?: { username?: string; externalActorUrl?: string; isRemote?: boolean } }) => {
                 if (where?.externalActorUrl === 'https://remote.example/users/alice') {
                     return { id: 'remote-alice', inboxUrl: 'alice-inbox', sharedInboxUrl: null }
                 }
