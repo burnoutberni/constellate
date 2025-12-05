@@ -488,7 +488,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                             {formData.recurrencePattern && (
                                 <div className="mt-4">
                                     <label className="block text-sm font-medium mb-2">
-                                        Repeat until *
+                                        Repeat until
                                     </label>
                                     <input
                                         type="date"

@@ -14,12 +14,17 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
     const monthRange = useMemo(() => {
         const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
         const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59, 999)
-        return { start, end }
+        return {
+            start,
+            end,
+            startMs: start.getTime(),
+            endMs: end.getTime(),
+        }
     }, [selectedDate])
 
     const monthlyEvents = useMemo(
         () => eventsWithinRange(events, monthRange.start, monthRange.end),
-        [events, monthRange.start, monthRange.end]
+        [events, monthRange.startMs, monthRange.endMs]
     )
 
     const getDaysInMonth = (date: Date) => {

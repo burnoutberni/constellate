@@ -150,7 +150,7 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true,
-                        "description": "Last generated occurrence date"
+                        "description": "Date when the recurrence pattern ends"
                     },
                     "user": {
                         "$ref": "#/components/schemas/User"

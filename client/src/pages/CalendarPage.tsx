@@ -100,7 +100,7 @@ export function CalendarPage() {
     // Calendar helpers
     const monthEvents = useMemo(
         () => eventsWithinRange(events, monthRange.start, monthRange.end),
-        [events, monthRange.start, monthRange.end]
+        [events, monthRange.startMs, monthRange.endMs]
     )
 
     const getDaysInMonth = (date: Date) => {
@@ -132,7 +132,7 @@ export function CalendarPage() {
         return withinRange
             .filter((event) => new Date(event.startTime) >= now)
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    }, [events, monthRange.end])
+    }, [events, monthRange.endMs])
 
     const previousMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))

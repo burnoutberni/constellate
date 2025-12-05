@@ -15,8 +15,18 @@ function advanceDate(date: Date, pattern: RecurrencePattern): Date {
     } else if (pattern === 'WEEKLY') {
         next.setDate(next.getDate() + 7)
     } else {
+        // Monthly: handle month-end edge cases
+        const originalDay = next.getDate()
         const month = next.getMonth()
         next.setMonth(month + 1)
+        
+        // If the day rolled over (e.g., Jan 31 -> Feb 31 becomes Mar 3),
+        // it means we went past the end of the target month.
+        // Clamp to the last valid day of the target month.
+        if (next.getDate() !== originalDay) {
+            // We went past the end of the month, so set to the last day
+            next.setDate(0) // Set to last day of previous month (which is the target month)
+        }
     }
     return next
 }
