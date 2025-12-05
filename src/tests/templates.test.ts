@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import templatesApp from '../templates.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
+import { AppError } from '../lib/errors.js'
 
 vi.mock('../lib/prisma.js', () => ({
     prisma: {
@@ -80,6 +81,46 @@ describe('Event Template API', () => {
         })
     })
 
+    it('returns 401 when authentication fails', async () => {
+        vi.mocked(requireAuth).mockImplementation(() => {
+            throw new AppError('UNAUTHORIZED', 'Authentication required', 401)
+        })
+
+        const res = await app.request('/api/event-templates')
+
+        expect(res.status).toBe(401)
+        expect(prisma.eventTemplate.findMany).not.toHaveBeenCalled()
+    })
+
+    it('responds with conflict when template name already exists', async () => {
+        vi.mocked(prisma.eventTemplate.create).mockRejectedValue({ code: 'P2002' })
+
+        const res = await app.request('/api/event-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: 'Weekly Standup',
+                data: baseTemplate.data,
+            }),
+        })
+
+        expect(res.status).toBe(409)
+    })
+
+    it('validates template payloads', async () => {
+        const res = await app.request('/api/event-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: '',
+                data: {},
+            }),
+        })
+
+        expect(res.status).toBe(400)
+        expect(prisma.eventTemplate.create).not.toHaveBeenCalled()
+    })
+
     it('retrieves template by id', async () => {
         vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(baseTemplate as any)
 
@@ -123,6 +164,24 @@ describe('Event Template API', () => {
                 name: 'Updated Template',
             }),
         })
+    })
+
+    it('returns 404 when updating template from another user', async () => {
+        vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue({
+            ...baseTemplate,
+            userId: 'other_user',
+        } as any)
+
+        const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: 'Updated Template',
+            }),
+        })
+
+        expect(res.status).toBe(404)
+        expect(prisma.eventTemplate.update).not.toHaveBeenCalled()
     })
 
     it('deletes template by id', async () => {
