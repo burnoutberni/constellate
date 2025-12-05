@@ -223,6 +223,7 @@ app.get('/', async (c) => {
                     {
                         AND: [
                             { recurrencePattern: { not: null } },
+                            { startTime: { lte: rangeEndDate } },
                             { recurrenceEndDate: { gte: rangeStartDate } },
                         ],
                     },
@@ -885,10 +886,10 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.visibility = requestedVisibility
         }
 
-        if (nextRecurrencePattern !== undefined) {
+        if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }
-        if (nextRecurrenceEndDate !== undefined) {
+        if (validatedData.recurrenceEndDate !== undefined) {
             updateData.recurrenceEndDate = nextRecurrenceEndDate
         }
 

@@ -104,13 +104,13 @@ model Event {
   likes      EventLike[]
   comments   Comment[]
   tags       EventTag[]
-    recurrencePattern RecurrencePattern?
-    recurrenceEndDate DateTime?
+  recurrencePattern RecurrencePattern?
+  recurrenceEndDate DateTime?
 
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
-    @@index([recurrenceEndDate])
+  @@index([recurrenceEndDate])
 }
 
 enum EventVisibility {

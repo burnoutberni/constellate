@@ -267,5 +267,109 @@ describe('Calendar Export', () => {
             expect(icsContent).not.toContain('SUMMARY:Followers Only Event')
         })
     })
+
+    describe('Recurring Events Export', () => {
+        it('should include RRULE in single event export for recurring events', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Weekly Meeting',
+                    startTime: new Date('2024-01-01T10:00:00Z'),
+                    endTime: new Date('2024-01-01T11:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2024-03-31T10:00:00Z'),
+                },
+            })
+
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${recurringEvent.id}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('RRULE')
+            expect(icsContent).toContain('FREQ=WEEKLY')
+            expect(icsContent).toContain('UNTIL=20240331T100000Z')
+        })
+
+        it('should include RRULE in user calendar export for recurring events', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Daily Standup',
+                    startTime: new Date('2024-01-01T09:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'DAILY',
+                    recurrenceEndDate: new Date('2024-01-31T09:00:00Z'),
+                },
+            })
+
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('RRULE')
+            expect(icsContent).toContain('FREQ=DAILY')
+            expect(icsContent).toContain('SUMMARY:Daily Standup')
+        })
+
+        it('should include RRULE in public feed export for recurring events', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Monthly Review',
+                    startTime: new Date(Date.now() + 86400000), // Future event
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                    recurrencePattern: 'MONTHLY',
+                    recurrenceEndDate: new Date(Date.now() + 90 * 86400000),
+                },
+            })
+
+            const res = await app.request('/api/calendar/feed.ics')
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('RRULE')
+            expect(icsContent).toContain('FREQ=MONTHLY')
+            expect(icsContent).toContain('SUMMARY:Monthly Review')
+        })
+
+        it('should not include RRULE for non-recurring events', async () => {
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).not.toContain('RRULE')
+            expect(icsContent).toContain('SUMMARY:Test Event')
+        })
+
+        it('should not include RRULE when recurrencePattern is set but recurrenceEndDate is missing', async () => {
+            const incompleteRecurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Incomplete Recurring Event',
+                    startTime: new Date('2024-01-01T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: null,
+                },
+            })
+
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${incompleteRecurringEvent.id}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).not.toContain('RRULE')
+            expect(icsContent).toContain('SUMMARY:Incomplete Recurring Event')
+        })
+    })
 })
 

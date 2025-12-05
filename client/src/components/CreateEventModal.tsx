@@ -223,14 +223,19 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
             if (formData.recurrencePattern && formData.recurrenceEndDate) {
                 const startDate = new Date(formData.startTime)
-                const recurrenceEnd = new Date(formData.recurrenceEndDate)
+                // Parse recurrence end date as end of day to allow same-day recurrence end
+                const recurrenceEndDateStr = formData.recurrenceEndDate
+                const recurrenceEnd = new Date(recurrenceEndDateStr + 'T23:59:59')
                 if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
                     setError('Please provide valid dates for recurring events.')
                     setSubmitting(false)
                     return
                 }
-                if (recurrenceEnd <= startDate) {
-                    setError('Recurrence end date must be after the start time.')
+                // Compare only the date parts (without time) to allow same-day recurrence end
+                const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+                const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
+                if (recurrenceEndDateOnly < startDateOnly) {
+                    setError('Recurrence end date must be on or after the start date.')
                     setSubmitting(false)
                     return
                 }
