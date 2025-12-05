@@ -5,7 +5,12 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import { buildCreateEventActivity, buildUpdateEventActivity, buildDeleteEventActivity } from './services/ActivityBuilder.js'
+import {
+    buildCreateEventActivity,
+    buildUpdateEventActivity,
+    buildDeleteEventActivity,
+    buildAnnounceEventActivity,
+} from './services/ActivityBuilder.js'
 import { deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
@@ -181,9 +186,16 @@ app.get('/', async (c) => {
             followedActorUrls = following.map(f => f.actorUrl)
         }
 
+        const baseWhere = {
+            sharedEventId: null,
+        }
+
         const where = userId
-            ? buildVisibilityWhere({ userId, followedActorUrls })
-            : { visibility: 'PUBLIC' as const }
+            ? {
+                ...buildVisibilityWhere({ userId, followedActorUrls }),
+                ...baseWhere,
+            }
+            : { visibility: 'PUBLIC' as const, ...baseWhere }
 
         const baseInclude = {
             user: {
@@ -193,6 +205,20 @@ app.get('/', async (c) => {
                     name: true,
                     displayColor: true,
                     profileImage: true,
+                },
+            },
+            sharedEvent: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            displayColor: true,
+                            profileImage: true,
+                            isRemote: true,
+                        },
+                    },
                 },
             },
             _count: {
@@ -305,6 +331,21 @@ app.get('/by-user/:username/:eventId', async (c) => {
                         profileImage: true,
                         externalActorUrl: true,
                         isRemote: true,
+                    },
+                },
+                sharedEvent: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                displayColor: true,
+                                profileImage: true,
+                                externalActorUrl: true,
+                                isRemote: true,
+                            },
+                        },
                     },
                 },
                 attendance: {
@@ -684,6 +725,21 @@ app.get('/:id', async (c) => {
                         externalActorUrl: true,
                     },
                 },
+                sharedEvent: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                displayColor: true,
+                                profileImage: true,
+                                externalActorUrl: true,
+                                isRemote: true,
+                            },
+                        },
+                    },
+                },
                 attendance: {
                     include: {
                         user: {
@@ -759,6 +815,135 @@ app.get('/:id', async (c) => {
         return c.json(event)
     } catch (error) {
         console.error('Error getting event:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+// Share (repost) event
+app.post('/:id/share', moderateRateLimit, async (c) => {
+    try {
+        const { id } = c.req.param()
+        const userId = requireAuth(c)
+
+        const shareUser = await prisma.user.findUnique({
+            where: { id: userId },
+        })
+
+        if (!shareUser || shareUser.isRemote) {
+            return c.json({ error: 'User not found or is remote' }, 404)
+        }
+
+        const includeShareRelations = {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                    externalActorUrl: true,
+                    isRemote: true,
+                },
+            },
+            sharedEvent: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            displayColor: true,
+                            profileImage: true,
+                            externalActorUrl: true,
+                            isRemote: true,
+                        },
+                    },
+                },
+            },
+        }
+
+        const event = await prisma.event.findUnique({
+            where: { id },
+            include: includeShareRelations,
+        })
+
+        if (!event) {
+            return c.json({ error: 'Event not found' }, 404)
+        }
+
+        const originalEvent = event.sharedEvent ?? event
+
+        if (originalEvent.visibility !== 'PUBLIC') {
+            return c.json({ error: 'Only public events can be shared' }, 403 as const)
+        }
+
+        const canViewOriginal = await canUserViewEvent(originalEvent, userId)
+        if (!canViewOriginal) {
+            return c.json({ error: 'Forbidden' }, 403)
+        }
+
+        const duplicateShare = await prisma.event.findFirst({
+            where: {
+                userId,
+                sharedEventId: originalEvent.id,
+            },
+            include: includeShareRelations,
+        })
+
+        if (duplicateShare) {
+            return c.json({ share: duplicateShare, alreadyShared: true })
+        }
+
+        const baseUrl = getBaseUrl()
+        const originalActorUrl = originalEvent.attributedTo
+            ?? (originalEvent.user ? `${baseUrl}/users/${originalEvent.user.username}` : undefined)
+        const originalEventUrl = originalEvent.externalId || `${baseUrl}/events/${originalEvent.id}`
+
+        const share = await prisma.event.create({
+            data: {
+                title: originalEvent.title,
+                summary: originalEvent.summary,
+                location: originalEvent.location,
+                headerImage: originalEvent.headerImage,
+                url: originalEvent.url,
+                startTime: originalEvent.startTime,
+                endTime: originalEvent.endTime,
+                duration: originalEvent.duration,
+                eventStatus: originalEvent.eventStatus,
+                eventAttendanceMode: originalEvent.eventAttendanceMode,
+                maximumAttendeeCapacity: originalEvent.maximumAttendeeCapacity,
+                visibility: 'PUBLIC',
+                userId,
+                attributedTo: `${baseUrl}/users/${shareUser.username}`,
+                sharedEventId: originalEvent.id,
+            },
+            include: includeShareRelations,
+        })
+
+        const announceActivity = buildAnnounceEventActivity(
+            shareUser,
+            originalEventUrl,
+            originalEvent.visibility,
+            originalActorUrl
+        )
+        const addressing = buildAddressingFromActivity(announceActivity)
+        await deliverActivity(announceActivity, addressing, userId)
+
+        const { broadcast, BroadcastEvents } = await import('./realtime.js')
+        await broadcast({
+            type: BroadcastEvents.EVENT_SHARED,
+            data: {
+                share: {
+                    id: share.id,
+                    originalEventId: originalEvent.id,
+                    userId,
+                },
+            },
+        })
+
+        return c.json({ share, alreadyShared: false }, 201)
+    } catch (error) {
+        console.error('Error sharing event:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })

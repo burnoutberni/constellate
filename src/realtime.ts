@@ -197,6 +197,7 @@ export const BroadcastEvents = {
     EVENT_CREATED: 'event:created',
     EVENT_UPDATED: 'event:updated',
     EVENT_DELETED: 'event:deleted',
+    EVENT_SHARED: 'event:shared',
 
     // Attendance updates
     ATTENDANCE_ADDED: 'attendance:added',
