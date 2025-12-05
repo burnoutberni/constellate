@@ -860,10 +860,14 @@ app.put('/:id', moderateRateLimit, async (c) => {
             validatedData.recurrencePattern !== undefined
                 ? (validatedData.recurrencePattern || null)
                 : existingEvent.recurrencePattern
-        const nextRecurrenceEndDate =
-            validatedData.recurrenceEndDate !== undefined
-                ? (validatedData.recurrenceEndDate ? new Date(validatedData.recurrenceEndDate) : null)
-                : existingEvent.recurrenceEndDate
+        let nextRecurrenceEndDate: Date | null
+        if (validatedData.recurrenceEndDate !== undefined) {
+            nextRecurrenceEndDate = validatedData.recurrenceEndDate
+                ? new Date(validatedData.recurrenceEndDate)
+                : null
+        } else {
+            nextRecurrenceEndDate = existingEvent.recurrenceEndDate
+        }
 
         validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
 

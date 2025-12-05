@@ -8,6 +8,8 @@ import ical, { ICalEventStatus } from 'ical-generator'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 
+type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
 const app = new Hono()
 
 // Export single event as ICS
@@ -55,7 +57,7 @@ app.get('/:id/export.ics', async (c) => {
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
             repeating: event.recurrencePattern && event.recurrenceEndDate
                 ? {
-                    freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                    freq: event.recurrencePattern as RecurrenceFrequency,
                     until: event.recurrenceEndDate,
                 }
                 : undefined,
