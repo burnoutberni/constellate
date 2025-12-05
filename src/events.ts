@@ -102,9 +102,14 @@ app.post('/', moderateRateLimit, async (c) => {
         // Normalize tags and only create if there are valid tags after normalization
         let tagsToCreate: Array<{ tag: string }> | undefined = undefined
         if (tags && Array.isArray(tags) && tags.length > 0) {
-            const normalizedTags = normalizeTags(tags)
-            if (normalizedTags.length > 0) {
-                tagsToCreate = normalizedTags.map(tag => ({ tag }))
+            try {
+                const normalizedTags = normalizeTags(tags)
+                if (normalizedTags && normalizedTags.length > 0) {
+                    tagsToCreate = normalizedTags.map(tag => ({ tag }))
+                }
+            } catch (error) {
+                console.error('Error normalizing tags:', error)
+                // Continue without tags if normalization fails
             }
         }
 
@@ -125,7 +130,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 userId,
                 attributedTo: actorUrl,
                 visibility,
-                ...(tagsToCreate ? {
+                ...(tagsToCreate && tagsToCreate.length > 0 ? {
                     tags: {
                         create: tagsToCreate,
                     },
@@ -835,14 +840,22 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Update tags if provided
         if (tags !== undefined) {
-            const normalizedTags = tags && tags.length > 0 ? normalizeTags(tags) : []
-            if (normalizedTags.length > 0) {
-                updateData.tags = {
-                    deleteMany: {}, // Delete all existing tags
-                    create: normalizedTags.map(tag => ({ tag })),
+            try {
+                const normalizedTags = tags && Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
+                if (normalizedTags && normalizedTags.length > 0) {
+                    updateData.tags = {
+                        deleteMany: {}, // Delete all existing tags
+                        create: normalizedTags.map(tag => ({ tag })),
+                    }
+                } else {
+                    // Delete all existing tags if tags array is empty
+                    updateData.tags = {
+                        deleteMany: {},
+                    }
                 }
-            } else {
-                // Delete all existing tags if tags array is empty
+            } catch (error) {
+                console.error('Error normalizing tags in update:', error)
+                // If normalization fails, delete all existing tags
                 updateData.tags = {
                     deleteMany: {},
                 }
