@@ -1221,10 +1221,10 @@ app.put('/:id', moderateRateLimit, async (c) => {
             data: {
                 event: {
                     ...event,
-                    startTime: event.startTime.toISOString(),
+                    startTime: event.startTime?.toISOString(),
                     endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt.toISOString(),
-                    updatedAt: event.updatedAt.toISOString(),
+                    createdAt: event.createdAt?.toISOString(),
+                    updatedAt: event.updatedAt?.toISOString(),
                 },
             },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
