@@ -11,7 +11,6 @@ import {
 } from '../hooks/queries/events'
 import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
-import type { EventDetail } from '../types/event'
 
 type AuthUser = ReturnType<typeof useAuth>['user']
 type RSVPStatus = 'attending' | 'maybe'
