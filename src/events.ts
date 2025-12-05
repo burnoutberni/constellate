@@ -22,9 +22,19 @@ declare module 'hono' {
 }
 const app = new Hono()
 
+function normalizeRecipients(value?: string | string[]): string[] {
+    if (!value) {
+        return []
+    }
+    if (Array.isArray(value)) {
+        return value
+    }
+    return [value]
+}
+
 function buildAddressingFromActivity(activity: { to?: string | string[]; cc?: string | string[] }) {
-    const toArray = Array.isArray(activity.to) ? activity.to : activity.to ? [activity.to] : []
-    const ccArray = Array.isArray(activity.cc) ? activity.cc : activity.cc ? [activity.cc] : []
+    const toArray = normalizeRecipients(activity.to)
+    const ccArray = normalizeRecipients(activity.cc)
 
     return {
         to: toArray,

@@ -28,6 +28,21 @@ import type {
 /**
  * Builds a Create activity for an event
  */
+function buildVisibilityAddressing(
+    visibility: Event['visibility'] | null | undefined,
+    followersUrl: string
+) {
+    if (!visibility || visibility === 'PUBLIC') {
+        return { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
+    }
+
+    if (visibility === 'FOLLOWERS') {
+        return { to: [followersUrl], cc: [] as string[] }
+    }
+
+    return { to: [] as string[], cc: [] as string[] }
+}
+
 export function buildCreateEventActivity(
     event: Event & { user: User | null },
     _userId: string
@@ -38,13 +53,7 @@ export function buildCreateEventActivity(
     const eventUrl = `${baseUrl}/events/${event.id}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
-    const visibility = event.visibility || 'PUBLIC'
-    const addressing =
-        visibility === 'PUBLIC'
-            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
-            : visibility === 'FOLLOWERS'
-                ? { to: [followersUrl], cc: [] as string[] }
-                : { to: [] as string[], cc: [] as string[] }
+    const addressing = buildVisibilityAddressing(event.visibility, followersUrl)
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
@@ -96,13 +105,7 @@ export function buildUpdateEventActivity(
     const eventUrl = `${baseUrl}/events/${event.id}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
-    const visibility = event.visibility || 'PUBLIC'
-    const addressing =
-        visibility === 'PUBLIC'
-            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
-            : visibility === 'FOLLOWERS'
-                ? { to: [followersUrl], cc: [] as string[] }
-                : { to: [] as string[], cc: [] as string[] }
+    const addressing = buildVisibilityAddressing(event.visibility, followersUrl)
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
@@ -154,12 +157,7 @@ export function buildDeleteEventActivity(
     const eventUrl = `${baseUrl}/events/${eventId}`
     const followersUrl = `${baseUrl}/users/${user.username}/followers`
 
-    const addressing =
-        !visibility || visibility === 'PUBLIC'
-            ? { to: [PUBLIC_COLLECTION], cc: [followersUrl] }
-            : visibility === 'FOLLOWERS'
-                ? { to: [followersUrl], cc: [] as string[] }
-                : { to: [] as string[], cc: [] as string[] }
+    const addressing = buildVisibilityAddressing(visibility ?? 'PUBLIC', followersUrl)
 
     return {
         '@context': [...ACTIVITYPUB_CONTEXTS],
