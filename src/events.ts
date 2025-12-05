@@ -133,6 +133,10 @@ app.post('/', moderateRateLimit, async (c) => {
         // Extract tags from validated data
         const { tags, ...eventData } = validatedData
 
+        // Normalize tags and only create if there are valid tags after normalization
+        const normalizedTags = tags && tags.length > 0 ? normalizeTags(tags) : []
+        const tagsToCreate = normalizedTags.length > 0 ? normalizedTags.map(tag => ({ tag })) : undefined
+
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
@@ -147,8 +151,8 @@ app.post('/', moderateRateLimit, async (c) => {
                 visibility,
                 recurrencePattern,
                 recurrenceEndDate,
-                tags: tags && tags.length > 0 ? {
-                    create: normalizeTags(tags).map(tag => ({ tag })),
+                tags: tagsToCreate ? {
+                    create: tagsToCreate,
                 } : undefined,
             },
             include: {
@@ -899,9 +903,17 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Update tags if provided
         if (tags !== undefined) {
-            updateData.tags = {
-                deleteMany: {}, // Delete all existing tags
-                create: normalizeTags(tags).map(tag => ({ tag })),
+            const normalizedTags = tags && tags.length > 0 ? normalizeTags(tags) : []
+            if (normalizedTags.length > 0) {
+                updateData.tags = {
+                    deleteMany: {}, // Delete all existing tags
+                    create: normalizedTags.map(tag => ({ tag })),
+                }
+            } else {
+                // Delete all existing tags if tags array is empty
+                updateData.tags = {
+                    deleteMany: {},
+                }
             }
         }
 
