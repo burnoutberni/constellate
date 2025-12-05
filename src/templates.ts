@@ -4,43 +4,33 @@
  */
 
 import { Hono, type Context } from 'hono'
-import { z, ZodError } from 'zod'
+import { ZodError } from 'zod'
+import type { z } from 'zod'
 import { prisma } from './lib/prisma.js'
 import { requireAuth } from './middleware/auth.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { AppError, Errors } from './lib/errors.js'
+import {
+    EventTemplateInputSchema,
+    EventTemplateDataSchema,
+    EventTemplateListSchema,
+} from './lib/apiSchemas.js'
 
 const app = new Hono()
 
-const TemplateDataSchema = z.object({
-    title: z.string().min(1).max(200),
-    summary: z.string().max(5000).optional(),
-    location: z.string().max(500).optional(),
-    headerImage: z.string().url().optional(),
-    url: z.string().url().optional(),
-    startTime: z.string().datetime().optional(),
-    endTime: z.string().datetime().optional(),
-    duration: z.string().optional(),
-    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
-    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
-    maximumAttendeeCapacity: z.number().int().positive().optional(),
-})
+const TemplateInputSchema = EventTemplateInputSchema
+const TemplateUpdateSchema = EventTemplateInputSchema.partial()
+    .extend({
+        data: EventTemplateDataSchema.partial().optional(),
+    })
+    .refine(
+        (value) => Object.values(value).some((val) => val !== undefined),
+        {
+            message: 'At least one field must be provided',
+        }
+    )
 
-const TemplateInputSchema = z.object({
-    name: z.string().min(1).max(120),
-    description: z.string().max(500).optional(),
-    data: TemplateDataSchema,
-})
-
-const TemplateUpdateSchema = z.object({
-    name: z.string().min(1).max(120).optional(),
-    description: z.string().max(500).optional(),
-    data: TemplateDataSchema.partial().optional(),
-}).refine((value) => Object.values(value).some((val) => val !== undefined), {
-    message: 'At least one field must be provided',
-})
-
-type TemplateData = z.infer<typeof TemplateDataSchema>
+type TemplateData = z.infer<typeof EventTemplateDataSchema>
 
 function sanitizeTemplateData(data: Partial<TemplateData>): Record<string, unknown> {
     const sanitized: Record<string, unknown> = {}
@@ -82,9 +72,11 @@ app.get('/event-templates', async (c) => {
             orderBy: { updatedAt: 'desc' },
         })
 
-        return c.json({
+        const response = EventTemplateListSchema.parse({
             templates: templates.map((template) => serializeTemplate(template)),
         })
+
+        return c.json(response)
     } catch (error) {
         console.error('Error listing event templates:', error)
         if (error instanceof ZodError) {
