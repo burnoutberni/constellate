@@ -32,6 +32,65 @@ const SearchSchema = z.object({
     limit: z.string().optional(),
 })
 
+const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>) => {
+    const where: Record<string, unknown> = {}
+
+    if (params.q) {
+        where.OR = [
+            { title: { contains: params.q, mode: 'insensitive' } },
+            { summary: { contains: params.q, mode: 'insensitive' } },
+        ]
+    }
+
+    if (params.location) {
+        where.location = { contains: params.location, mode: 'insensitive' }
+    }
+
+    if (params.startDate || params.endDate) {
+        where.startTime = {} as { gte?: Date; lte?: Date }
+        if (params.startDate) {
+            (where.startTime as { gte: Date }).gte = new Date(params.startDate)
+        }
+        if (params.endDate) {
+            (where.startTime as { lte: Date }).lte = new Date(params.endDate)
+        }
+    }
+
+    if (params.status) {
+        where.eventStatus = params.status
+    }
+
+    if (params.mode) {
+        where.eventAttendanceMode = params.mode
+    }
+
+    if (params.username) {
+        const user = await prisma.user.findUnique({
+            where: { username: params.username },
+        })
+        if (user) {
+            where.userId = user.id
+        } else {
+            return { where: null, userNotFound: true }
+        }
+    }
+
+    if (params.tags) {
+        const tagList = normalizeTags(params.tags.split(','))
+        if (tagList.length > 0) {
+            where.tags = {
+                some: {
+                    tag: {
+                        in: tagList,
+                    },
+                },
+            }
+        }
+    }
+
+    return { where, userNotFound: false }
+}
+
 // Search events
 app.get('/', async (c) => {
     try {
@@ -52,76 +111,18 @@ app.get('/', async (c) => {
         const limit = Math.min(parseInt(params.limit || '20'), 100)
         const skip = (page - 1) * limit
 
-        // Build where clause
-        const filters: Prisma.EventWhereInput = {}
+        const { where, userNotFound } = await buildSearchWhereClause(params)
 
-        // Text search in title and summary
-        if (params.q) {
-            filters.OR = [
-                { title: { contains: params.q, mode: 'insensitive' } },
-                { summary: { contains: params.q, mode: 'insensitive' } },
-            ]
-        }
-
-        // Location filter
-        if (params.location) {
-            filters.location = { contains: params.location, mode: 'insensitive' }
-        }
-
-        // Date range filter
-        if (params.startDate || params.endDate) {
-            filters.startTime = {} as { gte?: Date; lte?: Date }
-            if (params.startDate) {
-                (filters.startTime as { gte: Date }).gte = new Date(params.startDate)
-            }
-            if (params.endDate) {
-                (filters.startTime as { lte: Date }).lte = new Date(params.endDate)
-            }
-        }
-
-        // Status filter
-        if (params.status) {
-            filters.eventStatus = params.status
-        }
-
-        // Attendance mode filter
-        if (params.mode) {
-            filters.eventAttendanceMode = params.mode
-        }
-
-        // Organizer filter
-        if (params.username) {
-            const user = await prisma.user.findUnique({
-                where: { username: params.username },
+        if (userNotFound || !where) {
+            return c.json({
+                events: [],
+                pagination: {
+                    page,
+                    limit,
+                    total: 0,
+                    pages: 0,
+                },
             })
-            if (user) {
-                filters.userId = user.id
-            } else {
-                // No results if user not found
-                return c.json({
-                    events: [],
-                    pagination: {
-                        page,
-                        limit,
-                        total: 0,
-                        pages: 0,
-                    },
-                })
-            }
-        }
-
-        // Tag filter
-        if (params.tags) {
-            const tagList = normalizeTags(params.tags.split(','))
-            if (tagList.length > 0) {
-                filters.tags = {
-                    some: {
-                        tag: {
-                            in: tagList,
-                        },
-                    },
-                }
-            }
         }
 
         // Execute search
@@ -138,8 +139,8 @@ app.get('/', async (c) => {
             visibilityFilter = { visibility: 'PUBLIC' }
         }
 
-        const hasFilters = Object.keys(filters).length > 0
-        const combinedWhere = hasFilters ? { AND: [filters, visibilityFilter] } : visibilityFilter
+        const hasFilters = Object.keys(where).length > 0
+        const combinedWhere = hasFilters ? { AND: [where, visibilityFilter] } : visibilityFilter
 
         const [events, total] = await Promise.all([
             prisma.event.findMany({
