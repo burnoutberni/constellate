@@ -130,6 +130,12 @@ export function EventDetailPage() {
         }
     }
 
+    const handleSignupSuccess = () => {
+        // The pending action will be executed automatically by the useEffect
+        // that watches for user and pendingAction changes
+        // This callback is called after successful signup/login
+    }
+
     useEffect(() => {
         if (user && pendingAction) {
             const timer = setTimeout(executePendingAction, 100)
