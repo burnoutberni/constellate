@@ -97,7 +97,7 @@ app.post('/', moderateRateLimit, async (c) => {
         const actorUrl = `${baseUrl}/users/${user.username}`
 
         // Extract tags from validated data
-        const { tags, ...eventDataWithoutTags } = validatedData
+        const { tags } = validatedData
 
         // Normalize tags and only create if there are valid tags after normalization
         let tagsToCreate: Array<{ tag: string }> | undefined = undefined
