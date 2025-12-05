@@ -236,4 +236,18 @@ describe('Event Template API', () => {
             where: { id: baseTemplate.id },
         })
     })
+
+    it('returns 404 when deleting template from another user', async () => {
+        vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue({
+            ...baseTemplate,
+            userId: 'other_user',
+        } as any)
+
+        const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+            method: 'DELETE',
+        })
+
+        expect(res.status).toBe(404)
+        expect(prisma.eventTemplate.delete).not.toHaveBeenCalled()
+    })
 })

@@ -193,8 +193,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                         await saveTemplateFromEvent(payload)
                     } catch (err) {
                         console.error('Failed to save template', err)
-                        setError('Event created, but saving the template failed. Please try again.')
-                        return
+                        window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
                     }
                 }
                 const emptyForm = {
