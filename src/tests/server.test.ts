@@ -104,12 +104,19 @@ describe('Server Setup', () => {
 
         it('should return 500 when OpenAPI spec file is missing', async () => {
             const fsPromises = await import('node:fs/promises')
-            const readFileSpy = vi.spyOn(fsPromises, 'readFile').mockRejectedValueOnce(new Error('missing file'))
+            const pathModule = await import('node:path')
+            const { fileURLToPath } = await import('node:url')
+            const testFileDir = pathModule.dirname(fileURLToPath(import.meta.url))
+            const openapiPath = pathModule.resolve(testFileDir, '../openapi.json')
+            const backupPath = `${openapiPath}.bak`
 
-            const res = await app.request('/doc')
-
-            expect(res.status).toBe(500)
-            readFileSpy.mockRestore()
+            await fsPromises.rename(openapiPath, backupPath)
+            try {
+                const res = await app.request('/doc')
+                expect(res.status).toBe(500)
+            } finally {
+                await fsPromises.rename(backupPath, openapiPath)
+            }
         })
     })
 

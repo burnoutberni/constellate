@@ -51,8 +51,8 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@databases/pg-test": "^3.1.2",
     "@eslint/js": "^9.39.1",
+    "@pkgverse/prismock": "^2.0.0",
     "@types/node": "^22.19.1",
     "@types/nodemailer": "^7.0.4",
     "@vitest/coverage-v8": "^2.1.9",

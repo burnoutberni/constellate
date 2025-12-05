@@ -5,6 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
+import type { Event, User } from '@prisma/client'
 import { buildCreateCommentActivity, buildDeleteCommentActivity } from './services/ActivityBuilder.js'
 import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
@@ -13,9 +14,12 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { broadcast, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
+import { AppError } from './lib/errors.js'
 import { sanitizeText } from './lib/sanitization.js'
 
 const app = new Hono()
+
+type EventWithOwner = Omit<Event, 'user'> & { user: User | null; visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' }
 
 // Comment validation schema
 const CommentSchema = z.object({
@@ -33,10 +37,10 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         const { content, inReplyToId } = CommentSchema.parse(body)
 
         // Get event
-        const event = await prisma.event.findUnique({
+        const event = (await prisma.event.findUnique({
             where: { id },
             include: { user: true },
-        })
+        })) as EventWithOwner | null
 
         if (!event) {
             return c.json({ error: 'Event not found' }, 404)
@@ -160,6 +164,9 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 
         return c.json(comment, 201)
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error
+        }
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
@@ -259,14 +266,15 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
         }
 
         const baseUrl = getBaseUrl()
-        const eventAuthorUrl = comment.event.attributedTo!
+        const event = comment.event as EventWithOwner
+        const eventAuthorUrl = event.attributedTo!
 
         // Get event author's followers URL
         let eventAuthorFollowersUrl: string | undefined
-        const shouldNotifyFollowers = comment.event.visibility === 'PUBLIC' || comment.event.visibility === 'FOLLOWERS'
+        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
         if (shouldNotifyFollowers) {
-            if (comment.event.user) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${comment.event.user.username}/followers`
+            if (event.user) {
+                eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
             } else if (eventAuthorUrl.startsWith(baseUrl)) {
                 const username = eventAuthorUrl.split('/').pop()
                 if (username) {
@@ -282,7 +290,7 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
                 `${baseUrl}/users/${comment.inReplyTo.author.username}`
         }
 
-        const isPublic = isPublicVisibility(comment.event.visibility)
+        const isPublic = isPublicVisibility(event.visibility)
 
         // Build Delete activity before deleting
         const activity = buildDeleteCommentActivity(
@@ -308,8 +316,8 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
         await deliverToActors(activity, recipients, userId)
 
         // Also deliver to event author's followers if event is public
-        if (eventAuthorFollowersUrl && comment.event.user && shouldNotifyFollowers) {
-            await deliverToFollowers(activity, comment.event.user.id)
+        if (eventAuthorFollowersUrl && event.user && shouldNotifyFollowers) {
+            await deliverToFollowers(activity, event.user.id)
         }
 
         // Broadcast real-time update
@@ -323,6 +331,9 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
 
         return c.json({ success: true })
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error
+        }
         console.error('Error deleting comment:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }

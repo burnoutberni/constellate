@@ -91,16 +91,7 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
 
 ## Testing
 
-### Prerequisites
-
-- A running PostgreSQL instance that matches `DATABASE_URL`. For local development you can reuse Docker Compose:
-  ```bash
-  docker compose up -d db-test
-  export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public"
-  ```
-- Install dependencies with `npm install` (and `npm install` inside `client/` when working on the frontend).
-
-### Commands
+Testing runs entirely against an in-memory Prisma mock (via `@pkgverse/prismock`), so no local database or Docker services are required. Just install dependencies with `npm install` (and `npm install` inside `client/` when touching frontend code) and use the scripts below:
 
 ```bash
 # Run deterministic Vitest suite with coverage + JUnit (reports/junit.xml)
@@ -116,10 +107,7 @@ npm test
 npm run test:all
 ```
 
-Test helpers now:
-
-- Apply database migrations once per run and reset data before each test for isolation.
-- Produce concise CLI output locally while emitting machine-readable JUnit + coverage artifacts in CI.
+The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
 
 ## License
 

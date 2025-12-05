@@ -9,9 +9,7 @@ const junitReporter: ['junit', { outputFile: string }] = [
 
 export default defineConfig({
   test: {
-    globalSetup: ['./src/tests/globalSetup.ts'],
-    globalTeardown: ['./src/tests/globalTeardown.ts'],
-    setupFiles: ['./src/tests/testSetup.ts'],
+    setupFiles: ['./src/tests/setupVitest.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json', 'html'],
@@ -39,7 +37,6 @@ export default defineConfig({
     env: {
       VITEST: 'true',
       NODE_ENV: 'test',
-      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public',
       BETTER_AUTH_URL: 'http://test.local',
       BETTER_AUTH_SECRET: 'test-secret-change-in-production',
       BETTER_AUTH_TRUSTED_ORIGINS: 'http://test.local',

@@ -156,7 +156,7 @@ describe('Comments API', () => {
 
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
 
-            const res = await app.request(`/api/comments/${comment.id}`, {
+            const res = await app.request(`/api/events/comments/${comment.id}`, {
                 method: 'DELETE',
             })
 
