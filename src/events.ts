@@ -131,29 +131,41 @@ app.post('/', moderateRateLimit, async (c) => {
         const actorUrl = `${baseUrl}/users/${user.username}`
 
         // Extract tags from validated data
-        const { tags, ...eventData } = validatedData
+        const { tags, ...eventDataWithoutTags } = validatedData
 
         // Normalize tags and only create if there are valid tags after normalization
-        const normalizedTags = tags && tags.length > 0 ? normalizeTags(tags) : []
-        const tagsToCreate = normalizedTags.length > 0 ? normalizedTags.map(tag => ({ tag })) : undefined
+        let tagsToCreate: Array<{ tag: string }> | undefined = undefined
+        if (tags && Array.isArray(tags) && tags.length > 0) {
+            const normalizedTags = normalizeTags(tags)
+            if (normalizedTags.length > 0) {
+                tagsToCreate = normalizedTags.map(tag => ({ tag }))
+            }
+        }
 
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...eventData,
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
+                headerImage: validatedData.headerImage || null,
+                url: validatedData.url || null,
                 startTime,
                 endTime,
+                duration: validatedData.duration || null,
+                eventStatus: validatedData.eventStatus || null,
+                eventAttendanceMode: validatedData.eventAttendanceMode || null,
+                maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null,
                 userId,
                 attributedTo: actorUrl,
                 visibility,
                 recurrencePattern,
                 recurrenceEndDate,
-                tags: tagsToCreate ? {
-                    create: tagsToCreate,
-                } : undefined,
+                ...(tagsToCreate ? {
+                    tags: {
+                        create: tagsToCreate,
+                    },
+                } : {}),
             },
             include: {
                 user: true,
@@ -210,7 +222,9 @@ app.post('/', moderateRateLimit, async (c) => {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         console.error('Error creating event:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        return c.json({ error: 'Internal server error', message: errorMessage, stack: errorStack }, 500)
     }
 })
 
