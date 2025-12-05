@@ -132,7 +132,7 @@ export async function markNotificationAsRead(userId: string, notificationId: str
         return existing
     }
 
-    return prisma.notification.update({
+    const updated = await prisma.notification.update({
         where: { id: notificationId },
         data: {
             read: true,
@@ -140,6 +140,15 @@ export async function markNotificationAsRead(userId: string, notificationId: str
         },
         include: notificationInclude,
     })
+
+    await broadcastToUser(userId, {
+        type: BroadcastEvents.NOTIFICATION_READ,
+        data: {
+            notification: serializeNotification(updated),
+        },
+    })
+
+    return updated
 }
 
 export async function markAllNotificationsRead(userId: string) {
@@ -153,6 +162,16 @@ export async function markAllNotificationsRead(userId: string) {
             readAt: new Date(),
         },
     })
+
+    if (result.count > 0) {
+        await broadcastToUser(userId, {
+            type: BroadcastEvents.NOTIFICATION_READ,
+            data: {
+                allRead: true,
+                count: result.count,
+            },
+        })
+    }
 
     return result.count
 }

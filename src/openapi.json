@@ -880,7 +880,8 @@
                     },
                     "data": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                     },
                     "read": {
                         "type": "boolean"
@@ -899,7 +900,8 @@
                         "format": "date-time"
                     },
                     "actor": {
-                        "$ref": "#/components/schemas/NotificationActor"
+                        "$ref": "#/components/schemas/NotificationActor",
+                        "nullable": true
                     }
                 }
             },

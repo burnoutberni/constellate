@@ -5,7 +5,7 @@ CREATE TYPE "NotificationType" AS ENUM ('FOLLOW', 'COMMENT', 'LIKE', 'MENTION', 
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" TEXT NOT NULL,
     "actorId" TEXT,
     "type" "NotificationType" NOT NULL,
