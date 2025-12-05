@@ -61,7 +61,7 @@ export const EventSchema = z.object({
     externalId: z.string().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
-    visibility: EventVisibilitySchema,
+    visibility: EventVisibilitySchema.default('PUBLIC'),
     user: UserSchema.nullable(),
     _count: z.object({
         attendance: z.number(),
