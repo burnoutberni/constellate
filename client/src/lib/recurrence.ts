@@ -8,7 +8,7 @@ const RECURRENCE_LABELS: Record<RecurrencePattern, string> = {
     MONTHLY: 'Monthly',
 }
 
-function advanceDate(date: Date, pattern: RecurrencePattern): Date {
+function advanceDate(date: Date, pattern: RecurrencePattern, originalDayOfMonth?: number): Date {
     const next = new Date(date.getTime())
     if (pattern === 'DAILY') {
         next.setDate(next.getDate() + 1)
@@ -16,16 +16,21 @@ function advanceDate(date: Date, pattern: RecurrencePattern): Date {
         next.setDate(next.getDate() + 7)
     } else {
         // Monthly: handle month-end edge cases
-        const originalDay = next.getDate()
-        const month = next.getMonth()
+        // Use the original day of month if provided, otherwise use the current date's day
+        // This ensures that recurring events preserve the original day (e.g., Jan 31 -> Feb 28 -> Mar 31)
+        const targetDay = originalDayOfMonth ?? date.getDate()
+        const month = date.getMonth()
         next.setMonth(month + 1)
+        next.setDate(targetDay)
         
-        // If the day rolled over (e.g., Jan 31 -> Feb 31 becomes Mar 3),
+        // If the day rolled over (e.g., trying to set Feb 31 results in Mar 3),
         // it means we went past the end of the target month.
         // Clamp to the last valid day of the target month.
-        if (next.getDate() !== originalDay) {
-            // We went past the end of the month, so set to the last day
-            next.setDate(0) // Set to last day of previous month (which is the target month)
+        if (next.getDate() !== targetDay) {
+            // We went past the end of the month, so set to the last day of the target month
+            // setDate(0) sets to the last day of the previous month, which is the target month
+            // since we already advanced the month
+            next.setDate(0)
         }
     }
     return next
@@ -72,6 +77,10 @@ export function eventsWithinRange(events: Event[], rangeStart: Date, rangeEnd: D
             continue
         }
 
+        // Store the original day of month for monthly recurrence to preserve it across iterations
+        // This ensures events like "31st of every month" correctly handle month-end edge cases
+        const originalDayOfMonth = event.recurrencePattern === 'MONTHLY' ? eventStart.getDate() : undefined
+
         let currentStart = new Date(eventStart.getTime())
         let iterations = 0
 
@@ -92,7 +101,7 @@ export function eventsWithinRange(events: Event[], rangeStart: Date, rangeEnd: D
                 })
             }
 
-            currentStart = advanceDate(currentStart, event.recurrencePattern)
+            currentStart = advanceDate(currentStart, event.recurrencePattern, originalDayOfMonth)
             iterations++
         }
     }

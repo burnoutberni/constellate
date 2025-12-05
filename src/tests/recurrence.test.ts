@@ -17,6 +17,11 @@ describe('validateRecurrenceInput', () => {
         expect(() => validateRecurrenceInput(start, 'WEEKLY', end)).toThrowError(/Recurrence end date must be after/)
     })
 
+    it('throws when recurrence end date equals start time', () => {
+        const end = new Date('2025-01-01T10:00:00Z')
+        expect(() => validateRecurrenceInput(start, 'DAILY', end)).toThrowError(/Recurrence end date must be after/)
+    })
+
     it('accepts valid recurrence settings', () => {
         const end = new Date('2025-02-01T10:00:00Z')
         expect(() => validateRecurrenceInput(start, 'MONTHLY', end)).not.toThrow()

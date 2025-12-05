@@ -317,7 +317,7 @@ describe('Calendar Export', () => {
         })
 
         it('should include RRULE in public feed export for recurring events', async () => {
-            const recurringEvent = await prisma.event.create({
+            await prisma.event.create({
                 data: {
                     title: 'Monthly Review',
                     startTime: new Date(Date.now() + 86400000), // Future event

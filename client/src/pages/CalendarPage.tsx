@@ -33,7 +33,10 @@ export function CalendarPage() {
             }
             if (event.recurrencePattern && event.recurrenceEndDate) {
                 const recurrenceEndMs = new Date(event.recurrenceEndDate).getTime()
-                return !Number.isNaN(recurrenceEndMs) && recurrenceEndMs >= monthRange.startMs
+                return !Number.isNaN(recurrenceEndMs) && 
+                       !Number.isNaN(eventStartMs) &&
+                       eventStartMs <= monthRange.endMs && 
+                       recurrenceEndMs >= monthRange.startMs
             }
             return false
         },

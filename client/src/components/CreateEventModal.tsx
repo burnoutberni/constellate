@@ -253,7 +253,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
             if (formData.recurrencePattern) {
                 payload.recurrencePattern = formData.recurrencePattern
-                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate).toISOString()
+                // Use the same end-of-day parsing logic as validation to ensure consistency
+                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59').toISOString()
             }
             const response = await fetch('/api/events', {
                 method: 'POST',
