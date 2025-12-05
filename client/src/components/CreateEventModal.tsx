@@ -41,8 +41,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const [templateName, setTemplateName] = useState('')
     const [templateDescription, setTemplateDescription] = useState('')
 
-    if (!isOpen) return null
-
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
         if (!user) {
             return []
@@ -223,6 +221,10 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         } finally {
             setSubmitting(false)
         }
+    }
+
+    if (!isOpen) {
+        return null
     }
 
     return (

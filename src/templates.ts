@@ -154,27 +154,33 @@ app.put('/event-templates/:id', async (c) => {
         const userId = requireAuth(c)
         const payload = TemplateUpdateSchema.parse(await c.req.json())
 
-        const template = await prisma.eventTemplate.findUnique({
-            where: { id },
-        })
+    const template = await prisma.eventTemplate.findUnique({
+        where: { id },
+    })
 
-        if (!template || template.userId !== userId) {
-            throw Errors.notFound('Event template')
+    if (!template || template.userId !== userId) {
+        throw Errors.notFound('Event template')
+    }
+
+    const updateData: Record<string, unknown> = {}
+
+    if (payload.name) {
+        updateData.name = sanitizeText(payload.name)
+    }
+
+    if (payload.description !== undefined) {
+        updateData.description = payload.description ? sanitizeText(payload.description) : null
+    }
+
+    if (payload.data) {
+        const currentData = (template.data && typeof template.data === 'object' && !Array.isArray(template.data))
+            ? template.data as Record<string, unknown>
+            : {}
+        updateData.data = {
+            ...currentData,
+            ...sanitizeTemplateData(payload.data),
         }
-
-        const updateData: Record<string, unknown> = {}
-
-        if (payload.name) {
-            updateData.name = sanitizeText(payload.name)
-        }
-
-        if (payload.description !== undefined) {
-            updateData.description = payload.description ? sanitizeText(payload.description) : null
-        }
-
-        if (payload.data) {
-            updateData.data = sanitizeTemplateData(payload.data)
-        }
+    }
 
         const updated = await prisma.eventTemplate.update({
             where: { id },

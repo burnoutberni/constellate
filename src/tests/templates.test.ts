@@ -160,9 +160,46 @@ describe('Event Template API', () => {
         expect(body.name).toBe('Updated Template')
         expect(prisma.eventTemplate.update).toHaveBeenCalledWith({
             where: { id: baseTemplate.id },
-            data: expect.objectContaining({
+            data: {
                 name: 'Updated Template',
+                data: baseTemplate.data,
+            },
+        })
+    })
+
+    it('merges existing template data when partial payload provided', async () => {
+        const existingTemplate = {
+            ...baseTemplate,
+            data: {
+                title: 'Original',
+                summary: 'Keep me',
+                location: 'Room 1',
+            },
+        }
+
+        vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(existingTemplate as any)
+        vi.mocked(prisma.eventTemplate.update).mockResolvedValue(existingTemplate as any)
+
+        const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    title: '<b>Updated</b>',
+                },
             }),
+        })
+
+        expect(res.status).toBe(200)
+        expect(prisma.eventTemplate.update).toHaveBeenCalledWith({
+            where: { id: baseTemplate.id },
+            data: {
+                data: {
+                    title: 'Updated',
+                    summary: 'Keep me',
+                    location: 'Room 1',
+                },
+            },
         })
     })
 
