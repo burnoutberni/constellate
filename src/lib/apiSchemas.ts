@@ -96,6 +96,12 @@ export const EventTemplateInputSchema = z.object({
     data: EventTemplateDataSchema,
 }).openapi('EventTemplateInput')
 
+export const EventTemplateUpdateSchema = z.object({
+    name: z.string().min(1).max(120).optional().openapi({ example: 'Weekly Standup' }),
+    description: z.string().max(500).optional().openapi({ example: 'Use for recurring standups' }),
+    data: EventTemplateDataSchema.partial().optional(),
+}).openapi('EventTemplateUpdate')
+
 export const EventTemplateSchema = z.object({
     id: z.string().openapi({ example: 'tmpl_123' }),
     name: z.string().openapi({ example: 'Weekly Standup' }),

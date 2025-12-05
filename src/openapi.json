@@ -260,6 +260,61 @@
                     }
                 }
             },
+            "EventTemplateDataUpdate": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "headerImage": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "eventStatus": {
+                        "type": "string",
+                        "enum": [
+                            "EventScheduled",
+                            "EventCancelled",
+                            "EventPostponed"
+                        ]
+                    },
+                    "eventAttendanceMode": {
+                        "type": "string",
+                        "enum": [
+                            "OfflineEventAttendanceMode",
+                            "OnlineEventAttendanceMode",
+                            "MixedEventAttendanceMode"
+                        ]
+                    },
+                    "maximumAttendeeCapacity": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            },
             "EventTemplateInput": {
                 "type": "object",
                 "required": [
@@ -304,6 +359,23 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                }
+            },
+            "EventTemplateUpdate": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/EventTemplateDataUpdate"
                     }
                 }
             },
@@ -847,7 +919,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/EventTemplateInput"
+                                "$ref": "#/components/schemas/EventTemplateUpdate"
                             }
                         }
                     }

@@ -84,15 +84,16 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     }, [isOpen, user, loadTemplates])
 
     useEffect(() => {
-        if (saveAsTemplate) {
-            if (!templateName && formData.title) {
-                setTemplateName(formData.title)
-            }
-        } else {
+        if (!saveAsTemplate) {
             setTemplateName('')
             setTemplateDescription('')
+            return
         }
-    }, [saveAsTemplate, formData.title, templateName])
+
+        if (formData.title) {
+            setTemplateName((prev) => prev || formData.title)
+        }
+    }, [saveAsTemplate, formData.title])
 
     const applyTemplate = (templateId: string) => {
         setSelectedTemplateId(templateId)
@@ -190,9 +191,10 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 if (saveAsTemplate) {
                     try {
                         await saveTemplateFromEvent(payload)
-                    } catch (templateErrorMessage) {
-                        console.error('Failed to save template', templateErrorMessage)
-                        setError('Event created, but saving the template failed.')
+                    } catch (err) {
+                        console.error('Failed to save template', err)
+                        setError('Event created, but saving the template failed. Please try again.')
+                        return
                     }
                 }
                 const emptyForm = {
@@ -215,9 +217,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             } else {
                 setError('Failed to create event. Please try again.')
             }
-        } catch (error) {
+        } catch (err) {
             setError('Error creating event. Please try again.')
-            console.error('Error creating event:', error)
+            console.error('Error creating event:', err)
         } finally {
             setSubmitting(false)
         }
