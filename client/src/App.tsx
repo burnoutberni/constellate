@@ -15,6 +15,7 @@ import { AdminPage } from './pages/AdminPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { MentionNotifications } from './components/MentionNotifications'
 
 function AppContent() {
     // Global SSE connection
@@ -46,18 +47,21 @@ function AppContent() {
     }
 
     return (
-        <Routes>
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/" element={<HomePage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/feed" element={<FeedPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/followers/pending" element={<PendingFollowersPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/*" element={<ProfileOrEventPage />} />
-        </Routes>
+        <>
+            <Routes>
+                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/followers/pending" element={<PendingFollowersPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/*" element={<ProfileOrEventPage />} />
+            </Routes>
+            <MentionNotifications />
+        </>
     )
 }
 

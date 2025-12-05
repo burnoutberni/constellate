@@ -1,5 +1,21 @@
 import { create } from 'zustand'
 
+export interface MentionNotification {
+    id: string
+    commentId: string
+    content: string
+    eventId: string
+    eventTitle?: string
+    eventOwnerHandle?: string
+    handle?: string
+    author?: {
+        id?: string
+        username?: string
+        name?: string | null
+    }
+    createdAt: string
+}
+
 interface UIState {
     // Create Event Modal
     createEventModalOpen: boolean
@@ -20,6 +36,7 @@ interface UIState {
     followersModalOpen: boolean
     followersModalUsername: string | null
     followersModalType: 'followers' | 'following' | null
+    mentionNotifications: MentionNotification[]
     
     // Actions
     openCreateEventModal: () => void
@@ -32,6 +49,8 @@ interface UIState {
     setSSEConnected: (connected: boolean) => void
     openFollowersModal: (username: string, type: 'followers' | 'following') => void
     closeFollowersModal: () => void
+    addMentionNotification: (notification: MentionNotification) => void
+    dismissMentionNotification: (id: string) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -46,6 +65,7 @@ export const useUIStore = create<UIState>((set) => ({
     followersModalOpen: false,
     followersModalUsername: null,
     followersModalType: null,
+    mentionNotifications: [],
     
     // Actions
     openCreateEventModal: () => set({ createEventModalOpen: true }),
@@ -66,5 +86,14 @@ export const useUIStore = create<UIState>((set) => ({
         followersModalUsername: null,
         followersModalType: null,
     }),
+    addMentionNotification: (notification) => set((state) => {
+        const existing = state.mentionNotifications.filter((item) => item.id !== notification.id)
+        return {
+            mentionNotifications: [notification, ...existing].slice(0, 20),
+        }
+    }),
+    dismissMentionNotification: (id) => set((state) => ({
+        mentionNotifications: state.mentionNotifications.filter((item) => item.id !== id),
+    })),
 }))
 

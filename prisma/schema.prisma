@@ -53,6 +53,7 @@ model User {
   eventAttendance EventAttendance[]
   eventLikes      EventLike[]
   comments        Comment[]
+  mentionsReceived CommentMention[]
   inboxItems      InboxItem[]
   blockedUsers    BlockedUser[]     @relation("BlockingUser")
   blockedBy       BlockedUser[]     @relation("BlockedUser")
@@ -223,9 +224,29 @@ model Comment {
   // Federation tracking
   externalId String? @unique // For remote comments
 
+  mentions CommentMention[]
+
   @@index([eventId])
   @@index([authorId])
   @@index([inReplyToId])
+}
+
+// Mentions within comments (used for notifications)
+model CommentMention {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  mentionedUserId String
+  mentionedUser   User @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  handle String // Stored as typed (e.g., @username or @username@domain)
+
+  @@unique([commentId, mentionedUserId])
+  @@index([commentId])
+  @@index([mentionedUserId])
 }
 
 // Event tags/hashtags

@@ -23,6 +23,25 @@ declare module 'hono' {
 }
 const app = new Hono()
 
+const commentUserSelect = {
+    id: true,
+    username: true,
+    name: true,
+    profileImage: true,
+    displayColor: true,
+    isRemote: true,
+} as const
+
+const commentMentionInclude = {
+    mentions: {
+        include: {
+            mentionedUser: {
+                select: commentUserSelect,
+            },
+        },
+    },
+} as const
+
 export function normalizeRecipients(value?: string | string[]): string[] {
     if (!value) {
         return []
@@ -336,27 +355,15 @@ app.get('/by-user/:username/:eventId', async (c) => {
                 comments: {
                     include: {
                         author: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                profileImage: true,
-                                displayColor: true,
-                                isRemote: true,
-                            },
+                            select: commentUserSelect,
                         },
+                        ...commentMentionInclude,
                         replies: {
                             include: {
                                 author: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                        name: true,
-                                        profileImage: true,
-                                        displayColor: true,
-                                        isRemote: true,
-                                    },
+                                    select: commentUserSelect,
                                 },
+                                ...commentMentionInclude,
                             },
                         },
                     },
@@ -584,25 +591,15 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     comments: {
                         include: {
                             author: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    name: true,
-                                    profileImage: true,
-                                    isRemote: true,
-                                },
+                                select: commentUserSelect,
                             },
+                            ...commentMentionInclude,
                             replies: {
                                 include: {
                                     author: {
-                                        select: {
-                                            id: true,
-                                            username: true,
-                                            name: true,
-                                            profileImage: true,
-                                            isRemote: true,
-                                        },
+                                        select: commentUserSelect,
                                     },
+                                    ...commentMentionInclude,
                                 },
                             },
                         },
@@ -711,23 +708,15 @@ app.get('/:id', async (c) => {
                 comments: {
                     include: {
                         author: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                profileImage: true,
-                            },
+                            select: commentUserSelect,
                         },
+                        ...commentMentionInclude,
                         replies: {
                             include: {
                                 author: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                        name: true,
-                                        profileImage: true,
-                                    },
+                                    select: commentUserSelect,
                                 },
+                                ...commentMentionInclude,
                             },
                         },
                     },

@@ -18,6 +18,7 @@ interface UseRealtimeSSEOptions {
 export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
     const queryClient = useQueryClient()
     const setSSEConnected = useUIStore((state) => state.setSSEConnected)
+    const addMentionNotification = useUIStore((state) => state.addMentionNotification)
     const [isConnected, setIsConnected] = useState(false)
     const eventSourceRef = useRef<EventSource | null>(null)
 
@@ -455,6 +456,36 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             }
         })
 
+        eventSource.addEventListener('mention:received', (e) => {
+            const event = JSON.parse(e.data)
+            console.log('[SSE] Mention received:', event)
+            const data = event.data as {
+                commentId?: string
+                commentContent?: string
+                eventId?: string
+                eventTitle?: string
+                eventOwnerHandle?: string
+                handle?: string
+                author?: { id?: string; username?: string; name?: string }
+                createdAt?: string
+            }
+
+            if (data?.commentId && data?.eventId) {
+                const createdAt = data.createdAt || event.timestamp || new Date().toISOString()
+                addMentionNotification({
+                    id: `${data.commentId}-${createdAt}`,
+                    commentId: data.commentId,
+                    content: data.commentContent || '',
+                    eventId: data.eventId,
+                    eventTitle: data.eventTitle,
+                    eventOwnerHandle: data.eventOwnerHandle,
+                    handle: data.handle,
+                    author: data.author,
+                    createdAt,
+                })
+            }
+        })
+
         // Error handling
         eventSource.onerror = (error) => {
             console.error('❌ SSE error:', error)
@@ -469,7 +500,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
             setIsConnected(false)
             setSSEConnected(false)
         }
-    }, [options.userId, queryClient, setSSEConnected, options.onConnect, options.onDisconnect])
+    }, [options.userId, queryClient, setSSEConnected, options.onConnect, options.onDisconnect, addMentionNotification])
 
     return {
         isConnected,
