@@ -14,8 +14,6 @@ import { SignupModal } from '../components/SignupModal'
 import { getVisibilityMeta } from '../lib/visibility'
 import type { EventVisibility } from '../types'
 
-type AuthUser = ReturnType<typeof useAuth>['user']
-type RSVPStatus = 'attending' | 'maybe'
 
 export function EventDetailPage() {
     const location = useLocation()
@@ -252,6 +250,37 @@ export function EventDetailPage() {
     }
 
     const guestTooltip = (message: string) => (!user ? message : undefined)
+    const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
+        if (!rsvpMutation.isPending) {
+            return false
+        }
+        if (status === 'attending') {
+            return userAttendance === 'attending' || !userAttendance
+        }
+        return userAttendance === 'maybe'
+    }
+
+    const renderSpinner = (label: string) => (
+        <>
+            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{label}</span>
+        </>
+    )
+
+    const renderRsvpButtonContent = (status: 'attending' | 'maybe') => {
+        if (shouldShowRsvpSpinner(status)) {
+            return renderSpinner('Updating...')
+        }
+
+        if (status === 'attending') {
+            return <>👍 Going ({attending})</>
+        }
+
+        return <>🤔 Maybe ({maybe})</>
+    }
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -366,18 +395,30 @@ export function EventDetailPage() {
 
                     {/* RSVP Buttons */}
                     <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
-                        <RSVPSection
-                            user={user}
-                            userAttendance={userAttendance}
-                            attendingCount={attending}
-                            maybeCount={maybe}
-                            onRSVP={handleRSVP}
-                            onLike={handleLike}
-                            userLiked={userLiked}
-                            likesCount={event.likes?.length || 0}
-                            isRSVPPending={rsvpMutation.isPending}
-                            isLikePending={likeMutation.isPending}
-                        />
+                        <button
+                            onClick={() => handleRSVP('attending')}
+                            disabled={rsvpMutation.isPending}
+                            className={buildRsvpButtonClass('attending')}
+                            title={guestTooltip('Sign up to RSVP')}
+                        >
+                            {renderRsvpButtonContent('attending')}
+                        </button>
+                        <button
+                            onClick={() => handleRSVP('maybe')}
+                            disabled={rsvpMutation.isPending}
+                            className={buildRsvpButtonClass('maybe')}
+                            title={guestTooltip('Sign up to RSVP')}
+                        >
+                            {renderRsvpButtonContent('maybe')}
+                        </button>
+                        <button
+                            onClick={handleLike}
+                            disabled={likeMutation.isPending}
+                            className={buildLikeButtonClass()}
+                            title={guestTooltip('Sign up to like this event')}
+                        >
+                            ❤️ {event.likes?.length || 0}
+                        </button>
                     </div>
                     {!user && (
                         <div className="mb-6 pb-4 border-b border-gray-200">
@@ -497,102 +538,5 @@ export function EventDetailPage() {
                 onSuccess={handleSignupSuccess}
             />
         </div>
-    )
-}
-
-interface RSVPSectionProps {
-    user: AuthUser | null
-    userAttendance: RSVPStatus | null
-    attendingCount: number
-    maybeCount: number
-    onRSVP: (status: RSVPStatus) => void
-    onLike: () => void
-    userLiked: boolean
-    likesCount: number
-    isRSVPPending: boolean
-    isLikePending: boolean
-}
-
-function RSVPSection({
-    user,
-    userAttendance,
-    attendingCount,
-    maybeCount,
-    onRSVP,
-    onLike,
-    userLiked,
-    likesCount,
-    isRSVPPending,
-    isLikePending,
-}: RSVPSectionProps) {
-    const rsvpButtonClass = (status: RSVPStatus) => {
-        if (userAttendance === status) {
-            return 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-        }
-        if (user) {
-            return 'btn-secondary'
-        }
-        return 'btn-secondary hover:bg-blue-50 border-blue-300'
-    }
-
-    const shouldShowRSVPSpinner = (status: RSVPStatus) => {
-        if (status === 'attending') {
-            return isRSVPPending && (userAttendance === 'attending' || !userAttendance)
-        }
-        return isRSVPPending && userAttendance === 'maybe'
-    }
-
-    const renderRSVPLabel = (status: RSVPStatus) => {
-        return status === 'attending'
-            ? <>👍 Going ({attendingCount})</>
-            : <>🤔 Maybe ({maybeCount})</>
-    }
-
-    const renderUpdatingState = () => (
-        <>
-            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Updating...</span>
-        </>
-    )
-
-    const likeButtonClass = (() => {
-        if (userLiked) return 'btn-primary ring-2 ring-red-600 ring-offset-2'
-        if (user) return 'btn-secondary'
-        return 'btn-secondary hover:bg-blue-50 border-blue-300'
-    })()
-
-    const rsvpTitle = !user ? 'Sign up to RSVP' : ''
-    const likeTitle = !user ? 'Sign up to like this event' : ''
-
-    return (
-        <>
-            <button
-                onClick={() => onRSVP('attending')}
-                disabled={isRSVPPending}
-                className={`btn flex-1 flex items-center justify-center gap-2 ${rsvpButtonClass('attending')}`}
-                title={rsvpTitle}
-            >
-                {shouldShowRSVPSpinner('attending') ? renderUpdatingState() : renderRSVPLabel('attending')}
-            </button>
-            <button
-                onClick={() => onRSVP('maybe')}
-                disabled={isRSVPPending}
-                className={`btn flex-1 flex items-center justify-center gap-2 ${rsvpButtonClass('maybe')}`}
-                title={rsvpTitle}
-            >
-                {shouldShowRSVPSpinner('maybe') ? renderUpdatingState() : renderRSVPLabel('maybe')}
-            </button>
-            <button
-                onClick={onLike}
-                disabled={isLikePending}
-                className={`btn flex-1 ${likeButtonClass}`}
-                title={likeTitle}
-            >
-                ❤️ {likesCount}
-            </button>
-        </>
     )
 }

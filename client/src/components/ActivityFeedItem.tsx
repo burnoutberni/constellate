@@ -9,6 +9,8 @@ interface ActivityFeedItemProps {
 
 export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
     const visibilityMeta = getVisibilityMeta(activity.event.visibility as EventVisibility | undefined)
+    const rsvpStatus = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
+
     const getActivityText = () => {
         switch (activity.type) {
             case 'like':
@@ -18,15 +20,13 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
-            case 'rsvp': {
-                const status = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
+            case 'rsvp':
                 return (
                     <span>
-                        <strong>{activity.user.name || activity.user.username}</strong> {status}{' '}
+                        <strong>{activity.user.name || activity.user.username}</strong> {rsvpStatus}{' '}
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
-            }
             case 'comment':
                 return (
                     <span>
