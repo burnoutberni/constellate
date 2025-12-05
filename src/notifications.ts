@@ -10,6 +10,8 @@ import {
     markAllNotificationsRead,
 } from './services/notifications.js'
 
+type JsonStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
+
 const app = new Hono()
 
 function parseLimit(value?: string | null) {
@@ -43,7 +45,7 @@ app.get('/', async (c) => {
         if (error instanceof AppError) {
             return c.json(
                 { error: error.code, message: error.message },
-                error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
+                error.statusCode as JsonStatusCode
             )
         }
         console.error('Error listing notifications:', error)
@@ -66,7 +68,7 @@ app.post('/:notificationId/read', moderateRateLimit, async (c) => {
         if (error instanceof AppError) {
             return c.json(
                 { error: error.code, message: error.message },
-                error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
+                error.statusCode as JsonStatusCode
             )
         }
         console.error('Error marking notification as read:', error)
@@ -85,7 +87,7 @@ app.post('/mark-all-read', moderateRateLimit, async (c) => {
         if (error instanceof AppError) {
             return c.json(
                 { error: error.code, message: error.message },
-                error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
+                error.statusCode as JsonStatusCode
             )
         }
         console.error('Error marking notifications as read:', error)
