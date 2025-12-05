@@ -140,7 +140,14 @@ export const AttendanceSchema = z.object({
 // Comment schemas
 export const CommentInputSchema = z.object({
     content: z.string().min(1).max(5000).openapi({ example: 'Looking forward to this!' }),
+    inReplyToId: z.string().optional().openapi({ example: 'comment_123' }),
 }).openapi('CommentInput')
+
+export const CommentMentionSchema = z.object({
+    id: z.string().openapi({ example: 'mention_123' }),
+    handle: z.string().openapi({ example: '@alice' }),
+    user: UserSchema,
+}).openapi('CommentMention')
 
 export const CommentSchema = z.object({
     id: z.string(),
@@ -153,6 +160,7 @@ export const CommentSchema = z.object({
     updatedAt: z.string().datetime(),
     author: UserSchema,
     replies: z.array(z.any()).optional(),
+    mentions: z.array(CommentMentionSchema).optional(),
 }).openapi('Comment')
 
 // Profile schemas

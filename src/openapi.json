@@ -464,6 +464,24 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 5000
+                    },
+                    "inReplyToId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "CommentMention": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "handle": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User"
                     }
                 }
             },
