@@ -142,26 +142,51 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
 
+      - name: Restore cached base coverage
+        id: base_cache
+        uses: actions/cache@v4
+        with:
+          path: coverage-base-cache/coverage-final.json
+          key: coverage-base-${{ github.event.pull_request.base.sha }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Install root dependencies
         run: npm ci
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Install client dependencies
         run: npm ci --prefix client
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Generate Prisma Client
         run: npm run db:generate
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Run database migrations
         run: npx prisma migrate deploy
+        if: steps.base_cache.outputs.cache-hit != 'true'
 
       - name: Run tests with coverage
         run: npm run test:coverage
+        if: steps.base_cache.outputs.cache-hit != 'true'
+
+      - name: Use cached coverage file
+        if: steps.base_cache.outputs.cache-hit == 'true'
+        run: |
+          mkdir -p coverage
+          cp coverage-base-cache/coverage-final.json coverage/coverage-final.json
+
+      - name: Store coverage in cache path
+        if: steps.base_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p coverage-base-cache
+          cp coverage/coverage-final.json coverage-base-cache/coverage-final.json
 
       - name: Upload base coverage
         uses: actions/upload-artifact@v4
