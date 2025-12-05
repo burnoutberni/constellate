@@ -13,7 +13,7 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { Person } from './lib/activitypubSchemas.js'
-import { buildVisibilityWhere, canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
+import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import type { Event } from '@prisma/client'
 
 declare module 'hono' {
