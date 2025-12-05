@@ -24,8 +24,8 @@ interface MentionSuggestion {
     displayColor?: string | null
 }
 
-const mentionTriggerRegex = /(^|[\s([{])@([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9.-]+)?)$/i
-const mentionSplitRegex = /(@[a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9.-]+)?)/g
+const mentionTriggerRegex = /(^|[\s({\[]])@([\w.-]+(?:@[\w.-]+)?)$/i
+const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
 export function EventDetailPage() {
     const location = useLocation()
