@@ -98,7 +98,7 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
         }
 
         const isPublic = isPublicVisibility(event.visibility)
-        const shouldNotifyFollowers = isPublic || event.visibility === 'FOLLOWERS'
+        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
 
         const activity = buildLikeActivity(
             user,
@@ -197,7 +197,7 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
         }
 
         const isPublic = isPublicVisibility(like.event.visibility)
-        const shouldNotifyFollowers = isPublic || like.event.visibility === 'FOLLOWERS'
+        const shouldNotifyFollowers = like.event.visibility === 'PUBLIC' || like.event.visibility === 'FOLLOWERS'
 
         const likeActivity = buildLikeActivity(
             user,

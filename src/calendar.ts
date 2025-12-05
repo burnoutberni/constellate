@@ -76,6 +76,17 @@ app.get('/user/:username/export.ics', async (c) => {
             include: {
                 events: {
                     orderBy: { startTime: 'asc' },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                displayColor: true,
+                                profileImage: true,
+                            },
+                        },
+                    },
                 },
             },
         })
@@ -90,14 +101,15 @@ app.get('/user/:username/export.ics', async (c) => {
             description: 'Events from Constellate',
         })
 
-        // Add all events
         const viewerId = c.get('userId') as string | undefined
-        const includeAll = viewerId === user.id
-        const eventsToInclude = includeAll
-            ? user.events
-            : user.events.filter((event) => event.visibility === 'PUBLIC')
+        const filteredEvents = []
+        for (const event of user.events) {
+            if (await canUserViewEvent(event, viewerId)) {
+                filteredEvents.push(event)
+            }
+        }
 
-        for (const event of eventsToInclude) {
+        for (const event of filteredEvents) {
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,

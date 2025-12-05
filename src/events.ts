@@ -14,6 +14,7 @@ import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
+import type { Event } from '@prisma/client'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -41,6 +42,13 @@ export function buildAddressingFromActivity(activity: { to?: string | string[]; 
         cc: ccArray,
         bcc: [] as string[],
     }
+}
+
+export function getBroadcastTarget(visibility: Event['visibility'] | null | undefined, ownerId: string) {
+    if (!visibility || visibility === 'PUBLIC' || visibility === 'FOLLOWERS') {
+        return undefined
+    }
+    return ownerId
 }
 
 // Event validation schema
@@ -138,7 +146,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 },
             },
         }
-        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
+        const broadcastTarget = getBroadcastTarget(event.visibility, userId)
         await broadcast({
             type: BroadcastEvents.EVENT_CREATED,
             data: broadcastPayload,
@@ -808,7 +816,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         await deliverActivity(activity, addressing, userId)
 
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
-        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
+        const broadcastTarget = getBroadcastTarget(event.visibility, userId)
         await broadcast({
             type: BroadcastEvents.EVENT_UPDATED,
             data: {
@@ -876,7 +884,7 @@ app.delete('/:id', moderateRateLimit, async (c) => {
 
         // Broadcast real-time update
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
-        const broadcastTarget = isPublicVisibility(event.visibility) ? undefined : userId
+        const broadcastTarget = getBroadcastTarget(event.visibility, userId)
         await broadcast({
             type: BroadcastEvents.EVENT_DELETED,
             data: {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeRecipients, buildAddressingFromActivity } from '../events.js'
+import { normalizeRecipients, buildAddressingFromActivity, getBroadcastTarget } from '../events.js'
 
 describe('events helper utilities', () => {
     describe('normalizeRecipients', () => {
@@ -43,6 +43,25 @@ describe('events helper utilities', () => {
 
             expect(addressing.to).toBe(to)
             expect(addressing.cc).toBe(cc)
+        })
+    })
+
+    describe('getBroadcastTarget', () => {
+        it('returns undefined for public events', () => {
+            expect(getBroadcastTarget('PUBLIC', 'owner')).toBeUndefined()
+        })
+
+        it('returns undefined for follower-only events to broadcast widely', () => {
+            expect(getBroadcastTarget('FOLLOWERS', 'owner')).toBeUndefined()
+        })
+
+        it('returns owner id for private and unlisted events', () => {
+            expect(getBroadcastTarget('PRIVATE', 'owner')).toBe('owner')
+            expect(getBroadcastTarget('UNLISTED', 'owner')).toBe('owner')
+        })
+
+        it('defaults to public when visibility is missing', () => {
+            expect(getBroadcastTarget(undefined, 'owner')).toBeUndefined()
         })
     })
 })

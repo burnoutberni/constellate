@@ -2,10 +2,14 @@
  * Tests for Calendar Export (ICS)
  */
 
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest'
+vi.mock('../lib/eventVisibility.js', () => ({
+    canUserViewEvent: vi.fn().mockResolvedValue(true),
+}))
 import { prisma } from '../lib/prisma.js'
+import { canUserViewEvent } from '../lib/eventVisibility.js'
 
 describe('Calendar Export', () => {
     let app: any
@@ -48,9 +52,11 @@ describe('Calendar Export', () => {
                 attributedTo: `${baseUrl}/users/${testUser.username}`,
             },
         })
+        vi.mocked(canUserViewEvent).mockResolvedValue(true)
     })
 
     afterEach(async () => {
+        vi.mocked(canUserViewEvent).mockReset()
         // Clean up
         await prisma.eventAttendance.deleteMany({})
         await prisma.eventLike.deleteMany({})
@@ -227,7 +233,39 @@ describe('Calendar Export', () => {
             // Should handle missing user gracefully
             // Note: Cleanup is handled by afterEach hook
         })
+    })
 
+    describe('Visibility filtering', () => {
+        it('should return 403 when viewer cannot access single event export', async () => {
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+            expect(res.status).toBe(403)
+            const text = await res.text()
+            expect(text).toBe('Forbidden')
+        })
+
+        it('should exclude hidden events in user calendar export', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Followers Only Event',
+                    startTime: new Date('2024-01-02T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+
+            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('SUMMARY:Test Event')
+            expect(icsContent).not.toContain('SUMMARY:Followers Only Event')
+        })
     })
 })
 

@@ -1,6 +1,13 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { PUBLIC_COLLECTION } from '../../constants/activitypub.js'
-import * as audience from '../../lib/audience.js'
+import {
+    getPublicAddressing,
+    getFollowersAddressing,
+    getDirectAddressing,
+    getFollowerInboxes,
+    getActorInboxes,
+    resolveInboxes,
+} from '../../lib/audience.js'
 import { prisma } from '../../lib/prisma.js'
 
 vi.mock('../../lib/prisma.js', () => ({
@@ -30,7 +37,7 @@ describe('audience helpers', () => {
     describe('getPublicAddressing', () => {
         it('returns public collection and followers', async () => {
             mockUserFind.mockResolvedValue({ id: 'user_1', username: 'alice' })
-            const result = await audience.getPublicAddressing('user_1')
+            const result = await getPublicAddressing('user_1')
             expect(result).toEqual({
                 to: [PUBLIC_COLLECTION],
                 cc: ['http://localhost:3000/users/alice/followers'],
@@ -40,14 +47,14 @@ describe('audience helpers', () => {
 
         it('throws when user is missing', async () => {
             mockUserFind.mockResolvedValue(null)
-            await expect(audience.getPublicAddressing('missing')).rejects.toThrow('User not found')
+            await expect(getPublicAddressing('missing')).rejects.toThrow('User not found')
         })
     })
 
     describe('getFollowersAddressing', () => {
         it('returns followers collection only', async () => {
             mockUserFind.mockResolvedValue({ id: 'user_1', username: 'alice' })
-            const result = await audience.getFollowersAddressing('user_1')
+            const result = await getFollowersAddressing('user_1')
             expect(result).toEqual({
                 to: ['http://localhost:3000/users/alice/followers'],
                 cc: [],
@@ -58,7 +65,7 @@ describe('audience helpers', () => {
 
     describe('getDirectAddressing', () => {
         it('returns provided actor URLs', () => {
-            const addresses = audience.getDirectAddressing(['https://example.com/users/bob'])
+            const addresses = getDirectAddressing(['https://example.com/users/bob'])
             expect(addresses).toEqual({ to: ['https://example.com/users/bob'], cc: [], bcc: [] })
         })
     })
@@ -70,7 +77,7 @@ describe('audience helpers', () => {
                 { inboxUrl: 'https://b/inbox', sharedInboxUrl: 'https://shared/inbox' },
                 { inboxUrl: 'https://c/inbox', sharedInboxUrl: 'https://shared/inbox' },
             ])
-            const inboxes = await audience.getFollowerInboxes('user_1')
+            const inboxes = await getFollowerInboxes('user_1')
             expect(inboxes).toEqual(['https://a/inbox', 'https://shared/inbox'])
         })
     })
@@ -87,7 +94,7 @@ describe('audience helpers', () => {
                 return null
             })
 
-            const inboxes = await audience.getActorInboxes([
+            const inboxes = await getActorInboxes([
                 'http://localhost:3000/users/localuser',
                 'https://remote.example/users/bob',
             ])
@@ -125,7 +132,7 @@ describe('audience helpers', () => {
                 bcc: ['https://remote.example/users/bob'],
             }
 
-            const inboxes = await audience.resolveInboxes(addressing, 'sender-id')
+            const inboxes = await resolveInboxes(addressing, 'sender-id')
 
             expect(inboxes).toEqual(
                 expect.arrayContaining(['sender-follow', 'target-follow', 'alice-inbox', 'bob-inbox'])
@@ -133,38 +140,6 @@ describe('audience helpers', () => {
         })
     })
 })
-/**
- * Tests for Audience Addressing Logic
- */
-
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-    getPublicAddressing,
-    getFollowersAddressing,
-    getDirectAddressing,
-    getFollowerInboxes,
-    getActorInboxes,
-    resolveInboxes,
-} from '../../lib/audience.js'
-import { prisma } from '../../lib/prisma.js'
-import { PUBLIC_COLLECTION } from '../../constants/activitypub.js'
-
-// Mock dependencies
-vi.mock('../../lib/prisma.js', () => ({
-    prisma: {
-        user: {
-            findUnique: vi.fn(),
-        },
-        follower: {
-            findMany: vi.fn(),
-        },
-    },
-}))
-
-vi.mock('../../lib/activitypubHelpers.js', () => ({
-    getBaseUrl: vi.fn(() => 'http://localhost:3000'),
-}))
-
 describe('Audience Addressing', () => {
     beforeEach(() => {
         vi.clearAllMocks()

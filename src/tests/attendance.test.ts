@@ -89,7 +89,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body).toEqual(mockAttendance)
             expect(prisma.eventAttendance.upsert).toHaveBeenCalledWith({
                 where: {
@@ -135,7 +135,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.status).toBe('maybe')
         })
 
@@ -159,7 +159,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.status).toBe('not_attending')
         })
 
@@ -173,7 +173,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.error).toBe('Event not found')
         })
 
@@ -188,7 +188,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.error).toBe('User not found')
         })
 
@@ -200,7 +200,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(400)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.error).toBe('Validation failed')
         })
 
@@ -254,7 +254,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.status).toBe('attending')
         })
 
@@ -306,7 +306,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.status).toBe('maybe')
         })
     })
@@ -332,7 +332,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.success).toBe(true)
             expect(prisma.eventAttendance.delete).toHaveBeenCalledWith({
                 where: {
@@ -359,7 +359,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.error).toBe('Attendance not found')
         })
 
@@ -388,6 +388,35 @@ describe('Attendance API', () => {
             expect(prisma.eventAttendance.delete).not.toHaveBeenCalled()
         })
 
+        it('should allow removing attendance for follower-only events when viewer follows author', async () => {
+            const followerAttendance = {
+                id: 'attendance_123',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: 'attending',
+                event: {
+                    ...mockEvent,
+                    user: { id: 'owner', username: 'bob' },
+                    userId: 'owner',
+                    visibility: 'FOLLOWERS',
+                },
+                user: mockUser,
+            }
+
+            vi.mocked(prisma.eventAttendance.findUnique).mockResolvedValue(followerAttendance as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.following.findFirst).mockResolvedValue({ id: 'follow_1' } as any)
+            vi.mocked(prisma.eventAttendance.delete).mockResolvedValue(followerAttendance as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(200)
+            expect(prisma.eventAttendance.delete).toHaveBeenCalled()
+        })
+
         it('should return 404 when user not found', async () => {
             const mockAttendance = {
                 id: 'attendance_123',
@@ -405,7 +434,7 @@ describe('Attendance API', () => {
             })
 
             expect(res.status).toBe(404)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.error).toBe('User not found')
         })
     })
@@ -459,7 +488,7 @@ describe('Attendance API', () => {
             const res = await app.request('/api/attendance/event_123/attendees')
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.attendees.attending).toHaveLength(1)
             expect(body.attendees.maybe).toHaveLength(1)
             expect(body.attendees.not_attending).toHaveLength(1)
@@ -477,7 +506,7 @@ describe('Attendance API', () => {
             const res = await app.request('/api/attendance/event_123/attendees')
 
             expect(res.status).toBe(200)
-            const body = await res.json() as any as any
+            const body = await res.json()
             expect(body.attendees.attending).toHaveLength(0)
             expect(body.attendees.maybe).toHaveLength(0)
             expect(body.attendees.not_attending).toHaveLength(0)
