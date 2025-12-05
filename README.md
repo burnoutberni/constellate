@@ -100,11 +100,8 @@ npm run test:coverage
 # Watch mode (run in separate terminal from dev servers)
 npm run test:watch
 
-# Run unit suite only (no integration add-ons)
+# Run test suite
 npm test
-
-# Run all test suites (unit + optional integration config)
-npm run test:all
 ```
 
 The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
