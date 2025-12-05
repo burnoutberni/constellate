@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { PUBLIC_COLLECTION } from '../../constants/activitypub.js'
 import {
     getPublicAddressing,
@@ -25,8 +25,8 @@ vi.mock('../../lib/activitypubHelpers.js', () => ({
     getBaseUrl: vi.fn(() => 'http://localhost:3000'),
 }))
 
-const mockUserFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>
-const mockFollowerFind = prisma.follower.findMany as unknown as ReturnType<typeof vi.fn>
+const mockUserFind = prisma.user.findUnique as unknown as Mock
+const mockFollowerFind = prisma.follower.findMany as unknown as Mock
 
 describe('audience helpers', () => {
     beforeEach(() => {

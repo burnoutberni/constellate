@@ -32,7 +32,7 @@ const SearchSchema = z.object({
     limit: z.string().optional(),
 })
 
-const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>) => {
+const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
     const where: Record<string, unknown> = {}
 
     if (params.q) {
@@ -68,11 +68,10 @@ const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>) => {
         const user = await prisma.user.findUnique({
             where: { username: params.username },
         })
-        if (user) {
-            where.userId = user.id
-        } else {
-            return { where: null, userNotFound: true }
+        if (!user) {
+            throw new Error(`User not found: ${params.username}`)
         }
+        where.userId = user.id
     }
 
     if (params.tags) {
@@ -88,7 +87,7 @@ const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>) => {
         }
     }
 
-    return { where, userNotFound: false }
+    return where as Prisma.EventWhereInput
 }
 
 // Search events
@@ -111,18 +110,23 @@ app.get('/', async (c) => {
         const limit = Math.min(parseInt(params.limit || '20'), 100)
         const skip = (page - 1) * limit
 
-        const { where, userNotFound } = await buildSearchWhereClause(params)
-
-        if (userNotFound || !where) {
-            return c.json({
-                events: [],
-                pagination: {
-                    page,
-                    limit,
-                    total: 0,
-                    pages: 0,
-                },
-            })
+        let where: Prisma.EventWhereInput
+        try {
+            where = await buildSearchWhereClause(params)
+        } catch (error) {
+            // Handle user not found error
+            if (error instanceof Error && error.message.includes('User not found')) {
+                return c.json({
+                    events: [],
+                    pagination: {
+                        page,
+                        limit,
+                        total: 0,
+                        pages: 0,
+                    },
+                })
+            }
+            throw error
         }
 
         // Execute search
