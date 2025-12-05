@@ -19,7 +19,7 @@ import { sanitizeText } from './lib/sanitization.js'
 
 const app = new Hono()
 
-type EventWithOwner = Omit<Event, 'user'> & { user: User | null; visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' }
+type EventWithOwner = Event & { user: User | null }
 
 // Comment validation schema
 const CommentSchema = z.object({
