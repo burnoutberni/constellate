@@ -509,7 +509,7 @@ describe('Events API', () => {
             } as any)
 
             // Mock prisma to throw an error
-            vi.spyOn(prisma.event, 'create').mockRejectedValue(new Error('Database error'))
+            const createMock = vi.spyOn(prisma.event, 'create').mockRejectedValue(new Error('Database error'))
 
             const res = await app.request('/api/events', {
                 method: 'POST',
@@ -523,16 +523,22 @@ describe('Events API', () => {
             })
 
             expect(res.status).toBe(500)
+            
+            // Restore the mock to prevent affecting other tests
+            createMock.mockRestore()
         })
     })
 
     describe('Event listing edge cases', () => {
 
         it('should handle errors in event listing', async () => {
-            vi.spyOn(prisma.event, 'findMany').mockRejectedValue(new Error('Database error'))
+            const findManyMock = vi.spyOn(prisma.event, 'findMany').mockRejectedValue(new Error('Database error'))
 
             const res = await app.request('/api/events')
             expect(res.status).toBe(500)
+            
+            // Restore the mock to prevent affecting other tests
+            findManyMock.mockRestore()
         })
 
     })
