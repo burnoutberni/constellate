@@ -159,33 +159,36 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const eventAuthorUrl = event.attributedTo!
 
-        // Get event author's followers URL only when needed
-        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
-        let eventAuthorFollowersUrl: string | undefined
-        if (shouldNotifyFollowers) {
+        const getEventAuthorFollowersUrl = () => {
             if (event.user) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
-            } else if (eventAuthorUrl.startsWith(baseUrl)) {
+                return `${baseUrl}/users/${event.user.username}/followers`
+            }
+            if (eventAuthorUrl.startsWith(baseUrl)) {
                 const username = eventAuthorUrl.split('/').pop()
                 if (username) {
-                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
+                    return `${baseUrl}/users/${username}/followers`
                 }
             }
+            return undefined
         }
 
-        // Get parent comment author URL if replying
-        let parentCommentAuthorUrl: string | undefined
-        if (inReplyToId) {
+        const getParentCommentAuthorUrl = async () => {
+            if (!inReplyToId) return undefined
             const parentComment = await prisma.comment.findUnique({
                 where: { id: inReplyToId },
                 include: { author: true },
             })
-
             if (parentComment && parentComment.author.id !== userId) {
-                parentCommentAuthorUrl = parentComment.author.externalActorUrl ||
+                return parentComment.author.externalActorUrl ||
                     `${baseUrl}/users/${parentComment.author.username}`
             }
+            return undefined
         }
+
+        // Get event author's followers URL only when needed
+        const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
+        const eventAuthorFollowersUrl = shouldNotifyFollowers ? getEventAuthorFollowersUrl() : undefined
+        const parentCommentAuthorUrl = await getParentCommentAuthorUrl()
 
         // Determine if event is public
         const isPublic = isPublicVisibility(event.visibility)
