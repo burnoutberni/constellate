@@ -919,7 +919,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/EventTemplateUpdate"
+                                "$ref": "#/components/schemas/EventTemplateInput"
                             }
                         }
                     }
@@ -1002,7 +1002,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/EventTemplateInput"
+                                "$ref": "#/components/schemas/EventTemplateUpdate"
                             }
                         }
                     }
