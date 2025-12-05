@@ -75,6 +75,18 @@
   .badge-warning {
     @apply bg-yellow-100 text-yellow-700;
   }
+
+  .badge-followers {
+    @apply bg-purple-100 text-purple-700;
+  }
+
+  .badge-neutral {
+    @apply bg-gray-200 text-gray-700;
+  }
+
+  .badge-private {
+    @apply bg-rose-100 text-rose-700;
+  }
 }
 
 /* Animations */

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import type { EventVisibility } from '../types'
+import { VISIBILITY_OPTIONS } from '../lib/visibility'
 
 interface CreateEventModalProps {
     isOpen: boolean
@@ -24,13 +26,22 @@ interface EventTemplate {
 export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
     const { user } = useAuth()
     const [error, setError] = useState<string | null>(null)
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        title: string
+        summary: string
+        location: string
+        url: string
+        startTime: string
+        endTime: string
+        visibility: EventVisibility
+    }>({
         title: '',
         summary: '',
         location: '',
         url: '',
         startTime: '',
         endTime: '',
+        visibility: 'PUBLIC',
     })
     const [submitting, setSubmitting] = useState(false)
     const [templates, setTemplates] = useState<EventTemplate[]>([])
@@ -84,6 +95,26 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     }, [isOpen, user, loadTemplates])
 
     useEffect(() => {
+        if (!isOpen) {
+            // Reset form when modal closes
+            setFormData({
+                title: '',
+                summary: '',
+                location: '',
+                url: '',
+                startTime: '',
+                endTime: '',
+                visibility: 'PUBLIC',
+            })
+            setSelectedTemplateId('')
+            setSaveAsTemplate(false)
+            setTemplateName('')
+            setTemplateDescription('')
+            setError(null)
+        }
+    }, [isOpen])
+
+    useEffect(() => {
         if (!saveAsTemplate) {
             setTemplateName('')
             setTemplateDescription('')
@@ -111,6 +142,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             url: template.data.url || '',
             startTime: '',
             endTime: '',
+            visibility: formData.visibility,
         })
     }
 
@@ -196,17 +228,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                         window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
                     }
                 }
-                const emptyForm = {
+                setFormData({
                     title: '',
                     summary: '',
                     location: '',
                     url: '',
                     startTime: '',
                     endTime: '',
-                }
-                setFormData(emptyForm)
-                setSaveAsTemplate(false)
+                    visibility: 'PUBLIC',
+                })
                 setSelectedTemplateId('')
+                setSaveAsTemplate(false)
                 setTemplateName('')
                 setTemplateDescription('')
                 onSuccess()
@@ -361,51 +393,35 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                             />
                         </div>
 
-                        <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-                            <label className="flex items-start gap-3 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="mt-1"
-                                    checked={saveAsTemplate}
-                                    onChange={(event) => setSaveAsTemplate(event.target.checked)}
-                                />
-                                <span>
-                                    <span className="font-medium">Save as template</span>
-                                    <span className="block text-xs text-gray-500">
-                                        Keep these settings available for the next event you create.
-                                    </span>
-                                </span>
-                            </label>
-                            {saveAsTemplate && (
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">
-                                            Template Name *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={templateName}
-                                            onChange={(event) => setTemplateName(event.target.value)}
-                                            className="input"
-                                            placeholder="Weekly Standup"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium mb-1">
-                                            Template Description
-                                        </label>
-                                        <textarea
-                                            value={templateDescription}
-                                            onChange={(event) => setTemplateDescription(event.target.value)}
-                                            className="textarea"
-                                            rows={2}
-                                            placeholder="Share context for teammates"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+<div>
+    <label className="block text-sm font-medium mb-2">
+        Visibility
+    </label>
+    <div className="grid gap-2">
+        {VISIBILITY_OPTIONS.map((option) => {
+            const selected = formData.visibility === option.value
+            return (
+                <label
+                    key={option.value}
+                    className={`flex gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
+                >
+                    <input
+                        type="radio"
+                        name="visibility"
+                        value={option.value}
+                        checked={selected}
+                        onChange={() => setFormData({ ...formData, visibility: option.value })}
+                        className="sr-only"
+                    />
+                    <div>
+                        <div className="font-medium text-gray-900">{option.label}</div>
+                        <div className="text-sm text-gray-500">{option.description}</div>
+                    </div>
+                </label>
+            )
+        })}
+    </div>
+</div>
 
                         <div className="flex gap-3 pt-4">
                             <button

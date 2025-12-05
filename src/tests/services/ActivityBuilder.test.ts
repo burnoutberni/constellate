@@ -60,6 +60,7 @@ describe('ActivityBuilder', () => {
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
         user: mockUser,
+        visibility: 'PUBLIC',
     } as Event & { user: User | null }
 
     beforeEach(() => {
@@ -131,6 +132,39 @@ describe('ActivityBuilder', () => {
                 },
             ])
         })
+
+        it('should scope addressing for follower-only events', () => {
+            const followerOnlyEvent = {
+                ...mockEvent,
+                visibility: 'FOLLOWERS',
+            }
+
+            const activity = buildCreateEventActivity(followerOnlyEvent, 'user_123')
+            expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
+            expect(activity.cc).toBeUndefined()
+        })
+
+        it('should remove addressing for private events', () => {
+            const privateEvent = {
+                ...mockEvent,
+                visibility: 'PRIVATE',
+            }
+
+            const activity = buildCreateEventActivity(privateEvent, 'user_123')
+            expect(activity.to).toBeUndefined()
+            expect(activity.cc).toBeUndefined()
+        })
+
+        it('should remove addressing for unlisted events', () => {
+            const unlistedEvent = {
+                ...mockEvent,
+                visibility: 'UNLISTED',
+            }
+
+            const activity = buildCreateEventActivity(unlistedEvent, 'user_123')
+            expect(activity.to).toBeUndefined()
+            expect(activity.cc).toBeUndefined()
+        })
     })
 
     describe('buildUpdateEventActivity', () => {
@@ -156,11 +190,33 @@ describe('ActivityBuilder', () => {
             expect(activity1.id).not.toBe(activity2.id)
             expect(activity1.id).toContain('update-')
         })
+
+        it('should limit addressing for follower-only updates', () => {
+            const followerEvent = {
+                ...mockEvent,
+                visibility: 'FOLLOWERS',
+            }
+
+            const activity = buildUpdateEventActivity(followerEvent, 'user_123')
+            expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
+            expect(activity.cc).toBeUndefined()
+        })
+
+        it('should omit addressing for private updates', () => {
+            const privateEvent = {
+                ...mockEvent,
+                visibility: 'PRIVATE',
+            }
+
+            const activity = buildUpdateEventActivity(privateEvent, 'user_123')
+            expect(activity.to).toBeUndefined()
+            expect(activity.cc).toBeUndefined()
+        })
     })
 
     describe('buildDeleteEventActivity', () => {
         it('should build a Delete activity for an event', () => {
-            const activity = buildDeleteEventActivity('event_123', mockUser)
+            const activity = buildDeleteEventActivity('event_123', mockUser, 'PUBLIC')
 
             expect(activity).toMatchObject({
                 type: ActivityType.DELETE,
@@ -172,6 +228,18 @@ describe('ActivityBuilder', () => {
                     deleted: expect.any(String),
                 },
             })
+        })
+
+        it('should respect follower-only visibility when deleting', () => {
+            const activity = buildDeleteEventActivity('event_123', mockUser, 'FOLLOWERS')
+            expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
+            expect(activity.cc).toBeUndefined()
+        })
+
+        it('should remove addressing when deleting private events', () => {
+            const activity = buildDeleteEventActivity('event_123', mockUser, 'PRIVATE')
+            expect(activity.to).toBeUndefined()
+            expect(activity.cc).toBeUndefined()
         })
     })
 

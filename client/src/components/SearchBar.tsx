@@ -81,8 +81,7 @@ export function SearchBar() {
                 const data = await response.json()
                 const user = data.user
                 // Navigate to the resolved user's profile
-                const profilePath = `/@${user.username}`
-                navigate(profilePath)
+                navigate(`/@${user.username}`)
                 setQuery('')
                 setIsOpen(false)
             } else {

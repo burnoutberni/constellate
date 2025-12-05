@@ -91,7 +91,7 @@ export function HomePage() {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-    const renderTodayEvents = () => {
+    const renderTodayEventsSection = () => {
         if (isLoading) {
             return (
                 <div className="flex items-center justify-center py-8">
@@ -259,7 +259,7 @@ export function HomePage() {
                         {/* Today's Events */}
                         <div className="card p-6">
                             <h2 className="text-xl font-bold mb-4">Today's Events</h2>
-                            {renderTodayEvents()}
+                            {renderTodayEventsSection()}
                         </div>
 
                         {/* Sign Up CTA */}

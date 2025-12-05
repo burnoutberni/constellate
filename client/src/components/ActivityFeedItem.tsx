@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom'
 import type { Activity } from '../types/activity'
+import type { EventVisibility } from '../types'
+import { getVisibilityMeta } from '../lib/visibility'
 
 interface ActivityFeedItemProps {
     activity: Activity
 }
 
 export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
+    const visibilityMeta = getVisibilityMeta(activity.event.visibility as EventVisibility | undefined)
+    const rsvpStatus = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
+
     const getActivityText = () => {
         switch (activity.type) {
             case 'like':
@@ -15,15 +20,13 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
-            case 'rsvp': {
-                const status = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
+            case 'rsvp':
                 return (
                     <span>
-                        <strong>{activity.user.name || activity.user.username}</strong> {status}{' '}
+                        <strong>{activity.user.name || activity.user.username}</strong> {rsvpStatus}{' '}
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
-            }
             case 'comment':
                 return (
                     <span>
@@ -104,7 +107,10 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
+                            <span className={`badge ${visibilityMeta.badgeClass}`}>
+                                {visibilityMeta.icon} {visibilityMeta.label}
+                            </span>
                             <span>{formatTime(activity.createdAt)}</span>
                             {activity.event.location && (
                                 <span>📍 {activity.event.location}</span>

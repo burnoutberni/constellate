@@ -143,6 +143,15 @@
                     },
                     "user": {
                         "$ref": "#/components/schemas/User"
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": [
+                            "PUBLIC",
+                            "FOLLOWERS",
+                            "PRIVATE",
+                            "UNLISTED"
+                        ]
                     }
                 }
             },
@@ -199,6 +208,15 @@
                     "maximumAttendeeCapacity": {
                         "type": "integer",
                         "minimum": 1
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": [
+                            "PUBLIC",
+                            "FOLLOWERS",
+                            "PRIVATE",
+                            "UNLISTED"
+                        ]
                     }
                 }
             },

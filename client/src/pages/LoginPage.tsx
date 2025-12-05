@@ -33,7 +33,8 @@ export function LoginPage() {
         }
     }
 
-    const submitLabel = isLogin ? 'Sign In' : 'Sign Up'
+    const submitText = isLogin ? 'Sign In' : 'Sign Up'
+    const buttonLabel = loading ? 'Processing...' : submitText
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -118,7 +119,7 @@ export function LoginPage() {
                         disabled={loading}
                         className="btn btn-primary w-full py-3 text-lg"
                     >
-                        {loading ? 'Processing...' : submitLabel}
+                        {buttonLabel}
                     </button>
                 </form>
 

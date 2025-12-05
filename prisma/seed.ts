@@ -59,6 +59,7 @@ async function main() {
             attributedTo: `http://localhost:3000/users/${testUser.username}`,
             eventStatus: 'EventScheduled',
             eventAttendanceMode: 'OfflineEventAttendanceMode',
+            visibility: 'PUBLIC',
         },
     })
 
@@ -73,6 +74,7 @@ async function main() {
             attributedTo: `http://localhost:3000/users/${testUser.username}`,
             eventStatus: 'EventScheduled',
             eventAttendanceMode: 'OnlineEventAttendanceMode',
+            visibility: 'PUBLIC',
         },
     })
 

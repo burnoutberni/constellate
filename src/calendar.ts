@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import ical, { ICalEventStatus } from 'ical-generator'
 import { prisma } from './lib/prisma.js'
+import { canUserViewEvent } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
@@ -28,6 +29,12 @@ app.get('/:id/export.ics', async (c) => {
 
         if (!event) {
             return c.text('Event not found', 404)
+        }
+
+        const viewerId = c.get('userId') as string | undefined
+        const canView = await canUserViewEvent(event, viewerId)
+        if (!canView) {
+            return c.text('Forbidden', 403)
         }
 
         // Create calendar
@@ -69,6 +76,17 @@ app.get('/user/:username/export.ics', async (c) => {
             include: {
                 events: {
                     orderBy: { startTime: 'asc' },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                displayColor: true,
+                                profileImage: true,
+                            },
+                        },
+                    },
                 },
             },
         })
@@ -83,8 +101,15 @@ app.get('/user/:username/export.ics', async (c) => {
             description: 'Events from Constellate',
         })
 
-        // Add all events
+        const viewerId = c.get('userId') as string | undefined
+        const filteredEvents = []
         for (const event of user.events) {
+            if (await canUserViewEvent(event, viewerId)) {
+                filteredEvents.push(event)
+            }
+        }
+
+        for (const event of filteredEvents) {
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
@@ -119,6 +144,7 @@ app.get('/feed.ics', async (c) => {
                 startTime: {
                     gte: new Date(), // Only future events
                 },
+                visibility: 'PUBLIC',
             },
             include: {
                 user: {

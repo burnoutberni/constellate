@@ -6,8 +6,10 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
+import type { Prisma } from '@prisma/client'
 import { prisma } from './lib/prisma.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
+import { buildVisibilityWhere } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
@@ -48,11 +50,11 @@ app.get('/', async (c) => {
         const skip = (page - 1) * limit
 
         // Build where clause
-        const where: Record<string, unknown> = {}
+        const filters: Prisma.EventWhereInput = {}
 
         // Text search in title and summary
         if (params.q) {
-            where.OR = [
+            filters.OR = [
                 { title: { contains: params.q, mode: 'insensitive' } },
                 { summary: { contains: params.q, mode: 'insensitive' } },
             ]
@@ -60,28 +62,28 @@ app.get('/', async (c) => {
 
         // Location filter
         if (params.location) {
-            where.location = { contains: params.location, mode: 'insensitive' }
+            filters.location = { contains: params.location, mode: 'insensitive' }
         }
 
         // Date range filter
         if (params.startDate || params.endDate) {
-            where.startTime = {} as { gte?: Date; lte?: Date }
+            filters.startTime = {} as { gte?: Date; lte?: Date }
             if (params.startDate) {
-                (where.startTime as { gte: Date }).gte = new Date(params.startDate)
+                (filters.startTime as { gte: Date }).gte = new Date(params.startDate)
             }
             if (params.endDate) {
-                (where.startTime as { lte: Date }).lte = new Date(params.endDate)
+                (filters.startTime as { lte: Date }).lte = new Date(params.endDate)
             }
         }
 
         // Status filter
         if (params.status) {
-            where.eventStatus = params.status
+            filters.eventStatus = params.status
         }
 
         // Attendance mode filter
         if (params.mode) {
-            where.eventAttendanceMode = params.mode
+            filters.eventAttendanceMode = params.mode
         }
 
         // Organizer filter
@@ -90,7 +92,7 @@ app.get('/', async (c) => {
                 where: { username: params.username },
             })
             if (user) {
-                where.userId = user.id
+                filters.userId = user.id
             } else {
                 // No results if user not found
                 return c.json({
@@ -106,9 +108,25 @@ app.get('/', async (c) => {
         }
 
         // Execute search
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        const hasFilters = Object.keys(filters).length > 0
+        const combinedWhere = hasFilters ? { AND: [filters, visibilityFilter] } : visibilityFilter
+
         const [events, total] = await Promise.all([
             prisma.event.findMany({
-                where,
+                where: combinedWhere,
                 include: {
                     user: {
                         select: {
@@ -131,7 +149,7 @@ app.get('/', async (c) => {
                 skip,
                 take: limit,
             }),
-            prisma.event.count({ where }),
+            prisma.event.count({ where: combinedWhere }),
         ])
 
         return c.json({
