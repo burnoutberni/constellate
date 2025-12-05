@@ -81,7 +81,7 @@ export function FeedPage() {
         )
     }
 
-    const renderActivitySection = () => {
+    const renderActivityContent = () => {
         if (activityLoading) {
             return (
                 <div className="card p-8 text-center">
@@ -152,7 +152,7 @@ export function FeedPage() {
                                 {event.location && ` • ${event.location}`}
                             </div>
                             <div className="mt-1">
-                                <span className={`badge ${visibilityMeta.badgeClass} text-xs`}>
+                                <span className={`badge ${visibilityMeta.badgeClass}`}>
                                     {visibilityMeta.icon} {visibilityMeta.label}
                                 </span>
                             </div>
@@ -202,13 +202,13 @@ export function FeedPage() {
                                 {formatTime(event.startTime)}
                                 {event.location && ` • ${event.location}`}
                             </div>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                {event.user && (
-                                    <div className="text-xs text-gray-400">
-                                        by @{event.user.username}
-                                    </div>
-                                )}
-                                <span className={`badge ${visibilityMeta.badgeClass} text-xs`}>
+                            {event.user && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                    by @{event.user.username}
+                                </div>
+                            )}
+                            <div className="mt-1">
+                                <span className={`badge ${visibilityMeta.badgeClass}`}>
                                     {visibilityMeta.icon} {visibilityMeta.label}
                                 </span>
                             </div>
@@ -249,7 +249,7 @@ export function FeedPage() {
                             )}
                         </div>
 
-                        {renderActivitySection()}
+                        {renderActivityContent()}
                     </div>
 
                     {/* Sidebar */}
@@ -263,7 +263,7 @@ export function FeedPage() {
                         {/* Today's Events */}
                         <div className="card p-4">
                             <h2 className="font-bold text-lg mb-4">Today's Events</h2>
-{renderTodayEvents()}
+                            {renderTodayEvents()}
                         </div>
 
                         {/* Selected Date Events */}

@@ -17,6 +17,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const { login, signup } = useAuth()
+    const submitLabel = isLogin ? 'Sign In' : 'Create Account'
 
     if (!isOpen) return null
 
@@ -56,7 +57,6 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
     }
 
     const loadingLabel = isLogin ? 'Signing in...' : 'Creating account...'
-    const idleLabel = isLogin ? 'Sign In' : 'Create Account'
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -161,7 +161,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
                                 {loadingLabel}
                             </span>
                         ) : (
-                            idleLabel
+                            submitLabel
                         )}
                     </button>
                 </form>

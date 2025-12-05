@@ -225,6 +225,34 @@ export function EventDetailPage() {
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
     const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
 
+    const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
+        const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
+        const selectedClass = 'btn-primary ring-2 ring-blue-600 ring-offset-2'
+        const authedClass = 'btn-secondary'
+        const guestClass = 'btn-secondary hover:bg-blue-50 border-blue-300'
+
+        if (userAttendance === status) {
+            return `${baseClass} ${selectedClass}`
+        }
+        if (user) {
+            return `${baseClass} ${authedClass}`
+        }
+        return `${baseClass} ${guestClass}`
+    }
+
+    const buildLikeButtonClass = () => {
+        const baseClass = 'btn flex-1'
+        if (userLiked) {
+            return `${baseClass} btn-primary ring-2 ring-red-600 ring-offset-2`
+        }
+        if (user) {
+            return `${baseClass} btn-secondary`
+        }
+        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
+    }
+
+    const guestTooltip = (message: string) => (!user ? message : undefined)
+
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Navigation */}
