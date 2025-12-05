@@ -223,33 +223,6 @@ export function EventDetailPage() {
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
     const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
 
-    const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
-        const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
-        const selectedClass = 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-        const authedClass = 'btn-secondary'
-        const guestClass = 'btn-secondary hover:bg-blue-50 border-blue-300'
-
-        if (userAttendance === status) {
-            return `${baseClass} ${selectedClass}`
-        }
-        if (user) {
-            return `${baseClass} ${authedClass}`
-        }
-        return `${baseClass} ${guestClass}`
-    }
-
-    const buildLikeButtonClass = () => {
-        const baseClass = 'btn flex-1'
-        if (userLiked) {
-            return `${baseClass} btn-primary ring-2 ring-red-600 ring-offset-2`
-        }
-        if (user) {
-            return `${baseClass} btn-secondary`
-        }
-        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
-    }
-
-    const guestTooltip = (message: string) => (!user ? message : undefined)
     const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
         if (!rsvpMutation.isPending) {
             return false
@@ -421,24 +394,39 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('attending')}
                             disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('attending')}
-                            title={guestTooltip('Sign up to RSVP')}
+                            className={(() => {
+                                if (userAttendance === 'attending') {
+                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
+                                }
+                                return 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('attending')}
                         </button>
                         <button
                             onClick={() => handleRSVP('maybe')}
                             disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('maybe')}
-                            title={guestTooltip('Sign up to RSVP')}
+                            className={(() => {
+                                if (userAttendance === 'maybe') {
+                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
+                                }
+                                return 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('maybe')}
                         </button>
                         <button
                             onClick={handleLike}
                             disabled={likeMutation.isPending}
-                            className={buildLikeButtonClass()}
-                            title={guestTooltip('Sign up to like this event')}
+                            className={(() => {
+                                if (userLiked) {
+                                    return 'btn flex-1 btn-primary ring-2 ring-red-600 ring-offset-2'
+                                }
+                                return 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to like this event' : ''}
                         >
                             ❤️ {event.likes?.length || 0}
                         </button>

@@ -91,49 +91,6 @@ export function HomePage() {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-    const renderTodayEventsSection = () => {
-        if (isLoading) {
-            return (
-                <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
-                </div>
-            )
-        }
-
-        if (todayEvents.length === 0) {
-            return (
-                <div className="text-center py-8 text-gray-500">
-                    <p className="mb-2">No events today</p>
-                    <p className="text-sm">Check back tomorrow!</p>
-                </div>
-            )
-        }
-
-        return (
-            <div className="space-y-3">
-                {todayEvents.map((event) => (
-                    <div
-                        key={event.id}
-                        onClick={() => handleEventClick(event)}
-                        className="p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
-                    >
-                        <div className="font-semibold text-gray-900 mb-1">
-                            {event.title}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                            {formatTime(event.startTime)}
-                            {event.location && ` • ${event.location}`}
-                        </div>
-                        {event.user && (
-                            <div className="text-xs text-gray-500 mt-1">
-                                by @{event.user.username}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        )
-    }
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -259,7 +216,44 @@ export function HomePage() {
                         {/* Today's Events */}
                         <div className="card p-6">
                             <h2 className="text-xl font-bold mb-4">Today's Events</h2>
-                            {renderTodayEventsSection()}
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
+                                </div>
+                            ) : (() => {
+                                if (todayEvents.length === 0) {
+                                    return (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <p className="mb-2">No events today</p>
+                                            <p className="text-sm">Check back tomorrow!</p>
+                                        </div>
+                                    )
+                                }
+                                return (
+                                    <div className="space-y-3">
+                                        {todayEvents.map((event) => (
+                                            <div
+                                                key={event.id}
+                                                onClick={() => handleEventClick(event)}
+                                                className="p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
+                                            >
+                                                <div className="font-semibold text-gray-900 mb-1">
+                                                    {event.title}
+                                                </div>
+                                                <div className="text-sm text-gray-600">
+                                                    {formatTime(event.startTime)}
+                                                    {event.location && ` • ${event.location}`}
+                                                </div>
+                                                {event.user && (
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        by @{event.user.username}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            })()}
                         </div>
 
                         {/* Sign Up CTA */}
