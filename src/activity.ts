@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 
-interface FeedActivity {
+export interface FeedActivity {
     id: string
     type: string
     createdAt: string
@@ -424,4 +424,15 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
 }
 
 export default app
+
+export const __testExports = {
+    buildEventSummary,
+    filterVisibleActivities,
+    resolveActorUser,
+    resolveFollowedUserIds,
+    fetchLikeActivities,
+    fetchRsvpActivities,
+    fetchCommentActivities,
+    fetchNewEventActivities,
+}
 
