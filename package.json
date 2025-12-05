@@ -23,8 +23,7 @@
     "test:watch": "vitest --coverage --watch --reporter=dot",
     "test:coverage": "vitest run --coverage --reporter=basic",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
-    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
+    "test:all": "npm run test && npm run test:integration",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "analyze:unused": "knip",
@@ -53,7 +52,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@playwright/test": "^1.57.0",
     "@types/node": "^22.19.1",
     "@types/nodemailer": "^7.0.4",
     "@vitest/coverage-v8": "^2.1.9",
