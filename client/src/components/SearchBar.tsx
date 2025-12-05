@@ -81,9 +81,7 @@ export function SearchBar() {
                 const data = await response.json()
                 const user = data.user
                 // Navigate to the resolved user's profile
-                const profilePath = user.isRemote
-                    ? `/@${user.username}`
-                    : `/@${user.username}`
+                const profilePath = `/@${user.username}`
                 navigate(profilePath)
                 setQuery('')
                 setIsOpen(false)
@@ -145,8 +143,7 @@ export function SearchBar() {
     const handleItemClick = (item: { type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }) => {
         if (item.type === 'user') {
             const user = item.data as User
-            const profilePath = user.isRemote ? `/@${user.username}` : `/@${user.username}`
-            navigate(profilePath)
+            navigate(`/@${user.username}`)
         } else if (item.type === 'event') {
             const event = item.data as Event
             const username = event.user?.username

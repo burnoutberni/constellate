@@ -55,6 +55,9 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
         }
     }
 
+    const loadingLabel = isLogin ? 'Signing in...' : 'Creating account...'
+    const idleLabel = isLogin ? 'Sign In' : 'Create Account'
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="card w-full max-w-md p-8 bg-white shadow-2xl rounded-xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -155,10 +158,10 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
                         {loading ? (
                             <span className="flex items-center justify-center gap-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                {isLogin ? 'Signing in...' : 'Creating account...'}
+                                {loadingLabel}
                             </span>
                         ) : (
-                            isLogin ? 'Sign In' : 'Create Account'
+                            idleLabel
                         )}
                     </button>
                 </form>

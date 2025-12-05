@@ -58,6 +58,7 @@ model User {
   blockedBy       BlockedUser[]     @relation("BlockedUser")
   reports         Report[]          @relation("Reporter")
   reportedIn      Report[]          @relation("ReportedUser")
+  eventTemplates  EventTemplate[]
   
   // Auth
   sessions        Session[]
@@ -231,6 +232,21 @@ model EventTag {
 
   @@unique([eventId, tag])
   @@index([tag])
+}
+
+model EventTemplate {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  name        String
+  description String?
+  data        Json
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([userId, name])
 }
 
 // Inbox items for activity feed
