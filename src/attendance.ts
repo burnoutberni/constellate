@@ -26,6 +26,7 @@ const app = new Hono()
 
 type EventWithOwner = Event & { user: User | null; visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' }
 type AttendanceState = (typeof AttendanceStatus)[keyof typeof AttendanceStatus]
+type HttpErrorStatus = 400 | 401 | 403 | 404 | 500
 
 class HttpError extends Error {
     status: number
@@ -228,7 +229,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         if (error instanceof HttpError) {
-            return c.json(error.body, error.status as 400 | 401 | 403 | 404 | 500)
+            return c.json(error.body, error.status as HttpErrorStatus)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -295,7 +296,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         return c.json({ success: true })
     } catch (error) {
         if (error instanceof HttpError) {
-            return c.json(error.body, error.status as 400 | 401 | 403 | 404 | 500)
+            return c.json(error.body, error.status as HttpErrorStatus)
         }
         console.error('Error removing attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)

@@ -20,9 +20,9 @@ export function normalizeTags(tags: string[]): string[] {
     }
     
     const normalized = tags
-        .filter((tag): tag is string => typeof tag === 'string' && tag != null)
+        .filter((tag): tag is string => typeof tag === 'string' && tag !== null)
         .map(tag => 
-            String(tag).replace(/^#/, '').trim().toLowerCase()
+            tag.replace(/^#/, '').trim().toLowerCase()
         )
         .filter(tag => tag.length > 0)
     

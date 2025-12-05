@@ -38,7 +38,7 @@ function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonValu
             sanitized[key] = value
         }
     }
-    return sanitized as Prisma.InputJsonValue
+    return sanitized
 }
 
 function serializeTemplate(template: { id: string; createdAt: Date; updatedAt: Date }): Record<string, unknown> {
@@ -173,7 +173,7 @@ app.put('/event-templates/:id', async (c) => {
             const sanitizedData = sanitizeTemplateData(payload.data)
             updateData.data = {
                 ...currentData,
-                ...(sanitizedData as Record<string, unknown>),
+                ...sanitizedData,
             } as Prisma.InputJsonValue
         }
 

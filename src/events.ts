@@ -17,6 +17,7 @@ import { normalizeTags } from './lib/tags.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
+import { config } from './config.js'
 import type { Event } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 
@@ -144,11 +145,16 @@ app.post('/', moderateRateLimit, async (c) => {
                 }
             } catch (error) {
                 console.error('Error normalizing tags:', error)
-                // Continue without tags if normalization fails
+                // Return validation error when tag normalization fails
+                return c.json({ 
+                    error: 'VALIDATION_ERROR', 
+                    message: 'Invalid tag data provided',
+                    details: config.isDevelopment ? { originalError: String(error) } : undefined
+                }, 400)
             }
         }
 
-        // Create event with sanitized input
+        // Create event with sanitized input - use spread operator for cleaner code
         const event = await prisma.event.create({
             data: {
                 title: sanitizeText(validatedData.title),
@@ -225,14 +231,6 @@ app.post('/', moderateRateLimit, async (c) => {
         return c.json(event, 201)
     } catch (error) {
         console.error('Error creating event:', error)
-        if (error instanceof Error) {
-            console.error('Error stack:', error.stack)
-        }
-        // Check if prisma is properly initialized
-        if (error instanceof TypeError && error.message.includes('prisma') && error.message.includes('is not a function')) {
-            console.error('Prisma client issue detected. Prisma type:', typeof prisma)
-            console.error('Prisma.event type:', typeof prisma?.event)
-        }
         return handleError(error, c)
     }
 })
@@ -904,23 +902,20 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const { tags } = validatedData
         let normalizedTags: string[] | undefined
 
-        // Update event with sanitized input
+        // Update event with sanitized input - use spread operator for cleaner code
         const updateData: Record<string, unknown> = {
-            title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
-            summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
-            location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
-            headerImage: validatedData.headerImage !== undefined ? validatedData.headerImage : undefined,
-            url: validatedData.url !== undefined ? validatedData.url : undefined,
-            startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
-            endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
-            duration: validatedData.duration !== undefined ? validatedData.duration : undefined,
-            eventStatus: validatedData.eventStatus !== undefined ? validatedData.eventStatus : undefined,
-            eventAttendanceMode: validatedData.eventAttendanceMode !== undefined ? validatedData.eventAttendanceMode : undefined,
-            maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity !== undefined ? validatedData.maximumAttendeeCapacity : undefined,
-        }
-
-        if (requestedVisibility) {
-            updateData.visibility = requestedVisibility
+            ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
+            ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
+            ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
+            ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage || null }),
+            ...(validatedData.url !== undefined && { url: validatedData.url || null }),
+            ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
+            ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
+            ...(validatedData.duration !== undefined && { duration: validatedData.duration || null }),
+            ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus || null }),
+            ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode || null }),
+            ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null }),
+            ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
         }
 
         if (validatedData.recurrencePattern !== undefined) {
@@ -936,7 +931,12 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 normalizedTags = Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
             } catch (error) {
                 console.error('Error normalizing tags in update:', error)
-                normalizedTags = []
+                // Return validation error when tag normalization fails (consistent with create)
+                return c.json({ 
+                    error: 'VALIDATION_ERROR', 
+                    message: 'Invalid tag data provided',
+                    details: config.isDevelopment ? { originalError: String(error) } : undefined
+                }, 400)
             }
         }
 
@@ -992,15 +992,15 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const broadcastTarget = getBroadcastTarget(event.visibility, userId)
         await broadcast({
             type: BroadcastEvents.EVENT_UPDATED,
-            data: {
-                event: {
-                    ...event,
-                    startTime: event.startTime?.toISOString(),
-                    endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt?.toISOString(),
-                    updatedAt: event.updatedAt?.toISOString(),
+                data: {
+                    event: {
+                        ...event,
+                        startTime: event.startTime.toISOString(),
+                        endTime: event.endTime?.toISOString(),
+                        createdAt: event.createdAt.toISOString(),
+                        updatedAt: event.updatedAt.toISOString(),
+                    },
                 },
-            },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
         })
 
