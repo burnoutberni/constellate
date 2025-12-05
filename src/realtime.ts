@@ -211,6 +211,9 @@ export const BroadcastEvents = {
     COMMENT_ADDED: 'comment:added',
     COMMENT_DELETED: 'comment:deleted',
 
+    // Mentions
+    MENTION_RECEIVED: 'mention:received',
+
     // Profile updates
     PROFILE_UPDATED: 'profile:updated',
 

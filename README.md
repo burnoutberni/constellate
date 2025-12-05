@@ -4,6 +4,15 @@ A federated event management platform implementing the ActivityPub protocol for 
 
 **Status: Public Beta** - The project is ready for beta testing. See deployment section for production setup.
 
+## User Mentions in Comments
+
+Constellate comments now understand `@username` mentions:
+
+- Backend automatically parses sanitized comment text, stores structured mention metadata, and broadcasts a `mention:received` SSE event to the mentioned local user (remote users are skipped until federation notifications land).
+- POST `/api/events/:id/comments` accepts an optional `inReplyToId` and returns each comment's `mentions` array so clients can render contextual links.
+- New `CommentMention` entries power future notification history while keeping API responses lightweight.
+- The web client adds mention autocomplete (type `@` to search local users), inline highlighting, and real-time mention toasts in the bottom-right corner so people notice when they're called out.
+
 ## Development
 
 ### Using Docker (Recommended)

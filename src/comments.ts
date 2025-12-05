@@ -16,10 +16,50 @@ import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { AppError } from './lib/errors.js'
 import { sanitizeText } from './lib/sanitization.js'
+import { resolveMentions } from './lib/mentions.js'
 
 const app = new Hono()
 
 type EventWithOwner = Event & { user: User | null }
+
+const commentAuthorSelect = {
+    id: true,
+    username: true,
+    name: true,
+    profileImage: true,
+    displayColor: true,
+    isRemote: true,
+} as const
+
+const mentionInclude = {
+    mentions: {
+        include: {
+            mentionedUser: {
+                select: commentAuthorSelect,
+            },
+        },
+    },
+} as const
+
+function getEventOwnerHandle(event: EventWithOwner): string {
+    if (event.user?.username) {
+        return event.user.username
+    }
+
+    if (event.attributedTo) {
+        try {
+            const actorUrl = new URL(event.attributedTo)
+            const username = actorUrl.pathname.split('/').filter(Boolean).pop()
+            if (username) {
+                return `${username}@${actorUrl.hostname}`
+            }
+        } catch (error) {
+            console.warn('Unable to derive event owner handle:', error)
+        }
+    }
+
+    return ''
+}
 
 // Comment validation schema
 const CommentSchema = z.object({
@@ -71,18 +111,49 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         }
 
         // Create comment with sanitized content
+        const sanitizedContent = sanitizeText(content)
+
         const comment = await prisma.comment.create({
             data: {
-                content: sanitizeText(content),
+                content: sanitizedContent,
                 eventId: id,
                 authorId: userId,
                 inReplyToId: inReplyToId || null,
             },
             include: {
                 author: true,
-                event: true,
+                event: {
+                    include: { user: true },
+                },
             },
         })
+
+        const mentionTargets = await resolveMentions(sanitizedContent)
+
+        if (mentionTargets.length) {
+            await prisma.commentMention.createMany({
+                data: mentionTargets.map((target) => ({
+                    commentId: comment.id,
+                    mentionedUserId: target.user.id,
+                    handle: target.handle,
+                })),
+                skipDuplicates: true,
+            })
+        }
+
+        const commentWithRelations = await prisma.comment.findUnique({
+            where: { id: comment.id },
+            include: {
+                author: {
+                    select: commentAuthorSelect,
+                },
+                ...mentionInclude,
+            },
+        })
+
+        if (!commentWithRelations) {
+            throw new AppError('Failed to load comment relations', 'INTERNAL_ERROR', 500)
+        }
 
         // Build and deliver Create(Note) activity
         const baseUrl = getBaseUrl()
@@ -142,18 +213,31 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         }
 
         // Broadcast real-time update
+        const mentionPayload = commentWithRelations.mentions.map((mention) => ({
+            id: mention.id,
+            handle: mention.handle,
+            user: {
+                id: mention.mentionedUser.id,
+                username: mention.mentionedUser.username,
+                name: mention.mentionedUser.name,
+                displayColor: mention.mentionedUser.displayColor,
+                profileImage: mention.mentionedUser.profileImage,
+            },
+        }))
+
+        const responseComment = {
+            ...commentWithRelations,
+            mentions: mentionPayload,
+        }
+
         const broadcastData = {
             eventId: id,
             comment: {
-                id: comment.id,
-                content: comment.content,
-                createdAt: comment.createdAt.toISOString(),
-                author: {
-                    id: comment.author.id,
-                    username: comment.author.username,
-                    name: comment.author.name,
-                    displayColor: comment.author.displayColor,
-                },
+                id: responseComment.id,
+                content: responseComment.content,
+                createdAt: responseComment.createdAt.toISOString(),
+                author: responseComment.author,
+                mentions: responseComment.mentions,
             },
         }
         console.log(`📡 Broadcasting comment:added for event ${id}`)
@@ -162,7 +246,36 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
             data: broadcastData,
         })
 
-        return c.json(comment, 201)
+        const notificationTargets = mentionTargets.filter(
+            (target) => !target.user.isRemote && target.user.id !== userId
+        )
+
+        if (notificationTargets.length) {
+            const ownerHandle = getEventOwnerHandle(event)
+
+            for (const target of notificationTargets) {
+                await broadcast({
+                    type: BroadcastEvents.MENTION_RECEIVED,
+                    targetUserId: target.user.id,
+                    data: {
+                        commentId: comment.id,
+                        commentContent: sanitizedContent,
+                        createdAt: comment.createdAt.toISOString(),
+                        eventId: id,
+                        eventTitle: event.title,
+                        eventOwnerHandle: ownerHandle,
+                        handle: target.handle,
+                        author: {
+                            id: comment.author.id,
+                            username: comment.author.username,
+                            name: comment.author.name,
+                        },
+                    },
+                })
+            }
+        }
+
+        return c.json(responseComment, 201)
     } catch (error) {
         if (error instanceof AppError) {
             throw error
@@ -188,36 +301,21 @@ app.get('/:id/comments', async (c) => {
             },
             include: {
                 author: {
-                    select: {
-                        id: true,
-                        username: true,
-                        name: true,
-                        profileImage: true,
-                        displayColor: true,
-                    },
+                    select: commentAuthorSelect,
                 },
+                ...mentionInclude,
                 replies: {
                     include: {
                         author: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                profileImage: true,
-                                displayColor: true,
-                            },
+                            select: commentAuthorSelect,
                         },
+                        ...mentionInclude,
                         replies: {
                             include: {
                                 author: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                        name: true,
-                                        profileImage: true,
-                                        displayColor: true,
-                                    },
+                                    select: commentAuthorSelect,
                                 },
+                                ...mentionInclude,
                             },
                         },
                     },
