@@ -22,6 +22,9 @@ vi.mock('../lib/prisma.js', () => ({
             delete: vi.fn(),
             findMany: vi.fn(),
         },
+        following: {
+            findFirst: vi.fn(),
+        },
     },
 }))
 
@@ -201,6 +204,60 @@ describe('Attendance API', () => {
             expect(body.error).toBe('Validation failed')
         })
 
+        it('should forbid follower-only events when viewer is not a follower', async () => {
+            const followerOnlyEvent = {
+                ...mockEvent,
+                user: { id: 'owner', username: 'bob' },
+                userId: 'owner',
+                visibility: 'FOLLOWERS',
+            }
+
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(followerOnlyEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.following.findFirst).mockResolvedValue(null as any)
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'attending' }),
+            })
+
+            expect(res.status).toBe(403)
+            expect(prisma.eventAttendance.upsert).not.toHaveBeenCalled()
+        })
+
+        it('should allow follower-only events when viewer follows author', async () => {
+            const followerOnlyEvent = {
+                ...mockEvent,
+                user: { id: 'owner', username: 'bob' },
+                userId: 'owner',
+                visibility: 'FOLLOWERS',
+            }
+
+            const mockAttendance = {
+                id: 'attendance_456',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: AttendanceStatus.ATTENDING,
+            }
+
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(followerOnlyEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.following.findFirst).mockResolvedValue({ id: 'follow_1' } as any)
+            vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue(mockAttendance as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'attending' }),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any as any
+            expect(body.status).toBe('attending')
+        })
+
         it('should return 401 when not authenticated', async () => {
             vi.mocked(requireAuth).mockImplementation(() => {
                 throw new Error('Unauthorized')
@@ -304,6 +361,31 @@ describe('Attendance API', () => {
             expect(res.status).toBe(404)
             const body = await res.json() as any as any
             expect(body.error).toBe('Attendance not found')
+        })
+
+        it('should forbid removing attendance for follower-only events when viewer is not a follower', async () => {
+            vi.mocked(prisma.eventAttendance.findUnique).mockResolvedValue({
+                id: 'attendance_123',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: 'attending',
+                event: {
+                    ...mockEvent,
+                    user: { id: 'owner', username: 'bob' },
+                    userId: 'owner',
+                    visibility: 'FOLLOWERS',
+                },
+                user: mockUser,
+            } as any)
+
+            vi.mocked(prisma.following.findFirst).mockResolvedValue(null as any)
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'DELETE',
+            })
+
+            expect(res.status).toBe(403)
+            expect(prisma.eventAttendance.delete).not.toHaveBeenCalled()
         })
 
         it('should return 404 when user not found', async () => {
