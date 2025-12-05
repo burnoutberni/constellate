@@ -14,14 +14,6 @@ import { normalizeTags } from './lib/tags.js'
 
 const app = new Hono()
 
-// Custom error class for user not found
-class UserNotFoundError extends Error {
-    constructor(username: string) {
-        super(`User not found: ${username}`)
-        this.name = 'UserNotFoundError'
-    }
-}
-
 // Apply rate limiting to all search endpoints
 app.use('*', lenientRateLimit)
 
@@ -40,7 +32,7 @@ const SearchSchema = z.object({
     limit: z.string().optional(),
 })
 
-export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
+export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>) => {
     const where: Record<string, unknown> = {}
 
     if (params.q) {
@@ -76,13 +68,14 @@ export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema
         const user = await prisma.user.findUnique({
             where: { username: params.username },
         })
-        if (!user) {
-            throw new UserNotFoundError(params.username)
+        if (user) {
+            where.userId = user.id
+        } else {
+            return { where: null, userNotFound: true }
         }
-        where.userId = user.id
     }
 
-    if (params.tags && params.tags.trim()) {
+    if (params.tags) {
         const tagList = normalizeTags(params.tags.split(','))
         if (tagList.length > 0) {
             where.tags = {
@@ -95,7 +88,7 @@ export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema
         }
     }
 
-    return where as Prisma.EventWhereInput
+    return { where, userNotFound: false }
 }
 
 // Search events
@@ -118,37 +111,18 @@ app.get('/', async (c) => {
         const limit = Math.min(parseInt(params.limit || '20'), 100)
         const skip = (page - 1) * limit
 
-        let where: Prisma.EventWhereInput
-        try {
-            where = await buildSearchWhereClause(params)
-        } catch (error) {
-            // Handle user not found error
-            if (error instanceof UserNotFoundError) {
-                return c.json({
-                    events: [],
-                    pagination: {
-                        page,
-                        limit,
-                        total: 0,
-                        pages: 0,
-                    },
-                })
-            }
-            throw error
-        }
+        const { where, userNotFound } = await buildSearchWhereClause(params)
 
-        // Tag filter
-        if (params.tags) {
-            const tagList = normalizeTags(params.tags.split(','))
-            if (tagList.length > 0) {
-                filters.tags = {
-                    some: {
-                        tag: {
-                            in: tagList,
-                        },
-                    },
-                }
-            }
+        if (userNotFound || !where) {
+            return c.json({
+                events: [],
+                pagination: {
+                    page,
+                    limit,
+                    total: 0,
+                    pages: 0,
+                },
+            })
         }
 
         // Execute search
