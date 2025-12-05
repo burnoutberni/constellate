@@ -15,7 +15,7 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
-            case 'rsvp':
+            case 'rsvp': {
                 const status = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
                 return (
                     <span>
@@ -23,6 +23,7 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
+            }
             case 'comment':
                 return (
                     <span>

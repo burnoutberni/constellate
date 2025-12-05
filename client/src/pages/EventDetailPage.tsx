@@ -219,6 +219,43 @@ export function EventDetailPage() {
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
 
+    const rsvpButtonClass = (status: 'attending' | 'maybe') => {
+        if (userAttendance === status) {
+            return 'btn-primary ring-2 ring-blue-600 ring-offset-2'
+        }
+        if (user) {
+            return 'btn-secondary'
+        }
+        return 'btn-secondary hover:bg-blue-50 border-blue-300'
+    }
+
+    const shouldShowRSVPSpinner = (status: 'attending' | 'maybe') => {
+        if (status === 'attending') {
+            return rsvpMutation.isPending && (userAttendance === 'attending' || !userAttendance)
+        }
+        return rsvpMutation.isPending && userAttendance === 'maybe'
+    }
+
+    const renderRSVPLabel = (status: 'attending' | 'maybe') => {
+        return status === 'attending' ? <>👍 Going ({attending})</> : <>🤔 Maybe ({maybe})</>
+    }
+
+    const renderUpdatingState = () => (
+        <>
+            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Updating...</span>
+        </>
+    )
+
+    const likeButtonClass = userLiked
+        ? 'btn-primary ring-2 ring-red-600 ring-offset-2'
+        : user
+            ? 'btn-secondary'
+            : 'btn-secondary hover:bg-blue-50 border-blue-300'
+
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Navigation */}
@@ -329,58 +366,23 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('attending')}
                             disabled={rsvpMutation.isPending}
-                            className={`btn flex-1 flex items-center justify-center gap-2 ${userAttendance === 'attending'
-                                ? 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                : user
-                                    ? 'btn-secondary'
-                                    : 'btn-secondary hover:bg-blue-50 border-blue-300'
-                                }`}
+                            className={`btn flex-1 flex items-center justify-center gap-2 ${rsvpButtonClass('attending')}`}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
-                            {rsvpMutation.isPending && (userAttendance === 'attending' || !userAttendance) ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span>Updating...</span>
-                                </>
-                            ) : (
-                                <>👍 Going ({attending})</>
-                            )}
+                            {shouldShowRSVPSpinner('attending') ? renderUpdatingState() : renderRSVPLabel('attending')}
                         </button>
                         <button
                             onClick={() => handleRSVP('maybe')}
                             disabled={rsvpMutation.isPending}
-                            className={`btn flex-1 flex items-center justify-center gap-2 ${userAttendance === 'maybe'
-                                ? 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                : user
-                                    ? 'btn-secondary'
-                                    : 'btn-secondary hover:bg-blue-50 border-blue-300'
-                                }`}
+                            className={`btn flex-1 flex items-center justify-center gap-2 ${rsvpButtonClass('maybe')}`}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
-                            {rsvpMutation.isPending && userAttendance === 'maybe' ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span>Updating...</span>
-                                </>
-                            ) : (
-                                <>🤔 Maybe ({maybe})</>
-                            )}
+                            {shouldShowRSVPSpinner('maybe') ? renderUpdatingState() : renderRSVPLabel('maybe')}
                         </button>
                         <button
                             onClick={handleLike}
                             disabled={likeMutation.isPending}
-                            className={`btn flex-1 ${userLiked
-                                ? 'btn-primary ring-2 ring-red-600 ring-offset-2'
-                                : user
-                                    ? 'btn-secondary'
-                                    : 'btn-secondary hover:bg-blue-50 border-blue-300'
-                                }`}
+                            className={`btn flex-1 ${likeButtonClass}`}
                             title={!user ? 'Sign up to like this event' : ''}
                         >
                             ❤️ {event.likes?.length || 0}
