@@ -35,117 +35,6 @@ describe('audience helpers', () => {
     })
 
     describe('getPublicAddressing', () => {
-        it('returns public collection and followers', async () => {
-            mockUserFind.mockResolvedValue({ id: 'user_1', username: 'alice' })
-            const result = await getPublicAddressing('user_1')
-            expect(result).toEqual({
-                to: [PUBLIC_COLLECTION],
-                cc: ['http://localhost:3000/users/alice/followers'],
-                bcc: [],
-            })
-        })
-
-        it('throws when user is missing', async () => {
-            mockUserFind.mockResolvedValue(null)
-            await expect(getPublicAddressing('missing')).rejects.toThrow('User not found')
-        })
-    })
-
-    describe('getFollowersAddressing', () => {
-        it('returns followers collection only', async () => {
-            mockUserFind.mockResolvedValue({ id: 'user_1', username: 'alice' })
-            const result = await getFollowersAddressing('user_1')
-            expect(result).toEqual({
-                to: ['http://localhost:3000/users/alice/followers'],
-                cc: [],
-                bcc: [],
-            })
-        })
-    })
-
-    describe('getDirectAddressing', () => {
-        it('returns provided actor URLs', () => {
-            const addresses = getDirectAddressing(['https://example.com/users/bob'])
-            expect(addresses).toEqual({ to: ['https://example.com/users/bob'], cc: [], bcc: [] })
-        })
-    })
-
-    describe('getFollowerInboxes', () => {
-        it('deduplicates shared inboxes', async () => {
-            mockFollowerFind.mockResolvedValue([
-                { inboxUrl: 'https://a/inbox', sharedInboxUrl: null },
-                { inboxUrl: 'https://b/inbox', sharedInboxUrl: 'https://shared/inbox' },
-                { inboxUrl: 'https://c/inbox', sharedInboxUrl: 'https://shared/inbox' },
-            ])
-            const inboxes = await getFollowerInboxes('user_1')
-            expect(inboxes).toEqual(['https://a/inbox', 'https://shared/inbox'])
-        })
-    })
-
-    describe('getActorInboxes', () => {
-        it('skips local non-remote users and returns remote inboxes', async () => {
-            mockUserFind.mockImplementation(async ({ where }) => {
-                if (where?.username === 'localuser') {
-                    return { id: 'local', isRemote: false }
-                }
-                if (where?.externalActorUrl === 'https://remote.example/users/bob') {
-                    return { id: 'remote', inboxUrl: 'https://remote.example/inbox', sharedInboxUrl: null }
-                }
-                return null
-            })
-
-            const inboxes = await getActorInboxes([
-                'http://localhost:3000/users/localuser',
-                'https://remote.example/users/bob',
-            ])
-
-            expect(inboxes).toEqual(['https://remote.example/inbox'])
-        })
-    })
-
-    describe('resolveInboxes', () => {
-        it('aggregates inboxes from public, followers, and direct recipients', async () => {
-            mockFollowerFind
-                .mockResolvedValueOnce([
-                    { inboxUrl: 'sender-follow', sharedInboxUrl: null },
-                ])
-                .mockResolvedValueOnce([
-                    { inboxUrl: 'target-follow', sharedInboxUrl: null },
-                ])
-
-            mockUserFind.mockImplementation(async ({ where }) => {
-                if (where?.externalActorUrl === 'https://remote.example/users/alice') {
-                    return { id: 'remote-alice', inboxUrl: 'alice-inbox', sharedInboxUrl: null }
-                }
-                if (where?.externalActorUrl === 'https://remote.example/users/bob') {
-                    return { id: 'remote-bob', inboxUrl: 'bob-inbox', sharedInboxUrl: null }
-                }
-                if (where?.username === 'target' && where?.isRemote === false) {
-                    return { id: 'target-id', username: 'target', isRemote: false }
-                }
-                return null
-            })
-
-            const addressing = {
-                to: [PUBLIC_COLLECTION, 'https://remote.example/users/alice'],
-                cc: ['http://localhost:3000/users/target/followers'],
-                bcc: ['https://remote.example/users/bob'],
-            }
-
-            const inboxes = await resolveInboxes(addressing, 'sender-id')
-
-            expect(inboxes).toEqual(
-                expect.arrayContaining(['sender-follow', 'target-follow', 'alice-inbox', 'bob-inbox'])
-            )
-        })
-    })
-})
-describe('Audience Addressing', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
-    describe('getPublicAddressing', () => {
         it('should return public addressing with followers', async () => {
             const userId = 'user-123'
             const mockUser = {
@@ -153,7 +42,7 @@ describe('Audience Addressing', () => {
                 username: 'alice',
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const addressing = await getPublicAddressing(userId)
 
@@ -163,7 +52,7 @@ describe('Audience Addressing', () => {
         })
 
         it('should throw error when user not found', async () => {
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+            mockUserFind.mockResolvedValue(null)
 
             await expect(getPublicAddressing('nonexistent')).rejects.toThrow('User not found')
         })
@@ -175,11 +64,11 @@ describe('Audience Addressing', () => {
                 username: 'alice',
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             await getPublicAddressing(userId)
 
-            expect(prisma.user.findUnique).toHaveBeenCalledWith({
+            expect(mockUserFind).toHaveBeenCalledWith({
                 where: { id: userId },
             })
         })
@@ -193,7 +82,7 @@ describe('Audience Addressing', () => {
                 username: 'alice',
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const addressing = await getFollowersAddressing(userId)
 
@@ -203,7 +92,7 @@ describe('Audience Addressing', () => {
         })
 
         it('should throw error when user not found', async () => {
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+            mockUserFind.mockResolvedValue(null)
 
             await expect(getFollowersAddressing('nonexistent')).rejects.toThrow('User not found')
         })
@@ -253,7 +142,7 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await getFollowerInboxes(userId)
 
@@ -271,7 +160,7 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await getFollowerInboxes(userId)
 
@@ -279,12 +168,22 @@ describe('Audience Addressing', () => {
             expect(inboxes).not.toContain('https://example.com/users/alice/inbox')
         })
 
+        it('should deduplicate shared inboxes', async () => {
+            mockFollowerFind.mockResolvedValue([
+                { inboxUrl: 'https://a/inbox', sharedInboxUrl: null },
+                { inboxUrl: 'https://b/inbox', sharedInboxUrl: 'https://shared/inbox' },
+                { inboxUrl: 'https://c/inbox', sharedInboxUrl: 'https://shared/inbox' },
+            ])
+            const inboxes = await getFollowerInboxes('user_1')
+            expect(inboxes).toEqual(['https://a/inbox', 'https://shared/inbox'])
+        })
+
         it('should only return accepted followers', async () => {
             const userId = 'user-123'
 
             await getFollowerInboxes(userId)
 
-            expect(prisma.follower.findMany).toHaveBeenCalledWith({
+            expect(mockFollowerFind).toHaveBeenCalledWith({
                 where: {
                     userId,
                     accepted: true,
@@ -293,7 +192,7 @@ describe('Audience Addressing', () => {
         })
 
         it('should return empty array when no followers', async () => {
-            vi.mocked(prisma.follower.findMany).mockResolvedValue([])
+            mockFollowerFind.mockResolvedValue([])
 
             const inboxes = await getFollowerInboxes('user-123')
 
@@ -311,7 +210,7 @@ describe('Audience Addressing', () => {
                 isRemote: true,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await getActorInboxes(actorUrls)
 
@@ -325,11 +224,30 @@ describe('Audience Addressing', () => {
                 isRemote: false,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await getActorInboxes(actorUrls)
 
             expect(inboxes).toEqual([])
+        })
+
+        it('should skip local non-remote users and returns remote inboxes', async () => {
+            mockUserFind.mockImplementation(async ({ where }) => {
+                if (where?.username === 'localuser') {
+                    return { id: 'local', isRemote: false }
+                }
+                if (where?.externalActorUrl === 'https://remote.example/users/bob') {
+                    return { id: 'remote', inboxUrl: 'https://remote.example/inbox', sharedInboxUrl: null }
+                }
+                return null
+            })
+
+            const inboxes = await getActorInboxes([
+                'http://localhost:3000/users/localuser',
+                'https://remote.example/users/bob',
+            ])
+
+            expect(inboxes).toEqual(['https://remote.example/inbox'])
         })
 
         it('should prefer shared inbox over personal inbox', async () => {
@@ -341,7 +259,7 @@ describe('Audience Addressing', () => {
                 isRemote: true,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await getActorInboxes(actorUrls)
 
@@ -358,7 +276,7 @@ describe('Audience Addressing', () => {
                 isRemote: true,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await getActorInboxes(actorUrls)
 
@@ -368,7 +286,7 @@ describe('Audience Addressing', () => {
         it('should return empty array when actor not found', async () => {
             const actorUrls = ['https://example.com/users/nonexistent']
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+            mockUserFind.mockResolvedValue(null)
 
             const inboxes = await getActorInboxes(actorUrls)
 
@@ -381,7 +299,7 @@ describe('Audience Addressing', () => {
                 'https://example.com/users/bob',
             ]
 
-            vi.mocked(prisma.user.findUnique)
+            mockUserFind
                 .mockResolvedValueOnce({
                     id: 'user-1',
                     inboxUrl: 'https://example.com/users/alice/inbox',
@@ -404,6 +322,41 @@ describe('Audience Addressing', () => {
     })
 
     describe('resolveInboxes', () => {
+        it('aggregates inboxes from public, followers, and direct recipients', async () => {
+            mockFollowerFind
+                .mockResolvedValueOnce([
+                    { inboxUrl: 'sender-follow', sharedInboxUrl: null },
+                ])
+                .mockResolvedValueOnce([
+                    { inboxUrl: 'target-follow', sharedInboxUrl: null },
+                ])
+
+            mockUserFind.mockImplementation(async ({ where }) => {
+                if (where?.externalActorUrl === 'https://remote.example/users/alice') {
+                    return { id: 'remote-alice', inboxUrl: 'alice-inbox', sharedInboxUrl: null }
+                }
+                if (where?.externalActorUrl === 'https://remote.example/users/bob') {
+                    return { id: 'remote-bob', inboxUrl: 'bob-inbox', sharedInboxUrl: null }
+                }
+                if (where?.username === 'target' && where?.isRemote === false) {
+                    return { id: 'target-id', username: 'target', isRemote: false }
+                }
+                return null
+            })
+
+            const addressing = {
+                to: [PUBLIC_COLLECTION, 'https://remote.example/users/alice'],
+                cc: ['http://localhost:3000/users/target/followers'],
+                bcc: ['https://remote.example/users/bob'],
+            }
+
+            const inboxes = await resolveInboxes(addressing, 'sender-id')
+
+            expect(inboxes).toEqual(
+                expect.arrayContaining(['sender-follow', 'target-follow', 'alice-inbox', 'bob-inbox'])
+            )
+        })
+
         it('should resolve PUBLIC_COLLECTION to follower inboxes', async () => {
             const userId = 'user-123'
             const addressing = {
@@ -419,7 +372,7 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 
@@ -447,9 +400,8 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.user.findUnique)
-                .mockResolvedValueOnce(mockUser as any)
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockUserFind.mockResolvedValueOnce(mockUser as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 
@@ -471,7 +423,7 @@ describe('Audience Addressing', () => {
                 isRemote: true,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 
@@ -493,7 +445,7 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 
@@ -515,7 +467,7 @@ describe('Audience Addressing', () => {
                 isRemote: true,
             }
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            mockUserFind.mockResolvedValue(mockUser as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 
@@ -537,7 +489,7 @@ describe('Audience Addressing', () => {
                 },
             ]
 
-            vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
+            mockFollowerFind.mockResolvedValue(mockFollowers as any)
 
             const inboxes = await resolveInboxes(addressing, userId)
 

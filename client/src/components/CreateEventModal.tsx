@@ -24,7 +24,7 @@ interface EventTemplate {
 }
 
 export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
-    const { user } = useAuth() || {}
+    const { user } = useAuth()
     const [error, setError] = useState<string | null>(null)
     const [formData, setFormData] = useState<{
         title: string
