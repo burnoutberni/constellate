@@ -54,7 +54,6 @@ describe('Events API', () => {
         vi.clearAllMocks()
     })
 
-<<<<<<< HEAD
     describe('Event visibility', () => {
         it('defaults new events to PUBLIC visibility', async () => {
             const event = await prisma.event.create({
