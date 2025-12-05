@@ -941,9 +941,23 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         const event = await prisma.$transaction(async (tx) => {
+            // If updateData is empty (only tags being updated), fetch current title and update it to itself
+            // This triggers the updatedAt timestamp update
+            let finalUpdateData = updateData
+            if (Object.keys(updateData).length === 0) {
+                const currentEvent = await tx.event.findUnique({
+                    where: { id },
+                    select: { title: true },
+                })
+                if (!currentEvent) {
+                    throw new Error('Event not found')
+                }
+                finalUpdateData = { title: currentEvent.title }
+            }
+            
             const updatedEvent = await tx.event.update({
                 where: { id },
-                data: updateData,
+                data: finalUpdateData,
                 include: {
                     user: true,
                     tags: true,
@@ -984,23 +998,25 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Build and deliver Update activity
         // Ensure event object includes user property for activity builder
-        const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
-        const addressing = buildAddressingFromActivity(activity)
-        await deliverActivity(activity, addressing, userId)
+        if (event.user) {
+            const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
+            const addressing = buildAddressingFromActivity(activity)
+            await deliverActivity(activity, addressing, userId)
+        }
 
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
         const broadcastTarget = getBroadcastTarget(event.visibility, userId)
         await broadcast({
             type: BroadcastEvents.EVENT_UPDATED,
-                data: {
-                    event: {
-                        ...event,
-                        startTime: event.startTime.toISOString(),
-                        endTime: event.endTime?.toISOString(),
-                        createdAt: event.createdAt.toISOString(),
-                        updatedAt: event.updatedAt.toISOString(),
-                    },
+            data: {
+                event: {
+                    ...event,
+                    startTime: event.startTime?.toISOString() ?? new Date().toISOString(),
+                    endTime: event.endTime?.toISOString(),
+                    createdAt: event.createdAt?.toISOString() ?? new Date().toISOString(),
+                    updatedAt: event.updatedAt?.toISOString() ?? new Date().toISOString(),
                 },
+            },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
         })
 
