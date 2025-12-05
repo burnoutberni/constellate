@@ -119,7 +119,7 @@ describe('Comments API', () => {
                 }),
             })
 
-            expect([401, 404, 500]).toContain(res.status)
+            expect(res.status).toBe(401)
         })
     })
 
@@ -160,7 +160,7 @@ describe('Comments API', () => {
                 method: 'DELETE',
             })
 
-            expect([401, 404, 500]).toContain(res.status)
+            expect(res.status).toBe(401)
         })
 
 

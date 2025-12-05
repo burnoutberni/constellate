@@ -846,7 +846,7 @@ describe('UserSearch API', () => {
                 }),
             })
 
-            expect(res.status).toBeGreaterThanOrEqual(400)
+            expect(res.status).toBe(400)
         })
     })
 

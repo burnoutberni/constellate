@@ -170,8 +170,7 @@ describe('Events API', () => {
                 body: JSON.stringify(eventData),
             })
 
-            // Should return 401 or handle gracefully
-            expect([401, 404, 500]).toContain(res.status)
+            expect(res.status).toBe(401)
         })
 
         it('should validate event data', async () => {
@@ -179,6 +178,19 @@ describe('Events API', () => {
                 title: '', // Empty title
                 startTime: 'invalid-date',
             }
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
 
             const res = await app.request('/api/events', {
                 method: 'POST',
@@ -188,7 +200,7 @@ describe('Events API', () => {
                 body: JSON.stringify(invalidData),
             })
 
-            expect(res.status).toBeGreaterThanOrEqual(400)
+            expect(res.status).toBe(400)
         })
 
         it('should handle optional fields', async () => {
@@ -196,6 +208,19 @@ describe('Events API', () => {
                 title: 'Minimal Event',
                 startTime: new Date(Date.now() + 86400000).toISOString(),
             }
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
 
             vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
                 type: 'Create',
@@ -213,8 +238,7 @@ describe('Events API', () => {
                 body: JSON.stringify(eventData),
             })
 
-            // Should handle gracefully (may need auth)
-            expect(res.status).toBeGreaterThanOrEqual(200)
+            expect(res.status).toBe(201)
         })
     })
 
@@ -374,7 +398,7 @@ describe('Events API', () => {
                 },
             })
 
-            // Mock fetch for remote event
+            const originalFetch = global.fetch
             global.fetch = vi.fn().mockResolvedValue({
                 ok: true,
                 json: async () => ({
@@ -382,12 +406,14 @@ describe('Events API', () => {
                     id: event.externalId,
                     name: 'Remote Event',
                 }),
-            })
+            }) as typeof global.fetch
 
-            const res = await app.request(`/api/events/by-user/${remoteUser.username}/${event.id}`)
-
-            // Should handle remote events
-            expect(res.status).toBeGreaterThanOrEqual(200)
+            try {
+                const res = await app.request(`/api/events/by-user/${remoteUser.username}/${event.id}`)
+                expect(res.status).toBe(200)
+            } finally {
+                global.fetch = originalFetch
+            }
         })
 
         it('should return 404 when user not found', async () => {

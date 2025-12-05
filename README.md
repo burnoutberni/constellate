@@ -91,16 +91,35 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
 
 ## Testing
 
+### Prerequisites
+
+- A running PostgreSQL instance that matches `DATABASE_URL`. For local development you can reuse Docker Compose:
+  ```bash
+  docker compose up -d db-test
+  export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public"
+  ```
+- Install dependencies with `npm install` (and `npm install` inside `client/` when working on the frontend).
+
+### Commands
+
 ```bash
-# Run tests once
-npm test
+# Run deterministic Vitest suite with coverage + JUnit (reports/junit.xml)
+npm run test:coverage
 
 # Watch mode (run in separate terminal from dev servers)
 npm run test:watch
 
-# Run all test suites
+# Run unit suite only (no integration add-ons)
+npm test
+
+# Run all test suites (unit + optional integration config)
 npm run test:all
 ```
+
+Test helpers now:
+
+- Apply database migrations once per run and reset data before each test for isolation.
+- Produce concise CLI output locally while emitting machine-readable JUnit + coverage artifacts in CI.
 
 ## License
 

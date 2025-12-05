@@ -6,15 +6,32 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { app } from '../server.js'
 import { prisma } from '../lib/prisma.js'
+import * as authModule from '../auth.js'
 
 describe('Setup Routes', () => {
     beforeEach(async () => {
-        // Clean up database before each test
         await prisma.user.deleteMany()
+
+        vi.spyOn(authModule.auth.api, 'signUpEmail').mockImplementation(async ({ body }) => {
+            const createdUser = await prisma.user.create({
+                data: {
+                    username: body.username,
+                    email: body.email,
+                    name: body.name,
+                    isRemote: false,
+                },
+            })
+
+            return {
+                user: createdUser,
+            } as any
+        })
+
+        vi.spyOn(authModule, 'generateUserKeys').mockResolvedValue(undefined)
     })
 
     afterEach(async () => {
-        vi.clearAllMocks()
+        vi.restoreAllMocks()
     })
 
     describe('POST /api/setup', () => {
@@ -99,9 +116,11 @@ describe('Setup Routes', () => {
                 body: JSON.stringify(setupData),
             })
 
-            // This might fail if better-auth requires password
-            // In that case, we should update the setup route to handle this
-            expect([200, 400, 500]).toContain(res.status)
+            expect(res.status).toBe(200)
+
+            const signUpCall = vi.mocked(authModule.auth.api.signUpEmail).mock.calls[0]?.[0]
+            expect(typeof signUpCall?.body?.password).toBe('string')
+            expect(signUpCall?.body?.password?.length || 0).toBeGreaterThan(0)
         })
     })
 })

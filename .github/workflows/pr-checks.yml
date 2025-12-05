@@ -103,6 +103,15 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Upload Vitest JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-junit
+          path: reports/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:

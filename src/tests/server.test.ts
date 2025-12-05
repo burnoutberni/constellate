@@ -103,12 +103,13 @@ describe('Server Setup', () => {
         })
 
         it('should return 500 when OpenAPI spec file is missing', async () => {
-            // This is hard to test without actually deleting the file,
-            // but we can verify the error handling path exists
-            // In a real scenario, this would require mocking fs
+            const fsPromises = await import('node:fs/promises')
+            const readFileSpy = vi.spyOn(fsPromises, 'readFile').mockRejectedValueOnce(new Error('missing file'))
+
             const res = await app.request('/doc')
-            // Should either succeed (file exists) or return 500
-            expect([200, 500]).toContain(res.status)
+
+            expect(res.status).toBe(500)
+            readFileSpy.mockRestore()
         })
     })
 
@@ -116,8 +117,7 @@ describe('Server Setup', () => {
         it('should serve API reference at /reference', async () => {
             const res = await app.request('/reference')
 
-            // Scalar should return HTML or redirect
-            expect([200, 302, 307]).toContain(res.status)
+            expect(res.status).toBe(200)
         })
     })
 
@@ -306,58 +306,7 @@ describe('Server Setup', () => {
         })
     })
 
-    describe('Route Mounting', () => {
-        it('should mount activitypub routes', async () => {
-            // ActivityPub routes should be accessible
-            const res = await app.request('/users/testuser')
-
-            // Should either return 404 (user not found) or 200 (if user exists)
-            // The important thing is the route is mounted
-            expect([200, 404]).toContain(res.status)
-        })
-
-
-
-
-        it('should mount calendar routes', async () => {
-            const res = await app.request('/api/calendar')
-
-            // Should either return 200 or 404
-            expect([200, 404]).toContain(res.status)
-        })
-
-
-        it('should mount moderation routes', async () => {
-            const res = await app.request('/api/moderation')
-
-            // Should either return 200 or 404
-            expect([200, 404]).toContain(res.status)
-        })
-
-    })
-
-    describe('Middleware', () => {
-
-        it('should apply CORS headers', async () => {
-            const res = await app.request('/health', {
-                method: 'OPTIONS',
-            })
-
-            // CORS should be applied
-            expect([200, 204]).toContain(res.status)
-        })
-
-    })
-
     describe('Edge Cases', () => {
-        it('should handle missing OpenAPI spec file gracefully', async () => {
-            // This test verifies the error handling path exists
-            // The actual file should exist, but we test the error case
-            const res = await app.request('/doc')
-            // Should either succeed (file exists) or return 500 (file missing)
-            expect([200, 500]).toContain(res.status)
-        })
-
         it('should handle malformed JSON in signup response', async () => {
             const mockResponse = new Response('Invalid JSON', { status: 200 })
             vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
@@ -532,20 +481,10 @@ describe('Server Setup', () => {
             await new Promise(resolve => setTimeout(resolve, 100))
         })
 
-        it('should handle CORS preflight requests', async () => {
-            const res = await app.request('/health', {
-                method: 'OPTIONS',
-            })
-
-            // CORS should handle OPTIONS requests
-            expect([200, 204]).toContain(res.status)
-        })
-
         it('should handle requests to non-existent routes', async () => {
             const res = await app.request('/nonexistent-route')
 
-            // Should return 404 or be handled by error handler
-            expect([404, 500]).toContain(res.status)
+            expect(res.status).toBe(404)
         })
 
     })

@@ -3,7 +3,6 @@
  * Provides utilities for setting up and tearing down test databases
  */
 
-import { PrismaClient } from '@prisma/client'
 import { prisma } from '../../lib/prisma.js'
 
 /**
@@ -11,14 +10,25 @@ import { prisma } from '../../lib/prisma.js'
  * Removes all test data from the database
  */
 export async function cleanupTestData() {
-    // Delete in order to respect foreign key constraints
-    await prisma.eventAttendance.deleteMany()
-    await prisma.eventLike.deleteMany()
-    await prisma.comment.deleteMany()
-    await prisma.event.deleteMany()
-    await prisma.following.deleteMany()
-    await prisma.follower.deleteMany()
-    await prisma.user.deleteMany()
+    await prisma.$transaction([
+        prisma.apiKey.deleteMany(),
+        prisma.account.deleteMany(),
+        prisma.session.deleteMany(),
+        prisma.verification.deleteMany(),
+        prisma.eventAttendance.deleteMany(),
+        prisma.eventLike.deleteMany(),
+        prisma.comment.deleteMany(),
+        prisma.eventTag.deleteMany(),
+        prisma.inboxItem.deleteMany(),
+        prisma.processedActivity.deleteMany(),
+        prisma.report.deleteMany(),
+        prisma.blockedUser.deleteMany(),
+        prisma.blockedDomain.deleteMany(),
+        prisma.following.deleteMany(),
+        prisma.follower.deleteMany(),
+        prisma.event.deleteMany(),
+        prisma.user.deleteMany(),
+    ])
 }
 
 /**
