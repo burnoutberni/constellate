@@ -16,6 +16,7 @@ import { sanitizeText } from './lib/sanitization.js'
 import { normalizeTags } from './lib/tags.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
+import { handleError } from './lib/errors.js'
 import type { Event } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 
@@ -204,13 +205,16 @@ app.post('/', moderateRateLimit, async (c) => {
 
         return c.json(event, 201)
     } catch (error) {
-        if (error instanceof ZodError) {
-            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
-        }
         console.error('Error creating event:', error)
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        const errorStack = error instanceof Error ? error.stack : undefined
-        return c.json({ error: 'Internal server error', message: errorMessage, stack: errorStack }, 500)
+        if (error instanceof Error) {
+            console.error('Error stack:', error.stack)
+        }
+        // Check if prisma is properly initialized
+        if (error instanceof TypeError && error.message.includes('prisma') && error.message.includes('is not a function')) {
+            console.error('Prisma client issue detected. Prisma type:', typeof prisma)
+            console.error('Prisma.event type:', typeof prisma?.event)
+        }
+        return handleError(error, c)
     }
 })
 
