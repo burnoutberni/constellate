@@ -2,7 +2,7 @@
  * Tests for Event Management
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
@@ -54,6 +54,7 @@ describe('Events API', () => {
         vi.clearAllMocks()
     })
 
+<<<<<<< HEAD
     describe('Event visibility', () => {
         it('defaults new events to PUBLIC visibility', async () => {
             const event = await prisma.event.create({
@@ -616,7 +617,7 @@ describe('Events API', () => {
             } as any)
 
             // Mock prisma to throw an error
-            const createMock = vi.spyOn(prisma.event, 'create').mockRejectedValue(new Error('Database error'))
+            vi.spyOn(prisma.event, 'create').mockRejectedValue(new Error('Database error'))
 
             const res = await app.request('/api/events', {
                 method: 'POST',
@@ -630,22 +631,16 @@ describe('Events API', () => {
             })
 
             expect(res.status).toBe(500)
-            
-            // Restore the mock to prevent affecting other tests
-            createMock.mockRestore()
         })
     })
 
     describe('Event listing edge cases', () => {
 
         it('should handle errors in event listing', async () => {
-            const findManyMock = vi.spyOn(prisma.event, 'findMany').mockRejectedValue(new Error('Database error'))
+            vi.spyOn(prisma.event, 'findMany').mockRejectedValue(new Error('Database error'))
 
             const res = await app.request('/api/events')
             expect(res.status).toBe(500)
-            
-            // Restore the mock to prevent affecting other tests
-            findManyMock.mockRestore()
         })
 
     })
@@ -976,6 +971,9 @@ describe('Events API', () => {
         })
     })
 
-    
+    afterEach(() => {
+        // Restore all mocks and spies to prevent test isolation issues
+        vi.restoreAllMocks()
+    })
 })
 
