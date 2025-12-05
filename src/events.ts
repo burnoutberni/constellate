@@ -82,7 +82,7 @@ app.post('/', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.parse(body)
-        const { visibility: requestedVisibility, ...eventInput } = validatedData
+        const { visibility: requestedVisibility } = validatedData
         const visibility = requestedVisibility ?? 'PUBLIC'
 
         const user = await prisma.user.findUnique({
@@ -801,7 +801,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.partial().parse(body)
-        const { visibility: requestedVisibility, ...eventInput } = validatedData
+        const { visibility: requestedVisibility } = validatedData
 
         // Check ownership
         const existingEvent = await prisma.event.findUnique({
@@ -818,11 +818,10 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         // Extract tags from validated data
-        const { tags, ...eventData } = validatedData
+        const { tags } = validatedData
 
         // Update event with sanitized input
         const updateData: Record<string, unknown> = {
-            ...eventInput,
             title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
             summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
             location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
