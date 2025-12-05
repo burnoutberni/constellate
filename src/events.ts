@@ -236,6 +236,14 @@ app.post('/', moderateRateLimit, async (c) => {
         return c.json(event, 201)
     } catch (error) {
         console.error('Error creating event:', error)
+        if (error instanceof Error) {
+            console.error('Error stack:', error.stack)
+        }
+        // Check if prisma is properly initialized
+        if (error instanceof TypeError && error.message.includes('prisma') && error.message.includes('is not a function')) {
+            console.error('Prisma client issue detected. Prisma type:', typeof prisma)
+            console.error('Prisma.event type:', typeof prisma?.event)
+        }
         return handleError(error, c)
     }
 })
