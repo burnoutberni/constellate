@@ -159,7 +159,7 @@ app.post('/', moderateRateLimit, async (c) => {
             }
         }
 
-        // Create event with sanitized input - use spread operator for cleaner code
+        // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
                 title: sanitizeText(validatedData.title),
@@ -1103,7 +1103,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const { tags } = validatedData
         let normalizedTags: string[] | undefined
 
-        // Update event with sanitized input - use spread operator for cleaner code
+        // Update event with sanitized input
         const updateData: Record<string, unknown> = {
             ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
             ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
@@ -1213,10 +1213,10 @@ app.put('/:id', moderateRateLimit, async (c) => {
             data: {
                 event: {
                     ...event,
-                    startTime: event.startTime?.toISOString(),
+                    startTime: event.startTime.toISOString(),
                     endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt?.toISOString(),
-                    updatedAt: event.updatedAt?.toISOString(),
+                    createdAt: event.createdAt.toISOString(),
+                    updatedAt: event.updatedAt.toISOString(),
                 },
             },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),

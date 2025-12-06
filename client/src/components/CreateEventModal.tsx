@@ -13,7 +13,11 @@ const MAX_TAG_LENGTH = 50
 
 // Helper function to normalize tag input
 const normalizeTagInput = (input: string): string => {
+<<<<<<< HEAD
     return input.trim().replace(/^#+/, '').trim().toLowerCase()
+=======
+    return input.trim().replace(/^#/, '').toLowerCase()
+>>>>>>> 8bf6bb7 (Fix Copilot suggestions)
 }
 
 interface EventTemplate {
@@ -589,7 +593,15 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 e.preventDefault()
+<<<<<<< HEAD
                                                 addTag()
+=======
+                                                const tag = normalizeTagInput(tagInput)
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+>>>>>>> 8bf6bb7 (Fix Copilot suggestions)
                                             }
                                         }}
                                         className={`input flex-1 ${tagError ? 'border-red-500' : ''}`}
@@ -597,7 +609,19 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     />
                                     <button
                                         type="button"
+<<<<<<< HEAD
                                         onClick={addTag}
+=======
+                                        onClick={() => {
+                                            if (tagInput.trim()) {
+                                                const tag = normalizeTagInput(tagInput)
+                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
+                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
+                                                    setTagInput('')
+                                                }
+                                            }
+                                        }}
+>>>>>>> 8bf6bb7 (Fix Copilot suggestions)
                                         className="btn btn-secondary"
                                     >
                                         Add

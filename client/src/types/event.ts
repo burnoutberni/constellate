@@ -66,6 +66,7 @@ export interface EventDetail extends Event {
     likes: Array<{
         user: EventUser
     }>
+<<<<<<< HEAD
     comments: Array<CommentWithMentions>
     userHasShared?: boolean
 }
@@ -83,4 +84,18 @@ export interface CommentWithMentions {
     author: EventUser
     mentions?: CommentMention[]
     replies?: Array<CommentWithMentions>
+=======
+    comments: Array<{
+        id: string
+        content: string
+        createdAt: string
+        author: EventUser
+        replies?: Array<{
+            id: string
+            content: string
+            createdAt: string
+            author: EventUser
+        }>
+    }>
+>>>>>>> 8bf6bb7 (Fix Copilot suggestions)
 }
