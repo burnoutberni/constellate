@@ -991,11 +991,12 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Build and deliver Update activity
         // Ensure event object includes user property for activity builder
-        if (event.user) {
-            const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
-            const addressing = buildAddressingFromActivity(activity)
-            await deliverActivity(activity, addressing, userId)
+        if (!event.user) {
+            throw new Error('Event missing user data - data integrity issue')
         }
+        const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
+        const addressing = buildAddressingFromActivity(activity)
+        await deliverActivity(activity, addressing, userId)
 
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
         const broadcastTarget = getBroadcastTarget(event.visibility, userId)

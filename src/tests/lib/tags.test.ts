@@ -163,12 +163,12 @@ describe('normalizeTags', () => {
     it('should handle tags with # and whitespace combinations', () => {
         const tags = ['# ', ' #', ' # ', '## ', 'music']
         const result = normalizeTags(tags)
-        // '# ' becomes '' after removing # and trimming
-        // ' #' becomes '#' after trimming (leading # removed, but # remains)
-        // ' # ' becomes '#' after trimming
-        // '## ' becomes '' after removing ## and trimming
-        // So we expect '#' and 'music'
-        expect(result).toEqual(['#', 'music'])
+        // '# ' becomes '' after trim, remove #, trim again
+        // ' #' becomes '' after trim, remove #, trim again
+        // ' # ' becomes '' after trim, remove #, trim again
+        // '## ' becomes '' after trim, remove ##, trim again
+        // So we expect only 'music'
+        expect(result).toEqual(['music'])
     })
 
     it('should not remove # characters in the middle of tags', () => {

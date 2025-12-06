@@ -5,9 +5,10 @@
 
 /**
  * Normalizes an array of tags by:
+ * - Trimming leading/trailing whitespace
+ * - Removing leading # characters
+ * - Trimming again (to remove whitespace that may have been between # and content)
  * - Converting to lowercase
- * - Trimming whitespace
- * - Removing leading # character
  * - Filtering out empty strings
  * - Removing duplicates
  * 
@@ -22,7 +23,7 @@ export function normalizeTags(tags: string[]): string[] {
     const normalized = tags
         .filter((tag): tag is string => typeof tag === 'string' && tag !== null)
         .map(tag => 
-            tag.replace(/^#+/, '').trim().toLowerCase()
+            tag.trim().replace(/^#+/, '').trim().toLowerCase()
         )
         .filter(tag => tag.length > 0)
     
