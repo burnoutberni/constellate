@@ -383,4 +383,49 @@ describe('Search API - Tag Filtering', () => {
         const eventIds = body.events.map((e: { id: string }) => e.id)
         expect(eventIds).toContain(event.id)
     })
+
+    it('should handle search with tags that become empty after normalization', async () => {
+        const event = await prisma.event.create({
+            data: {
+                title: 'Music Event',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'music' }],
+                },
+            },
+        })
+
+        // Tags that become empty after normalization should be ignored
+        const res = await app.request('/api/search?tags=#,##,   ,\t')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        expect(body.events).toBeDefined()
+        expect(Array.isArray(body.events)).toBe(true)
+        // Should return all events since no valid tags to filter by
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(event.id)
+    })
+
+    it('should handle search with mixed valid and invalid tags', async () => {
+        const event = await prisma.event.create({
+            data: {
+                title: 'Music Event',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'music' }],
+                },
+            },
+        })
+
+        // Mix of valid tags and tags that become empty
+        const res = await app.request('/api/search?tags=music,#,##,   ')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(event.id)
+    })
 })
