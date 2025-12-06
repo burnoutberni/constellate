@@ -2490,7 +2490,6 @@ describe('Events API', () => {
             // Should fail Zod validation
             expect(res.status).toBe(400)
         })
-
     })
 
     afterEach(() => {

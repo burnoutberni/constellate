@@ -7,7 +7,7 @@ import { z } from '@hono/zod-openapi'
 // Common response schemas
 export const ErrorSchema = z.object({
     error: z.string().openapi({ example: 'VALIDATION_ERROR', description: 'Error code (e.g., VALIDATION_ERROR, UNAUTHORIZED, etc.)' }),
-    message: z.string().optional().openapi({ example: 'Invalid input data', description: 'Human-readable error message' }),
+    message: z.string().openapi({ example: 'Invalid input data', description: 'Human-readable error message' }),
     details: z.any().optional().openapi({ description: 'Additional error details (only included in development mode)' }),
 }).openapi('Error')
 
