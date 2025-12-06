@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Event as PrismaEvent } from '@prisma/client'
+import type { Event as PrismaEvent, User } from '@prisma/client'
 
 vi.mock('../lib/eventVisibility.js', () => ({
     canUserViewEvent: vi.fn(),
@@ -61,6 +61,7 @@ function buildTestActivity(id: string): FeedActivity {
                 name: 'Owner',
                 displayColor: '#000000',
             },
+            tags: [],
         },
     }
 }
@@ -79,6 +80,7 @@ describe('activity helpers', () => {
             startTime: date,
             location: 'Somewhere',
             user: { id: 'user-1', username: 'alice', name: 'Alice', displayColor: '#fff' },
+            tags: [],
         })
 
         expect(summary).toEqual({
@@ -87,7 +89,29 @@ describe('activity helpers', () => {
             startTime: date.toISOString(),
             location: 'Somewhere',
             user: { id: 'user-1', username: 'alice', name: 'Alice', displayColor: '#fff' },
+            tags: [],
         })
+    })
+
+    it('buildEventSummary includes tags', () => {
+        const date = new Date('2024-01-01T12:00:00Z')
+        const tags = [
+            { id: 'tag-1', tag: 'tech' },
+            { id: 'tag-2', tag: 'conference' },
+        ]
+        const summary = buildEventSummary({
+            id: 'event-1',
+            title: 'Hello',
+            startTime: date,
+            location: 'Somewhere',
+            user: { id: 'user-1', username: 'alice', name: 'Alice', displayColor: '#fff' },
+            tags,
+        })
+
+        expect(summary.tags).toEqual(tags)
+        expect(summary.tags).toHaveLength(2)
+        expect(summary.tags[0].tag).toBe('tech')
+        expect(summary.tags[1].tag).toBe('conference')
     })
 
     it('filterVisibleActivities filters using canUserViewEvent', async () => {
@@ -115,8 +139,8 @@ describe('activity helpers', () => {
     })
 
     it('resolveActorUser handles local and remote actors', async () => {
-        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-user' } as unknown as { id: string })
-        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-user' } as unknown as { id: string })
+        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-user', username: 'alice', name: 'Alice', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: false, externalActorUrl: null, autoAcceptFollowers: false } as User)
+        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-user', username: 'bob', name: 'Bob', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: true, externalActorUrl: 'https://remote.example/users/bob', autoAcceptFollowers: false } as User)
 
         const local = await resolveActorUser('http://localhost:3000/users/alice', 'http://localhost:3000')
         const remote = await resolveActorUser('https://remote.example/users/bob', 'http://localhost:3000')
@@ -126,8 +150,8 @@ describe('activity helpers', () => {
     })
 
     it('resolveFollowedUserIds resolves ids from actor URLs', async () => {
-        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-id' } as unknown as { id: string })
-        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-id' } as unknown as { id: string })
+        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-id', username: 'alice', name: 'Alice', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: false, externalActorUrl: null, autoAcceptFollowers: false } as User)
+        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-id', username: 'bob', name: 'Bob', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: true, externalActorUrl: 'https://remote.example/users/bob', autoAcceptFollowers: false } as User)
 
         const ids = await resolveFollowedUserIds([
             { actorUrl: 'http://localhost:3000/users/alice' },
@@ -145,7 +169,8 @@ describe('activity helpers', () => {
             startTime: createdAt,
             location: null,
             user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000' },
-        } as PrismaEvent & { user: FeedActivity['event']['user'] }
+            tags: [{ id: 'tag-1', tag: 'tech' }],
+        } as PrismaEvent & { user: FeedActivity['event']['user']; tags: FeedActivity['event']['tags'] }
 
         vi.mocked(prisma.eventLike.findMany).mockResolvedValue([
             {
@@ -154,12 +179,13 @@ describe('activity helpers', () => {
                 user: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.eventLike.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.eventLike.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchLikeActivities(['u1'], 'viewer')
         expect(activities).toHaveLength(1)
         expect(activities[0].type).toBe('like')
+        expect(activities[0].event.tags).toEqual([{ id: 'tag-1', tag: 'tech' }])
     })
 
     it('fetchRsvpActivities filters hidden events', async () => {
@@ -170,7 +196,8 @@ describe('activity helpers', () => {
             startTime: createdAt,
             location: null,
             user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000' },
-        } as PrismaEvent & { user: FeedActivity['event']['user'] }
+            tags: [{ id: 'tag-1', tag: 'meetup' }],
+        } as PrismaEvent & { user: FeedActivity['event']['user']; tags: FeedActivity['event']['tags'] }
 
         vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([
             {
@@ -180,11 +207,40 @@ describe('activity helpers', () => {
                 user: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.eventAttendance.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.eventAttendance.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
 
         const activities = await fetchRsvpActivities(['u1'], 'viewer')
         expect(activities).toHaveLength(0)
+    })
+
+    it('fetchRsvpActivities includes tags in visible events', async () => {
+        const createdAt = new Date('2024-01-01T00:00:00Z')
+        const mockEvent = {
+            id: 'event-1',
+            title: 'Event',
+            startTime: createdAt,
+            location: null,
+            user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000' },
+            tags: [{ id: 'tag-1', tag: 'meetup' }, { id: 'tag-2', tag: 'networking' }],
+        } as PrismaEvent & { user: FeedActivity['event']['user']; tags: FeedActivity['event']['tags'] }
+
+        vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([
+            {
+                id: 'rsvp-1',
+                createdAt,
+                status: 'attending',
+                user: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
+                event: mockEvent,
+            },
+        ] as unknown as Awaited<ReturnType<typeof prisma.eventAttendance.findMany>>)
+        vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+        const activities = await fetchRsvpActivities(['u1'], 'viewer')
+        expect(activities).toHaveLength(1)
+        expect(activities[0].event.tags).toHaveLength(2)
+        expect(activities[0].event.tags[0].tag).toBe('meetup')
+        expect(activities[0].event.tags[1].tag).toBe('networking')
     })
 
     it('fetchCommentActivities returns comment payloads', async () => {
@@ -195,7 +251,8 @@ describe('activity helpers', () => {
             startTime: createdAt,
             location: null,
             user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000' },
-        } as PrismaEvent & { user: FeedActivity['event']['user'] }
+            tags: [{ id: 'tag-1', tag: 'discussion' }],
+        } as PrismaEvent & { user: FeedActivity['event']['user']; tags: FeedActivity['event']['tags'] }
 
         vi.mocked(prisma.comment.findMany).mockResolvedValue([
             {
@@ -205,13 +262,14 @@ describe('activity helpers', () => {
                 author: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.comment.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.comment.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchCommentActivities(['u1'], 'viewer')
         expect(activities).toHaveLength(1)
         expect(activities[0].type).toBe('comment')
         expect(activities[0].data?.commentContent).toBe('Great event')
+        expect(activities[0].event.tags).toEqual([{ id: 'tag-1', tag: 'discussion' }])
     })
 
     it('fetchNewEventActivities returns creator events', async () => {
@@ -224,12 +282,16 @@ describe('activity helpers', () => {
                 startTime: createdAt,
                 location: null,
                 user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000', profileImage: null },
+                tags: [{ id: 'tag-1', tag: 'launch' }, { id: 'tag-2', tag: 'product' }],
             },
-        ] as Awaited<ReturnType<typeof prisma.event.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.event.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchNewEventActivities(['owner'], 'viewer')
         expect(activities).toHaveLength(1)
         expect(activities[0].type).toBe('event_created')
+        expect(activities[0].event.tags).toHaveLength(2)
+        expect(activities[0].event.tags[0].tag).toBe('launch')
+        expect(activities[0].event.tags[1].tag).toBe('product')
     })
 })

@@ -12,6 +12,8 @@ import {
     buildMaybeAttendingActivity,
     buildUndoActivity,
 } from './services/ActivityBuilder.js'
+import { deliverActivity } from './services/ActivityDelivery.js'
+import type { Activity, AcceptActivity, RejectActivity, TentativeAcceptActivity } from './lib/activitypubSchemas.js'
 import { AttendanceStatus } from './constants/activitypub.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
@@ -24,6 +26,7 @@ const app = new Hono()
 
 type EventWithOwner = Event & { user: User | null }
 type AttendanceState = (typeof AttendanceStatus)[keyof typeof AttendanceStatus]
+type HttpErrorStatus = 400 | 401 | 403 | 404 | 500
 
 class HttpError extends Error {
     status: number
@@ -50,7 +53,7 @@ async function ensureViewerCanAccess(event: EventWithOwner, viewerId: string) {
     }
 }
 
-function shouldNotifyFollowers(visibility: Event['visibility'] | null | undefined) {
+function shouldNotifyFollowers(visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' | null | undefined) {
     return visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
 }
 
@@ -84,13 +87,7 @@ function normalizeRecipientsField(value?: string | string[]) {
     return Array.isArray(value) ? value : [value]
 }
 
-interface AddressableActivity {
-    to?: string | string[]
-    cc?: string | string[]
-}
-
-async function deliverNormalizedActivity(activity: AddressableActivity, userId: string) {
-    const { deliverActivity } = await import('./services/ActivityDelivery.js')
+async function deliverNormalizedActivity(activity: Activity, userId: string) {
     const addressing = {
         to: normalizeRecipientsField(activity.to),
         cc: normalizeRecipientsField(activity.cc),
@@ -126,7 +123,7 @@ function buildAttendanceActivityForStatus(
     status: AttendanceState,
     user: User,
     context: AttendanceContext
-): AddressableActivity {
+): AcceptActivity | RejectActivity | TentativeAcceptActivity {
     if (status === AttendanceStatus.ATTENDING) {
         return buildAttendingActivity(
             user,
@@ -232,7 +229,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
         if (error instanceof HttpError) {
-            return c.json(error.body, error.status as const)
+            return c.json(error.body, error.status as HttpErrorStatus)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -282,7 +279,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         })
 
         const context = buildAttendanceContext(attendance.event, user)
-        const originalActivity = buildAttendanceActivityForStatus(attendance.status, user, context)
+        const originalActivity = buildAttendanceActivityForStatus(attendance.status as AttendanceState, user, context)
         const undoActivity = buildUndoActivity(user, originalActivity)
         await deliverNormalizedActivity(undoActivity, userId)
 
@@ -299,7 +296,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
         return c.json({ success: true })
     } catch (error) {
         if (error instanceof HttpError) {
-            return c.json(error.body, error.status as const)
+            return c.json(error.body, error.status as HttpErrorStatus)
         }
         console.error('Error removing attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)

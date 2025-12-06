@@ -6,6 +6,7 @@
 import { Hono, type Context } from 'hono'
 import { ZodError } from 'zod'
 import type { z } from 'zod'
+import type { Prisma } from '@prisma/client'
 import { prisma } from './lib/prisma.js'
 import { requireAuth } from './middleware/auth.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -24,7 +25,7 @@ const TemplateUpdate = EventTemplateUpdateSchema
 
 type TemplateData = z.infer<typeof EventTemplateDataSchema>
 
-function sanitizeTemplateData(data: Partial<TemplateData>): Record<string, unknown> {
+function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonValue {
     const sanitized: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(data) as [keyof TemplateData, TemplateData[keyof TemplateData]][]) {
         if (value === undefined || value === null) {
@@ -40,11 +41,11 @@ function sanitizeTemplateData(data: Partial<TemplateData>): Record<string, unkno
     return sanitized
 }
 
-function serializeTemplate(template: { id: string }): Record<string, unknown> {
+function serializeTemplate(template: { id: string; createdAt: Date; updatedAt: Date }): Record<string, unknown> {
     return {
         ...template,
-        updatedAt: (template as { updatedAt: Date }).updatedAt.toISOString?.() ?? template.updatedAt,
-        createdAt: (template as { createdAt: Date }).createdAt.toISOString?.() ?? template.createdAt,
+        updatedAt: template.updatedAt.toISOString(),
+        createdAt: template.createdAt.toISOString(),
     }
 }
 
@@ -169,10 +170,11 @@ app.put('/event-templates/:id', async (c) => {
                 template.data && typeof template.data === 'object' && !Array.isArray(template.data)
                     ? (template.data as Record<string, unknown>)
                     : {}
+            const sanitizedData = sanitizeTemplateData(payload.data)
             updateData.data = {
                 ...currentData,
-                ...sanitizeTemplateData(payload.data),
-            }
+                ...sanitizedData,
+            } as Prisma.InputJsonValue
         }
 
         const updated = await prisma.eventTemplate.update({

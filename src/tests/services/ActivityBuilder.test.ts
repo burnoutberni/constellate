@@ -17,6 +17,8 @@ import {
 import { ActivityType, ObjectType, PUBLIC_COLLECTION } from '../../constants/activitypub.js'
 import type { Event, User, Comment } from '@prisma/client'
 
+type EventWithUser = Event & { user: User | null }
+
 // Mock dependencies
 vi.mock('../../lib/activitypubHelpers.js', () => ({
     getBaseUrl: vi.fn(() => 'http://localhost:3000'),
@@ -139,7 +141,7 @@ describe('ActivityBuilder', () => {
                 visibility: 'FOLLOWERS',
             }
 
-            const activity = buildCreateEventActivity(followerOnlyEvent, 'user_123')
+            const activity = buildCreateEventActivity(followerOnlyEvent as EventWithUser, 'user_123')
             expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
             expect(activity.cc).toBeUndefined()
         })
@@ -147,10 +149,10 @@ describe('ActivityBuilder', () => {
         it('should remove addressing for private events', () => {
             const privateEvent = {
                 ...mockEvent,
-                visibility: 'PRIVATE',
+                visibility: 'PRIVATE' as const,
             }
 
-            const activity = buildCreateEventActivity(privateEvent, 'user_123')
+            const activity = buildCreateEventActivity(privateEvent as EventWithUser, 'user_123')
             expect(activity.to).toBeUndefined()
             expect(activity.cc).toBeUndefined()
         })
@@ -158,10 +160,10 @@ describe('ActivityBuilder', () => {
         it('should remove addressing for unlisted events', () => {
             const unlistedEvent = {
                 ...mockEvent,
-                visibility: 'UNLISTED',
+                visibility: 'UNLISTED' as const,
             }
 
-            const activity = buildCreateEventActivity(unlistedEvent, 'user_123')
+            const activity = buildCreateEventActivity(unlistedEvent as EventWithUser, 'user_123')
             expect(activity.to).toBeUndefined()
             expect(activity.cc).toBeUndefined()
         })
@@ -197,7 +199,7 @@ describe('ActivityBuilder', () => {
                 visibility: 'FOLLOWERS',
             }
 
-            const activity = buildUpdateEventActivity(followerEvent, 'user_123')
+            const activity = buildUpdateEventActivity(followerEvent as EventWithUser, 'user_123')
             expect(activity.to).toEqual(['http://localhost:3000/users/alice/followers'])
             expect(activity.cc).toBeUndefined()
         })
@@ -208,7 +210,7 @@ describe('ActivityBuilder', () => {
                 visibility: 'PRIVATE',
             }
 
-            const activity = buildUpdateEventActivity(privateEvent, 'user_123')
+            const activity = buildUpdateEventActivity(privateEvent as EventWithUser, 'user_123')
             expect(activity.to).toBeUndefined()
             expect(activity.cc).toBeUndefined()
         })

@@ -9,6 +9,13 @@ interface CreateEventModalProps {
     onSuccess: () => void
 }
 
+const MAX_TAG_LENGTH = 50
+
+// Helper function to normalize tag input
+const normalizeTagInput = (input: string): string => {
+    return input.trim().replace(/^#+/, '').trim().toLowerCase()
+}
+
 interface EventTemplate {
     id: string
     name: string
@@ -36,6 +43,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         visibility: EventVisibility
         recurrencePattern: string
         recurrenceEndDate: string
+        tags: string[]
     }>({
         title: '',
         summary: '',
@@ -46,7 +54,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         visibility: 'PUBLIC',
         recurrencePattern: '',
         recurrenceEndDate: '',
+        tags: [] as string[],
     })
+    const [tagInput, setTagInput] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [templates, setTemplates] = useState<EventTemplate[]>([])
     const [templatesLoading, setTemplatesLoading] = useState(false)
@@ -55,6 +65,21 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const [saveAsTemplate, setSaveAsTemplate] = useState(false)
     const [templateName, setTemplateName] = useState('')
     const [templateDescription, setTemplateDescription] = useState('')
+
+    const addTag = useCallback(() => {
+        if (tagInput.trim()) {
+            const tag = normalizeTagInput(tagInput)
+            if (tag && tag.length <= MAX_TAG_LENGTH) {
+                setFormData(prev => {
+                    if (!prev.tags.includes(tag)) {
+                        return { ...prev, tags: [...prev.tags, tag] }
+                    }
+                    return prev
+                })
+                setTagInput('')
+            }
+        }
+    }, [tagInput])
 
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
         if (!user) {
@@ -111,7 +136,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 visibility: 'PUBLIC',
                 recurrencePattern: '',
                 recurrenceEndDate: '',
+                tags: [],
             })
+            setTagInput('')
             setSelectedTemplateId('')
             setSaveAsTemplate(false)
             setTemplateName('')
@@ -151,6 +178,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             visibility: formData.visibility,
             recurrencePattern: '',
             recurrenceEndDate: '',
+            tags: formData.tags,
         })
     }
 
@@ -263,12 +291,25 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    ...payload,
+                    tags: formData.tags.length > 0 ? formData.tags : undefined,
+                }),
             })
             if (response.ok) {
                 if (saveAsTemplate) {
                     try {
-                        await saveTemplateFromEvent(payload)
+                        // Note: Tags are intentionally excluded from templates as they are event-specific
+                        // and shouldn't be part of a reusable template. When loading from a template,
+                        // existing tags are preserved (see applyTemplate function).
+                        await saveTemplateFromEvent({
+                            title: formData.title,
+                            summary: formData.summary,
+                            location: formData.location,
+                            url: formData.url,
+                            startTime: new Date(formData.startTime).toISOString(),
+                            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+                        })
                     } catch (err) {
                         console.error('Failed to save template', err)
                         window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
@@ -284,11 +325,13 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     visibility: 'PUBLIC',
                     recurrencePattern: '',
                     recurrenceEndDate: '',
+                    tags: [],
                 })
                 setSelectedTemplateId('')
                 setSaveAsTemplate(false)
                 setTemplateName('')
                 setTemplateDescription('')
+                setTagInput('')
                 onSuccess()
                 onClose()
             } else if (response.status === 401) {
@@ -510,6 +553,63 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     </p>
                                 </div>
                             )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Tags
+                            </label>
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                addTag()
+                                            }
+                                        }}
+                                        className="input flex-1"
+                                        placeholder="Add a tag (press Enter)"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addTag}
+                                        className="btn btn-secondary"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                                {formData.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {formData.tags.map((tag) => (
+                                            <span
+                                                key={tag}
+                                                className="badge badge-primary flex items-center gap-1"
+                                            >
+                                                #{tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData({
+                                                            ...formData,
+                                                            tags: formData.tags.filter((t) => t !== tag),
+                                                        })
+                                                    }}
+                                                    className="ml-1 hover:text-red-600"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-500">
+                                    Add tags to help others discover your event
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-4">
