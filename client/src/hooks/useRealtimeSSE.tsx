@@ -7,7 +7,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { queryKeys } from './queries/keys'
 import { useUIStore } from '../stores'
-import type { EventDetail, EventUser } from '../types'
+import type { EventDetail, EventUser, Notification } from '../types'
+import type { NotificationsResponse } from './queries/notifications'
 
 type QueryKeys = typeof queryKeys
 
@@ -117,6 +118,36 @@ const addCommentToCache = (
             ...eventDetail._count,
             comments: updatedComments.length,
         },
+    })
+}
+
+
+const getNotificationLimitFromQueryKey = (queryKey: unknown): number | null => {
+    if (Array.isArray(queryKey) && queryKey.length >= 3) {
+        const value = queryKey[2]
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value
+        }
+    }
+    return null
+}
+
+const updateNotificationCaches = (
+    queryClient: QueryClient,
+    updater: (current: NotificationsResponse, limit: number | null) => NotificationsResponse
+) => {
+    const queries = queryClient.getQueriesData<NotificationsResponse>({
+        queryKey: queryKeys.notifications.all(),
+    })
+
+    queries.forEach(([queryKey, data]) => {
+        if (!data) {
+            return
+        }
+
+        const limit = getNotificationLimitFromQueryKey(queryKey)
+        const updated = updater(data, limit)
+        queryClient.setQueryData(queryKey, updated)
     })
 }
 
@@ -483,6 +514,63 @@ const setupEventListeners = (
             }
         })
     }
+
+    eventSource.addEventListener('notification:created', (e) => {
+        const event = JSON.parse(e.data)
+        console.log('[SSE] Notification created:', event)
+        const notification = event.data?.notification as Notification | undefined
+        if (!notification) {
+            return
+        }
+
+        updateNotificationCaches(queryClient, (current, limit) => {
+            const filtered = current.notifications.filter((item) => item.id !== notification.id)
+            const merged = [notification, ...filtered]
+            const trimmed = typeof limit === 'number' ? merged.slice(0, limit) : merged
+
+            return {
+                notifications: trimmed,
+                unreadCount: notification.read ? current.unreadCount : current.unreadCount + 1,
+            }
+        })
+    })
+
+    eventSource.addEventListener('notification:read', (e) => {
+        const event = JSON.parse(e.data)
+        console.log('[SSE] Notification read:', event)
+        const payload = event.data
+
+        if (payload?.allRead) {
+            updateNotificationCaches(queryClient, (current) => ({
+                notifications: current.notifications.map((notification) => ({
+                    ...notification,
+                    read: true,
+                    readAt: notification.readAt ?? new Date().toISOString(),
+                })),
+                unreadCount: 0,
+            }))
+            return
+        }
+
+        const notification = payload?.notification as Notification | undefined
+        if (!notification) {
+            return
+        }
+
+        updateNotificationCaches(queryClient, (current) => {
+            const wasUnread = current.notifications.some(
+                (item) => item.id === notification.id && !item.read
+            )
+            const updatedList = current.notifications.map((item) =>
+                item.id === notification.id ? notification : item
+            )
+
+            return {
+                notifications: updatedList,
+                unreadCount: wasUnread ? Math.max(0, current.unreadCount - 1) : current.unreadCount,
+            }
+        })
+    })
 }
 
 export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
