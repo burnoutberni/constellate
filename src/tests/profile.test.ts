@@ -82,6 +82,7 @@ describe('Profile API', () => {
         })
 
         vi.clearAllMocks()
+        mockNoAuth() // Set default unauthenticated state
     })
 
     describe('GET /users/me/profile', () => {
@@ -104,6 +105,8 @@ describe('Profile API', () => {
         })
 
         it('returns 404 when not authenticated', async () => {
+            mockNoAuth()
+            
             const response = await app.request('/api/users/me/profile', {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
@@ -142,6 +145,8 @@ describe('Profile API', () => {
 
     describe('GET /users/:username/follow-status', () => {
         it('returns not following when user is not authenticated', async () => {
+            mockNoAuth()
+            
             const response = await app.request(`/api/users/${otherUser.username}/follow-status`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
@@ -360,6 +365,8 @@ describe('Profile API', () => {
         })
 
         it('requires authentication', async () => {
+            mockNoAuth()
+            
             const response = await app.request(`/api/users/${otherUser.username}/follow`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -489,6 +496,8 @@ describe('Profile API', () => {
         })
 
         it('requires authentication', async () => {
+            mockNoAuth()
+            
             const response = await app.request(`/api/users/${otherUser.username}/follow`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
