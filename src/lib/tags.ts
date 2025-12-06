@@ -23,7 +23,11 @@ export function normalizeTags(tags: string[]): string[] {
     const normalized = tags
         .filter((tag): tag is string => typeof tag === 'string')
         .map(tag => 
+<<<<<<< HEAD
             tag.trim().replace(/^#+/, '').trim().toLowerCase()
+=======
+            tag.replace(/^#+/, '').trim().toLowerCase()
+>>>>>>> bade741 (Fix suggestions)
         )
         .filter(tag => tag.length > 0)
     
