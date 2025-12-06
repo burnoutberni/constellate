@@ -223,19 +223,20 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
             if (formData.recurrencePattern && formData.recurrenceEndDate) {
                 const startDate = new Date(formData.startTime)
-                // Parse recurrence end date as end of day to allow same-day recurrence end
+                // Parse recurrence end date as end of day in UTC to avoid timezone issues
                 const recurrenceEndDateStr = formData.recurrenceEndDate
-                const recurrenceEnd = new Date(recurrenceEndDateStr + 'T23:59:59')
+                const recurrenceEnd = new Date(recurrenceEndDateStr + 'T23:59:59.999Z')
                 if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
                     setError('Please provide valid dates for recurring events.')
                     setSubmitting(false)
                     return
                 }
-                // Compare only the date parts (without time) to allow same-day recurrence end
+                // Compare only the date parts (without time) to match backend validation
                 const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
                 const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
-                if (recurrenceEndDateOnly < startDateOnly) {
-                    setError('Recurrence end date must be on or after the start date.')
+                // Backend requires recurrence end date to be strictly after start time
+                if (recurrenceEndDateOnly <= startDateOnly) {
+                    setError('Recurrence end date must be after the start date.')
                     setSubmitting(false)
                     return
                 }
@@ -253,8 +254,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
             if (formData.recurrencePattern) {
                 payload.recurrencePattern = formData.recurrencePattern
-                // Use the same end-of-day parsing logic as validation to ensure consistency
-                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59').toISOString()
+                // Use the same end-of-day parsing logic as validation to ensure consistency (UTC)
+                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
             }
             const response = await fetch('/api/events', {
                 method: 'POST',

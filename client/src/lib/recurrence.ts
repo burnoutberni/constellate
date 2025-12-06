@@ -20,16 +20,16 @@ function advanceDate(date: Date, pattern: RecurrencePattern, originalDayOfMonth?
         // This ensures that recurring events preserve the original day (e.g., Jan 31 -> Feb 28 -> Mar 31)
         const targetDay = originalDayOfMonth ?? date.getDate()
         const month = date.getMonth()
-        next.setMonth(month + 1)
+        const targetMonth = month + 1
+        next.setMonth(targetMonth)
         next.setDate(targetDay)
         
         // If the day rolled over (e.g., trying to set Feb 31 results in Mar 3),
         // it means we went past the end of the target month.
         // Clamp to the last valid day of the target month.
-        if (next.getDate() !== targetDay) {
-            // We went past the end of the month, so set to the last day of the target month
-            // setDate(0) sets to the last day of the previous month, which is the target month
-            // since we already advanced the month
+        if (next.getMonth() !== targetMonth) {
+            // Rolled over, set to last day of target month
+            next.setMonth(targetMonth + 1)
             next.setDate(0)
         }
     }
