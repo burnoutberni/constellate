@@ -107,8 +107,8 @@ describe('normalizeTags', () => {
     it('should handle tags with multiple # prefixes', () => {
         const tags = ['#music', '##concert', '###live']
         const result = normalizeTags(tags)
-        // Only removes the first #, so ## becomes # which is not empty
-        expect(result).toEqual(['music', '#concert', '##live'])
+        // Removes all leading # characters
+        expect(result).toEqual(['music', 'concert', 'live'])
     })
 
     it('should handle very long tags', () => {

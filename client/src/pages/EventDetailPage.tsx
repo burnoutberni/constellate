@@ -397,7 +397,9 @@ export function EventDetailPage() {
                                 if (userAttendance === 'attending') {
                                     return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
                                 }
-                                return 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                                return user
+                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
+                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
                             })()}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
@@ -410,7 +412,9 @@ export function EventDetailPage() {
                                 if (userAttendance === 'maybe') {
                                     return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
                                 }
-                                return 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                                return user
+                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
+                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
                             })()}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
@@ -423,7 +427,9 @@ export function EventDetailPage() {
                                 if (userLiked) {
                                     return 'btn flex-1 btn-primary ring-2 ring-red-600 ring-offset-2'
                                 }
-                                return 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
+                                return user
+                                    ? 'btn flex-1 btn-secondary'
+                                    : 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
                             })()}
                             title={!user ? 'Sign up to like this event' : ''}
                         >
