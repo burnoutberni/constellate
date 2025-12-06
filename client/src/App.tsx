@@ -13,6 +13,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { AdminPage } from './pages/AdminPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -55,6 +56,7 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/followers/pending" element={<PendingFollowersPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/*" element={<ProfileOrEventPage />} />
         </Routes>

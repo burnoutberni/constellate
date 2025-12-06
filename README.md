@@ -116,6 +116,13 @@ Constellate now ships with a backend notification service that powers both the R
 
 Notifications are streamed in real time over the existing SSE endpoint as `notification:created` events, so the frontend can immediately surface unread counts without polling.
 
+## Notification UI (WP-009)
+
+- The client now includes a `NotificationBell` component (`client/src/components/NotificationBell.tsx`) that surfaces unread counts in the navbar, streams updates via `notification:created` / `notification:read` SSE events, and exposes quick actions (mark all read, jump to details).
+- A dedicated `/notifications` page (`client/src/pages/NotificationsPage.tsx`) presents the full inbox with type-specific styling (follow, comment, like, mention, event, system), actor context, and contextual navigation buttons.
+- Both surfaces are powered by the same React Query hooks (`client/src/hooks/queries/notifications.ts`) which wrap the REST endpoints above and keep the cache synchronized with SSE broadcasts for real-time UI updates.
+- When linking notifications to product experiences, populate `contextUrl` on the backend — the UI will navigate internally for relative URLs or fall back to `window.location` for absolute links.
+
 ## License
 
 AGPL-3.0
