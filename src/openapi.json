@@ -92,9 +92,29 @@
                 "type": "object",
                 "properties": {
                     "error": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Error code (e.g., VALIDATION_ERROR, UNAUTHORIZED, etc.)"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable error message"
+                    },
+                    "details": {
+                        "description": "Additional error details (only included in development mode)",
+                        "oneOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "array"
+                            }
+                        ]
                     }
-                }
+                },
+                "required": [
+                    "error",
+                    "message"
+                ]
             },
             "User": {
                 "type": "object",
@@ -1115,7 +1135,39 @@
                         "description": "Unauthorized"
                     },
                     "400": {
-                        "description": "Validation error"
+                        "description": "Validation error - occurs when input validation fails (e.g., invalid tags, missing required fields, or tag normalization fails)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "examples": {
+                                    "tagValidationError": {
+                                        "summary": "Tag validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Failed to process tags: ensure tags are valid strings"
+                                        }
+                                    },
+                                    "schemaValidationError": {
+                                        "summary": "Schema validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Invalid input data",
+                                            "details": [
+                                                {
+                                                    "code": "invalid_type",
+                                                    "expected": "string",
+                                                    "received": "number",
+                                                    "path": ["title"],
+                                                    "message": "Expected string, received number"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -1230,7 +1282,39 @@
                         }
                     },
                     "400": {
-                        "description": "Validation error"
+                        "description": "Validation error - occurs when input validation fails (e.g., invalid tags, missing required fields, or tag normalization fails)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "examples": {
+                                    "tagValidationError": {
+                                        "summary": "Tag validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Failed to process tags: ensure tags are valid strings"
+                                        }
+                                    },
+                                    "schemaValidationError": {
+                                        "summary": "Schema validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Invalid input data",
+                                            "details": [
+                                                {
+                                                    "code": "invalid_type",
+                                                    "expected": "string",
+                                                    "received": "number",
+                                                    "path": ["title"],
+                                                    "message": "Expected string, received number"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1313,7 +1397,39 @@
                         }
                     },
                     "400": {
-                        "description": "Validation error"
+                        "description": "Validation error - occurs when input validation fails (e.g., invalid tags, missing required fields, or tag normalization fails)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "examples": {
+                                    "tagValidationError": {
+                                        "summary": "Tag validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Failed to process tags: ensure tags are valid strings"
+                                        }
+                                    },
+                                    "schemaValidationError": {
+                                        "summary": "Schema validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Invalid input data",
+                                            "details": [
+                                                {
+                                                    "code": "invalid_type",
+                                                    "expected": "string",
+                                                    "received": "number",
+                                                    "path": ["title"],
+                                                    "message": "Expected string, received number"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1430,6 +1546,16 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Event"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error - occurs when input validation fails (e.g., invalid tags, missing required fields, or tag normalization fails)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
                                 }
                             }
                         }
@@ -2966,7 +3092,39 @@
                         }
                     },
                     "400": {
-                        "description": "Validation error"
+                        "description": "Validation error - occurs when input validation fails (e.g., invalid tags, missing required fields, or tag normalization fails)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "examples": {
+                                    "tagValidationError": {
+                                        "summary": "Tag validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Failed to process tags: ensure tags are valid strings"
+                                        }
+                                    },
+                                    "schemaValidationError": {
+                                        "summary": "Schema validation error",
+                                        "value": {
+                                            "error": "VALIDATION_ERROR",
+                                            "message": "Invalid input data",
+                                            "details": [
+                                                {
+                                                    "code": "invalid_type",
+                                                    "expected": "string",
+                                                    "received": "number",
+                                                    "path": ["title"],
+                                                    "message": "Expected string, received number"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "User not found"

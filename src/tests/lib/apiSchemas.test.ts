@@ -17,7 +17,7 @@ import {
 describe('API Schemas', () => {
     describe('ErrorSchema', () => {
         it('should parse valid error object', () => {
-            const valid = { error: 'An error occurred' }
+            const valid = { error: 'An error occurred', message: 'An error occurred' }
             const result = ErrorSchema.safeParse(valid)
             expect(result.success).toBe(true)
             if (result.success) {
@@ -26,7 +26,7 @@ describe('API Schemas', () => {
         })
 
         it('should parse error with optional details', () => {
-            const valid = { error: 'An error occurred', details: { field: 'value' } }
+            const valid = { error: 'An error occurred', message: 'An error occurred', details: { field: 'value' } }
             const result = ErrorSchema.safeParse(valid)
             expect(result.success).toBe(true)
             if (result.success) {
