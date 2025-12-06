@@ -404,9 +404,34 @@ const setupEventListeners = (
                     isAccepted: true,
                 }
             )
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.users.profile(event.data.username),
-            })
+            if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
+                const profileData = queryClient.getQueryData(
+                    queryKeys.users.profile(event.data.username)
+                ) as { user: { _count: { followers: number; following: number; events: number } } } | undefined
+                if (profileData) {
+                    queryClient.setQueryData(
+                        queryKeys.users.profile(event.data.username),
+                        {
+                            ...profileData,
+                            user: {
+                                ...profileData.user,
+                                _count: {
+                                    ...profileData.user._count,
+                                    followers: event.data.followerCount,
+                                },
+                            },
+                        }
+                    )
+                } else {
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.users.profile(event.data.username),
+                    })
+                }
+            } else {
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.users.profile(event.data.username),
+                })
+            }
         }
     })
 
