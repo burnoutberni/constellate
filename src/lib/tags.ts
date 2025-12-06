@@ -21,7 +21,7 @@ export function normalizeTags(tags: string[]): string[] {
     }
     
     const normalized = tags
-        .filter((tag): tag is string => typeof tag === 'string' && tag !== null)
+        .filter((tag): tag is string => typeof tag === 'string')
         .map(tag => 
             tag.trim().replace(/^#+/, '').trim().toLowerCase()
         )

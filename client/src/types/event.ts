@@ -29,7 +29,7 @@ export interface Event {
     recurrencePattern?: RecurrencePattern | null
     recurrenceEndDate?: string | null
     originalEventId?: string | null
-    tags?: Array<{
+    tags: Array<{
         id: string
         tag: string
     }>
