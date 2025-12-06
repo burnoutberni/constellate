@@ -428,4 +428,47 @@ describe('Search API - Tag Filtering', () => {
         const eventIds = body.events.map((e: { id: string }) => e.id)
         expect(eventIds).toContain(event.id)
     })
+
+    it('should handle search when params.tags is not provided', async () => {
+        const event = await prisma.event.create({
+            data: {
+                title: 'Music Event',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'music' }],
+                },
+            },
+        })
+
+        // No tags parameter - should return all events
+        const res = await app.request('/api/search')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(event.id)
+    })
+
+    it('should handle search when tagList becomes empty after normalization', async () => {
+        const event = await prisma.event.create({
+            data: {
+                title: 'Music Event',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'music' }],
+                },
+            },
+        })
+
+        // Tags that all become empty - tagList.length === 0
+        const res = await app.request('/api/search?tags=#,##,###')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        // Should return all events since no valid tags to filter by
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(event.id)
+    })
 })
