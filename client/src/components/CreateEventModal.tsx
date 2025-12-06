@@ -13,7 +13,7 @@ const MAX_TAG_LENGTH = 50
 
 // Helper function to normalize tag input
 const normalizeTagInput = (input: string): string => {
-    return input.trim().replace(/^#/, '').toLowerCase()
+    return input.trim().replace(/^#+/, '').toLowerCase()
 }
 
 interface EventTemplate {
@@ -69,12 +69,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const addTag = useCallback(() => {
         if (tagInput.trim()) {
             const tag = normalizeTagInput(tagInput)
-            if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
-                setFormData({ ...formData, tags: [...formData.tags, tag] })
+            if (tag && tag.length <= MAX_TAG_LENGTH) {
+                setFormData(prev => {
+                    if (!prev.tags.includes(tag)) {
+                        return { ...prev, tags: [...prev.tags, tag] }
+                    }
+                    return prev
+                })
                 setTagInput('')
             }
         }
-    }, [tagInput, formData])
+    }, [tagInput])
 
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
         if (!user) {
