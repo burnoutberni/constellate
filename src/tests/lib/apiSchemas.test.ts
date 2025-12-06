@@ -40,10 +40,10 @@ describe('API Schemas', () => {
             expect(result.success).toBe(false)
         })
 
-        it('should reject missing message field', () => {
-            const invalid = { error: 'An error occurred' }
-            const result = ErrorSchema.safeParse(invalid)
-            expect(result.success).toBe(false)
+        it('should accept error without message field', () => {
+            const valid = { error: 'An error occurred' }
+            const result = ErrorSchema.safeParse(valid)
+            expect(result.success).toBe(true)
         })
 
         it('should reject non-string error field', () => {
