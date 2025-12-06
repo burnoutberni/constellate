@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Event as PrismaEvent } from '@prisma/client'
+import type { Event as PrismaEvent, User } from '@prisma/client'
 
 vi.mock('../lib/eventVisibility.js', () => ({
     canUserViewEvent: vi.fn(),
@@ -115,8 +115,8 @@ describe('activity helpers', () => {
     })
 
     it('resolveActorUser handles local and remote actors', async () => {
-        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-user' } as unknown as { id: string })
-        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-user' } as unknown as { id: string })
+        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-user', username: 'alice', name: 'Alice', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: false, externalActorUrl: null, autoAcceptFollowers: false } as User)
+        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-user', username: 'bob', name: 'Bob', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: true, externalActorUrl: 'https://remote.example/users/bob', autoAcceptFollowers: false } as User)
 
         const local = await resolveActorUser('http://localhost:3000/users/alice', 'http://localhost:3000')
         const remote = await resolveActorUser('https://remote.example/users/bob', 'http://localhost:3000')
@@ -126,8 +126,8 @@ describe('activity helpers', () => {
     })
 
     it('resolveFollowedUserIds resolves ids from actor URLs', async () => {
-        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-id' } as unknown as { id: string })
-        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-id' } as unknown as { id: string })
+        vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'local-id', username: 'alice', name: 'Alice', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: false, externalActorUrl: null, autoAcceptFollowers: false } as User)
+        vi.mocked(prisma.user.findFirst).mockResolvedValueOnce({ id: 'remote-id', username: 'bob', name: 'Bob', createdAt: new Date(), updatedAt: new Date(), email: null, emailVerified: false, displayColor: '#fff', bio: null, profileImage: null, headerImage: null, isRemote: true, externalActorUrl: 'https://remote.example/users/bob', autoAcceptFollowers: false } as User)
 
         const ids = await resolveFollowedUserIds([
             { actorUrl: 'http://localhost:3000/users/alice' },
@@ -154,7 +154,7 @@ describe('activity helpers', () => {
                 user: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.eventLike.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.eventLike.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchLikeActivities(['u1'], 'viewer')
@@ -180,7 +180,7 @@ describe('activity helpers', () => {
                 user: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.eventAttendance.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.eventAttendance.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
 
         const activities = await fetchRsvpActivities(['u1'], 'viewer')
@@ -205,7 +205,7 @@ describe('activity helpers', () => {
                 author: { id: 'u1', username: 'alice', name: 'Alice', displayColor: '#fff', profileImage: null },
                 event: mockEvent,
             },
-        ] as Awaited<ReturnType<typeof prisma.comment.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.comment.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchCommentActivities(['u1'], 'viewer')
@@ -225,7 +225,7 @@ describe('activity helpers', () => {
                 location: null,
                 user: { id: 'owner', username: 'owner', name: 'Owner', displayColor: '#000', profileImage: null },
             },
-        ] as Awaited<ReturnType<typeof prisma.event.findMany>>)
+        ] as unknown as Awaited<ReturnType<typeof prisma.event.findMany>>)
         vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
 
         const activities = await fetchNewEventActivities(['owner'], 'viewer')

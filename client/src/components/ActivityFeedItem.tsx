@@ -123,6 +123,23 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                                 })}
                             </span>
                         </div>
+                        {activity.event.tags && activity.event.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {activity.event.tags.slice(0, 3).map((tag) => (
+                                    <span
+                                        key={tag.id}
+                                        className="badge badge-primary text-xs"
+                                    >
+                                        #{tag.tag}
+                                    </span>
+                                ))}
+                                {activity.event.tags.length > 3 && (
+                                    <span className="text-xs text-gray-400">
+                                        +{activity.event.tags.length - 3} more
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

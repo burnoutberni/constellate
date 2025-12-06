@@ -83,143 +83,7 @@ export function FeedPage() {
         )
     }
 
-    const renderActivityContent = () => {
-        if (activityLoading) {
-            return (
-                <div className="card p-8 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
-                </div>
-            )
-        }
 
-        if (activities.length === 0) {
-            return (
-                <div className="card p-8 text-center text-gray-500">
-                    {user ? (
-                        <>
-                            <p className="mb-2">No activity yet</p>
-                            <p className="text-sm">
-                                Follow people to see their activities in your feed
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <p className="mb-2">Sign in to see your activity feed</p>
-                            <Link to="/login" className="btn btn-primary mt-4">
-                                Sign In
-                            </Link>
-                        </>
-                    )}
-                </div>
-            )
-        }
-
-        return activities.map((activity) => (
-            <ActivityFeedItem key={activity.id} activity={activity} />
-        ))
-    }
-
-    const renderTodayEvents = () => {
-        if (eventsLoading) {
-            return (
-                <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
-                </div>
-            )
-        }
-
-        if (todayEvents.length === 0) {
-            return (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                    No events today
-                </div>
-            )
-        }
-
-        return (
-            <div className="space-y-2">
-                {todayEvents.slice(0, 5).map((event) => {
-                    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
-                    return (
-                        <div
-                            key={event.id}
-                            onClick={() => handleEventClick(event)}
-                            className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                            <div className="font-medium text-sm text-gray-900">
-                                {event.title}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                                {formatTime(event.startTime)}
-                                {event.location && ` • ${event.location}`}
-                            </div>
-                            <div className="mt-1">
-                                <span className={`badge ${visibilityMeta.badgeClass}`}>
-                                    {visibilityMeta.icon} {visibilityMeta.label}
-                                </span>
-                            </div>
-                        </div>
-                    )
-                })}
-                {todayEvents.length > 5 && (
-                    <div className="text-xs text-gray-400 text-center pt-2">
-                        +{todayEvents.length - 5} more
-                    </div>
-                )}
-            </div>
-        )
-    }
-
-    const renderSelectedDateEvents = () => {
-        if (eventsLoading) {
-            return (
-                <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
-                </div>
-            )
-        }
-
-        if (selectedDateEvents.length === 0) {
-            return (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                    No events on this date
-                </div>
-            )
-        }
-
-        return (
-            <div className="space-y-2">
-                {selectedDateEvents.map((event) => {
-                    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
-                    return (
-                        <div
-                            key={event.id}
-                            onClick={() => handleEventClick(event)}
-                            className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                            <div className="font-medium text-sm text-gray-900">
-                                {event.title}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                                {formatTime(event.startTime)}
-                                {event.location && ` • ${event.location}`}
-                            </div>
-                            {event.user && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                    by @{event.user.username}
-                                </div>
-                            )}
-                            <div className="mt-1">
-                                <span className={`badge ${visibilityMeta.badgeClass}`}>
-                                    {visibilityMeta.icon} {visibilityMeta.label}
-                                </span>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-        )
-    }
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -251,7 +115,38 @@ export function FeedPage() {
                             )}
                         </div>
 
-                        {renderActivityContent()}
+                        {activityLoading ? (
+                            <div className="card p-8 text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
+                            </div>
+                        ) : (() => {
+                            if (activities.length === 0) {
+                                return (
+                                    <div className="card p-8 text-center text-gray-500">
+                                        {user ? (
+                                            <>
+                                                <p className="mb-2">No activity yet</p>
+                                                <p className="text-sm">
+                                                    Follow people to see their activities in your feed
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="mb-2">Sign in to see your activity feed</p>
+                                                <Link to="/login" className="btn btn-primary mt-4">
+                                                    Sign In
+                                                </Link>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            }
+                            return (
+                                activities.map((activity) => (
+                                    <ActivityFeedItem key={activity.id} activity={activity} />
+                                ))
+                            )
+                        })()}
                     </div>
 
                     {/* Sidebar */}
@@ -265,7 +160,43 @@ export function FeedPage() {
                         {/* Today's Events */}
                         <div className="card p-4">
                             <h2 className="font-bold text-lg mb-4">Today's Events</h2>
-                            {renderTodayEvents()}
+                            {eventsLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                </div>
+                            ) : (() => {
+                                if (todayEvents.length === 0) {
+                                    return (
+                                        <div className="text-center py-4 text-gray-500 text-sm">
+                                            No events today
+                                        </div>
+                                    )
+                                }
+                                return (
+                                    <div className="space-y-2">
+                                        {todayEvents.slice(0, 5).map((event) => (
+                                            <div
+                                                key={event.id}
+                                                onClick={() => handleEventClick(event)}
+                                                className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                            >
+                                                <div className="font-medium text-sm text-gray-900">
+                                                    {event.title}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {formatTime(event.startTime)}
+                                                    {event.location && ` • ${event.location}`}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {todayEvents.length > 5 && (
+                                            <div className="text-xs text-gray-400 text-center pt-2">
+                                                +{todayEvents.length - 5} more
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })()}
                         </div>
 
                         {/* Selected Date Events */}
@@ -278,7 +209,51 @@ export function FeedPage() {
                                         day: 'numeric',
                                     })}
                                 </h2>
-                                {renderSelectedDateEvents()}
+                                {eventsLoading ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                    </div>
+                                ) : (() => {
+                                    if (selectedDateEvents.length === 0) {
+                                        return (
+                                            <div className="text-center py-4 text-gray-500 text-sm">
+                                                No events on this date
+                                            </div>
+                                        )
+                                    }
+                                    return (
+                                        <div className="space-y-2">
+                                            {selectedDateEvents.map((event) => {
+                                                const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
+                                                return (
+                                                    <div
+                                                        key={event.id}
+                                                        onClick={() => handleEventClick(event)}
+                                                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                                    >
+                                                        <div className="font-medium text-sm text-gray-900">
+                                                            {event.title}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {formatTime(event.startTime)}
+                                                            {event.location && ` • ${event.location}`}
+                                                        </div>
+                                                        {event.user && (
+                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                by @{event.user.username}
+                                                            </div>
+                                                        )}
+                                                        <div className="mt-1">
+                                                            <span className={`badge ${visibilityMeta.badgeClass}`}>
+                                                                {visibilityMeta.icon} {visibilityMeta.label}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )
+                                })()}
                             </div>
                         )}
 

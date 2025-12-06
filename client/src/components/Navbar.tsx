@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
+import { NotificationBell } from './NotificationBell'
 
 export function Navbar({ isConnected, user, onLogout }: {
   isConnected?: boolean
@@ -59,6 +60,7 @@ export function Navbar({ isConnected, user, onLogout }: {
                 <Link to="/followers/pending" className="text-sm text-gray-700 hover:text-gray-900">
                   Followers
                 </Link>
+                <NotificationBell userId={user?.id} />
                 <span className="text-sm text-gray-700">
                   👤 {user?.name || user?.email}
                 </span>
