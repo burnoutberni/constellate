@@ -66,6 +66,16 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const [templateName, setTemplateName] = useState('')
     const [templateDescription, setTemplateDescription] = useState('')
 
+    const addTag = useCallback(() => {
+        if (tagInput.trim()) {
+            const tag = normalizeTagInput(tagInput)
+            if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
+                setFormData({ ...formData, tags: [...formData.tags, tag] })
+                setTagInput('')
+            }
+        }
+    }, [tagInput, formData])
+
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
         if (!user) {
             return []
@@ -548,13 +558,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         value={tagInput}
                                         onChange={(e) => setTagInput(e.target.value)}
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && tagInput.trim()) {
+                                            if (e.key === 'Enter') {
                                                 e.preventDefault()
-                                                const tag = normalizeTagInput(tagInput)
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
-                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
-                                                    setTagInput('')
-                                                }
+                                                addTag()
                                             }
                                         }}
                                         className="input flex-1"
@@ -562,15 +568,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            if (tagInput.trim()) {
-                                                const tag = normalizeTagInput(tagInput)
-                                                if (tag && tag.length <= MAX_TAG_LENGTH && !formData.tags.includes(tag)) {
-                                                    setFormData({ ...formData, tags: [...formData.tags, tag] })
-                                                    setTagInput('')
-                                                }
-                                            }
-                                        }}
+                                        onClick={addTag}
                                         className="btn btn-secondary"
                                     >
                                         Add

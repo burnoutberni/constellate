@@ -24,7 +24,7 @@ import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 
 const app = new Hono()
 
-type EventWithOwner = Event & { user: User | null; visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' }
+type EventWithOwner = Event & { user: User | null }
 type AttendanceState = (typeof AttendanceStatus)[keyof typeof AttendanceStatus]
 type HttpErrorStatus = 400 | 401 | 403 | 404 | 500
 
