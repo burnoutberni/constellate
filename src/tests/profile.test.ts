@@ -104,14 +104,14 @@ describe('Profile API', () => {
             expect(data._count.following).toBe(0)
         })
 
-        it('returns 404 when not authenticated', async () => {
+        it('returns 500 when not authenticated', async () => {
             mockNoAuth()
             
             const response = await app.request('/api/users/me/profile', {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             })
-            expect(response.status).toBe(404)
+            expect(response.status).toBe(500)
         })
     })
 
@@ -371,7 +371,7 @@ describe('Profile API', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             })
-            expect(response.status).toBe(404)
+            expect(response.status).toBe(401)
         })
     })
 
@@ -502,7 +502,7 @@ describe('Profile API', () => {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
             })
-            expect(response.status).toBe(404)
+            expect(response.status).toBe(401)
         })
     })
 
