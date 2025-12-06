@@ -117,4 +117,95 @@ describe('normalizeTags', () => {
         const result = normalizeTags(tags)
         expect(result).toEqual([longTag, 'music'])
     })
+
+    it('should handle array-like objects (not true arrays)', () => {
+        // Array-like object with length property
+        const arrayLike = { 0: 'music', 1: 'concert', length: 2 }
+        const result = normalizeTags(arrayLike as any)
+        expect(result).toEqual([])
+    })
+
+    it('should handle tags that are only # characters', () => {
+        const tags = ['#', '##', '###', '####', 'music']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music'])
+    })
+
+    it('should handle tags with # and whitespace combinations', () => {
+        const tags = ['# ', ' #', ' # ', '## ', 'music']
+        const result = normalizeTags(tags)
+        // '# ' becomes '' after removing # and trimming
+        // ' #' becomes '#' after trimming (leading # removed, but # remains)
+        // ' # ' becomes '#' after trimming
+        // '## ' becomes '' after removing ## and trimming
+        // So we expect '#' and 'music'
+        expect(result).toEqual(['#', 'music'])
+    })
+
+    it('should not remove # characters in the middle of tags', () => {
+        const tags = ['music#festival', 'concert#live', 'event#2024']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music#festival', 'concert#live', 'event#2024'])
+    })
+
+    it('should handle tags with # at the end', () => {
+        const tags = ['music#', 'concert##', 'live###']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music#', 'concert##', 'live###'])
+    })
+
+    it('should return empty array when all tags become empty after normalization', () => {
+        const tags = ['#', '##', '   ', '', '\t', '\n']
+        const result = normalizeTags(tags)
+        expect(result).toEqual([])
+    })
+
+    it('should handle tags with mixed # and whitespace at start', () => {
+        const tags = ['# music', '##concert', '#  live', 'festival']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music', 'concert', 'live', 'festival'])
+    })
+
+    it('should handle empty string tags', () => {
+        const tags = ['', '', 'music', '']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music'])
+    })
+
+    it('should handle tags with only # and no other characters', () => {
+        const tags = ['#', '##', '###', '####', '#####']
+        const result = normalizeTags(tags)
+        expect(result).toEqual([])
+    })
+
+    it('should handle array with length 0', () => {
+        const tags: string[] = []
+        const result = normalizeTags(tags)
+        expect(result).toEqual([])
+    })
+
+    it('should handle tags with # followed immediately by non-word characters', () => {
+        const tags = ['#-music', '#_concert', '#.live']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['-music', '_concert', '.live'])
+    })
+
+    it('should handle tags that normalize to same value from different inputs', () => {
+        const tags = ['#MUSIC', '##music', '###MUSIC', '  MUSIC  ']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['music'])
+    })
+
+    it('should handle array-like object with numeric keys', () => {
+        const arrayLike = { 0: 'music', 1: 'concert', 2: 'live', length: 3 }
+        const result = normalizeTags(arrayLike as any)
+        // Should return empty because Array.isArray will be false
+        expect(result).toEqual([])
+    })
+
+    it('should handle tags with unicode and # prefix', () => {
+        const tags = ['#música', '##концерт', '###音楽']
+        const result = normalizeTags(tags)
+        expect(result).toEqual(['música', 'концерт', '音楽'])
+    })
 })
