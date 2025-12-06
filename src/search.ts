@@ -14,6 +14,14 @@ import { normalizeTags } from './lib/tags.js'
 
 const app = new Hono()
 
+// Custom error class for user not found
+class UserNotFoundError extends Error {
+    constructor(username: string) {
+        super(`User not found: ${username}`)
+        this.name = 'UserNotFoundError'
+    }
+}
+
 // Apply rate limiting to all search endpoints
 app.use('*', lenientRateLimit)
 
@@ -69,7 +77,7 @@ const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Pro
             where: { username: params.username },
         })
         if (!user) {
-            throw new Error(`User not found: ${params.username}`)
+            throw new UserNotFoundError(params.username)
         }
         where.userId = user.id
     }
@@ -115,7 +123,7 @@ app.get('/', async (c) => {
             where = await buildSearchWhereClause(params)
         } catch (error) {
             // Handle user not found error
-            if (error instanceof Error && error.message.includes('User not found')) {
+            if (error instanceof UserNotFoundError) {
                 return c.json({
                     events: [],
                     pagination: {

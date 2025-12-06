@@ -135,7 +135,7 @@ app.post('/', moderateRateLimit, async (c) => {
             }
         }
 
-        // Create event with sanitized input - use spread operator for cleaner code
+        // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
                 title: sanitizeText(validatedData.title),
@@ -913,19 +913,19 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const { tags } = validatedData
         let normalizedTags: string[] | undefined
 
-        // Update event with sanitized input - use spread operator for cleaner code
+        // Update event with sanitized input
         const updateData: Record<string, unknown> = {
             ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
             ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
             ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
-            ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage || null }),
-            ...(validatedData.url !== undefined && { url: validatedData.url || null }),
+            ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
+            ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
             ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
             ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
-            ...(validatedData.duration !== undefined && { duration: validatedData.duration || null }),
-            ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus || null }),
-            ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode || null }),
-            ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null }),
+            ...(validatedData.duration !== undefined && { duration: validatedData.duration ? validatedData.duration : null }),
+            ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus ? validatedData.eventStatus : null }),
+            ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
+            ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
             ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
         }
 
@@ -952,18 +952,11 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         const event = await prisma.$transaction(async (tx) => {
-            // If updateData is empty (only tags being updated), fetch current title and update it to itself
-            // This triggers the updatedAt timestamp update
+            // If updateData is empty (only tags being updated), explicitly update updatedAt
+            // to trigger the timestamp update
             let finalUpdateData = updateData
             if (Object.keys(updateData).length === 0) {
-                const currentEvent = await tx.event.findUnique({
-                    where: { id },
-                    select: { title: true },
-                })
-                if (!currentEvent) {
-                    throw new Error('Event not found')
-                }
-                finalUpdateData = { title: currentEvent.title }
+                finalUpdateData = { updatedAt: new Date() }
             }
             
             const updatedEvent = await tx.event.update({
@@ -1017,15 +1010,21 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
         const broadcastTarget = getBroadcastTarget(event.visibility, userId)
+        
+        // These fields should always exist on an event from the database
+        if (!event.startTime || !event.createdAt || !event.updatedAt) {
+            throw new Error('Event missing required timestamp fields')
+        }
+        
         await broadcast({
             type: BroadcastEvents.EVENT_UPDATED,
             data: {
                 event: {
                     ...event,
-                    startTime: event.startTime?.toISOString() ?? new Date().toISOString(),
+                    startTime: event.startTime.toISOString(),
                     endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt?.toISOString() ?? new Date().toISOString(),
-                    updatedAt: event.updatedAt?.toISOString() ?? new Date().toISOString(),
+                    createdAt: event.createdAt.toISOString(),
+                    updatedAt: event.updatedAt.toISOString(),
                 },
             },
             ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),

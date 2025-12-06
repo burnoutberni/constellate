@@ -171,6 +171,7 @@
                     },
                     "tags": {
                         "type": "array",
+                        "description": "Tags associated with this event for categorization and discovery",
                         "items": {
                             "type": "object",
                             "properties": {
