@@ -1401,6 +1401,51 @@ describe('Events API', () => {
 
             expect(res.status).toBe(400)
         })
+
+        it('should create event when all tags become empty after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // All tags become empty after normalization (only # and whitespace)
+            const eventData = {
+                title: 'Event With All Empty Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['#', '##', '   ', '\t', '\n'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
     })
 
     afterEach(() => {
