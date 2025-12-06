@@ -86,6 +86,35 @@ describe('normalizeTags', () => {
         expect(result3).toEqual([])
     })
 
+    it('should handle non-array objects separately from empty arrays', () => {
+        // Test !Array.isArray branch separately
+        const obj = { length: 0 }
+        const result = normalizeTags(obj as any)
+        expect(result).toEqual([])
+        
+        // Test empty array (tags.length === 0 branch)
+        const result2 = normalizeTags([])
+        expect(result2).toEqual([])
+    })
+
+    it('should handle filter conditions separately', () => {
+        // Test typeof tag === 'string' branch (true)
+        const result1 = normalizeTags(['music'])
+        expect(result1).toEqual(['music'])
+        
+        // Test typeof tag === 'string' branch (false) - number
+        const result2 = normalizeTags([123 as any, 'music'])
+        expect(result2).toEqual(['music'])
+        
+        // Test tag !== null branch (false) - null
+        const result3 = normalizeTags([null as any, 'music'])
+        expect(result3).toEqual(['music'])
+        
+        // Test both conditions false
+        const result4 = normalizeTags([null as any, 123 as any, 'music'])
+        expect(result4).toEqual(['music'])
+    })
+
     it('should handle tags with special characters', () => {
         const tags = ['music-2024', 'concert_live', 'event.2024']
         const result = normalizeTags(tags)
