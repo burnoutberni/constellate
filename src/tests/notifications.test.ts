@@ -7,6 +7,8 @@ import {
     listNotifications,
     markNotificationAsRead,
     markAllNotificationsRead,
+    getUnreadNotificationCount,
+    serializeNotification,
 } from '../services/notifications.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -31,9 +33,33 @@ app.route('/api/notifications', notificationsApp)
 const SYSTEM_TYPE = 'SYSTEM' as NotificationType
 
 describe('Notification service and API', () => {
+    let testUser: any
+    let testActor: any
+
     beforeEach(async () => {
         vi.clearAllMocks()
-        await prisma.notification.deleteMany()
+        
+        // Create test users (prisma.reset() is called in setupVitest.ts)
+        testUser = await prisma.user.create({
+            data: {
+                id: 'user_123',
+                username: 'testuser',
+                email: 'test@example.com',
+                name: 'Test User',
+                isRemote: false,
+            },
+        })
+        
+        testActor = await prisma.user.create({
+            data: {
+                id: 'user_456',
+                username: 'testactor',
+                email: 'actor@example.com',
+                name: 'Test Actor',
+                isRemote: false,
+            },
+        })
+        
         vi.mocked(requireAuth).mockReturnValue('user_123')
     })
 
@@ -98,8 +124,18 @@ describe('Notification service and API', () => {
     })
 
     it('does not allow marking other users notifications as read', async () => {
+        const otherUser = await prisma.user.create({
+            data: {
+                id: 'user_other',
+                username: 'otheruser',
+                email: 'other@example.com',
+                name: 'Other User',
+                isRemote: false,
+            },
+        })
+        
         const otherNotification = await createNotification({
-            userId: 'user_other',
+            userId: otherUser.id,
             type: SYSTEM_TYPE,
             title: 'Private',
         })
@@ -165,5 +201,255 @@ describe('Notification service and API', () => {
 
         const updatedCount = await markAllNotificationsRead('user_123')
         expect(updatedCount).toBe(2)
+    })
+
+    it('gets unread notification count', async () => {
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Unread 1' })
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Unread 2' })
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Unread 3' })
+        
+        const readNotification = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Read' })
+        await markNotificationAsRead('user_123', readNotification.id)
+
+        const count = await getUnreadNotificationCount('user_123')
+        expect(count).toBe(3)
+    })
+
+    it('returns zero unread count when all notifications are read', async () => {
+        const notification = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Only one' })
+        await markNotificationAsRead('user_123', notification.id)
+
+        const count = await getUnreadNotificationCount('user_123')
+        expect(count).toBe(0)
+    })
+
+    it('serializes notification with actor information', async () => {
+        const notification = await createNotification({
+            userId: 'user_123',
+            actorId: 'user_456',
+            type: SYSTEM_TYPE,
+            title: 'With actor',
+            body: 'Body text',
+            contextUrl: 'https://example.com/event/123',
+            data: { eventId: '123' },
+        })
+
+        const serialized = serializeNotification(notification)
+        
+        expect(serialized.id).toBe(notification.id)
+        expect(serialized.type).toBe(SYSTEM_TYPE)
+        expect(serialized.title).toBe('With actor')
+        expect(serialized.body).toBe('Body text')
+        expect(serialized.contextUrl).toBe('https://example.com/event/123')
+        expect(serialized.data).toEqual({ eventId: '123' })
+        expect(serialized.read).toBe(false)
+        expect(serialized.readAt).toBeNull()
+        expect(serialized.createdAt).toBeTruthy()
+        expect(serialized.updatedAt).toBeTruthy()
+        expect(serialized.actor).toBeTruthy()
+        expect(serialized.actor?.id).toBe('user_456')
+    })
+
+    it('serializes notification without actor information', async () => {
+        const notification = await createNotification({
+            userId: 'user_123',
+            type: SYSTEM_TYPE,
+            title: 'No actor',
+        })
+
+        const serialized = serializeNotification(notification)
+        
+        expect(serialized.actor).toBeNull()
+    })
+
+    it('handles API limit parsing edge cases', async () => {
+        // Default limit (20)
+        const response1 = await app.request('/api/notifications')
+        expect(response1.status).toBe(200)
+        
+        // Valid limit
+        const response2 = await app.request('/api/notifications?limit=10')
+        expect(response2.status).toBe(200)
+        
+        // Limit too high (should cap at 100)
+        const response3 = await app.request('/api/notifications?limit=200')
+        expect(response3.status).toBe(200)
+        const body3 = await response3.json() as { notifications: any[] }
+        expect(body3.notifications.length).toBeLessThanOrEqual(100)
+        
+        // Limit too low (should cap at 1)
+        const response4 = await app.request('/api/notifications?limit=0')
+        expect(response4.status).toBe(200)
+        
+        // Invalid limit (should default to 20)
+        const response5 = await app.request('/api/notifications?limit=abc')
+        expect(response5.status).toBe(200)
+    })
+
+    it('returns empty list when user has no notifications', async () => {
+        const response = await app.request('/api/notifications')
+        const body = await response.json() as { notifications: any[]; unreadCount: number }
+        
+        expect(response.status).toBe(200)
+        expect(body.notifications).toHaveLength(0)
+        expect(body.unreadCount).toBe(0)
+    })
+
+    it('returns already-read notification without updating', async () => {
+        const notification = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Already read' })
+        await markNotificationAsRead('user_123', notification.id)
+        
+        vi.clearAllMocks()
+        
+        // Mark as read again
+        const result = await markNotificationAsRead('user_123', notification.id)
+        
+        expect(result).toBeTruthy()
+        expect(result?.read).toBe(true)
+        // Should not broadcast again since it was already read
+        expect(broadcastToUser).not.toHaveBeenCalled()
+    })
+
+    it('broadcasts SSE event when marking notification as read', async () => {
+        const notification = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'To read' })
+        
+        vi.clearAllMocks()
+        
+        await markNotificationAsRead('user_123', notification.id)
+        
+        expect(broadcastToUser).toHaveBeenCalledWith(
+            'user_123',
+            expect.objectContaining({
+                type: 'notification:read',
+                data: expect.objectContaining({
+                    notification: expect.objectContaining({
+                        id: notification.id,
+                        read: true,
+                    }),
+                }),
+            })
+        )
+    })
+
+    it('broadcasts SSE event when marking all notifications as read', async () => {
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'One' })
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Two' })
+        
+        vi.clearAllMocks()
+        
+        await markAllNotificationsRead('user_123')
+        
+        expect(broadcastToUser).toHaveBeenCalledWith(
+            'user_123',
+            expect.objectContaining({
+                type: 'notification:read',
+                data: expect.objectContaining({
+                    allRead: true,
+                    count: 2,
+                }),
+            })
+        )
+    })
+
+    it('does not broadcast when marking all as read with no unread notifications', async () => {
+        // Create and mark all as read
+        await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'One' })
+        await markAllNotificationsRead('user_123')
+        
+        vi.clearAllMocks()
+        
+        // Try to mark all as read again (should not broadcast)
+        await markAllNotificationsRead('user_123')
+        
+        expect(broadcastToUser).not.toHaveBeenCalled()
+    })
+
+    it('handles all notification types', async () => {
+        const types: NotificationType[] = ['FOLLOW', 'COMMENT', 'LIKE', 'MENTION', 'EVENT', 'SYSTEM']
+        
+        for (const type of types) {
+            const notification = await createNotification({
+                userId: 'user_123',
+                type,
+                title: `${type} notification`,
+            })
+            
+            expect(notification.type).toBe(type)
+        }
+        
+        const response = await app.request('/api/notifications')
+        const body = await response.json() as { notifications: any[] }
+        expect(body.notifications).toHaveLength(types.length)
+    })
+
+    it('orders notifications by createdAt descending', async () => {
+        // Create notifications with small delays to ensure different timestamps
+        const first = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'First' })
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const second = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Second' })
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const third = await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: 'Third' })
+        
+        const notifications = await listNotifications('user_123', 10)
+        
+        expect(notifications).toHaveLength(3)
+        expect(notifications[0].id).toBe(third.id)
+        expect(notifications[1].id).toBe(second.id)
+        expect(notifications[2].id).toBe(first.id)
+        
+        // Verify timestamps are descending
+        expect(notifications[0].createdAt.getTime()).toBeGreaterThanOrEqual(notifications[1].createdAt.getTime())
+        expect(notifications[1].createdAt.getTime()).toBeGreaterThanOrEqual(notifications[2].createdAt.getTime())
+    })
+
+    it('handles contextUrl and data fields in notifications', async () => {
+        const notification = await createNotification({
+            userId: 'user_123',
+            type: SYSTEM_TYPE,
+            title: 'With context',
+            contextUrl: 'https://example.com/event/456',
+            data: { eventId: '456', action: 'invited' },
+        })
+        
+        const serialized = serializeNotification(notification)
+        expect(serialized.contextUrl).toBe('https://example.com/event/456')
+        expect(serialized.data).toEqual({ eventId: '456', action: 'invited' })
+    })
+
+    it('handles notifications with null optional fields', async () => {
+        const notification = await createNotification({
+            userId: 'user_123',
+            type: SYSTEM_TYPE,
+            title: 'Minimal',
+        })
+        
+        const serialized = serializeNotification(notification)
+        expect(serialized.body).toBeNull()
+        expect(serialized.contextUrl).toBeNull()
+        expect(serialized.data).toBeNull()
+        expect(serialized.actor).toBeNull()
+    })
+
+    it('respects limit boundaries in listNotifications', async () => {
+        // Create 10 notifications
+        for (let i = 0; i < 10; i++) {
+            await createNotification({ userId: 'user_123', type: SYSTEM_TYPE, title: `n-${i}` })
+        }
+        
+        // Test minimum limit (1)
+        const minResult = await listNotifications('user_123', 1)
+        expect(minResult).toHaveLength(1)
+        
+        // Test maximum limit (100)
+        const maxResult = await listNotifications('user_123', 100)
+        expect(maxResult).toHaveLength(10) // Only 10 exist
+        
+        // Test limit above max (should cap at 100)
+        const overMaxResult = await listNotifications('user_123', 200)
+        expect(overMaxResult).toHaveLength(10)
+        
+        // Test limit below min (should cap at 1)
+        const underMinResult = await listNotifications('user_123', 0)
+        expect(underMinResult).toHaveLength(1)
     })
 })

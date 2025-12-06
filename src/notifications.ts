@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { requireAuth } from './middleware/auth.js'
-import { moderateRateLimit } from './middleware/rateLimit.js'
+import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { AppError } from './lib/errors.js'
 import {
     listNotifications,
@@ -27,7 +27,7 @@ function parseLimit(value?: string | null) {
     return Math.max(1, Math.min(parsed, 100))
 }
 
-app.get('/', async (c) => {
+app.get('/', lenientRateLimit, async (c) => {
     try {
         const userId = requireAuth(c)
         const limit = parseLimit(c.req.query('limit'))
@@ -80,7 +80,10 @@ app.post('/mark-all-read', moderateRateLimit, async (c) => {
     try {
         const userId = requireAuth(c)
         const updated = await markAllNotificationsRead(userId)
-        const unreadCount = await getUnreadNotificationCount(userId)
+        // Return 0 directly since we just marked all notifications as read.
+        // This avoids a race condition where a new notification could be created
+        // between marking all as read and fetching the unread count.
+        const unreadCount = 0
 
         return c.json({ updated, unreadCount })
     } catch (error) {
