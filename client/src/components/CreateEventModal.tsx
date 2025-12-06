@@ -13,7 +13,7 @@ const MAX_TAG_LENGTH = 50
 
 // Helper function to normalize tag input
 const normalizeTagInput = (input: string): string => {
-    return input.trim().replace(/^#+/, '').toLowerCase()
+    return input.trim().replace(/^#+/, '').trim().toLowerCase()
 }
 
 interface EventTemplate {
@@ -299,6 +299,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             if (response.ok) {
                 if (saveAsTemplate) {
                     try {
+                        // Note: Tags are intentionally excluded from templates as they are event-specific
+                        // and shouldn't be part of a reusable template. When loading from a template,
+                        // existing tags are preserved (see applyTemplate function).
                         await saveTemplateFromEvent({
                             title: formData.title,
                             summary: formData.summary,

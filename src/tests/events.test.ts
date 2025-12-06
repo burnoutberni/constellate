@@ -1626,6 +1626,54 @@ describe('Events API', () => {
             normalizeTagsSpy.mockRestore()
         })
 
+        it('should handle error when normalizeTags throws in create (production mode)', async () => {
+            // Mock production mode
+            const isDevSpy = vi.spyOn(appConfig, 'isDevelopment', 'get').mockReturnValue(false)
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const eventData = {
+                title: 'Event With Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In production mode, should NOT include error details
+            expect(body.details).toBeUndefined()
+
+            normalizeTagsSpy.mockRestore()
+            isDevSpy.mockRestore()
+        })
+
         it('should handle error when normalizeTags throws in update', async () => {
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
@@ -1679,6 +1727,62 @@ describe('Events API', () => {
 
             normalizeTagsSpy.mockRestore()
         })
+
+        it('should handle error when normalizeTags throws in update (production mode)', async () => {
+            // Mock production mode
+            const isDevSpy = vi.spyOn(appConfig, 'isDevelopment', 'get').mockReturnValue(false)
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const updateData = {
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In production mode, should NOT include error details
+            expect(body.details).toBeUndefined()
+
+            normalizeTagsSpy.mockRestore()
+            isDevSpy.mockRestore()
+        })
+
 
         it('should handle when tags is not an array in create', async () => {
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
