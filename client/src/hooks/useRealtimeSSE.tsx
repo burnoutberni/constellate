@@ -139,8 +139,6 @@ const setupEventListeners = (
         author?: { id?: string; username?: string; name?: string }
         createdAt: string
     }) => void
-    options: UseRealtimeSSEOptions
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 ) => {
     eventSource.addEventListener('connected', (e) => {
         console.log('✅ SSE connected:', JSON.parse(e.data))
@@ -406,7 +404,6 @@ const setupEventListeners = (
                     isAccepted: true,
                 }
             )
-<<<<<<< HEAD
             if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
                 const profileData = queryClient.getQueryData(
                     queryKeys.users.profile(event.data.username)
@@ -449,14 +446,11 @@ const setupEventListeners = (
                     isAccepted: false,
                 }
             )
-=======
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
             queryClient.invalidateQueries({
                 queryKey: queryKeys.users.profile(event.data.username),
             })
         }
     })
-<<<<<<< HEAD
 
     if (addMentionNotification) {
         eventSource.addEventListener('mention:received', (e) => {
@@ -489,8 +483,6 @@ const setupEventListeners = (
             }
         })
     }
-=======
->>>>>>> a45f509 (Refactor SSE event handling and improve EventDetailPage logic)
 }
 
 export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {

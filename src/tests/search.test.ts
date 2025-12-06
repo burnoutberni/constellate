@@ -383,7 +383,6 @@ describe('Search API - Tag Filtering', () => {
         const eventIds = body.events.map((e: { id: string }) => e.id)
         expect(eventIds).toContain(event.id)
     })
-<<<<<<< HEAD
 
     it('should handle search with tags that become empty after normalization', async () => {
         const event = await prisma.event.create({
@@ -472,6 +471,4 @@ describe('Search API - Tag Filtering', () => {
         const eventIds = body.events.map((e: { id: string }) => e.id)
         expect(eventIds).toContain(event.id)
     })
-=======
->>>>>>> 48463a3 (Checkpoint before follow-up message)
 })

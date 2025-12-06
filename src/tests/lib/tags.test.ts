@@ -86,7 +86,6 @@ describe('normalizeTags', () => {
         expect(result3).toEqual([])
     })
 
-<<<<<<< HEAD
     it('should handle non-array objects separately from empty arrays', () => {
         // Test !Array.isArray branch separately
         const obj = { length: 0 }
@@ -116,8 +115,6 @@ describe('normalizeTags', () => {
         expect(result4).toEqual(['music'])
     })
 
-=======
->>>>>>> 48463a3 (Checkpoint before follow-up message)
     it('should handle tags with special characters', () => {
         const tags = ['music-2024', 'concert_live', 'event.2024']
         const result = normalizeTags(tags)
@@ -139,13 +136,8 @@ describe('normalizeTags', () => {
     it('should handle tags with multiple # prefixes', () => {
         const tags = ['#music', '##concert', '###live']
         const result = normalizeTags(tags)
-<<<<<<< HEAD
         // Removes all leading # characters
         expect(result).toEqual(['music', 'concert', 'live'])
-=======
-        // Only removes the first #, so ## becomes # which is not empty
-        expect(result).toEqual(['music', '#concert', '##live'])
->>>>>>> 48463a3 (Checkpoint before follow-up message)
     })
 
     it('should handle very long tags', () => {
@@ -154,7 +146,6 @@ describe('normalizeTags', () => {
         const result = normalizeTags(tags)
         expect(result).toEqual([longTag, 'music'])
     })
-<<<<<<< HEAD
 
     it('should handle array-like objects (not true arrays)', () => {
         // Array-like object with length property
@@ -246,6 +237,4 @@ describe('normalizeTags', () => {
         const result = normalizeTags(tags)
         expect(result).toEqual(['música', 'концерт', '音楽'])
     })
-=======
->>>>>>> 48463a3 (Checkpoint before follow-up message)
 })
