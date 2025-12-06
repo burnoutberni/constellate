@@ -60,6 +60,10 @@
             "description": "Live updates"
         },
         {
+            "name": "Notifications",
+            "description": "User notifications and inbox"
+        },
+        {
             "name": "Admin",
             "description": "Administrative operations (admin only)"
         },
@@ -822,6 +826,109 @@
                         }
                     }
                 }
+            },
+            "NotificationActor": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "displayColor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "profileImage": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "Notification": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "FOLLOW",
+                            "COMMENT",
+                            "LIKE",
+                            "MENTION",
+                            "EVENT",
+                            "SYSTEM"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "contextUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "data": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "nullable": true
+                    },
+                    "read": {
+                        "type": "boolean"
+                    },
+                    "readAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "actor": {
+                        "$ref": "#/components/schemas/NotificationActor",
+                        "nullable": true
+                    }
+                }
+            },
+            "NotificationListResponse": {
+                "type": "object",
+                "properties": {
+                    "notifications": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Notification"
+                        }
+                    },
+                    "unreadCount": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "NotificationMarkAllResponse": {
+                "type": "object",
+                "properties": {
+                    "updated": {
+                        "type": "integer"
+                    },
+                    "unreadCount": {
+                        "type": "integer"
+                    }
+                }
             }
         }
     },
@@ -834,6 +941,105 @@
         }
     ],
     "paths": {
+        "/api/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifications for current user",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of notifications",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/notifications/{notificationId}/read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark a notification as read",
+                "parameters": [
+                    {
+                        "name": "notificationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "notification": {
+                                            "$ref": "#/components/schemas/Notification"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    }
+                }
+            }
+        },
+        "/api/notifications/mark-all-read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationMarkAllResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
         "/api/events": {
             "post": {
                 "tags": [

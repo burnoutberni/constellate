@@ -222,6 +222,8 @@ export const BroadcastEvents = {
     FOLLOW_REJECTED: 'follow:rejected',
     FOLLOWER_ADDED: 'follower:added',
     FOLLOWER_REMOVED: 'follower:removed',
+    NOTIFICATION_CREATED: 'notification:created',
+    NOTIFICATION_READ: 'notification:read',
 } as const
 
 export default app

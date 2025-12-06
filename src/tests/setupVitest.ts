@@ -1,7 +1,8 @@
 import { beforeEach, afterAll, vi } from 'vitest'
 import { createPrismock } from '@pkgverse/prismock'
+import { PrismaClient } from '@prisma/client'
 
-const prismaPromise = createPrismock()
+const prismaPromise = createPrismock(PrismaClient)
 
 vi.mock('../lib/prisma.js', async () => {
     const prisma = await prismaPromise
