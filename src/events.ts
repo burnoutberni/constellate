@@ -129,7 +129,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 // Return validation error when tag normalization fails
                 return c.json({ 
                     error: 'VALIDATION_ERROR', 
-                    message: 'Invalid tag data provided',
+                    message: 'Failed to process tags: ensure tags are valid strings',
                     details: config.isDevelopment ? { originalError: String(error) } : undefined
                 }, 400)
             }
@@ -945,7 +945,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 // Return validation error when tag normalization fails (consistent with create)
                 return c.json({ 
                     error: 'VALIDATION_ERROR', 
-                    message: 'Invalid tag data provided',
+                    message: 'Failed to process tags: ensure tags are valid strings',
                     details: config.isDevelopment ? { originalError: String(error) } : undefined
                 }, 400)
             }

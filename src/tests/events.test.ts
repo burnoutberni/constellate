@@ -968,6 +968,439 @@ describe('Events API', () => {
             expect(body.tags).toBeDefined()
             expect(Array.isArray(body.tags)).toBe(true)
         })
+
+        it('should reject tags exceeding max length (50 chars)', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Long Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['a'.repeat(51)], // 51 characters, exceeds max of 50
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject empty string tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Empty Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: [''], // Empty string should fail validation
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject non-string values in tags array', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Invalid Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: [123, 'music'], // Non-string value should fail validation
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject tags array with non-array value', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Invalid Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: 'not-an-array', // Should be array, not string
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should trim whitespace from tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event With Whitespace Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['  music  ', '  concert  ', '  live  '],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert', 'live'])
+        })
+
+        it('should remove duplicate tags after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event With Duplicate Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'MUSIC', '#music', '  music  ', 'concert'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert'])
+        })
+
+        it('should filter out tags that become empty after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Note: Empty strings are rejected by Zod validation before normalization
+            // So we test with tags that become empty after normalization (whitespace-only)
+            const eventData = {
+                title: 'Event With Empty Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', '   ', 'concert'], // Whitespace-only tags become empty after normalization
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert'])
+        })
+
+        it('should update event with only tags (no other fields)', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Original Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [{ tag: 'music' }],
+                    },
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const updateData = {
+                tags: ['festival', 'summer'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['festival', 'summer'])
+            // Verify updatedAt was updated even though no other fields changed
+            expect(new Date(body.updatedAt).getTime()).toBeGreaterThan(new Date(event.updatedAt).getTime())
+        })
+
+        it('should remove all tags when updating with empty array', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Tagged Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [{ tag: 'music' }, { tag: 'concert' }],
+                    },
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const updateData = {
+                tags: [],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+        it('should reject tags exceeding max length during update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const updateData = {
+                tags: ['a'.repeat(51)], // 51 characters, exceeds max of 50
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject empty string tags during update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const updateData = {
+                tags: [''], // Empty string should fail validation
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+        })
     })
 
     afterEach(() => {
