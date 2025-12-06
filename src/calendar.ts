@@ -8,6 +8,8 @@ import ical, { ICalEventStatus } from 'ical-generator'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 
+type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
 const app = new Hono()
 
 // Export single event as ICS
@@ -53,6 +55,12 @@ app.get('/:id/export.ics', async (c) => {
                 email: `${event.user?.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
             },
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+            repeating: event.recurrencePattern && event.recurrenceEndDate
+                ? {
+                    freq: event.recurrencePattern as RecurrenceFrequency,
+                    until: event.recurrenceEndDate,
+                }
+                : undefined,
         })
 
         // Return ICS file
@@ -122,6 +130,12 @@ app.get('/user/:username/export.ics', async (c) => {
                     email: `${username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
                 },
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+                repeating: event.recurrencePattern && event.recurrenceEndDate
+                    ? {
+                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        until: event.recurrenceEndDate,
+                    }
+                    : undefined,
             })
         }
 
@@ -181,6 +195,12 @@ app.get('/feed.ics', async (c) => {
                     }
                     : undefined,
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
+                repeating: event.recurrencePattern && event.recurrenceEndDate
+                    ? {
+                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        until: event.recurrenceEndDate,
+                    }
+                    : undefined,
             })
         }
 

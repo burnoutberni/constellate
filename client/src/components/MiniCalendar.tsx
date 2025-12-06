@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { useEvents } from '../hooks/queries/events'
+import { eventsWithinRange } from '../lib/recurrence'
 
 interface MiniCalendarProps {
     selectedDate: Date
@@ -8,6 +10,22 @@ interface MiniCalendarProps {
 export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) {
     const { data } = useEvents(100)
     const events = data?.events || []
+
+    const monthRange = useMemo(() => {
+        const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+        const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59, 999)
+        return {
+            start,
+            end,
+            startMs: start.getTime(),
+            endMs: end.getTime(),
+        }
+    }, [selectedDate])
+
+    const monthlyEvents = useMemo(
+        () => eventsWithinRange(events, monthRange.start, monthRange.end),
+        [events, monthRange.startMs, monthRange.endMs]
+    )
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear()
@@ -26,7 +44,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
         const dayStart = new Date(dayDate.setHours(0, 0, 0, 0))
         const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999))
 
-        return events.filter((event) => {
+        return monthlyEvents.filter((event) => {
             const eventDate = new Date(event.startTime)
             return eventDate >= dayStart && eventDate <= dayEnd
         })

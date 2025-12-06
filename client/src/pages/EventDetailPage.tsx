@@ -13,7 +13,7 @@ import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
 import { getVisibilityMeta } from '../lib/visibility'
 import type { EventVisibility } from '../types'
-
+import { getRecurrenceLabel } from '../lib/recurrence'
 
 export function EventDetailPage() {
     const location = useLocation()
@@ -382,6 +382,15 @@ export function EventDetailPage() {
                                 >
                                     {event.url}
                                 </a>
+                            </div>
+                        )}
+                        {event.recurrencePattern && (
+                            <div className="flex items-center gap-3 text-gray-700">
+                                <span className="text-xl">🔁</span>
+                                <span>
+                                    Repeats {getRecurrenceLabel(event.recurrencePattern)}
+                                    {event.recurrenceEndDate && ` until ${formatDate(event.recurrenceEndDate)}`}
+                                </span>
                             </div>
                         )}
                     </div>

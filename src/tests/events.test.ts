@@ -342,6 +342,113 @@ describe('Events API', () => {
             // Should return events (may be filtered based on auth)
             expect(body.events).toBeDefined()
         })
+
+        it('should include recurring events that overlap the requested range', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Weekly Standup',
+                    startTime: new Date('2025-01-01T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2025-03-01T10:00:00Z'),
+                },
+            })
+
+            const params = new URLSearchParams({
+                rangeStart: '2025-02-01T00:00:00.000Z',
+                rangeEnd: '2025-02-28T23:59:59.000Z',
+                limit: '50',
+            })
+
+            const res = await app.request(`/api/events?${params.toString()}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const found = body.events.find((event: any) => event.id === recurringEvent.id)
+            expect(found).toBeDefined()
+            expect(found.recurrencePattern).toBe('WEEKLY')
+            expect(found.recurrenceEndDate).toBeDefined()
+        })
+
+        it('should exclude recurring events that start after the range end', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Future Recurring Event',
+                    startTime: new Date('2025-03-15T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2025-06-01T10:00:00Z'),
+                },
+            })
+
+            const params = new URLSearchParams({
+                rangeStart: '2025-01-01T00:00:00.000Z',
+                rangeEnd: '2025-02-28T23:59:59.000Z',
+                limit: '50',
+            })
+
+            const res = await app.request(`/api/events?${params.toString()}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const found = body.events.find((event: any) => event.id === recurringEvent.id)
+            expect(found).toBeUndefined()
+        })
+
+        it('should exclude recurring events where recurrence ends before the range start', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Past Recurring Event',
+                    startTime: new Date('2024-12-01T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2024-12-31T10:00:00Z'),
+                },
+            })
+
+            const params = new URLSearchParams({
+                rangeStart: '2025-01-01T00:00:00.000Z',
+                rangeEnd: '2025-02-28T23:59:59.000Z',
+                limit: '50',
+            })
+
+            const res = await app.request(`/api/events?${params.toString()}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const found = body.events.find((event: any) => event.id === recurringEvent.id)
+            expect(found).toBeUndefined()
+        })
+
+        it('should include recurring events that start before the range but have occurrences within it', async () => {
+            const recurringEvent = await prisma.event.create({
+                data: {
+                    title: 'Ongoing Recurring Event',
+                    startTime: new Date('2024-12-15T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    recurrencePattern: 'WEEKLY',
+                    recurrenceEndDate: new Date('2025-03-01T10:00:00Z'),
+                },
+            })
+
+            const params = new URLSearchParams({
+                rangeStart: '2025-01-01T00:00:00.000Z',
+                rangeEnd: '2025-02-28T23:59:59.000Z',
+                limit: '50',
+            })
+
+            const res = await app.request(`/api/events?${params.toString()}`)
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const found = body.events.find((event: any) => event.id === recurringEvent.id)
+            expect(found).toBeDefined()
+            expect(found.recurrencePattern).toBe('WEEKLY')
+        })
     })
 
     describe('GET /events/:id', () => {

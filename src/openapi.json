@@ -141,6 +141,18 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "recurrencePattern": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+                        "description": "Recurring frequency (DAILY, WEEKLY, MONTHLY)"
+                    },
+                    "recurrenceEndDate": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Date when the recurrence pattern ends"
+                    },
                     "user": {
                         "$ref": "#/components/schemas/User"
                     },
@@ -217,6 +229,20 @@
                             "PRIVATE",
                             "UNLISTED"
                         ]
+                    },
+                    "recurrencePattern": {
+                        "type": "string",
+                        "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY"
+                        ],
+                        "description": "Recurring frequency for the event"
+                    },
+                    "recurrenceEndDate": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp for when the recurrence stops"
                     }
                 }
             },

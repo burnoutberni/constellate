@@ -109,3 +109,12 @@ The mocked data layer resets between tests, so suites remain isolated without ne
 ## License
 
 AGPL-3.0
+
+## Recurring Events
+
+Constellate now supports recurring events for daily, weekly, and monthly schedules. When creating or updating an event via `POST /api/events` or `PUT /api/events/:id`, include the following fields:
+
+- `recurrencePattern`: one of `DAILY`, `WEEKLY`, or `MONTHLY`
+- `recurrenceEndDate`: ISO timestamp that indicates when the recurrence should stop
+
+Recurring events automatically expand on calendar views and are exported with RRULE metadata in iCal feeds.

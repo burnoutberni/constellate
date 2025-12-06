@@ -104,10 +104,13 @@ model Event {
   likes      EventLike[]
   comments   Comment[]
   tags       EventTag[]
+  recurrencePattern RecurrencePattern?
+  recurrenceEndDate DateTime?
 
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
+  @@index([recurrenceEndDate])
 }
 
 enum EventVisibility {
@@ -395,6 +398,12 @@ model ApiKey {
   
   @@index([userId])
   @@index([keyHash])
+}
+
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
 
