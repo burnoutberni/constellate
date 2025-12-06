@@ -118,3 +118,14 @@ Constellate now supports recurring events for daily, weekly, and monthly schedul
 - `recurrenceEndDate`: ISO timestamp that indicates when the recurrence should stop
 
 Recurring events automatically expand on calendar views and are exported with RRULE metadata in iCal feeds.
+
+## Notifications UI
+
+WP-009 introduces a notification bell and a full `/notifications` page in the client. Both surfaces consume the backend APIs delivered in WP-008:
+
+- `GET /api/notifications?limit=25&type=<like|comment|...>&includeRead=true` – used by the dropdown and list page
+- `GET /api/notifications/summary` – powers unread badges
+- `POST /api/notifications/:id/read` and `POST /api/notifications/read-all` – keep read state in sync
+- SSE events `notification:created`, `notification:read`, and `notification:bulk-read` refresh the React Query cache in real time
+
+The frontend categorizes notification types (likes, comments, mentions, follows, event updates, attendance, announcements, and system alerts), displays human-friendly timestamps, and supports deep links back into the app. All notification UI lives in `client/src/components/NotificationBell.tsx` and `client/src/pages/NotificationsPage.tsx`.

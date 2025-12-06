@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { queryKeys } from './queries/keys'
 import { useUIStore } from '../stores'
 import type { EventDetail, EventUser } from '../types'
@@ -37,7 +37,7 @@ const isValidEventData = (data: unknown, eventId: string): data is EventDetail &
 }
 
 const updateLikeInCache = (
-    queryKey: unknown,
+    queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newLike: { user: EventUser },
@@ -61,7 +61,7 @@ const updateLikeInCache = (
 }
 
 const removeLikeFromCache = (
-    queryKey: unknown,
+    queryKey: QueryKey,
     data: unknown,
     eventId: string,
     userId: string,
@@ -81,7 +81,7 @@ const removeLikeFromCache = (
 }
 
 const removeCommentFromCache = (
-    queryKey: unknown,
+    queryKey: QueryKey,
     data: unknown,
     eventId: string,
     commentId: string,
@@ -101,7 +101,7 @@ const removeCommentFromCache = (
 }
 
 const addCommentToCache = (
-    queryKey: unknown,
+    queryKey: QueryKey,
     data: unknown,
     eventId: string,
     newComment: unknown,
@@ -129,6 +129,10 @@ const setupEventListeners = (
     setIsConnected: (connected: boolean) => void,
     options: UseRealtimeSSEOptions
 ) => {
+    const invalidateNotificationQueries = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() })
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.summary() })
+    }
     eventSource.addEventListener('connected', (e) => {
         console.log('✅ SSE connected:', JSON.parse(e.data))
         setIsConnected(true)
@@ -397,6 +401,24 @@ const setupEventListeners = (
                 queryKey: queryKeys.users.profile(event.data.username),
             })
         }
+    })
+
+    eventSource.addEventListener('notification:created', (e) => {
+        const event = JSON.parse(e.data)
+        console.log('[SSE] Notification created:', event)
+        invalidateNotificationQueries()
+    })
+
+    eventSource.addEventListener('notification:read', (e) => {
+        const event = JSON.parse(e.data)
+        console.log('[SSE] Notification read:', event)
+        invalidateNotificationQueries()
+    })
+
+    eventSource.addEventListener('notification:bulk-read', (e) => {
+        const event = JSON.parse(e.data)
+        console.log('[SSE] Notification bulk read:', event)
+        invalidateNotificationQueries()
     })
 }
 

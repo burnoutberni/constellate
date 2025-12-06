@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
+import { NotificationBell } from './NotificationBell'
 import { useQuery } from '@tanstack/react-query'
 
 export function Navbar({ isConnected, user, onLogout }: {
@@ -48,6 +49,7 @@ export function Navbar({ isConnected, user, onLogout }: {
           <div className="flex items-center gap-4">
             {user ? (
               <>
+                <NotificationBell user={user} />
                 {isAdmin && (
                   <Link to="/admin" className="text-sm text-gray-700 hover:text-gray-900">
                     Admin

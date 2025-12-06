@@ -12,5 +12,11 @@ export const queryKeys = {
     activity: {
         feed: () => ['activity', 'feed'] as const,
     },
+    notifications: {
+        list: (params: { limit?: number; type?: string; includeRead?: boolean } = {}) =>
+            ['notifications', 'list', params] as const,
+        lists: () => ['notifications', 'list'] as const,
+        summary: () => ['notifications', 'summary'] as const,
+    },
 } as const
 
