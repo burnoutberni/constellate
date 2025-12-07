@@ -20,7 +20,7 @@ export interface SharedEventSummary {
     headerImage?: string | null
     startTime: string
     endTime?: string | null
-    timezone?: string
+    timezone: string
     visibility?: EventVisibility
     user?: EventUser
 }
@@ -34,7 +34,7 @@ export interface Event {
     headerImage?: string | null
     startTime: string
     endTime?: string | null
-    timezone?: string
+    timezone: string
     user?: EventUser
     userId?: string
     visibility?: EventVisibility

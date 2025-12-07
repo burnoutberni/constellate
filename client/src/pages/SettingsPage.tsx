@@ -25,6 +25,8 @@ export function SettingsPage() {
             return response.json()
         },
         enabled: !!user?.id,
+        // Note: This query requires user?.id to be available. If id is not immediately available
+        // in the auth context, the query will be disabled until it becomes available.
     })
 
     const updateProfileMutation = useMutation({
@@ -77,9 +79,12 @@ export function SettingsPage() {
         try {
             await updateProfileMutation.mutateAsync({ timezone: nextTimezone })
         } catch (error) {
-            console.error('Failed to update timezone preference:', error)
+            console.error('Failed to update timezone preference to', nextTimezone, ':', error)
             setTimezone(previous)
-            alert('Failed to update timezone')
+            const errorMessage = error instanceof Error && error.message 
+                ? `Failed to update timezone preference: ${error.message}`
+                : 'Failed to update timezone preference. Please try again or contact support if the problem persists.'
+            alert(errorMessage)
         }
     }
 

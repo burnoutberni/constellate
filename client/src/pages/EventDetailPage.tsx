@@ -428,23 +428,27 @@ export function EventDetailPage() {
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
     const viewerTimezone = viewerProfile?.timezone || defaultTimezone
 
-    const formatDate = (dateString: string) => {
-        return new Intl.DateTimeFormat('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: viewerTimezone,
-        }).format(new Date(dateString))
-    }
+    const formatDate = useMemo(() => {
+        return (dateString: string) => {
+            return new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: viewerTimezone,
+            }).format(new Date(dateString))
+        }
+    }, [viewerTimezone])
 
-    const formatTime = (dateString: string) => {
-        return new Intl.DateTimeFormat('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZone: viewerTimezone,
-        }).format(new Date(dateString))
-    }
+    const formatTime = useMemo(() => {
+        return (dateString: string) => {
+            return new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZone: viewerTimezone,
+            }).format(new Date(dateString))
+        }
+    }, [viewerTimezone])
 
     if (isLoading) {
         return (
@@ -468,7 +472,7 @@ export function EventDetailPage() {
     }
 
     const displayedEvent = event.sharedEvent ?? event
-    const eventTimezone = displayedEvent.timezone || 'UTC'
+    const eventTimezone = displayedEvent.timezone || getDefaultTimezone()
     const originalOwner = event.sharedEvent?.user
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0

@@ -6,11 +6,16 @@ const FALLBACK_TIMEZONES = [
     'UTC',
     'America/Los_Angeles',
     'America/New_York',
+    'America/Chicago',
     'Europe/London',
     'Europe/Berlin',
+    'Europe/Paris',
     'Asia/Tokyo',
+    'Asia/Shanghai',
+    'Asia/Dubai',
     'Asia/Singapore',
     'Australia/Sydney',
+    'Africa/Cairo',
 ]
 
 export function getDefaultTimezone() {

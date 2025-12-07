@@ -23,7 +23,7 @@ const ProfileUpdateSchema = z.object({
     profileImage: z.string().url().optional(),
     headerImage: z.string().url().optional(),
     autoAcceptFollowers: z.boolean().optional(),
-    timezone: z.string().optional().refine(isValidTimeZone, 'Invalid timezone'),
+    timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
 })
 
 // Get current user's own profile (includes admin status)

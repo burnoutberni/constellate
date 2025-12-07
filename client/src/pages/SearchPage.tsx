@@ -149,11 +149,8 @@ const formatDateLabel = (isoString: string) => {
     })
 }
 
-const formatEventDateTime = (isoString: string, timezone: string) => {
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) {
-        return isoString
-    }
+// Memoized formatter factory to avoid creating new Intl.DateTimeFormat instances on every call
+const createEventDateTimeFormatter = (timezone: string) => {
     return new Intl.DateTimeFormat('en-US', {
         weekday: 'short',
         month: 'short',
@@ -161,7 +158,16 @@ const formatEventDateTime = (isoString: string, timezone: string) => {
         hour: 'numeric',
         minute: '2-digit',
         timeZone: timezone,
-    }).format(date)
+    })
+}
+
+// Format event date/time - formatter should be memoized at component level for performance
+const formatEventDateTime = (isoString: string, formatter: Intl.DateTimeFormat) => {
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) {
+        return isoString
+    }
+    return formatter.format(date)
 }
 
 const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
@@ -199,6 +205,12 @@ export function SearchPage() {
 
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
     const viewerTimezone = viewerProfile?.timezone || defaultTimezone
+    
+    // Memoize the date/time formatter to avoid creating new instances on every render
+    const eventDateTimeFormatter = useMemo(
+        () => createEventDateTimeFormatter(viewerTimezone),
+        [viewerTimezone]
+    )
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
@@ -382,7 +394,7 @@ export function SearchPage() {
             )
         }
         if (data?.events) {
-            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} timezone={viewerTimezone} />)
+            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} formatter={eventDateTimeFormatter} />)
         }
         return null
     }
@@ -607,7 +619,7 @@ export function SearchPage() {
     )
 }
 
-function EventResultCard({ event, timezone }: { event: Event; timezone: string }) {
+function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.DateTimeFormat }) {
     const eventPath = event.user?.username
         ? `/@${event.user.username}/${event.originalEventId || event.id}`
         : undefined
@@ -619,7 +631,7 @@ function EventResultCard({ event, timezone }: { event: Event; timezone: string }
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
                     <p className="text-sm text-gray-500">
-                        {formatEventDateTime(event.startTime, timezone)}
+                        {formatEventDateTime(event.startTime, formatter)}
                         {event.location && <span> • {event.location}</span>}
                     </p>
                     {event.user && (

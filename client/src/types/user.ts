@@ -5,7 +5,7 @@ export interface User {
     name?: string | null
     email?: string | null
     displayColor: string
-    timezone?: string
+    timezone: string
     bio?: string | null
     profileImage?: string | null
     headerImage?: string | null

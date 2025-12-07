@@ -138,7 +138,9 @@ export function useEventSearch(filters: EventSearchFilters, page: number = 1, li
             if (filters.mode) params.set('mode', filters.mode)
             if (filters.username) params.set('username', filters.username)
             if (filters.tags) params.set('tags', filters.tags)
-            if (filters.categories) params.set('tags', filters.categories) // Backend uses 'tags' for categories
+            // Categories are a frontend concept that maps to tags on the backend
+            // The backend uses 'tags' as the query parameter for both tags and categories
+            if (filters.categories) params.set('tags', filters.categories)
             // Note: dateRange is not sent to backend - it's converted to startDate/endDate by the frontend
             
             params.set('page', String(page))

@@ -389,6 +389,7 @@ describe('Calendar Export', () => {
             expect(icsContent).toContain('RRULE')
             expect(icsContent).toContain('FREQ=WEEKLY')
             const rruleLine = icsContent.split('\n').find((line: string) => line.startsWith('RRULE:')) || ''
+            // The 'Z' suffix is optional due to timezone-aware formatting - the timezone is already specified in TZID
             expect(rruleLine).toMatch(/UNTIL=20240331T100000(Z)?/)
         })
 
