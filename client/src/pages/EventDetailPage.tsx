@@ -334,25 +334,6 @@ export function EventDetailPage() {
         }
     }
 
-    const executePendingAction = async () => {
-        if (!pendingAction) return
-        try {
-            if (pendingAction === 'rsvp' && pendingRSVPStatus) {
-                await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
-            } else if (pendingAction === 'like') {
-                await likeMutation.mutateAsync(false)
-            } else if (pendingAction === 'comment' && comment.trim()) {
-                await addCommentMutation.mutateAsync({ content: comment })
-                setComment('')
-            }
-        } catch (error) {
-            console.error('Failed to perform action after signup:', error)
-        } finally {
-            setPendingAction(null)
-            setPendingRSVPStatus(null)
-        }
-    }
-
     const handleSignupSuccess = () => {
         // The pending action will be executed automatically by the useEffect
         // that watches for user and pendingAction changes
@@ -720,14 +701,7 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('attending')}
                             disabled={rsvpMutation.isPending}
-                            className={(() => {
-                                if (userAttendance === 'attending') {
-                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
-                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildRsvpButtonClass('attending')}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('attending')}
@@ -735,14 +709,7 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('maybe')}
                             disabled={rsvpMutation.isPending}
-                            className={(() => {
-                                if (userAttendance === 'maybe') {
-                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
-                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildRsvpButtonClass('maybe')}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('maybe')}
@@ -750,14 +717,7 @@ export function EventDetailPage() {
                         <button
                             onClick={handleLike}
                             disabled={likeMutation.isPending}
-                            className={(() => {
-                                if (userLiked) {
-                                    return 'btn flex-1 btn-primary ring-2 ring-red-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 btn-secondary'
-                                    : 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildLikeButtonClass()}
                             title={!user ? 'Sign up to like this event' : ''}
                         >
                             ❤️ {event.likes?.length || 0}
