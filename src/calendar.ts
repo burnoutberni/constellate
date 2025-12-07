@@ -71,9 +71,6 @@ function buildGoogleCalendarLink(event: {
     summary?: string | null
     url?: string | null
 }) {
-    if (!event.startTime) {
-        throw new Error('Event startTime is required')
-    }
     const { pageUrl, description } = getEventExportMetadata(event)
     const start = formatDateForGoogle(event.startTime)
     const end = formatDateForGoogle(event.endTime || event.startTime)
