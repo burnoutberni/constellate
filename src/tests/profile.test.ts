@@ -73,7 +73,7 @@ describe('Profile API', () => {
 
         remoteUser = await prisma.user.create({
             data: {
-                username: `charlie@remote.com`,
+                username: `charlie_${suffix}@remote.com`,
                 name: 'Charlie Remote',
                 isRemote: true,
                 externalActorUrl: 'https://remote.com/users/charlie',
@@ -104,14 +104,14 @@ describe('Profile API', () => {
             expect(data._count.following).toBe(0)
         })
 
-        it('returns 500 when not authenticated', async () => {
+        it('returns 401 when not authenticated', async () => {
             mockNoAuth()
             
             const response = await app.request('/api/users/me/profile', {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             })
-            expect(response.status).toBe(500)
+            expect(response.status).toBe(401)
         })
     })
 
