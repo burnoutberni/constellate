@@ -22,14 +22,14 @@ function getTimestamp(value?: Date | null): number {
 }
 
 export function clampTrendingLimit(limit: number | undefined): number {
-    if (!Number.isFinite(limit)) {
+    if (limit === undefined || !Number.isFinite(limit)) {
         return DEFAULT_TRENDING_LIMIT
     }
     return Math.min(Math.max(Math.trunc(limit), 1), MAX_TRENDING_LIMIT)
 }
 
 export function clampTrendingWindowDays(windowDays: number | undefined): number {
-    if (!Number.isFinite(windowDays)) {
+    if (windowDays === undefined || !Number.isFinite(windowDays)) {
         return DEFAULT_TRENDING_WINDOW_DAYS
     }
     return Math.min(Math.max(Math.trunc(windowDays), 1), MAX_TRENDING_WINDOW_DAYS)
@@ -92,11 +92,4 @@ export function calculateTrendingScore({
     const score = baseScore * finalMultiplier
 
     return Number(score.toFixed(2))
-}
-
-export const __testExports = {
-    baseEngagementScore,
-    clampTrendingLimit,
-    clampTrendingWindowDays,
-    calculateTrendingScore,
 }
