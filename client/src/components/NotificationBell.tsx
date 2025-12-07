@@ -152,6 +152,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         <div className="relative" ref={dropdownRef}>
             <button
                 type="button"
+                id="notification-bell-button"
                 aria-label="Notifications"
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
@@ -167,7 +168,11 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-lg">
+                <div
+                    role="menu"
+                    aria-labelledby="notification-bell-button"
+                    className="absolute right-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-lg"
+                >
                     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                         <div>
                             <p className="text-sm font-semibold text-gray-900">Notifications</p>

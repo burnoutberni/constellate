@@ -37,6 +37,11 @@ describe('formatRelativeTime', () => {
         expect(formatRelativeTime(value)).toBe('5m ago')
     })
 
+    it('returns hours for hour differences', () => {
+        const value = new Date(base.getTime() - 3 * 60 * 60 * 1000)
+        expect(formatRelativeTime(value)).toBe('3h ago')
+    })
+
     it('returns days for longer differences', () => {
         const value = new Date(base.getTime() - 2 * 24 * 60 * 60 * 1000)
         expect(formatRelativeTime(value)).toBe('2d ago')
