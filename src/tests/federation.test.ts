@@ -1017,7 +1017,17 @@ describe('Federation Handlers', () => {
 
 
 
-        it('should handle Announce activity', async () => {
+        it('should handle Announce activity for event sharing', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                },
+            })
+
             const activity = {
                 id: 'https://example.com/activities/announce',
                 type: ActivityType.ANNOUNCE,
@@ -1032,22 +1042,189 @@ describe('Federation Handlers', () => {
             }
 
             vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
-            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
-                id: 'remote-user-id',
-                username: 'bob@example.com',
-            } as any)
+            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
             vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
 
             await handleActivity(activity as any)
 
-            // Should create like (Announce is treated as a like)
-            const like = await prisma.eventLike.findFirst({
+            // Should create a share (event with sharedEventId)
+            const share = await prisma.event.findFirst({
                 where: {
-                    eventId: testEvent.id,
+                    userId: remoteUser.id,
+                    sharedEventId: testEvent.id,
                 },
             })
 
-            expect(like).toBeDefined()
+            expect(share).toBeDefined()
+            expect(share?.sharedEventId).toBe(testEvent.id)
+        })
+
+        it('should handle Announce activity with missing object', async () => {
+            const activity = {
+                id: 'https://example.com/activities/announce-no-object',
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                // Missing object
+            }
+
+            await handleActivity(activity as any)
+
+            // Should not throw and should not create anything
+            expect(vi.mocked(activitypubHelpers.fetchActor)).not.toHaveBeenCalled()
+        })
+
+        it('should handle Announce activity when actor fetch fails', async () => {
+            const activity = {
+                id: 'https://example.com/activities/announce-no-actor',
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                object: `${baseUrl}/events/${testEvent.id}`,
+            }
+
+            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(null)
+
+            await handleActivity(activity as any)
+
+            // Should not throw and should not create share
+            const share = await prisma.event.findFirst({
+                where: {
+                    sharedEventId: testEvent.id,
+                },
+            })
+
+            expect(share).toBeNull()
+        })
+
+        it('should handle Announce activity when original event not found', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            const activity = {
+                id: 'https://example.com/activities/announce-no-event',
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                object: `${baseUrl}/events/non-existent-event-id`,
+            }
+
+            const remoteActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+            }
+
+            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+
+            await handleActivity(activity as any)
+
+            // Should not create share
+            const share = await prisma.event.findFirst({
+                where: {
+                    userId: remoteUser.id,
+                },
+            })
+
+            expect(share).toBeNull()
+        })
+
+        it('should handle Announce activity when share already exists', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            // Create existing share
+            await prisma.event.create({
+                data: {
+                    title: testEvent.title,
+                    startTime: testEvent.startTime,
+                    userId: remoteUser.id,
+                    sharedEventId: testEvent.id,
+                    visibility: 'PUBLIC',
+                    externalId: 'https://example.com/activities/announce',
+                },
+            })
+
+            const activity = {
+                id: 'https://example.com/activities/announce',
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                object: `${baseUrl}/events/${testEvent.id}`,
+            }
+
+            const remoteActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+            }
+
+            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+
+            await handleActivity(activity as any)
+
+            // Should not create duplicate share
+            const shares = await prisma.event.findMany({
+                where: {
+                    userId: remoteUser.id,
+                    sharedEventId: testEvent.id,
+                },
+            })
+
+            expect(shares.length).toBe(1)
+        })
+
+        it('should handle Announce activity without activity id', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'bob@example.com',
+                    email: 'bob@example.com',
+                    name: 'Bob',
+                    isRemote: true,
+                    externalActorUrl: 'https://example.com/users/bob',
+                },
+            })
+
+            const activity = {
+                // No id field
+                type: ActivityType.ANNOUNCE,
+                actor: 'https://example.com/users/bob',
+                object: `${baseUrl}/events/${testEvent.id}`,
+            }
+
+            const remoteActor = {
+                id: 'https://example.com/users/bob',
+                type: 'Person',
+                preferredUsername: 'bob',
+            }
+
+            vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+            vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            await handleActivity(activity as any)
+
+            // Should still create share (duplicate check uses userId + sharedEventId when no externalId)
+            const share = await prisma.event.findFirst({
+                where: {
+                    userId: remoteUser.id,
+                    sharedEventId: testEvent.id,
+                },
+            })
+
+            expect(share).toBeDefined()
         })
 
         it('should handle activity processing error gracefully', async () => {
