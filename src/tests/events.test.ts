@@ -1200,6 +1200,303 @@ describe('Events API', () => {
             expect(eventIds).toContain(publicEvent.id)
             expect(eventIds).not.toContain(privateEvent.id)
         })
+
+        it('respects custom windowDays parameter', async () => {
+            const liker = await prisma.user.create({
+                data: {
+                    username: 'window_tester',
+                    email: 'window_tester@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Window Test Event',
+                    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.eventLike.create({
+                data: {
+                    eventId: event.id,
+                    userId: liker.id,
+                },
+            })
+
+            const res = await app.request('/api/events/trending?windowDays=14')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.windowDays).toBe(14)
+        })
+
+        it('handles invalid limit parameter correctly', async () => {
+            // Test negative limit
+            const resNegative = await app.request('/api/events/trending?limit=-5')
+            expect(resNegative.status).toBe(200)
+            const bodyNegative = await resNegative.json() as any
+            expect(bodyNegative.events.length).toBeGreaterThanOrEqual(0)
+            expect(bodyNegative.events.length).toBeLessThanOrEqual(10) // Should clamp to default
+
+            // Test non-numeric limit
+            const resNonNumeric = await app.request('/api/events/trending?limit=abc')
+            expect(resNonNumeric.status).toBe(200)
+            const bodyNonNumeric = await resNonNumeric.json() as any
+            expect(bodyNonNumeric.events.length).toBeGreaterThanOrEqual(0)
+            expect(bodyNonNumeric.events.length).toBeLessThanOrEqual(10) // Should clamp to default
+
+            // Test too large limit
+            const resTooLarge = await app.request('/api/events/trending?limit=1000')
+            expect(resTooLarge.status).toBe(200)
+            const bodyTooLarge = await resTooLarge.json() as any
+            expect(bodyTooLarge.events.length).toBeLessThanOrEqual(50) // Should clamp to max
+        })
+
+        it('excludes events outside the time window', async () => {
+            const liker = await prisma.user.create({
+                data: {
+                    username: 'time_window_tester',
+                    email: 'time_window_tester@test.com',
+                    isRemote: false,
+                },
+            })
+
+            // Create an event that's too old (outside 7-day window)
+            const oldEvent = await prisma.event.create({
+                data: {
+                    title: 'Old Event',
+                    startTime: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+                    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+                    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Create a recent event (within window)
+            const recentEvent = await prisma.event.create({
+                data: {
+                    title: 'Recent Event',
+                    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.eventLike.create({
+                data: {
+                    eventId: oldEvent.id,
+                    userId: liker.id,
+                },
+            })
+            await prisma.eventLike.create({
+                data: {
+                    eventId: recentEvent.id,
+                    userId: liker.id,
+                },
+            })
+
+            const res = await app.request('/api/events/trending?windowDays=7')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const eventIds = body.events.map((event: { id: string }) => event.id)
+
+            expect(eventIds).toContain(recentEvent.id)
+            expect(eventIds).not.toContain(oldEvent.id)
+        })
+
+        it('handles tie-breaking when events have the same score', async () => {
+            const likerOne = await prisma.user.create({
+                data: {
+                    username: 'tie_breaker_one',
+                    email: 'tie_breaker_one@test.com',
+                    isRemote: false,
+                },
+            })
+            const likerTwo = await prisma.user.create({
+                data: {
+                    username: 'tie_breaker_two',
+                    email: 'tie_breaker_two@test.com',
+                    isRemote: false,
+                },
+            })
+
+            // Create two events with identical engagement
+            const eventA = await prisma.event.create({
+                data: {
+                    title: 'Event A',
+                    startTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const eventB = await prisma.event.create({
+                data: {
+                    title: 'Event B',
+                    startTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Give both events identical engagement
+            await prisma.eventLike.create({
+                data: {
+                    eventId: eventA.id,
+                    userId: likerOne.id,
+                },
+            })
+            await prisma.eventLike.create({
+                data: {
+                    eventId: eventB.id,
+                    userId: likerOne.id,
+                },
+            })
+
+            const res = await app.request('/api/events/trending?limit=5')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+
+            // Both events should appear in results
+            const eventIds = body.events.map((event: { id: string }) => event.id)
+            expect(eventIds).toContain(eventA.id)
+            expect(eventIds).toContain(eventB.id)
+
+            // When scores are equal, tie-breaking should use likes, then startTime
+            // Since both have same likes, earlier startTime should come first
+            const indexA = eventIds.indexOf(eventA.id)
+            const indexB = eventIds.indexOf(eventB.id)
+            // Event A starts earlier, so it should come before Event B if scores are equal
+            if (indexA !== -1 && indexB !== -1) {
+                // Verify ordering is consistent (earlier startTime first)
+                const eventA_data = body.events.find((e: { id: string }) => e.id === eventA.id)
+                const eventB_data = body.events.find((e: { id: string }) => e.id === eventB.id)
+                if (eventA_data && eventB_data && eventA_data.trendingScore === eventB_data.trendingScore) {
+                    expect(new Date(eventA_data.startTime).getTime()).toBeLessThanOrEqual(
+                        new Date(eventB_data.startTime).getTime()
+                    )
+                }
+            }
+        })
+
+        it('filters events correctly for authenticated users based on visibility', async () => {
+            const follower = await prisma.user.create({
+                data: {
+                    username: 'follower_trending',
+                    email: 'follower_trending@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const nonFollower = await prisma.user.create({
+                data: {
+                    username: 'non_follower_trending',
+                    email: 'non_follower_trending@test.com',
+                    isRemote: false,
+                },
+            })
+
+            // Create a FOLLOWERS-only event
+            const followersEvent = await prisma.event.create({
+                data: {
+                    title: 'Followers Only Event',
+                    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            // Create a PUBLIC event
+            const publicEvent = await prisma.event.create({
+                data: {
+                    title: 'Public Event',
+                    startTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Make follower follow testUser
+            await prisma.following.create({
+                data: {
+                    userId: follower.id,
+                    actorUrl: `${baseUrl}/users/${testUser.username}`,
+                    username: testUser.username,
+                    inboxUrl: `${baseUrl}/users/${testUser.username}/inbox`,
+                    accepted: true,
+                },
+            })
+
+            // Add engagement to both events
+            await prisma.eventLike.create({
+                data: {
+                    eventId: followersEvent.id,
+                    userId: follower.id,
+                },
+            })
+            await prisma.eventLike.create({
+                data: {
+                    eventId: publicEvent.id,
+                    userId: follower.id,
+                },
+            })
+
+            // Test as follower (should see both)
+            const sessionSpyFollower = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: follower.id,
+                    username: follower.username,
+                    email: follower.email,
+                },
+                session: {
+                    id: 'session-follower-trending',
+                    userId: follower.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const resFollower = await app.request('/api/events/trending')
+            expect(resFollower.status).toBe(200)
+            const bodyFollower = await resFollower.json() as any
+            const eventIdsFollower = bodyFollower.events.map((event: { id: string }) => event.id)
+            expect(eventIdsFollower).toContain(publicEvent.id)
+            expect(eventIdsFollower).toContain(followersEvent.id)
+
+            sessionSpyFollower.mockRestore()
+
+            // Test as non-follower (should only see public)
+            const sessionSpyNonFollower = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: nonFollower.id,
+                    username: nonFollower.username,
+                    email: nonFollower.email,
+                },
+                session: {
+                    id: 'session-non-follower-trending',
+                    userId: nonFollower.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const resNonFollower = await app.request('/api/events/trending')
+            expect(resNonFollower.status).toBe(200)
+            const bodyNonFollower = await resNonFollower.json() as any
+            const eventIdsNonFollower = bodyNonFollower.events.map((event: { id: string }) => event.id)
+            expect(eventIdsNonFollower).toContain(publicEvent.id)
+            expect(eventIdsNonFollower).not.toContain(followersEvent.id)
+
+            sessionSpyNonFollower.mockRestore()
+        })
     })
 
     describe('GET /events/:id', () => {

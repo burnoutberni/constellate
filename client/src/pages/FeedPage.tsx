@@ -318,6 +318,7 @@ export function FeedPage() {
                                             className="btn btn-ghost btn-sm"
                                             onClick={() => refetchTrending()}
                                             disabled={trendingFetching}
+                                            aria-label={trendingFetching ? "Refreshing trending events" : "Refresh trending events"}
                                         >
                                             Refresh
                                         </button>

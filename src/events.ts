@@ -15,7 +15,7 @@ import {
 import { deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
-import { moderateRateLimit } from './middleware/rateLimit.js'
+import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { normalizeTags } from './lib/tags.js'
@@ -420,7 +420,7 @@ app.get('/', async (c) => {
     }
 })
 
-app.get('/trending', async (c) => {
+app.get('/trending', lenientRateLimit, async (c) => {
     try {
         const userId = c.get('userId') as string | undefined
         const limitParam = Number.parseInt(c.req.query('limit') ?? '')
@@ -431,6 +431,7 @@ app.get('/trending', async (c) => {
 
         const now = new Date()
         const windowStart = new Date(now.getTime() - windowDays * DAY_IN_MS)
+        const windowStartForEngagement = new Date(now.getTime() - windowDays * DAY_IN_MS)
 
         let followedActorUrls: string[] = []
         if (userId) {
@@ -481,15 +482,24 @@ app.get('/trending', async (c) => {
 
         const [likes, comments, attendance] = await Promise.all([
             prisma.eventLike.findMany({
-                where: { eventId: { in: eventIds } },
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStartForEngagement },
+                },
                 select: { eventId: true },
             }),
             prisma.comment.findMany({
-                where: { eventId: { in: eventIds } },
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStartForEngagement },
+                },
                 select: { eventId: true },
             }),
             prisma.eventAttendance.findMany({
-                where: { eventId: { in: eventIds } },
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStartForEngagement },
+                },
                 select: { eventId: true },
             }),
         ])
