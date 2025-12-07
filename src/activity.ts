@@ -13,6 +13,10 @@ interface FeedEventSummary {
     startTime: string
     location: string | null
     visibility?: string | null
+    tags: Array<{
+        id: string
+        tag: string
+    }>
     user: {
         id: string
         username: string
@@ -124,6 +128,10 @@ function buildEventSummary(event: {
     startTime: Date
     location: string | null
     visibility?: string | null
+    tags?: Array<{
+        id: string
+        tag: string
+    }>
     user: FeedEventSummary['user']
 }): FeedEventSummary {
     return {
@@ -132,6 +140,7 @@ function buildEventSummary(event: {
         startTime: event.startTime.toISOString(),
         location: event.location,
         visibility: event.visibility,
+        tags: event.tags || [],
         user: event.user,
     }
 }
@@ -198,7 +207,10 @@ async function fetchLikeActivities(followedUserIds: string[], viewerId: string) 
             type: 'like',
             createdAt: like.createdAt.toISOString(),
             user: like.user,
-            event: buildEventSummary(like.event),
+            event: buildEventSummary({
+                ...like.event,
+                tags: like.event.tags || [],
+            }),
         })
     )
 }
@@ -250,7 +262,10 @@ async function fetchRsvpActivities(followedUserIds: string[], viewerId: string) 
             type: 'rsvp',
             createdAt: rsvp.createdAt.toISOString(),
             user: rsvp.user,
-            event: buildEventSummary(rsvp.event),
+            event: buildEventSummary({
+                ...rsvp.event,
+                tags: rsvp.event.tags || [],
+            }),
             data: {
                 status: rsvp.status,
             },
@@ -302,7 +317,10 @@ async function fetchCommentActivities(followedUserIds: string[], viewerId: strin
             type: 'comment',
             createdAt: comment.createdAt.toISOString(),
             user: comment.author,
-            event: buildEventSummary(comment.event),
+            event: buildEventSummary({
+                ...comment.event,
+                tags: comment.event.tags || [],
+            }),
             data: {
                 commentContent: comment.content,
             },
@@ -343,7 +361,10 @@ async function fetchNewEventActivities(followedUserIds: string[], viewerId: stri
             type: 'event_created',
             createdAt: event.createdAt.toISOString(),
             user: event.user,
-            event: buildEventSummary(event),
+            event: buildEventSummary({
+                ...event,
+                tags: event.tags || [],
+            }),
         })
     )
 }
@@ -378,6 +399,7 @@ async function fetchSharedEventActivities(followedUserIds: string[], viewerId: s
                             displayColor: true,
                         },
                     },
+                    tags: true,
                 },
             },
         },
@@ -397,9 +419,15 @@ async function fetchSharedEventActivities(followedUserIds: string[], viewerId: s
             createdAt: share.createdAt.toISOString(),
             user: share.user,
             // event should reference the original event being shared (for consistency with other activity types)
-            event: buildEventSummary(share.sharedEvent!),
+            event: buildEventSummary({
+                ...share.sharedEvent!,
+                tags: share.sharedEvent!.tags || [],
+            }),
             // sharedEvent can reference the share record itself if needed for UI purposes
-            sharedEvent: buildEventSummary(share),
+            sharedEvent: buildEventSummary({
+                ...share,
+                tags: [],
+            }),
             data: {
                 sharedEventId: share.id,
                 originalEventId: share.sharedEventId,

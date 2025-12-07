@@ -95,7 +95,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.id).toBe(testUser.id)
             expect(data.username).toBe(testUser.username)
             expect(data.isAdmin).toBeDefined()
@@ -125,7 +125,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.id).toBe(otherUser.id)
             expect(data.username).toBe(otherUser.username)
             expect(data.isAdmin).toBeUndefined()
@@ -153,7 +153,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.isFollowing).toBe(false)
             expect(data.isAccepted).toBe(false)
         })
@@ -179,7 +179,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.isFollowing).toBe(true)
             expect(data.isAccepted).toBe(true)
         })
@@ -205,7 +205,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.isFollowing).toBe(true)
             expect(data.isAccepted).toBe(false)
         })
@@ -225,7 +225,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.success).toBe(true)
 
             const following = await prisma.following.findFirst({
@@ -294,8 +294,8 @@ describe('Profile API', () => {
             }
             
             vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(mockFollowActivity as any)
-            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined as any)
-            const mockBroadcastToUser = vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined as any)
+            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
+            const mockBroadcastToUser = vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined)
             
             const response = await app.request(`/api/users/${remoteUser.username}/follow`, {
                 method: 'POST',
@@ -335,7 +335,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(400)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.error).toContain('Cannot follow yourself')
         })
 
@@ -360,7 +360,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(400)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.error).toContain('Already following')
         })
 
@@ -443,7 +443,7 @@ describe('Profile API', () => {
             
             vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(mockFollowActivity as any)
             vi.mocked(activityBuilder.buildUndoActivity).mockReturnValue(mockUndoActivity as any)
-            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined as any)
+            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined)
             
             await prisma.following.create({
                 data: {
@@ -491,7 +491,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(400)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data.error).toContain('Not following')
         })
 
@@ -538,7 +538,7 @@ describe('Profile API', () => {
             })
             expect(response.status).toBe(200)
 
-            const data = await response.json() as any
+            const data = await response.json()
             expect(data._count.followers).toBe(1)
             expect(data._count.following).toBe(0)
         })
