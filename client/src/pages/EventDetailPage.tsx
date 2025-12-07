@@ -300,12 +300,8 @@ export function EventDetailPage() {
             return
         }
         try {
-            const result = await shareMutation.mutateAsync()
-            if (result?.alreadyShared) {
-                setHasShared(true)
-            } else {
-                setHasShared(true)
-            }
+            await shareMutation.mutateAsync()
+            setHasShared(true)
         } catch (error) {
             console.error('Share failed:', error)
             alert('Failed to share event')

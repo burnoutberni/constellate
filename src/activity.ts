@@ -396,7 +396,7 @@ async function fetchSharedEventActivities(followedUserIds: string[], viewerId: s
             type: 'event_shared',
             createdAt: share.createdAt.toISOString(),
             user: share.user,
-            event: buildEventSummary(share.sharedEvent!),
+            event: buildEventSummary(share),
             sharedEvent: buildEventSummary(share.sharedEvent!),
             data: {
                 sharedEventId: share.id,

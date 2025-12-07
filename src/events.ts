@@ -303,15 +303,10 @@ app.get('/', async (c) => {
             ? buildVisibilityWhere({ userId, followedActorUrls })
             : { visibility: 'PUBLIC' as const }
 
-        // Exclude shared events from main list (only show original events)
-        const baseWhere = {
-            sharedEventId: null,
-        }
-
-        // Combine visibility, base, and range filters
+        // Combine visibility, sharedEventId, and range filters
         const filters: Prisma.EventWhereInput[] = [
             visibilityWhere,
-            baseWhere,
+            { sharedEventId: null },
         ]
         if (rangeFilter) {
             filters.push(rangeFilter)
