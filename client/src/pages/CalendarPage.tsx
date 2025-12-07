@@ -10,6 +10,7 @@ export function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [view] = useState<'month' | 'week' | 'day'>('month')
     const [loading, setLoading] = useState(true)
+    const [exportingEventId, setExportingEventId] = useState<string | null>(null)
 
     const monthRange = useMemo(() => {
         const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -148,6 +149,27 @@ export function CalendarPage() {
     const today = () => {
         setCurrentDate(new Date())
     }
+
+    const handleAddToGoogleCalendar = useCallback(async (eventId: string) => {
+        try {
+            setExportingEventId(eventId)
+            const response = await fetch(`/api/calendar/${eventId}/export/google`)
+            if (!response.ok) {
+                throw new Error('Failed to generate Google Calendar link')
+            }
+            const data = await response.json()
+            if (data?.url) {
+                window.open(data.url, '_blank', 'noopener,noreferrer')
+            } else {
+                throw new Error('No URL returned from server')
+            }
+        } catch (error) {
+            console.error('Unable to add event to Google Calendar', error)
+            alert('Failed to add event to Google Calendar. Please try again.')
+        } finally {
+            setExportingEventId(null)
+        }
+    }, [])
 
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -298,6 +320,15 @@ export function CalendarPage() {
                                                         👥 {event._count.attendance} · ❤️ {event._count.likes}
                                                     </div>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(event.id); }}
+                                                    className="btn btn-xs btn-outline mt-2"
+                                                    aria-label={`Add ${event.title} to Google Calendar`}
+                                                    disabled={exportingEventId === event.id}
+                                                >
+                                                    {exportingEventId === event.id ? 'Preparing...' : 'Add to Google Calendar'}
+                                                </button>
                                             </div>
                                         </div>
                                     ))}

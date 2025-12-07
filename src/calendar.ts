@@ -10,6 +10,15 @@ import { canUserViewEvent } from './lib/eventVisibility.js'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
+const DEFAULT_BASE_URL = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+const APP_HOSTNAME = (() => {
+    try {
+        return new URL(DEFAULT_BASE_URL).hostname
+    } catch {
+        return 'localhost'
+    }
+})()
+
 function mapRecurrenceFrequency(freq: RecurrenceFrequency): ICalEventRepeatingFreq {
     switch (freq) {
         case 'DAILY':
@@ -19,6 +28,68 @@ function mapRecurrenceFrequency(freq: RecurrenceFrequency): ICalEventRepeatingFr
         case 'MONTHLY':
             return ICalEventRepeatingFreq.MONTHLY
     }
+}
+
+function resolveAppUrl(path: string): string {
+    try {
+        return new URL(path, DEFAULT_BASE_URL).toString()
+    } catch {
+        const normalizedBase = DEFAULT_BASE_URL.endsWith('/') ? DEFAULT_BASE_URL.slice(0, -1) : DEFAULT_BASE_URL
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`
+        return `${normalizedBase}${normalizedPath}`
+    }
+}
+
+function getEventPageUrl(eventId: string): string {
+    return resolveAppUrl(`/events/${eventId}`)
+}
+
+function getEventExportMetadata(event: { id: string; summary?: string | null; url?: string | null }) {
+    const pageUrl = event.url || getEventPageUrl(event.id)
+    const trimmedSummary = event.summary?.trim()
+    const description = trimmedSummary ? `${trimmedSummary}\n\n${pageUrl}` : pageUrl
+    return { pageUrl, description }
+}
+
+function formatDateForGoogle(date: Date | string | null | undefined): string {
+    if (!date) {
+        return ''
+    }
+    const dateObj = new Date(date)
+    if (Number.isNaN(dateObj.getTime())) {
+        return ''
+    }
+    return dateObj.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
+function buildGoogleCalendarLink(event: {
+    id: string
+    title: string
+    startTime: Date
+    endTime?: Date | null
+    location?: string | null
+    summary?: string | null
+    url?: string | null
+}) {
+    const { pageUrl, description } = getEventExportMetadata(event)
+    const start = formatDateForGoogle(event.startTime)
+    const end = formatDateForGoogle(event.endTime || event.startTime)
+    if (!start || !end) {
+        throw new Error(`Invalid event date: startTime=${event.startTime}, endTime=${event.endTime}`)
+    }
+
+    const googleUrl = new URL('https://calendar.google.com/calendar/render')
+    googleUrl.searchParams.set('action', 'TEMPLATE')
+    googleUrl.searchParams.set('text', event.title)
+    googleUrl.searchParams.set('dates', `${start}/${end}`)
+    googleUrl.searchParams.set('details', description)
+    if (event.location) {
+        googleUrl.searchParams.set('location', event.location)
+    }
+    googleUrl.searchParams.set('trp', 'false')
+    googleUrl.searchParams.set('sprop', pageUrl)
+
+    return googleUrl.toString()
 }
 
 const app = new Hono()
@@ -53,18 +124,23 @@ app.get('/:id/export.ics', async (c) => {
         // Create calendar
         const calendar = ical({ name: 'Constellate' })
 
+        const { pageUrl, description } = getEventExportMetadata(event)
+        const organizer = event.user
+            ? {
+                name: event.user.name || event.user.username,
+                email: `${event.user.username}@${APP_HOSTNAME}`,
+            }
+            : undefined
+
         // Add event
         calendar.createEvent({
             start: event.startTime,
             end: event.endTime || event.startTime,
             summary: event.title,
-            description: event.summary || undefined,
+            description,
             location: event.location || undefined,
-            url: event.url || `${process.env.BETTER_AUTH_URL}/events/${id}`,
-            organizer: {
-                name: event.user?.name || event.user?.username || 'Unknown',
-                email: `${event.user?.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
-            },
+            url: pageUrl,
+            organizer,
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
             repeating: event.recurrencePattern && event.recurrenceEndDate
                 ? {
@@ -128,18 +204,21 @@ app.get('/user/:username/export.ics', async (c) => {
             }
         }
 
+        const organizer = {
+            name: user.name || username,
+            email: `${username}@${APP_HOSTNAME}`,
+        }
+
         for (const event of filteredEvents) {
+            const { pageUrl, description } = getEventExportMetadata(event)
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
                 summary: event.title,
-                description: event.summary || undefined,
+                description,
                 location: event.location || undefined,
-                url: event.url || `${process.env.BETTER_AUTH_URL}/events/${event.id}`,
-                organizer: {
-                    name: user.name || username,
-                    email: `${username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
-                },
+                url: pageUrl,
+                organizer,
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
                 repeating: event.recurrencePattern && event.recurrenceEndDate
                     ? {
@@ -157,6 +236,34 @@ app.get('/user/:username/export.ics', async (c) => {
         })
     } catch (error) {
         console.error('Error exporting calendar:', error)
+        return c.text('Internal server error', 500)
+    }
+})
+
+// Generate Google Calendar link for a single event
+app.get('/:id/export/google', async (c) => {
+    try {
+        const { id } = c.req.param()
+
+        const event = await prisma.event.findUnique({
+            where: { id },
+        })
+
+        if (!event) {
+            return c.text('Event not found', 404)
+        }
+
+        const viewerId = c.get('userId') as string | undefined
+        const canView = await canUserViewEvent(event, viewerId)
+        if (!canView) {
+            return c.text('Forbidden', 403)
+        }
+
+        const googleLink = buildGoogleCalendarLink(event)
+
+        return c.json({ url: googleLink })
+    } catch (error) {
+        console.error('Error generating Google Calendar link:', error)
         return c.text('Internal server error', 500)
     }
 })
@@ -187,22 +294,23 @@ app.get('/feed.ics', async (c) => {
         const calendar = ical({
             name: 'Constellate - Public Events',
             description: 'Public events from Constellate',
-            url: `${process.env.BETTER_AUTH_URL}/api/calendar/feed.ics`,
+            url: resolveAppUrl('/api/calendar/feed.ics'),
         })
 
         // Add all events
         for (const event of events) {
+            const { pageUrl, description } = getEventExportMetadata(event)
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
                 summary: event.title,
-                description: event.summary || undefined,
+                description,
                 location: event.location || undefined,
-                url: event.url || `${process.env.BETTER_AUTH_URL}/events/${event.id}`,
+                url: pageUrl,
                 organizer: event.user
                     ? {
                         name: event.user.name || event.user.username,
-                        email: `${event.user.username}@${new URL(process.env.BETTER_AUTH_URL || 'http://localhost:3000').hostname}`,
+                        email: `${event.user.username}@${APP_HOSTNAME}`,
                     }
                     : undefined,
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,

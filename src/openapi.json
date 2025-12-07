@@ -2816,6 +2816,52 @@
                 }
             }
         },
+        "/api/calendar/{id}/export/google": {
+            "get": {
+                "tags": [
+                    "Calendar"
+                ],
+                "summary": "Generate Google Calendar link for an event",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Google Calendar link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string",
+                                            "format": "uri"
+                                        }
+                                    },
+                                    "required": ["url"]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Event not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
         "/api/calendar/user/{username}/export.ics": {
             "get": {
                 "tags": [
