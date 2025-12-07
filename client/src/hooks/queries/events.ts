@@ -36,30 +36,6 @@ interface CommentInput {
     content: string
 }
 
-export interface EventSearchFilters {
-    q?: string
-    location?: string
-    startDate?: string
-    endDate?: string
-    dateRange?: string
-    status?: string
-    mode?: string
-    username?: string
-    tags?: string
-    categories?: string
-}
-
-interface EventSearchResponse {
-    events: Event[]
-    pagination: {
-        page: number
-        limit: number
-        total: number
-        pages: number
-    }
-    filters?: EventSearchFilters
-}
-
 // Queries
 export function useEvents(limit: number = 50) {
     return useQuery<EventsResponse>({
@@ -123,42 +99,6 @@ export function useRecommendedEvents(limit: number = 6, options?: { enabled?: bo
         },
     })
 }
-
-export function useEventSearch(filters: EventSearchFilters, page: number = 1, limit: number = 20) {
-    return useQuery<EventSearchResponse>({
-        queryKey: queryKeys.events.search(filters as Record<string, unknown>, page, limit),
-        queryFn: async () => {
-            const params = new URLSearchParams()
-            
-            if (filters.q) params.set('q', filters.q)
-            if (filters.location) params.set('location', filters.location)
-            if (filters.startDate) params.set('startDate', filters.startDate)
-            if (filters.endDate) params.set('endDate', filters.endDate)
-            if (filters.status) params.set('status', filters.status)
-            if (filters.mode) params.set('mode', filters.mode)
-            if (filters.username) params.set('username', filters.username)
-            if (filters.tags) params.set('tags', filters.tags)
-            // Categories are a frontend concept that maps to tags on the backend
-            // The backend uses 'tags' as the query parameter for both tags and categories
-            if (filters.categories) params.set('tags', filters.categories)
-            // Note: dateRange is not sent to backend - it's converted to startDate/endDate by the frontend
-            
-            params.set('page', String(page))
-            params.set('limit', String(limit))
-
-            const response = await fetch(`/api/search?${params.toString()}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to search events')
-            }
-
-            return response.json()
-        },
-    })
-}
-
 
 export function useDeleteEvent(eventId: string) {
     const queryClient = useQueryClient()

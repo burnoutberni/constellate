@@ -23,7 +23,7 @@ export const UserSchema = z.object({
     name: z.string().nullable().openapi({ example: 'Alice Smith' }),
     displayColor: z.string().nullable().openapi({ example: '#3b82f6' }),
     profileImage: z.string().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
-    timezone: z.string().openapi({ example: 'America/New_York' }),
+    timezone: z.string().optional().openapi({ example: 'America/New_York' }),
     isRemote: z.boolean().optional(),
     externalActorUrl: z.string().nullable().optional(),
 }).openapi('User')
