@@ -1,10 +1,13 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { useUIStore } from '../stores'
 import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
+import { queryKeys } from '../hooks/queries/keys'
 import { getVisibilityMeta } from '../lib/visibility'
+import { getDefaultTimezone } from '../lib/timezones'
 import type { Event } from '../types'
 
 const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
@@ -146,18 +149,19 @@ const formatDateLabel = (isoString: string) => {
     })
 }
 
-const formatEventDateTime = (isoString: string) => {
+const formatEventDateTime = (isoString: string, timezone: string) => {
     const date = new Date(isoString)
     if (Number.isNaN(date.getTime())) {
         return isoString
     }
-    return date.toLocaleString(undefined, {
+    return new Intl.DateTimeFormat('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-    })
+        timeZone: timezone,
+    }).format(date)
 }
 
 const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
@@ -179,6 +183,22 @@ export function SearchPage() {
 
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FormState>(initialFormState)
+
+    const { data: viewerProfile } = useQuery({
+        queryKey: queryKeys.users.currentProfile(user?.id),
+        queryFn: async () => {
+            if (!user?.id) return null
+            const response = await fetch('/api/users/me/profile', {
+                credentials: 'include',
+            })
+            if (!response.ok) return null
+            return response.json()
+        },
+        enabled: !!user?.id,
+    })
+
+    const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
+    const viewerTimezone = viewerProfile?.timezone || defaultTimezone
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
@@ -362,7 +382,7 @@ export function SearchPage() {
             )
         }
         if (data?.events) {
-            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} />)
+            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} timezone={viewerTimezone} />)
         }
         return null
     }
@@ -587,7 +607,7 @@ export function SearchPage() {
     )
 }
 
-function EventResultCard({ event }: { event: Event }) {
+function EventResultCard({ event, timezone }: { event: Event; timezone: string }) {
     const eventPath = event.user?.username
         ? `/@${event.user.username}/${event.originalEventId || event.id}`
         : undefined
@@ -599,7 +619,7 @@ function EventResultCard({ event }: { event: Event }) {
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
                     <p className="text-sm text-gray-500">
-                        {formatEventDateTime(event.startTime)}
+                        {formatEventDateTime(event.startTime, timezone)}
                         {event.location && <span> • {event.location}</span>}
                     </p>
                     {event.user && (

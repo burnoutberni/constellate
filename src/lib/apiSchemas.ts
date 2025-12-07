@@ -3,6 +3,7 @@
  */
 
 import { z } from '@hono/zod-openapi'
+import { isValidTimeZone } from './timezone.js'
 
 // Common response schemas
 export const ErrorSchema = z.object({
@@ -39,7 +40,7 @@ export const EventInputSchema = z.object({
     startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
     endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
     duration: z.string().optional().openapi({ example: 'PT1H' }),
-    timezone: z.string().optional().openapi({ example: 'America/New_York' }),
+    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/New_York' }),
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
     maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
@@ -174,7 +175,7 @@ export const ProfileUpdateSchema = z.object({
     profileImage: z.string().url().optional(),
     headerImage: z.string().url().optional(),
     displayColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().openapi({ example: '#3b82f6' }),
-    timezone: z.string().optional().openapi({ example: 'America/Los_Angeles' }),
+    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/Los_Angeles' }),
 }).openapi('ProfileUpdate')
 
 export const ProfileSchema = z.object({
