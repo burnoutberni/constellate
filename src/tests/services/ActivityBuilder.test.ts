@@ -5,17 +5,20 @@ import {
     buildDeleteEventActivity,
     buildFollowActivity,
     buildAcceptActivity,
+    buildRejectFollowActivity,
     buildLikeActivity,
     buildUndoActivity,
     buildAttendingActivity,
     buildNotAttendingActivity,
     buildMaybeAttendingActivity,
+    buildAnnounceEventActivity,
     buildCreateCommentActivity,
     buildDeleteCommentActivity,
     buildUpdateProfileActivity,
 } from '../../services/ActivityBuilder.js'
 import { ActivityType, ObjectType, PUBLIC_COLLECTION } from '../../constants/activitypub.js'
 import type { Event, User, Comment } from '@prisma/client'
+import type { FollowActivity } from '../../lib/activitypubSchemas.js'
 
 type EventWithUser = Event & { user: User | null }
 
@@ -441,6 +444,151 @@ describe('ActivityBuilder', () => {
                 actor: 'http://localhost:3000/users/alice',
                 object: eventUrl,
                 to: [eventAuthorUrl],
+            })
+        })
+    })
+
+    describe('buildRejectFollowActivity', () => {
+        it('should build a Reject activity for rejecting a follow', () => {
+            const followActivity: FollowActivity = {
+                '@context': [],
+                id: 'https://example.com/activities/follow-1',
+                type: ActivityType.FOLLOW,
+                actor: 'https://example.com/users/bob',
+                object: 'http://localhost:3000/users/alice',
+            }
+
+            const activity = buildRejectFollowActivity(mockUser, followActivity)
+
+            expect(activity).toMatchObject({
+                type: ActivityType.REJECT,
+                actor: 'http://localhost:3000/users/alice',
+                object: followActivity,
+            })
+        })
+
+        it('should handle string follow activity', () => {
+            const followActivityId = 'https://example.com/activities/follow-1'
+
+            const activity = buildRejectFollowActivity(mockUser, followActivityId)
+
+            expect(activity).toMatchObject({
+                type: ActivityType.REJECT,
+                actor: 'http://localhost:3000/users/alice',
+                object: followActivityId,
+            })
+        })
+    })
+
+    describe('buildAnnounceEventActivity', () => {
+        it('should build an Announce activity for sharing a public event', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+            const originalActorUrl = 'http://localhost:3000/users/bob'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'PUBLIC', originalActorUrl)
+
+            expect(activity).toMatchObject({
+                '@context': expect.any(Array),
+                type: ActivityType.ANNOUNCE,
+                actor: 'http://localhost:3000/users/alice',
+                object: eventUrl,
+                to: [PUBLIC_COLLECTION],
+                cc: expect.arrayContaining([
+                    'http://localhost:3000/users/alice/followers',
+                    originalActorUrl,
+                ]),
+            })
+            expect(activity.id).toContain('/activities/share-')
+            expect(activity.published).toBeDefined()
+        })
+
+        it('should build an Announce activity for FOLLOWERS visibility event', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'FOLLOWERS')
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                actor: 'http://localhost:3000/users/alice',
+                object: eventUrl,
+                to: ['http://localhost:3000/users/alice/followers'],
+                cc: undefined,
+            })
+        })
+
+        it('should build an Announce activity for PRIVATE visibility event', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'PRIVATE')
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                actor: 'http://localhost:3000/users/alice',
+                object: eventUrl,
+                to: undefined,
+                cc: undefined,
+            })
+        })
+
+        it('should build an Announce activity for UNLISTED visibility event', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'UNLISTED')
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                actor: 'http://localhost:3000/users/alice',
+                object: eventUrl,
+                to: undefined,
+                cc: undefined,
+            })
+        })
+
+        it('should handle null visibility (defaults to PUBLIC)', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, null)
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                to: [PUBLIC_COLLECTION],
+                cc: ['http://localhost:3000/users/alice/followers'],
+            })
+        })
+
+        it('should handle undefined visibility (defaults to PUBLIC)', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, undefined)
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                to: [PUBLIC_COLLECTION],
+                cc: ['http://localhost:3000/users/alice/followers'],
+            })
+        })
+
+        it('should not duplicate originalActorUrl if already in cc', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+            const followersUrl = 'http://localhost:3000/users/alice/followers'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'PUBLIC', followersUrl)
+
+            expect(activity.cc).toEqual([followersUrl])
+            expect(activity.cc?.length).toBe(1)
+        })
+
+        it('should handle missing originalActorUrl', () => {
+            const eventUrl = 'http://localhost:3000/events/event_123'
+
+            const activity = buildAnnounceEventActivity(mockUser, eventUrl, 'PUBLIC')
+
+            expect(activity).toMatchObject({
+                type: ActivityType.ANNOUNCE,
+                actor: 'http://localhost:3000/users/alice',
+                object: eventUrl,
+                to: [PUBLIC_COLLECTION],
+                cc: ['http://localhost:3000/users/alice/followers'],
             })
         })
     })

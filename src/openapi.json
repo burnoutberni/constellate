@@ -204,6 +204,50 @@
                                 }
                             }
                         }
+                    },
+                    "sharedEvent": {
+                        "$ref": "#/components/schemas/SharedEvent",
+                        "nullable": true
+                    }
+                }
+            },
+            "SharedEvent": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "summary": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": [
+                            "PUBLIC",
+                            "FOLLOWERS",
+                            "PRIVATE",
+                            "UNLISTED"
+                        ]
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User"
                     }
                 }
             },
@@ -1790,6 +1834,71 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/events/{id}/share": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Share or repost an event",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Event shared",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "share": {
+                                            "$ref": "#/components/schemas/Event"
+                                        },
+                                        "alreadyShared": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Event was already shared by this user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "share": {
+                                            "$ref": "#/components/schemas/Event"
+                                        },
+                                        "alreadyShared": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Sharing not allowed"
+                    },
+                    "404": {
+                        "description": "Event not found"
                     }
                 }
             }

@@ -141,11 +141,20 @@ model Event {
   tags       EventTag[]
   recurrencePattern RecurrencePattern?
   recurrenceEndDate DateTime?
+  sharedEventId String?
+  sharedEvent   Event?   @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
+  shares        Event[]  @relation("EventShares")
 
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
   @@index([recurrenceEndDate])
+  @@index([sharedEventId])
+  // Note: Unique constraint on [userId, sharedEventId] removed because:
+  // - When userId is null (remote events), multiple NULL values in composite unique constraints
+  //   are not treated as violations in SQL databases, allowing duplicate shares
+  // - Application-level validation should prevent duplicate shares for local users
+  // - For remote events, uniqueness should be handled via externalId or attributedTo
 }
 
 enum EventVisibility {

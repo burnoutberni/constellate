@@ -7,14 +7,15 @@ import {
     ActivityType,
     ObjectType,
     AttendanceStatus,
+    ContentType,
 } from './constants/activitypub.js'
 import {
-
     cacheRemoteUser,
     fetchActor,
     getBaseUrl,
     fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
+import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import {
@@ -23,6 +24,7 @@ import {
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import type { Prisma } from '@prisma/client'
 import type {
     Activity,
     FollowActivity,
@@ -32,6 +34,7 @@ import type {
     DeleteActivity,
     LikeActivity,
     UndoActivity,
+    AnnounceActivity,
     Person,
     Event as ActivityPubEvent,
     Note as ActivityPubNote,
@@ -91,7 +94,7 @@ export async function handleActivity(activity: Activity): Promise<void> {
                 await handleUndo(activity as UndoActivity)
                 break
             case ActivityType.ANNOUNCE:
-                await handleAnnounce(activity)
+            await handleAnnounce(activity as AnnounceActivity)
                 break
             case ActivityType.TENTATIVE_ACCEPT:
                 await handleTentativeAccept(activity)
@@ -436,6 +439,7 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
     } else {
         locationValue = null
     }
+    const attributedTo = typeof eventObj.attributedTo === 'string' ? eventObj.attributedTo : null
 
     return {
         eventId,
@@ -451,7 +455,137 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
         eventAttendanceMode,
         eventMaxCapacity,
         attachmentUrl,
+        attributedTo,
     }
+}
+
+async function findEventByReference(reference: string) {
+    const eventIdCandidate = reference.split('/').pop()
+    const conditions: Prisma.EventWhereInput[] = [
+        { externalId: reference },
+    ]
+    if (eventIdCandidate) {
+        conditions.push({ id: eventIdCandidate })
+    }
+
+    return prisma.event.findFirst({
+        where: {
+            OR: conditions,
+        },
+    })
+}
+
+async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<string, unknown>) {
+    const {
+        eventId,
+        eventName,
+        eventSummary,
+        eventContent,
+        locationValue,
+        eventStartTime,
+        eventEndTime,
+        eventDuration,
+        eventUrl,
+        eventStatus,
+        eventAttendanceMode,
+        eventMaxCapacity,
+        attachmentUrl,
+        attributedTo,
+    } = extractEventProperties(event)
+
+    if (!eventId || !eventName || !eventStartTime) {
+        return null
+    }
+
+    const eventData = {
+        title: eventName,
+        summary: eventSummary || eventContent || null,
+        location: locationValue,
+        startTime: new Date(eventStartTime),
+        endTime: eventEndTime ? new Date(eventEndTime) : null,
+        duration: eventDuration || null,
+        url: eventUrl || null,
+        eventStatus: eventStatus as string | null,
+        eventAttendanceMode: eventAttendanceMode as string | null,
+        maximumAttendeeCapacity: eventMaxCapacity,
+        headerImage: attachmentUrl,
+        attributedTo: attributedTo,
+    }
+
+    return prisma.event.upsert({
+        where: { externalId: eventId },
+        update: eventData,
+        create: {
+            ...eventData,
+            externalId: eventId,
+            userId: null,
+        },
+    })
+}
+
+// Maximum response size limit (10MB)
+const MAX_RESPONSE_SIZE = 10 * 1024 * 1024
+
+async function resolveSharedEventTarget(object: string | Record<string, unknown> | undefined) {
+    if (!object) {
+        return null
+    }
+
+    if (typeof object === 'string') {
+        const existing = await findEventByReference(object)
+        if (existing) {
+            return existing
+        }
+
+        try {
+            // Use safeFetch to prevent SSRF attacks with timeout and size limits
+            const response = await safeFetch(
+                object,
+                {
+                    headers: {
+                        Accept: ContentType.ACTIVITY_JSON,
+                    },
+                },
+                10000 // 10 second timeout
+            )
+
+            // Check content-length header if available
+            const contentLength = response.headers.get('content-length')
+            if (contentLength) {
+                const size = parseInt(contentLength, 10)
+                if (!Number.isNaN(size) && size > MAX_RESPONSE_SIZE) {
+                    console.error('Response too large:', size, 'bytes')
+                    return null
+                }
+            }
+
+            if (response.ok) {
+                // Read response with size limit
+                const text = await response.text()
+                if (text.length > MAX_RESPONSE_SIZE) {
+                    console.error('Response body too large:', text.length, 'bytes')
+                    return null
+                }
+                try {
+                    const payload = JSON.parse(text) as Record<string, unknown>
+                    return upsertRemoteEventFromObject(payload)
+                } catch (parseError) {
+                    console.error('Error parsing JSON response:', parseError)
+                    return null
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching announced event object:', error)
+        }
+
+        return null
+    }
+
+    if (typeof object === 'object') {
+        return upsertRemoteEventFromObject(object)
+    }
+
+    return null
 }
 
 /**
@@ -485,6 +619,7 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
         eventAttendanceMode,
         eventMaxCapacity,
         attachmentUrl,
+        attributedTo,
     } = extractEventProperties(event)
 
     // Create event in database
@@ -500,7 +635,7 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
         eventAttendanceMode: eventAttendanceMode as string | null,
         maximumAttendeeCapacity: eventMaxCapacity,
         headerImage: attachmentUrl,
-        attributedTo: actorUrl,
+        attributedTo: attributedTo || actorUrl,
     }
 
     const createdEvent = await prisma.event.upsert({
@@ -1049,12 +1184,82 @@ async function handleUndoAttendance(activity: UndoActivity | Record<string, unkn
 /**
  * Handle Announce activity (for "maybe" attendance or shares)
  */
-async function handleAnnounce(activity: Activity | Record<string, unknown>): Promise<void> {
-    // Announce handling for shares/boosts can be implemented here
-    const actorUrl = (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string')
-        ? activity.actor
-        : 'unknown'
-    console.log(`Received Announce from ${actorUrl}`)
+async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
+    const actorUrl = activity.actor
+    const object = activity.object
+
+    if (!object) {
+        console.log('Announce missing object')
+        return
+    }
+
+    const actor = await fetchActor(actorUrl)
+    if (!actor) {
+        console.log('Failed to fetch announcer actor')
+        return
+    }
+
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    const originalEvent = await resolveSharedEventTarget(object)
+
+    if (!originalEvent) {
+        console.log(`Announce original event not found: ${typeof object === 'string' ? object : 'inline object'}`)
+        return
+    }
+
+    const duplicateConditions: Prisma.EventWhereInput[] = []
+    if (activity.id) {
+        duplicateConditions.push({ externalId: activity.id })
+    }
+    duplicateConditions.push({
+        userId: remoteUser.id,
+        sharedEventId: originalEvent.id,
+    })
+
+    const existingShare = await prisma.event.findFirst({
+        where: {
+            OR: duplicateConditions,
+        },
+    })
+
+    if (existingShare) {
+        console.log('Announce already processed for this user and event')
+        return
+    }
+
+    const share = await prisma.event.create({
+        data: {
+            title: originalEvent.title,
+            summary: originalEvent.summary,
+            location: originalEvent.location,
+            headerImage: originalEvent.headerImage,
+            url: originalEvent.url,
+            startTime: originalEvent.startTime,
+            endTime: originalEvent.endTime,
+            duration: originalEvent.duration,
+            eventStatus: originalEvent.eventStatus,
+            eventAttendanceMode: originalEvent.eventAttendanceMode,
+            maximumAttendeeCapacity: originalEvent.maximumAttendeeCapacity,
+            visibility: 'PUBLIC',
+            userId: remoteUser.id,
+            attributedTo: actorUrl,
+            sharedEventId: originalEvent.id,
+            externalId: activity.id,
+        },
+    })
+
+    await broadcast({
+        type: BroadcastEvents.EVENT_SHARED,
+        data: {
+            share: {
+                id: share.id,
+                originalEventId: originalEvent.id,
+                userId: remoteUser.id,
+            },
+        },
+    })
+
+    console.log(`✅ Processed Announce from ${actorUrl} for event ${originalEvent.id}`)
 }
 
 /**

@@ -41,6 +41,18 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                         <strong>{activity.event.title}</strong>
                     </span>
                 )
+            case 'event_shared':
+                return (
+                    <span>
+                        <strong>{activity.user.name || activity.user.username}</strong> shared{' '}
+                        <strong>{activity.sharedEvent?.title}</strong>
+                        {activity.sharedEvent?.user && (
+                            <>
+                                {' '}from <strong>@{activity.sharedEvent.user.username}</strong>
+                            </>
+                        )}
+                    </span>
+                )
             default:
                 return null
         }
@@ -56,6 +68,8 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                 return '💬'
             case 'event_created':
                 return '📅'
+            case 'event_shared':
+                return '🔁'
             default:
                 return '📌'
         }
@@ -103,6 +117,11 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                                 {activity.type === 'comment' && activity.data?.commentContent && (
                                     <p className="text-sm text-gray-600 mt-1 italic">
                                         "{activity.data.commentContent}"
+                                    </p>
+                                )}
+                                {activity.type === 'event_shared' && activity.sharedEvent?.summary && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        {activity.sharedEvent.summary}
                                     </p>
                                 )}
                             </div>

@@ -4,6 +4,10 @@ A federated event management platform implementing the ActivityPub protocol for 
 
 **Status: Public Beta** - The project is ready for beta testing. See deployment section for production setup.
 
+## Features
+
+- **Event sharing & reposts**: Share any public event (local or remote) with your followers. Shares are federated using ActivityPub `Announce` activities, appear in the activity feed with attribution, and include a dedicated share action on the event detail page.
+
 ## User Mentions in Comments
 
 Constellate comments now understand `@username` mentions:

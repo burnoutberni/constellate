@@ -294,7 +294,7 @@ describe('Profile API', () => {
             }
             
             vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(mockFollowActivity as any)
-            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined as any)
+            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(true)
             const mockBroadcastToUser = vi.mocked(realtime.broadcastToUser).mockResolvedValue(undefined as any)
             
             const response = await app.request(`/api/users/${remoteUser.username}/follow`, {
@@ -443,7 +443,7 @@ describe('Profile API', () => {
             
             vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(mockFollowActivity as any)
             vi.mocked(activityBuilder.buildUndoActivity).mockReturnValue(mockUndoActivity as any)
-            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(undefined as any)
+            const mockDeliverToInbox = vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(true)
             
             await prisma.following.create({
                 data: {

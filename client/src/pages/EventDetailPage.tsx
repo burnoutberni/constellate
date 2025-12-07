@@ -8,6 +8,7 @@ import {
     useLikeEvent,
     useAddComment,
     useDeleteEvent,
+    useShareEvent,
 } from '../hooks/queries/events'
 import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
@@ -35,7 +36,7 @@ export function EventDetailPage() {
     const [username, setUsername] = useState<string>('')
     const [eventId, setEventId] = useState<string>('')
     const [signupModalOpen, setSignupModalOpen] = useState(false)
-    const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | null>(null)
+    const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | 'share' | null>(null)
     const [pendingRSVPStatus, setPendingRSVPStatus] = useState<string | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const [mentionQuery, setMentionQuery] = useState('')
@@ -43,6 +44,7 @@ export function EventDetailPage() {
     const [activeMentionIndex, setActiveMentionIndex] = useState(0)
     const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
     const [showMentionSuggestions, setShowMentionSuggestions] = useState(false)
+    const [hasShared, setHasShared] = useState(false)
 
     const resetMentionState = useCallback(() => {
         setMentionRange(null)
@@ -242,22 +244,26 @@ export function EventDetailPage() {
     const queryClient = useQueryClient()
     const rsvpMutation = useRSVP(eventId, user?.id)
     const likeMutation = useLikeEvent(eventId, user?.id)
+    const shareMutation = useShareEvent(eventId)
     const addCommentMutation = useAddComment(eventId)
     const deleteEventMutation = useDeleteEvent(eventId)
 
     // Derive user's attendance and like status from event data
-    const getUserAttendance = () => {
-        if (!event || !user) return null
-        return event.attendance?.find((a) => a.user.id === user.id)?.status || null
-    }
-
-    const getUserLiked = () => {
-        if (!event || !user) return false
-        return !!event.likes?.find((l) => l.user.id === user.id)
-    }
-
-    const userAttendance = getUserAttendance()
-    const userLiked = getUserLiked()
+    const userAttendance =
+        event && user
+            ? event.attendance?.find((a) => a.user.id === user.id)?.status || null
+            : null
+    const userLiked =
+        event && user
+            ? !!event.likes?.find((l) => l.user.id === user.id)
+            : false
+    
+    // Check if user has already shared this event
+    // This checks if the current event is a share by this user, or if the user has shared the original event
+    const displayedEventId = event?.sharedEvent?.id ?? event?.id
+    const userHasShared = event && user && displayedEventId
+        ? (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
+        : false
 
     const handleRSVP = async (status: string) => {
         if (!user) {
@@ -290,6 +296,25 @@ export function EventDetailPage() {
         }
     }
 
+    const handleShare = async () => {
+        if (!user) {
+            setPendingAction('share')
+            setSignupModalOpen(true)
+            return
+        }
+        try {
+            await shareMutation.mutateAsync()
+            setHasShared(true)
+        } catch (error) {
+            console.error('Share failed:', error)
+            let errorMessage = 'Failed to share event'
+            if (error instanceof Error) {
+                errorMessage = error.message
+            }
+            alert(errorMessage)
+        }
+    }
+
     const handleCommentSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!comment.trim()) return
@@ -310,25 +335,6 @@ export function EventDetailPage() {
         }
     }
 
-    const executePendingAction = async () => {
-        if (!pendingAction) return
-        try {
-            if (pendingAction === 'rsvp' && pendingRSVPStatus) {
-                await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
-            } else if (pendingAction === 'like') {
-                await likeMutation.mutateAsync(false)
-            } else if (pendingAction === 'comment' && comment.trim()) {
-                await addCommentMutation.mutateAsync({ content: comment })
-                setComment('')
-            }
-        } catch (error) {
-            console.error('Failed to perform action after signup:', error)
-        } finally {
-            setPendingAction(null)
-            setPendingRSVPStatus(null)
-        }
-    }
-
     const handleSignupSuccess = () => {
         // The pending action will be executed automatically by the useEffect
         // that watches for user and pendingAction changes
@@ -337,10 +343,33 @@ export function EventDetailPage() {
 
     useEffect(() => {
         if (user && pendingAction) {
-            const timer = setTimeout(executePendingAction, 100)
+            const executeAction = async () => {
+                try {
+                    if (pendingAction === 'rsvp' && pendingRSVPStatus) {
+                        await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
+                    } else if (pendingAction === 'like') {
+                        await likeMutation.mutateAsync(false) // false = like (not unlike)
+                    } else if (pendingAction === 'comment' && comment.trim()) {
+                        await addCommentMutation.mutateAsync({ content: comment })
+                        setComment('')
+                    } else if (pendingAction === 'share') {
+                        await shareMutation.mutateAsync()
+                        setHasShared(true)
+                    }
+                } catch (error) {
+                    console.error('Failed to perform action after signup:', error)
+                } finally {
+                    setPendingAction(null)
+                    setPendingRSVPStatus(null)
+                }
+            }
+
+            // Small delay to ensure mutations are ready
+            const timer = setTimeout(executeAction, 100)
             return () => clearTimeout(timer)
         }
-    }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation])
+    }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
+
 
     const handleDeleteComment = async (commentId: string) => {
         if (!user) return
@@ -417,10 +446,50 @@ export function EventDetailPage() {
         )
     }
 
+    const displayedEvent = event.sharedEvent ?? event
+    const originalOwner = event.sharedEvent?.user
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
-    const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
+    const visibilityMeta = getVisibilityMeta(displayedEvent.visibility as EventVisibility | undefined)
 
+    const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
+        const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
+        const selectedClass = 'btn-primary ring-2 ring-blue-600 ring-offset-2'
+        const authedClass = 'btn-secondary'
+        const guestClass = 'btn-secondary hover:bg-blue-50 border-blue-300'
+
+        if (userAttendance === status) {
+            return `${baseClass} ${selectedClass}`
+        }
+        if (user) {
+            return `${baseClass} ${authedClass}`
+        }
+        return `${baseClass} ${guestClass}`
+    }
+
+    const buildLikeButtonClass = () => {
+        const baseClass = 'btn flex-1'
+        if (userLiked) {
+            return `${baseClass} btn-primary ring-2 ring-red-600 ring-offset-2`
+        }
+        if (user) {
+            return `${baseClass} btn-secondary`
+        }
+        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
+    }
+
+    const buildShareButtonClass = () => {
+        const baseClass = 'btn flex-1'
+        if (hasShared || userHasShared) {
+            return `${baseClass} btn-primary ring-2 ring-indigo-600 ring-offset-2`
+        }
+        if (user) {
+            return `${baseClass} btn-secondary`
+        }
+        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
+    }
+
+    const guestTooltip = (message: string) => (!user ? message : undefined)
     const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
         if (!rsvpMutation.isPending) {
             return false
@@ -453,6 +522,18 @@ export function EventDetailPage() {
         return <>🤔 Maybe ({maybe})</>
     }
 
+    const renderShareButtonContent = () => {
+        if (shareMutation.isPending) {
+            return renderSpinner('Sharing...')
+        }
+
+        if (hasShared || userHasShared) {
+            return '✅ Shared'
+        }
+
+        return '🔁 Share'
+    }
+
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Navigation */}
@@ -467,6 +548,26 @@ export function EventDetailPage() {
                         </Link>
                         <div className="w-20" />
                     </div>
+
+                    {event.sharedEvent && originalOwner && (
+                        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                            <div className="flex items-center gap-2 font-semibold">
+                                <span>🔁</span>
+                                Shared from
+                                <Link
+                                    to={`/@${originalOwner.username}`}
+                                    className="text-blue-700 hover:underline"
+                                >
+                                    @{originalOwner.username}
+                                </Link>
+                            </div>
+                            {event.user && (
+                                <p className="mt-1 text-xs text-blue-800">
+                                    {event.user.name || event.user.username} reshared this event.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </nav>
 
@@ -516,7 +617,7 @@ export function EventDetailPage() {
 
                     {/* Event Title */}
                     <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <h1 className="text-3xl font-bold">{event.title}</h1>
+                        <h1 className="text-3xl font-bold">{displayedEvent.title}</h1>
                         <span className={`badge ${visibilityMeta.badgeClass}`}>
                             {visibilityMeta.icon} {visibilityMeta.label}
                         </span>
@@ -527,31 +628,31 @@ export function EventDetailPage() {
                     <div className="space-y-3 mb-6">
                         <div className="flex items-center gap-3 text-gray-700">
                             <span className="text-xl">📅</span>
-                            <span>{formatDate(event.startTime)}</span>
+                            <span>{formatDate(displayedEvent.startTime)}</span>
                         </div>
                         <div className="flex items-center gap-3 text-gray-700">
                             <span className="text-xl">🕐</span>
                             <span>
-                                {formatTime(event.startTime)}
-                                {event.endTime && ` - ${formatTime(event.endTime)}`}
+                                {formatTime(displayedEvent.startTime)}
+                                {displayedEvent.endTime && ` - ${formatTime(displayedEvent.endTime)}`}
                             </span>
                         </div>
-                        {event.location && (
+                        {displayedEvent.location && (
                             <div className="flex items-center gap-3 text-gray-700">
                                 <span className="text-xl">📍</span>
-                                <span>{event.location}</span>
+                                <span>{displayedEvent.location}</span>
                             </div>
                         )}
-                        {event.url && (
+                        {displayedEvent.url && (
                             <div className="flex items-center gap-3 text-gray-700">
                                 <span className="text-xl">🔗</span>
                                 <a
-                                    href={event.url}
+                                    href={displayedEvent.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:underline"
                                 >
-                                    {event.url}
+                                    {displayedEvent.url}
                                 </a>
                             </div>
                         )}
@@ -567,9 +668,9 @@ export function EventDetailPage() {
                     </div>
 
                     {/* Event Description */}
-                    {event.summary && (
+                    {displayedEvent.summary && (
                         <div className="mb-6">
-                            <p className="text-gray-700 text-lg">{event.summary}</p>
+                            <p className="text-gray-700 text-lg">{displayedEvent.summary}</p>
                         </div>
                     )}
 
@@ -592,14 +693,7 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('attending')}
                             disabled={rsvpMutation.isPending}
-                            className={(() => {
-                                if (userAttendance === 'attending') {
-                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
-                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildRsvpButtonClass('attending')}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('attending')}
@@ -607,14 +701,7 @@ export function EventDetailPage() {
                         <button
                             onClick={() => handleRSVP('maybe')}
                             disabled={rsvpMutation.isPending}
-                            className={(() => {
-                                if (userAttendance === 'maybe') {
-                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
-                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildRsvpButtonClass('maybe')}
                             title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('maybe')}
@@ -622,17 +709,18 @@ export function EventDetailPage() {
                         <button
                             onClick={handleLike}
                             disabled={likeMutation.isPending}
-                            className={(() => {
-                                if (userLiked) {
-                                    return 'btn flex-1 btn-primary ring-2 ring-red-600 ring-offset-2'
-                                }
-                                return user
-                                    ? 'btn flex-1 btn-secondary'
-                                    : 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
-                            })()}
+                            className={buildLikeButtonClass()}
                             title={!user ? 'Sign up to like this event' : ''}
                         >
                             ❤️ {event.likes?.length || 0}
+                        </button>
+                        <button
+                            onClick={handleShare}
+                            disabled={shareMutation.isPending || hasShared || userHasShared}
+                            className={buildShareButtonClass()}
+                            title={guestTooltip('Sign up to share this event')}
+                        >
+                            {renderShareButtonContent()}
                         </button>
                     </div>
                     {!user && (
@@ -808,7 +896,7 @@ export function EventDetailPage() {
                     setPendingAction(null)
                     setPendingRSVPStatus(null)
                 }}
-                action={pendingAction || undefined}
+                action={pendingAction && pendingAction !== 'share' ? pendingAction : undefined}
                 onSuccess={handleSignupSuccess}
             />
         </div>
