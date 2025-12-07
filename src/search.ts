@@ -40,7 +40,7 @@ const SearchSchema = z.object({
     limit: z.string().optional(),
 })
 
-const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
+export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
     const where: Record<string, unknown> = {}
 
     if (params.q) {

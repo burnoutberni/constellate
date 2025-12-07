@@ -18,18 +18,20 @@ vi.mock('nodemailer', () => ({
     })),
 }))
 
-// Mock config
-vi.mock('../../config.js', () => ({
-    config: {
-        smtp: {
-            host: 'smtp.example.com',
-            port: 587,
-            secure: false,
-            user: 'test@example.com',
-            pass: 'password',
-            from: 'noreply@example.com',
-        },
+// Mock config with mutable object for tests
+const mockConfig = {
+    smtp: {
+        host: 'smtp.example.com',
+        port: 587,
+        secure: false,
+        user: 'test@example.com',
+        pass: 'password',
+        from: 'noreply@example.com',
     },
+}
+
+vi.mock('../../config.js', () => ({
+    config: mockConfig,
 }))
 
 // Import after mocks
@@ -39,6 +41,7 @@ describe('Email Helper', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        mockConfig.smtp.host = 'smtp.example.com'
     })
 
     describe('sendEmail', () => {
@@ -89,6 +92,22 @@ describe('Email Helper', () => {
                     text: 'Test email body',
                 })
             ).rejects.toThrow('SMTP error')
+        })
+
+        it('should skip sending when SMTP host is missing', async () => {
+            mockConfig.smtp.host = ''
+            const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+            await sendEmail({
+                to: 'recipient@example.com',
+                subject: 'Test Subject',
+                text: 'Test email body',
+            })
+
+            expect(mockSendMail).not.toHaveBeenCalled()
+            expect(logSpy).toHaveBeenCalledWith('⚠️ SMTP not configured, skipping email sending')
+
+            logSpy.mockRestore()
         })
     })
 
