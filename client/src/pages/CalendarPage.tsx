@@ -163,6 +163,7 @@ export function CalendarPage() {
             }
         } catch (error) {
             console.error('Unable to add event to Google Calendar', error)
+            alert('Failed to add event to Google Calendar. Please try again.')
         } finally {
             setExportingEventId(null)
         }

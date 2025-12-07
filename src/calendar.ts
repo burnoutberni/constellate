@@ -71,6 +71,9 @@ function buildGoogleCalendarLink(event: {
     summary?: string | null
     url?: string | null
 }) {
+    if (!event.startTime) {
+        throw new Error('Event startTime is required')
+    }
     const { pageUrl, description } = getEventExportMetadata(event)
     const start = formatDateForGoogle(event.startTime)
     const end = formatDateForGoogle(event.endTime || event.startTime)
@@ -78,9 +81,7 @@ function buildGoogleCalendarLink(event: {
     const googleUrl = new URL('https://calendar.google.com/calendar/render')
     googleUrl.searchParams.set('action', 'TEMPLATE')
     googleUrl.searchParams.set('text', event.title)
-    if (start && end) {
-        googleUrl.searchParams.set('dates', `${start}/${end}`)
-    }
+    googleUrl.searchParams.set('dates', `${start}/${end}`)
     googleUrl.searchParams.set('details', description)
     if (event.location) {
         googleUrl.searchParams.set('location', event.location)

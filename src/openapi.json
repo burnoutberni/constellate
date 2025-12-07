@@ -2854,6 +2854,9 @@
                     },
                     "404": {
                         "description": "Event not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             }

@@ -181,6 +181,11 @@ describe('Calendar Export', () => {
             expect(googleUrl.hostname).toBe('calendar.google.com')
             expect(googleUrl.searchParams.get('text')).toBe(testEvent.title)
             expect(googleUrl.searchParams.get('details')).toContain(testEvent.summary)
+            expect(googleUrl.searchParams.get('action')).toBe('TEMPLATE')
+            expect(googleUrl.searchParams.get('dates')).toMatch(/^\d{8}T\d{6}Z\/\d{8}T\d{6}Z$/)
+            expect(googleUrl.searchParams.get('location')).toBe(testEvent.location)
+            expect(googleUrl.searchParams.get('trp')).toBe('false')
+            expect(googleUrl.searchParams.has('sprop')).toBe(true)
         })
 
         it('should return 404 for missing event when requesting Google export', async () => {
@@ -201,6 +206,26 @@ describe('Calendar Export', () => {
             expect(res.status).toBe(403)
             const text = await res.text()
             expect(text).toBe('Forbidden')
+        })
+
+        it('should generate Google Calendar link for event with minimal fields', async () => {
+            const minimalEvent = await prisma.event.create({
+                data: {
+                    title: 'Minimal Event',
+                    startTime: new Date('2024-01-01T10:00:00Z'),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${minimalEvent.id}/export/google`)
+
+            expect(res.status).toBe(200)
+            const data = await res.json()
+            const googleUrl = new URL(data.url)
+            expect(googleUrl.searchParams.get('text')).toBe('Minimal Event')
+            expect(googleUrl.searchParams.has('location')).toBe(false)
         })
     })
 
@@ -248,6 +273,21 @@ describe('Calendar Export', () => {
 
             // Restore
             prisma.event.findMany = originalFindMany
+        })
+
+        it('should handle database errors in Google Calendar export', async () => {
+            const { vi } = await import('vitest')
+            const originalFindUnique = prisma.event.findUnique
+            vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+            expect(res.status).toBe(500)
+            const text = await res.text()
+            expect(text).toBe('Internal server error')
+
+            // Restore
+            prisma.event.findUnique = originalFindUnique
         })
 
         it('should handle event without user in single export', async () => {
