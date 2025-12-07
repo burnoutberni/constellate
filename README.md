@@ -164,3 +164,9 @@ Constellate now supports recurring events for daily, weekly, and monthly schedul
 - `recurrenceEndDate`: ISO timestamp that indicates when the recurrence should stop
 
 Recurring events automatically expand on calendar views and are exported with RRULE metadata in iCal feeds.
+
+## Calendar Sync (WP-016)
+
+- iCal exports include canonical event URLs inside the description so calendar clients always preserve a link back to Constellate.
+- `GET /api/calendar/{id}/export/google` returns a ready-to-open Google Calendar link for any event, respecting the same visibility rules as iCal downloads.
+- The Calendar page now adds a per-event **Add to Google Calendar** action inside the Upcoming Events list so users can quickly push upcoming happenings to their personal calendar.

@@ -169,6 +169,41 @@ describe('Calendar Export', () => {
 
     })
 
+    describe('Google Calendar Export', () => {
+        it('should generate a Google Calendar link for an event', async () => {
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+            expect(res.status).toBe(200)
+            const data = await res.json()
+            const googleUrl = new URL(data.url)
+            expect(googleUrl.hostname).toBe('calendar.google.com')
+            expect(googleUrl.searchParams.get('text')).toBe(testEvent.title)
+            expect(googleUrl.searchParams.get('details')).toContain(testEvent.summary)
+        })
+
+        it('should return 404 for missing event when requesting Google export', async () => {
+            await prisma.event.delete({ where: { id: testEvent.id } })
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+            expect(res.status).toBe(404)
+            const text = await res.text()
+            expect(text).toBe('Event not found')
+        })
+
+        it('should return 403 when viewer cannot access Google export', async () => {
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+            expect(res.status).toBe(403)
+            const text = await res.text()
+            expect(text).toBe('Forbidden')
+        })
+    })
+
     describe('Error Handling', () => {
         it('should handle database errors in single event export', async () => {
             const { vi } = await import('vitest')
