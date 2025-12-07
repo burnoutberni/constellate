@@ -11,6 +11,22 @@ export interface EventUser {
 
 export type RecurrencePattern = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
+export type ReminderStatus = 'PENDING' | 'SENDING' | 'SENT' | 'FAILED' | 'CANCELLED'
+
+export interface EventReminder {
+    id: string
+    eventId: string
+    userId: string
+    minutesBeforeStart: number
+    status: ReminderStatus
+    remindAt: string
+    createdAt: string
+    updatedAt: string
+    deliveredAt?: string | null
+    lastAttemptAt?: string | null
+    failureReason?: string | null
+}
+
 export interface SharedEventSummary {
     id: string
     title: string
@@ -89,6 +105,7 @@ export interface EventDetail extends Event {
     }>
     comments: Array<CommentWithMentions>
     userHasShared?: boolean
+    viewerReminders?: EventReminder[]
 }
 
 export interface CommentMention {

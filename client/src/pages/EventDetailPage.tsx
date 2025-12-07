@@ -9,6 +9,7 @@ import {
     useAddComment,
     useDeleteEvent,
     useShareEvent,
+    useEventReminder,
 } from '../hooks/queries/events'
 import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
@@ -29,6 +30,16 @@ interface MentionSuggestion {
 const mentionTriggerRegex = /(^|[\s({[]])@([\w.-]+(?:@[\w.-]+)?)$/i
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
+const REMINDER_OPTIONS: Array<{ label: string; value: number | null }> = [
+    { label: 'No reminder', value: null },
+    { label: '5 minutes before', value: 5 },
+    { label: '15 minutes before', value: 15 },
+    { label: '30 minutes before', value: 30 },
+    { label: '1 hour before', value: 60 },
+    { label: '2 hours before', value: 120 },
+    { label: '1 day before', value: 1440 },
+]
+
 export function EventDetailPage() {
     const location = useLocation()
     const navigate = useNavigate()
@@ -39,6 +50,7 @@ export function EventDetailPage() {
     const [signupModalOpen, setSignupModalOpen] = useState(false)
     const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | 'share' | null>(null)
     const [pendingRSVPStatus, setPendingRSVPStatus] = useState<string | null>(null)
+    const [selectedReminder, setSelectedReminder] = useState<number | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const [mentionQuery, setMentionQuery] = useState('')
     const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
@@ -263,6 +275,7 @@ export function EventDetailPage() {
     const shareMutation = useShareEvent(eventId)
     const addCommentMutation = useAddComment(eventId)
     const deleteEventMutation = useDeleteEvent(eventId)
+    const reminderMutation = useEventReminder(eventId, username)
 
     // Derive user's attendance and like status from event data
     const userAttendance =
@@ -281,6 +294,12 @@ export function EventDetailPage() {
         ? (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
         : false
 
+    const activeReminderMinutes = event?.viewerReminders?.[0]?.minutesBeforeStart ?? null
+
+    useEffect(() => {
+        setSelectedReminder(activeReminderMinutes)
+    }, [activeReminderMinutes])
+
     const handleRSVP = async (status: string) => {
         if (!user) {
             setPendingAction('rsvp')
@@ -291,11 +310,38 @@ export function EventDetailPage() {
         try {
             if (userAttendance === status) {
                 await rsvpMutation.mutateAsync(null)
+                setSelectedReminder(null)
             } else {
-                await rsvpMutation.mutateAsync({ status })
+                await rsvpMutation.mutateAsync({ status, reminderMinutesBeforeStart: selectedReminder ?? null })
             }
         } catch (error) {
             console.error('RSVP failed:', error)
+        }
+    }
+
+    const handleReminderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextValue = e.target.value === '' ? null : Number(e.target.value)
+
+        if (!user) {
+            setPendingAction(null)
+            setSignupModalOpen(true)
+            return
+        }
+
+        if (!canManageReminder) {
+            setSelectedReminder(activeReminderMinutes)
+            alert('RSVP as Going or Maybe to enable reminders.')
+            return
+        }
+
+        const previousValue = selectedReminder
+        setSelectedReminder(nextValue)
+        try {
+            await reminderMutation.mutateAsync(nextValue)
+        } catch (error) {
+            console.error('Failed to update reminder:', error)
+            setSelectedReminder(previousValue ?? null)
+            alert('Failed to update reminder')
         }
     }
 
@@ -477,6 +523,9 @@ export function EventDetailPage() {
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
     const visibilityMeta = getVisibilityMeta(displayedEvent.visibility as EventVisibility | undefined)
+    const eventStartDate = new Date(displayedEvent.startTime)
+    const eventHasStarted = eventStartDate.getTime() <= Date.now()
+    const canManageReminder = Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe'))
 
     const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
         const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
@@ -760,6 +809,40 @@ export function EventDetailPage() {
                         <div className="mb-6 pb-4 border-b border-gray-200">
                             <p className="text-sm text-gray-500 text-center">
                                 💡 <Link to="/login" className="text-blue-600 hover:underline font-medium">Sign up</Link> to RSVP, like, and comment on events
+                            </p>
+                        </div>
+                    )}
+                    {!eventHasStarted && (
+                        <div className="mb-6 pb-4 border-b border-gray-200">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Reminder
+                            </label>
+                            <div className="flex items-center gap-3">
+                                <select
+                                    className="select flex-1"
+                                    value={selectedReminder !== null ? String(selectedReminder) : ''}
+                                    onChange={handleReminderChange}
+                                    disabled={!user || !canManageReminder || reminderMutation.isPending}
+                                >
+                                    {REMINDER_OPTIONS.map((option) => (
+                                        <option
+                                            key={option.label}
+                                            value={option.value !== null ? option.value : ''}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {reminderMutation.isPending && (
+                                    <span className="text-sm text-gray-500">Saving...</span>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                                {!user
+                                    ? 'Sign up to save reminder notifications.'
+                                    : canManageReminder
+                                        ? 'We will send reminder notifications and email (if configured).'
+                                        : 'RSVP as Going or Maybe to enable reminders.'}
                             </p>
                         </div>
                     )}

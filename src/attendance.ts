@@ -21,6 +21,8 @@ import { broadcast } from './realtime.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
+import { scheduleReminderForEvent, cancelReminderForEvent } from './services/reminders.js'
+import { AppError } from './lib/errors.js'
 
 const app = new Hono()
 
@@ -159,6 +161,7 @@ function buildAttendanceActivityForStatus(
 // Attendance validation schema
 const AttendanceSchema = z.object({
     status: z.enum(['attending', 'maybe', 'not_attending']),
+    reminderMinutesBeforeStart: z.number().int().optional().nullable(),
 })
 
 // Set or update attendance status
@@ -168,7 +171,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const { status } = AttendanceSchema.parse(body)
+        const { status, reminderMinutesBeforeStart } = AttendanceSchema.parse(body)
 
         const event = requireResource(
             (await prisma.event.findUnique({
@@ -223,6 +226,14 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
+        if (status === AttendanceStatus.NOT_ATTENDING) {
+            await cancelReminderForEvent(id, userId)
+        } else if (typeof reminderMinutesBeforeStart === 'number') {
+            await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
+        } else if (reminderMinutesBeforeStart === null) {
+            await cancelReminderForEvent(id, userId)
+        }
+
         return c.json(attendance)
     } catch (error) {
         if (error instanceof ZodError) {
@@ -230,6 +241,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         }
         if (error instanceof HttpError) {
             return c.json(error.body, error.status as HttpErrorStatus)
+        }
+        if (error instanceof AppError) {
+            return c.json({ error: error.code, message: error.message }, error.statusCode as HttpErrorStatus)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -293,10 +307,15 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
+        await cancelReminderForEvent(id, userId)
+
         return c.json({ success: true })
     } catch (error) {
         if (error instanceof HttpError) {
             return c.json(error.body, error.status as HttpErrorStatus)
+        }
+        if (error instanceof AppError) {
+            return c.json({ error: error.code, message: error.message }, error.statusCode as HttpErrorStatus)
         }
         console.error('Error removing attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)

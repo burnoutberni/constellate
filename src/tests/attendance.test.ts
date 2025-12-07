@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { broadcast } from '../realtime.js'
 import { deliverActivity } from '../services/ActivityDelivery.js'
 import { AttendanceStatus } from '../constants/activitypub.js'
+import { scheduleReminderForEvent, cancelReminderForEvent } from '../services/reminders.js'
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -40,6 +41,11 @@ vi.mock('../services/ActivityDelivery.js', () => ({
     deliverActivity: vi.fn(),
 }))
 
+vi.mock('../services/reminders.js', () => ({
+    scheduleReminderForEvent: vi.fn(),
+    cancelReminderForEvent: vi.fn(),
+}))
+
 vi.mock('../lib/activitypubHelpers.js', () => ({
     getBaseUrl: vi.fn(() => 'http://localhost:3000'),
 }))
@@ -61,11 +67,16 @@ describe('Attendance API', () => {
         externalId: null,
         attributedTo: 'http://localhost:3000/users/alice',
         user: mockUser,
+        startTime: new Date('2025-01-01T12:00:00Z'),
     }
 
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(requireAuth).mockReturnValue('user_123')
+        vi.mocked(scheduleReminderForEvent).mockReset()
+        vi.mocked(cancelReminderForEvent).mockReset()
+        vi.mocked(scheduleReminderForEvent).mockResolvedValue({})
+        vi.mocked(cancelReminderForEvent).mockResolvedValue(true)
     })
 
     describe('POST /:id/attend', () => {
@@ -161,6 +172,55 @@ describe('Attendance API', () => {
             expect(res.status).toBe(200)
             const body = await res.json() as { status: string }
             expect(body.status).toBe('not_attending')
+            expect(cancelReminderForEvent).toHaveBeenCalledWith('event_123', 'user_123')
+        })
+
+        it('schedules a reminder when reminderMinutesBeforeStart is provided', async () => {
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+                id: 'attendance_777',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: AttendanceStatus.ATTENDING,
+            } as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'attending',
+                    reminderMinutesBeforeStart: 30,
+                }),
+            })
+
+            expect(res.status).toBe(200)
+            expect(scheduleReminderForEvent).toHaveBeenCalledWith(mockEvent, 'user_123', 30)
+        })
+
+        it('cancels reminders when reminderMinutesBeforeStart is null', async () => {
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+                id: 'attendance_888',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: AttendanceStatus.ATTENDING,
+            } as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'attending',
+                    reminderMinutesBeforeStart: null,
+                }),
+            })
+
+            expect(res.status).toBe(200)
+            expect(cancelReminderForEvent).toHaveBeenCalledWith('event_123', 'user_123')
         })
 
         it('should return 404 when event not found', async () => {

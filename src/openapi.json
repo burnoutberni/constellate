@@ -545,6 +545,19 @@
                             "maybe",
                             "not_attending"
                         ]
+                    },
+                    "reminderMinutesBeforeStart": {
+                        "type": "integer",
+                        "nullable": true,
+                        "description": "Optional reminder offset in minutes before event start",
+                        "enum": [
+                            5,
+                            15,
+                            30,
+                            60,
+                            120,
+                            1440
+                        ]
                     }
                 }
             },
@@ -560,6 +573,79 @@
                         "maxLength": 5000
                     },
                     "inReplyToId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "ReminderRequest": {
+                "type": "object",
+                "required": [
+                    "minutesBeforeStart"
+                ],
+                "properties": {
+                    "minutesBeforeStart": {
+                        "type": "integer",
+                        "description": "Minutes before the event starts to send the reminder",
+                        "enum": [
+                            5,
+                            15,
+                            30,
+                            60,
+                            120,
+                            1440
+                        ]
+                    }
+                }
+            },
+            "EventReminder": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "eventId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "minutesBeforeStart": {
+                        "type": "integer"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PENDING",
+                            "SENDING",
+                            "SENT",
+                            "FAILED",
+                            "CANCELLED"
+                        ]
+                    },
+                    "remindAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deliveredAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastAttemptAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "failureReason": {
                         "type": "string",
                         "nullable": true
                     }
@@ -1747,6 +1833,187 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/events/{eventId}/reminders": {
+            "get": {
+                "tags": [
+                    "Reminders"
+                ],
+                "summary": "List reminder settings for the authenticated user",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reminder settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "reminders": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/EventReminder"
+                                            }
+                                        },
+                                        "options": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Reminders"
+                ],
+                "summary": "Create or update an event reminder",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReminderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reminder saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "reminder": {
+                                            "$ref": "#/components/schemas/EventReminder"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid reminder settings"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Reminders"
+                ],
+                "summary": "Remove the reminder for the authenticated user",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reminder removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/events/{eventId}/reminders/{reminderId}": {
+            "delete": {
+                "tags": [
+                    "Reminders"
+                ],
+                "summary": "Cancel a specific reminder",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reminderId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reminder cancelled",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "reminder": {
+                                            "$ref": "#/components/schemas/EventReminder"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Reminder not found"
                     }
                 }
             }

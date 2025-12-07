@@ -33,6 +33,7 @@ import {
     DAY_IN_MS,
 } from './lib/trending.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
+import { listEventRemindersForUser } from './services/reminders.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -701,6 +702,9 @@ app.get('/by-user/:username/:eventId', async (c) => {
             userHasShared = !!existingShare
         }
 
+        const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
+        const responseExtras = { userHasShared, viewerReminders }
+
         // If it's a remote event, fetch fresh data from the remote server and cache it
         if (isRemote && event.externalId) {
             try {
@@ -941,11 +945,11 @@ app.get('/by-user/:username/:eventId', async (c) => {
                             externalActorUrl: user.externalActorUrl,
                             isRemote: user.isRemote,
                         },
-                        userHasShared,
+                        ...responseExtras,
                     }
                     return c.json(eventWithUser)
                 }
-                return c.json({ ...updatedEvent, userHasShared })
+                return c.json({ ...updatedEvent, ...responseExtras })
             }
         }
 
@@ -962,12 +966,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     externalActorUrl: user.externalActorUrl,
                     isRemote: user.isRemote,
                 },
-                userHasShared,
+                ...responseExtras,
             }
             return c.json(eventWithUser)
         }
 
-        return c.json({ ...event, userHasShared })
+        return c.json({ ...event, ...responseExtras })
     } catch (error) {
         console.error('Error getting event by username:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -1086,7 +1090,9 @@ app.get('/:id', async (c) => {
             userHasShared = !!existingShare
         }
 
-        return c.json({ ...event, userHasShared })
+        const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
+
+        return c.json({ ...event, userHasShared, viewerReminders })
     } catch (error) {
         console.error('Error getting event:', error)
         return c.json({ error: 'Internal server error' }, 500)

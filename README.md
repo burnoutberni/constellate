@@ -41,6 +41,16 @@ Constellate comments now understand `@username` mentions:
 - **Event metadata:** Newly created and shared events automatically capture the creator's timezone so other viewers know where the times originate. Event detail pages render times in the viewer's preferred/device timezone and call out the source timezone for clarity.
 - **Calendar exports:** All `.ics` exports embed the correct `VTIMEZONE` definitions and tag each event with `TZID`, so calendar clients convert to the subscriber's locale without losing the original schedule.
 
+## Event Reminders (WP-015)
+
+- RSVP flows now include a reminder selector (Going/Maybe only). Supported offsets: 5, 15, 30, 60, 120 minutes and 24 hours before start.
+- API endpoints:
+  - `GET /api/events/:eventId/reminders` — returns the viewer's reminder plus the allowed offsets.
+  - `POST /api/events/:eventId/reminders` — sets or updates the reminder (`{ "minutesBeforeStart": 30 }`).
+  - `DELETE /api/events/:eventId/reminders` or `DELETE /api/events/:eventId/reminders/:reminderId` — cancels reminders.
+- RSVP payloads accept an optional `reminderMinutesBeforeStart` field so the frontend can create reminders in the same request as an attendance change.
+- `src/services/reminderDispatcher.ts` runs every ~30 seconds (in non-test environments) to pick up reminders whose `remindAt` timestamp passed, emit in-app notifications, and send emails via `src/lib/email.ts` when SMTP is configured.
+
 ## Development
 
 ### Using Docker (Recommended)
