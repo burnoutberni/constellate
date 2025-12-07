@@ -57,6 +57,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         tags: [] as string[],
     })
     const [tagInput, setTagInput] = useState('')
+    const [tagError, setTagError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [templates, setTemplates] = useState<EventTemplate[]>([])
     const [templatesLoading, setTemplatesLoading] = useState(false)
@@ -67,18 +68,34 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const [templateDescription, setTemplateDescription] = useState('')
 
     const addTag = useCallback(() => {
-        if (tagInput.trim()) {
-            const tag = normalizeTagInput(tagInput)
-            if (tag && tag.length <= MAX_TAG_LENGTH) {
-                setFormData(prev => {
-                    if (!prev.tags.includes(tag)) {
-                        return { ...prev, tags: [...prev.tags, tag] }
-                    }
-                    return prev
-                })
-                setTagInput('')
-            }
+        setTagError(null)
+        if (!tagInput.trim()) {
+            return
         }
+        
+        // Normalize first, then validate the normalized result
+        const tag = normalizeTagInput(tagInput)
+        
+        if (!tag) {
+            setTagError('Tag cannot be empty after normalization')
+            return
+        }
+        
+        // Validate length after normalization (backend enforces .max(50))
+        if (tag.length > MAX_TAG_LENGTH) {
+            setTagError(`Tag must be ${MAX_TAG_LENGTH} characters or less after normalization (currently ${tag.length} characters)`)
+            return
+        }
+        
+        setFormData(prev => {
+            if (!prev.tags.includes(tag)) {
+                setTagInput('')
+                return { ...prev, tags: [...prev.tags, tag] }
+            } else {
+                setTagError('This tag has already been added')
+                return prev
+            }
+        })
     }, [tagInput])
 
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
@@ -139,6 +156,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 tags: [],
             })
             setTagInput('')
+            setTagError(null)
             setSelectedTemplateId('')
             setSaveAsTemplate(false)
             setTemplateName('')
@@ -564,14 +582,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     <input
                                         type="text"
                                         value={tagInput}
-                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onChange={(e) => {
+                                            setTagInput(e.target.value)
+                                            setTagError(null)
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 e.preventDefault()
                                                 addTag()
                                             }
                                         }}
-                                        className="input flex-1"
+                                        className={`input flex-1 ${tagError ? 'border-red-500' : ''}`}
                                         placeholder="Add a tag (press Enter)"
                                     />
                                     <button
@@ -582,6 +603,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         Add
                                     </button>
                                 </div>
+                                {tagError && (
+                                    <p className="text-xs text-red-500">{tagError}</p>
+                                )}
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {formData.tags.map((tag) => (
