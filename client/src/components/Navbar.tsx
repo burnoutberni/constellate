@@ -1,14 +1,13 @@
 import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
-import { useUIStore } from '../stores'
+import { NotificationBell } from './NotificationBell'
 
 export function Navbar({ isConnected, user, onLogout }: {
   isConnected?: boolean
   user?: { name?: string; email?: string; id?: string } | null
   onLogout?: () => void
 }) {
-  const mentionCount = useUIStore((state) => state.mentionNotifications.length)
   // Check if current user is admin
   const { data: currentUserProfile } = useQuery({
     queryKey: ['current-user-profile', user?.id],
@@ -61,12 +60,7 @@ export function Navbar({ isConnected, user, onLogout }: {
                 <Link to="/followers/pending" className="text-sm text-gray-700 hover:text-gray-900">
                   Followers
                 </Link>
-                {mentionCount > 0 && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                    @ Mentions
-                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-white">{mentionCount}</span>
-                  </span>
-                )}
+                <NotificationBell userId={user?.id} />
                 <span className="text-sm text-gray-700">
                   👤 {user?.name || user?.email}
                 </span>

@@ -2377,7 +2377,6 @@ describe('Events API', () => {
             isDevSpy.mockRestore()
         })
 
-
         it('should handle when tags is not an array in create', async () => {
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
@@ -2458,7 +2457,6 @@ describe('Events API', () => {
             // Should fail Zod validation
             expect(res.status).toBe(400)
         })
-
     })
 
     afterEach(() => {
