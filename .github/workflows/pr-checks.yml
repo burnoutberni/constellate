@@ -192,11 +192,13 @@ jobs:
         run: npm run test:coverage
         if: steps.base_cache.outputs.cache-hit != 'true'
 
-      - name: Ensure coverage summary exists
+      - name: Verify coverage summary exists
         if: steps.base_cache.outputs.cache-hit != 'true'
         run: |
-          if [ ! -f "coverage/coverage-summary.json" ] && [ -f "coverage/coverage-final.json" ]; then
-            cp coverage/coverage-final.json coverage/coverage-summary.json
+          if [ ! -f "coverage/coverage-summary.json" ]; then
+            echo "❌ Error: coverage-summary.json not found. The json-summary reporter should generate this file."
+            echo "This indicates a problem with the test coverage generation."
+            exit 1
           fi
 
       - name: Use cached coverage file
@@ -253,14 +255,20 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Compare coverage
+      - name: Verify coverage files exist
         if: steps.check_base.outputs.exists == 'true'
         run: |
           for dir in coverage-pr coverage-base; do
-            if [ ! -f "$dir/coverage-summary.json" ] && [ -f "$dir/coverage-final.json" ]; then
-              cp "$dir/coverage-final.json" "$dir/coverage-summary.json"
+            if [ ! -f "$dir/coverage-summary.json" ]; then
+              echo "❌ Error: $dir/coverage-summary.json not found. The json-summary reporter should generate this file."
+              echo "This indicates a problem with the test coverage generation."
+              exit 1
             fi
           done
+
+      - name: Compare coverage
+        if: steps.check_base.outputs.exists == 'true'
+        run: |
           node scripts/compare-coverage.js coverage-pr/coverage-summary.json coverage-base/coverage-summary.json
         continue-on-error: false
 
