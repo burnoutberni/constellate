@@ -224,10 +224,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-
-      - name: Install root dependencies
-        run: npm ci
 
       - name: Download PR coverage
         uses: actions/download-artifact@v4
