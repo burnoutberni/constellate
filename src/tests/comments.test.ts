@@ -25,6 +25,7 @@ describe('Comments API', () => {
 
     beforeEach(async () => {
         // Clean up
+        await prisma.commentMention.deleteMany({})
         await prisma.comment.deleteMany({})
         await prisma.eventAttendance.deleteMany({})
         await prisma.eventLike.deleteMany({})
@@ -216,6 +217,56 @@ describe('Comments API', () => {
             const body = await res.json() as any
             expect(body.content).toBe('Reply comment')
             expect(body.inReplyToId).toBe(parentComment.id)
+        })
+
+        it('should record mentions and notify mentioned user', async () => {
+            const broadcastMock = realtime.broadcast as unknown as vi.Mock
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${testEvent.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: `Hello @${testUser2.username}, excited to see you there!`,
+                }),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.mentions).toHaveLength(1)
+            expect(body.mentions[0].user.username).toBe(testUser2.username)
+
+            const mentionRecords = await prisma.commentMention.findMany({
+                where: { commentId: body.id },
+            })
+            expect(mentionRecords).toHaveLength(1)
+            expect(mentionRecords[0].mentionedUserId).toBe(testUser2.id)
+
+            const mentionBroadcastCall = broadcastMock.mock.calls.find(
+                ([payload]) => payload.type === 'mention:received'
+            )
+            expect(mentionBroadcastCall).toBeTruthy()
+            expect(mentionBroadcastCall?.[0]).toMatchObject({
+                targetUserId: testUser2.id,
+                data: expect.objectContaining({
+                    commentId: body.id,
+                    eventId: testEvent.id,
+                }),
+            })
         })
 
         it('should return 400 when replying to invalid parent comment', async () => {

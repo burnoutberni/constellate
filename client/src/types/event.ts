@@ -44,19 +44,23 @@ export interface EventDetail extends Event {
     likes: Array<{
         user: EventUser
     }>
-    comments: Array<{
-        id: string
-        content: string
-        createdAt: string
-        author: EventUser
-        replies?: Array<{
-            id: string
-            content: string
-            createdAt: string
-            author: EventUser
-        }>
-    }>
+    comments: Array<CommentWithMentions>
     tags: Array<{
         tag: string
     }>
+}
+
+export interface CommentMention {
+    id: string
+    handle: string
+    user: EventUser
+}
+
+export interface CommentWithMentions {
+    id: string
+    content: string
+    createdAt: string
+    author: EventUser
+    mentions?: CommentMention[]
+    replies?: Array<CommentWithMentions>
 }

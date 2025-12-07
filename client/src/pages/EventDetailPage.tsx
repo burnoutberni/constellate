@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -14,6 +14,18 @@ import { SignupModal } from '../components/SignupModal'
 import { getVisibilityMeta } from '../lib/visibility'
 import type { EventVisibility } from '../types'
 import { getRecurrenceLabel } from '../lib/recurrence'
+import type { CommentMention } from '../types'
+
+interface MentionSuggestion {
+    id: string
+    username: string
+    name?: string | null
+    profileImage?: string | null
+    displayColor?: string | null
+}
+
+const mentionTriggerRegex = /(^|[\s({[]])@([\w.-]+(?:@[\w.-]+)?)$/i
+const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
 export function EventDetailPage() {
     const location = useLocation()
@@ -25,6 +37,151 @@ export function EventDetailPage() {
     const [signupModalOpen, setSignupModalOpen] = useState(false)
     const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | null>(null)
     const [pendingRSVPStatus, setPendingRSVPStatus] = useState<string | null>(null)
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+    const [mentionQuery, setMentionQuery] = useState('')
+    const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
+    const [activeMentionIndex, setActiveMentionIndex] = useState(0)
+    const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
+    const [showMentionSuggestions, setShowMentionSuggestions] = useState(false)
+
+    const resetMentionState = useCallback(() => {
+        setMentionRange(null)
+        setMentionQuery('')
+        setMentionSuggestions([])
+        setShowMentionSuggestions(false)
+        setActiveMentionIndex(0)
+    }, [])
+
+    const updateMentionState = useCallback(
+        (value: string, caretPosition: number) => {
+            if (caretPosition < 0) {
+                resetMentionState()
+                return
+            }
+
+            const textBeforeCaret = value.slice(0, caretPosition)
+            const match = textBeforeCaret.match(mentionTriggerRegex)
+
+            if (match && match[2]) {
+                const atIndex = textBeforeCaret.lastIndexOf('@')
+                if (atIndex >= 0) {
+                    setMentionRange({ start: atIndex, end: caretPosition })
+                    setMentionQuery(match[2])
+                    setShowMentionSuggestions(true)
+                    return
+                }
+            }
+
+            resetMentionState()
+        },
+        [resetMentionState]
+    )
+
+    const renderCommentContent = useCallback(
+        (commentId: string, text: string, mentions?: CommentMention[]) => {
+            if (!mentions || mentions.length === 0) {
+                return text
+            }
+
+            const mentionMap = new Map<string, CommentMention>()
+            mentions.forEach((mention) => {
+                const normalizedHandle = mention.handle?.startsWith('@')
+                    ? mention.handle.slice(1).toLowerCase()
+                    : mention.handle.toLowerCase()
+                mentionMap.set(normalizedHandle, mention)
+                mentionMap.set(mention.user.username.toLowerCase(), mention)
+            })
+
+            return text.split(mentionSplitRegex).map((part, index) => {
+                if (!part) {
+                    return null
+                }
+
+                if (part.startsWith('@')) {
+                    const normalized = part.slice(1).toLowerCase()
+                    const mention = mentionMap.get(normalized)
+
+                    if (mention) {
+                        return (
+                            <Link
+                                key={`${commentId}-mention-${index}`}
+                                to={`/@${mention.user.username}`}
+                                className="text-blue-600 font-medium hover:underline"
+                            >
+                                {part}
+                            </Link>
+                        )
+                    }
+                }
+
+                return (
+                    <span key={`${commentId}-text-${index}`}>
+                        {part}
+                    </span>
+                )
+            })
+        },
+        []
+    )
+
+    const applyMentionSuggestion = useCallback(
+        (suggestion: MentionSuggestion) => {
+            if (!mentionRange || !textareaRef.current) {
+                return
+            }
+
+            const currentValue = textareaRef.current.value
+            const before = currentValue.slice(0, mentionRange.start)
+            const after = currentValue.slice(mentionRange.end)
+            const insertion = `@${suggestion.username}`
+            const needsSpace = after.startsWith(' ') || after.length === 0 ? '' : ' '
+            const nextValue = `${before}${insertion}${needsSpace}${after}`
+
+            setComment(nextValue)
+            const newCaret = before.length + insertion.length + needsSpace.length
+
+            requestAnimationFrame(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.selectionStart = newCaret
+                    textareaRef.current.selectionEnd = newCaret
+                }
+            })
+
+            resetMentionState()
+        },
+        [mentionRange, resetMentionState]
+    )
+
+    const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value
+        setComment(value)
+        const caret = e.target.selectionStart ?? value.length
+        updateMentionState(value, caret)
+    }
+
+    const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (!showMentionSuggestions || mentionSuggestions.length === 0) {
+            return
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setActiveMentionIndex((prev) => (prev + 1) % mentionSuggestions.length)
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setActiveMentionIndex((prev) =>
+                prev === 0 ? mentionSuggestions.length - 1 : prev - 1
+            )
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (activeMentionIndex >= 0 && activeMentionIndex < mentionSuggestions.length) {
+                applyMentionSuggestion(mentionSuggestions[activeMentionIndex])
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault()
+            resetMentionState()
+        }
+    }
 
     // Extract username and eventId from pathname
     useEffect(() => {
@@ -37,6 +194,46 @@ export function EventDetailPage() {
             setEventId(extractedEventId)
         }
     }, [location.pathname])
+
+    useEffect(() => {
+        if (!mentionQuery || mentionQuery.length === 0) {
+            setMentionSuggestions([])
+            setShowMentionSuggestions(false)
+            return
+        }
+
+        const controller = new AbortController()
+        const timeout = setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `/api/user-search?q=${encodeURIComponent(mentionQuery)}&limit=5`,
+                    {
+                        credentials: 'include',
+                        signal: controller.signal,
+                    }
+                )
+
+                if (!response.ok) {
+                    return
+                }
+
+                const body = await response.json() as { users?: MentionSuggestion[] }
+                const suggestions = Array.isArray(body.users) ? body.users.slice(0, 5) : []
+                setMentionSuggestions(suggestions)
+                setActiveMentionIndex(0)
+                setShowMentionSuggestions(suggestions.length > 0)
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    console.error('Failed to load mention suggestions:', error)
+                }
+            }
+        }, 200)
+
+        return () => {
+            controller.abort()
+            clearTimeout(timeout)
+        }
+    }, [mentionQuery])
 
     // Fetch event
     const { data: event, isLoading } = useEventDetail(username, eventId)
@@ -104,6 +301,8 @@ export function EventDetailPage() {
         try {
             await addCommentMutation.mutateAsync({ content: comment })
             setComment('')
+            resetMentionState()
+            textareaRef.current?.focus()
         } catch (error) {
             console.error('Comment failed:', error)
         }
@@ -480,13 +679,70 @@ export function EventDetailPage() {
                         </div>
                     ) : (
                         <form onSubmit={handleCommentSubmit} className="mb-6">
-                            <textarea
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Add a comment..."
-                                className="textarea mb-3"
-                                rows={3}
-                            />
+                            <div className="relative mb-3">
+                                <textarea
+                                    ref={textareaRef}
+                                    value={comment}
+                                    onChange={handleCommentChange}
+                                    onKeyDown={handleCommentKeyDown}
+                                    onSelect={() => {
+                                        if (textareaRef.current) {
+                                            updateMentionState(
+                                                textareaRef.current.value,
+                                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                            )
+                                        }
+                                    }}
+                                    onClick={() => {
+                                        if (textareaRef.current) {
+                                            updateMentionState(
+                                                textareaRef.current.value,
+                                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                            )
+                                        }
+                                    }}
+                                    placeholder="Add a comment..."
+                                    className="textarea"
+                                    rows={3}
+                                />
+                                {showMentionSuggestions && mentionSuggestions.length > 0 && (
+                                    <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg">
+                                        {mentionSuggestions.map((suggestion, index) => {
+                                            const isActive = index === activeMentionIndex
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={suggestion.id}
+                                                    className={`flex w-full items-center gap-3 p-2 text-left transition-colors ${isActive ? 'bg-blue-50' : 'bg-white'}`}
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault()
+                                                        applyMentionSuggestion(suggestion)
+                                                    }}
+                                                >
+                                                    {suggestion.profileImage ? (
+                                                        <img
+                                                            src={suggestion.profileImage}
+                                                            alt={suggestion.name || suggestion.username}
+                                                            className="h-8 w-8 rounded-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold"
+                                                            style={{ backgroundColor: suggestion.displayColor || '#3b82f6' }}
+                                                        >
+                                                            {suggestion.name?.[0] || suggestion.username[0]?.toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-sm">{suggestion.name || suggestion.username}</span>
+                                                        <span className="text-xs text-gray-500">@{suggestion.username}</span>
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 type="submit"
                                 disabled={addCommentMutation.isPending || !comment.trim()}
@@ -523,7 +779,9 @@ export function EventDetailPage() {
                                                 </button>
                                             )}
                                         </div>
-                                        <p className="text-gray-700">{c.content}</p>
+                                        <p className="text-gray-700 break-words">
+                                            {renderCommentContent(c.id, c.content, c.mentions)}
+                                        </p>
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
                                         {new Date(c.createdAt).toLocaleString()}

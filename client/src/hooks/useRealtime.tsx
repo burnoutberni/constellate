@@ -25,9 +25,14 @@ interface EventDeleted extends BaseEvent {
     data: { eventId: string }
 }
 
+interface MentionReceived extends BaseEvent {
+    type: 'mention:received'
+    data: Record<string, unknown>
+}
 
 
-export type RealtimeEvent = EventCreated | EventUpdated | EventDeleted
+
+export type RealtimeEvent = EventCreated | EventUpdated | EventDeleted | MentionReceived
 
 interface UseRealtimeOptions {
     userId?: string
@@ -136,6 +141,12 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
         })
 
         eventSource.addEventListener('comment:deleted', (e) => {
+            const event = JSON.parse(e.data)
+            setLastEvent(event)
+            onEventRef.current?.(event)
+        })
+
+        eventSource.addEventListener('mention:received', (e) => {
             const event = JSON.parse(e.data)
             setLastEvent(event)
             onEventRef.current?.(event)
