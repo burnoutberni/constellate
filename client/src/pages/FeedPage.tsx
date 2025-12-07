@@ -163,41 +163,49 @@ export function FeedPage() {
                         {user && (
                             <div className="card p-4">
                                 <h2 className="font-bold text-lg mb-3">Recommended events</h2>
-                                {recommendationsLoading ? (
-                                    <div className="flex items-center justify-center py-4">
-                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
-                                    </div>
-                                ) : recommendedEvents.length === 0 ? (
-                                    <div className="text-sm text-gray-500 text-center py-4">
-                                        Attend, like, or follow to personalize this list.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {recommendedEvents.map((item) => (
-                                            <div
-                                                key={item.event.id}
-                                                onClick={() => handleEventClick(item.event)}
-                                                className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200"
-                                            >
-                                                <div className="font-medium text-sm text-gray-900 truncate">
-                                                    {item.event.title}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {new Date(item.event.startTime).toLocaleDateString('en-US', {
-                                                        month: 'short',
-                                                        day: 'numeric',
-                                                    })}
-                                                    {item.event.location && ` • ${item.event.location}`}
-                                                </div>
-                                                {item.reasons.length > 0 && (
-                                                    <div className="text-[11px] text-teal-700 mt-1">
-                                                        {item.reasons[0]}
-                                                    </div>
-                                                )}
+                                {(() => {
+                                    if (recommendationsLoading) {
+                                        return (
+                                            <div className="flex items-center justify-center py-4">
+                                                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                        )
+                                    }
+                                    if (recommendedEvents.length === 0) {
+                                        return (
+                                            <div className="text-sm text-gray-500 text-center py-4">
+                                                Attend, like, or follow to personalize this list.
+                                            </div>
+                                        )
+                                    }
+                                    return (
+                                        <div className="space-y-2">
+                                            {recommendedEvents.map((item) => (
+                                                <div
+                                                    key={item.event.id}
+                                                    onClick={() => handleEventClick(item.event)}
+                                                    className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200"
+                                                >
+                                                    <div className="font-medium text-sm text-gray-900 truncate">
+                                                        {item.event.title}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {new Date(item.event.startTime).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                        })}
+                                                        {item.event.location && ` • ${item.event.location}`}
+                                                    </div>
+                                                    {item.reasons.length > 0 && (
+                                                        <div className="text-[11px] text-teal-700 mt-1">
+                                                            {item.reasons[0]}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                })()}
                             </div>
                         )}
 

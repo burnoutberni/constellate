@@ -228,44 +228,52 @@ export function HomePage() {
                                         </span>
                                     )}
                                 </div>
-                                {recommendationsLoading ? (
-                                    <div className="flex items-center justify-center py-4">
-                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
-                                    </div>
-                                ) : recommendations.length === 0 ? (
-                                    <div className="text-center py-6 text-gray-500 text-sm">
-                                        Interact with events to train your recommendations.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {recommendations.map((item) => (
-                                            <button
-                                                key={item.event.id}
-                                                type="button"
-                                                onClick={() => handleEventClick(item.event)}
-                                                className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                                            >
-                                                <div className="font-semibold text-gray-900 flex items-center justify-between gap-2">
-                                                    <span className="truncate">{item.event.title}</span>
-                                                    <span className="text-xs text-gray-500">
-                                                        {formatDate(item.event.startTime)}
-                                                    </span>
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    {item.event.location || 'Online event'}
-                                                </div>
-                                                {item.reasons.length > 0 && (
-                                                    <div className="text-xs text-teal-700 mt-2">
-                                                        {item.reasons[0]}
-                                                        {item.reasons.length > 1 && (
-                                                            <span className="text-gray-500"> · +{item.reasons.length - 1} more</span>
-                                                        )}
+                                {(() => {
+                                    if (recommendationsLoading) {
+                                        return (
+                                            <div className="flex items-center justify-center py-4">
+                                                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                            </div>
+                                        )
+                                    }
+                                    if (recommendations.length === 0) {
+                                        return (
+                                            <div className="text-center py-6 text-gray-500 text-sm">
+                                                Interact with events to train your recommendations.
+                                            </div>
+                                        )
+                                    }
+                                    return (
+                                        <div className="space-y-3">
+                                            {recommendations.map((item) => (
+                                                <button
+                                                    key={item.event.id}
+                                                    type="button"
+                                                    onClick={() => handleEventClick(item.event)}
+                                                    className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                                >
+                                                    <div className="font-semibold text-gray-900 flex items-center justify-between gap-2">
+                                                        <span className="truncate">{item.event.title}</span>
+                                                        <span className="text-xs text-gray-500">
+                                                            {formatDate(item.event.startTime)}
+                                                        </span>
                                                     </div>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                                    <div className="text-sm text-gray-600">
+                                                        {item.event.location || 'Online event'}
+                                                    </div>
+                                                    {item.reasons.length > 0 && (
+                                                        <div className="text-xs text-teal-700 mt-2">
+                                                            {item.reasons[0]}
+                                                            {item.reasons.length > 1 && (
+                                                                <span className="text-gray-500"> · +{item.reasons.length - 1} more</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )
+                                })()}
                             </div>
                         )}
                         {/* Today's Events */}
