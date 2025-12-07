@@ -160,6 +160,8 @@ export function CalendarPage() {
             const data = await response.json()
             if (data?.url) {
                 window.open(data.url, '_blank', 'noopener,noreferrer')
+            } else {
+                throw new Error('No URL returned from server')
             }
         } catch (error) {
             console.error('Unable to add event to Google Calendar', error)
@@ -319,6 +321,7 @@ export function CalendarPage() {
                                                     </div>
                                                 )}
                                                 <button
+                                                    type="button"
                                                     onClick={() => handleAddToGoogleCalendar(event.id)}
                                                     className="btn btn-xs btn-outline mt-2"
                                                     aria-label={`Add ${event.title} to Google Calendar`}

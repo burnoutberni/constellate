@@ -227,6 +227,18 @@ describe('Calendar Export', () => {
             expect(googleUrl.searchParams.get('text')).toBe('Minimal Event')
             expect(googleUrl.searchParams.has('location')).toBe(false)
         })
+
+        it('should include canonical event URL in details parameter', async () => {
+            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+            expect(res.status).toBe(200)
+            const data = await res.json()
+            const googleUrl = new URL(data.url)
+            const details = googleUrl.searchParams.get('details')
+            expect(details).toContain(`/events/${testEvent.id}`)
+        })
     })
 
     describe('Error Handling', () => {
