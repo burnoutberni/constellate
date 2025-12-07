@@ -81,7 +81,8 @@ export function SearchBar() {
                 const data = await response.json()
                 const user = data.user
                 // Navigate to the resolved user's profile
-                navigate(`/@${user.username}`)
+                const profilePath = `/@${user.username}`
+                navigate(profilePath)
                 setQuery('')
                 setIsOpen(false)
             } else {
@@ -142,7 +143,8 @@ export function SearchBar() {
     const handleItemClick = (item: { type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }) => {
         if (item.type === 'user') {
             const user = item.data as User
-            navigate(`/@${user.username}`)
+            const profilePath = `/@${user.username}`
+            navigate(profilePath)
         } else if (item.type === 'event') {
             const event = item.data as Event
             const username = event.user?.username

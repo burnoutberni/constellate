@@ -29,6 +29,10 @@ export interface Event {
     recurrencePattern?: RecurrencePattern | null
     recurrenceEndDate?: string | null
     originalEventId?: string | null
+    tags: Array<{
+        id: string
+        tag: string
+    }>
     _count?: {
         attendance: number
         likes: number
@@ -36,6 +40,10 @@ export interface Event {
     }
 }
 
+/**
+ * EventDetail extends Event and includes all fields from Event (including tags, _count, etc.)
+ * plus additional detail fields like attendance, likes, and comments.
+ */
 export interface EventDetail extends Event {
     attendance: Array<{
         status: string
@@ -45,9 +53,6 @@ export interface EventDetail extends Event {
         user: EventUser
     }>
     comments: Array<CommentWithMentions>
-    tags: Array<{
-        tag: string
-    }>
 }
 
 export interface CommentMention {

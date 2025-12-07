@@ -29,6 +29,10 @@ export interface FeedActivity {
             name: string | null
             displayColor: string
         } | null
+        tags: Array<{
+            id: string
+            tag: string
+        }>
     }
     data?: Record<string, unknown>
 }
@@ -120,6 +124,10 @@ function buildEventSummary(event: {
     startTime: Date
     location: string | null
     user: FeedActivity['event']['user']
+    tags: Array<{
+        id: string
+        tag: string
+    }>
 }) {
     return {
         id: event.id,
@@ -127,6 +135,7 @@ function buildEventSummary(event: {
         startTime: event.startTime.toISOString(),
         location: event.location,
         user: event.user,
+        tags: event.tags,
     }
 }
 
@@ -175,6 +184,7 @@ async function fetchLikeActivities(followedUserIds: string[], viewerId: string) 
                             displayColor: true,
                         },
                     },
+                    tags: true,
                 },
             },
         },
@@ -226,6 +236,7 @@ async function fetchRsvpActivities(followedUserIds: string[], viewerId: string) 
                             displayColor: true,
                         },
                     },
+                    tags: true,
                 },
             },
         },
@@ -277,6 +288,7 @@ async function fetchCommentActivities(followedUserIds: string[], viewerId: strin
                             displayColor: true,
                         },
                     },
+                    tags: true,
                 },
             },
         },
@@ -318,6 +330,7 @@ async function fetchNewEventActivities(followedUserIds: string[], viewerId: stri
                     profileImage: true,
                 },
             },
+            tags: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 50,

@@ -246,14 +246,18 @@ export function EventDetailPage() {
     const deleteEventMutation = useDeleteEvent(eventId)
 
     // Derive user's attendance and like status from event data
-    const userAttendance =
-        event && user
-            ? event.attendance?.find((a) => a.user.id === user.id)?.status || null
-            : null
-    const userLiked =
-        event && user
-            ? !!event.likes?.find((l) => l.user.id === user.id)
-            : false
+    const getUserAttendance = () => {
+        if (!event || !user) return null
+        return event.attendance?.find((a) => a.user.id === user.id)?.status || null
+    }
+
+    const getUserLiked = () => {
+        if (!event || !user) return false
+        return !!event.likes?.find((l) => l.user.id === user.id)
+    }
+
+    const userAttendance = getUserAttendance()
+    const userLiked = getUserLiked()
 
     const handleRSVP = async (status: string) => {
         if (!user) {
@@ -263,11 +267,9 @@ export function EventDetailPage() {
             return
         }
         try {
-            // If clicking the same status, remove attendance (toggle off)
             if (userAttendance === status) {
                 await rsvpMutation.mutateAsync(null)
             } else {
-                // Set or change attendance
                 await rsvpMutation.mutateAsync({ status })
             }
         } catch (error) {
@@ -308,37 +310,34 @@ export function EventDetailPage() {
         }
     }
 
-    // Handle successful signup - perform the pending action
-    const handleSignupSuccess = async () => {
+    const executePendingAction = async () => {
         if (!pendingAction) return
-
-        // The modal will close, and we'll wait for user state to update
-        // The useEffect below will handle executing the action
+        try {
+            if (pendingAction === 'rsvp' && pendingRSVPStatus) {
+                await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
+            } else if (pendingAction === 'like') {
+                await likeMutation.mutateAsync(false)
+            } else if (pendingAction === 'comment' && comment.trim()) {
+                await addCommentMutation.mutateAsync({ content: comment })
+                setComment('')
+            }
+        } catch (error) {
+            console.error('Failed to perform action after signup:', error)
+        } finally {
+            setPendingAction(null)
+            setPendingRSVPStatus(null)
+        }
     }
 
-    // Execute pending action when user becomes available
+    const handleSignupSuccess = () => {
+        // The pending action will be executed automatically by the useEffect
+        // that watches for user and pendingAction changes
+        // This callback is called after successful signup/login
+    }
+
     useEffect(() => {
         if (user && pendingAction) {
-            const executeAction = async () => {
-                try {
-                    if (pendingAction === 'rsvp' && pendingRSVPStatus) {
-                        await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
-                    } else if (pendingAction === 'like') {
-                        await likeMutation.mutateAsync(false) // false = like (not unlike)
-                    } else if (pendingAction === 'comment' && comment.trim()) {
-                        await addCommentMutation.mutateAsync({ content: comment })
-                        setComment('')
-                    }
-                } catch (error) {
-                    console.error('Failed to perform action after signup:', error)
-                } finally {
-                    setPendingAction(null)
-                    setPendingRSVPStatus(null)
-                }
-            }
-
-            // Small delay to ensure mutations are ready
-            const timer = setTimeout(executeAction, 100)
+            const timer = setTimeout(executePendingAction, 100)
             return () => clearTimeout(timer)
         }
     }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation])
@@ -422,33 +421,6 @@ export function EventDetailPage() {
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
     const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
 
-    const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
-        const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
-        const selectedClass = 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-        const authedClass = 'btn-secondary'
-        const guestClass = 'btn-secondary hover:bg-blue-50 border-blue-300'
-
-        if (userAttendance === status) {
-            return `${baseClass} ${selectedClass}`
-        }
-        if (user) {
-            return `${baseClass} ${authedClass}`
-        }
-        return `${baseClass} ${guestClass}`
-    }
-
-    const buildLikeButtonClass = () => {
-        const baseClass = 'btn flex-1'
-        if (userLiked) {
-            return `${baseClass} btn-primary ring-2 ring-red-600 ring-offset-2`
-        }
-        if (user) {
-            return `${baseClass} btn-secondary`
-        }
-        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
-    }
-
-    const guestTooltip = (message: string) => (!user ? message : undefined)
     const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
         if (!rsvpMutation.isPending) {
             return false
@@ -601,29 +573,64 @@ export function EventDetailPage() {
                         </div>
                     )}
 
+                    {/* Tags */}
+                    {event.tags && event.tags.length > 0 && (
+                        <div className="mb-6 flex flex-wrap gap-2">
+                            {event.tags.map((tag) => (
+                                <span
+                                    key={tag.id}
+                                    className="badge badge-primary"
+                                >
+                                    #{tag.tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
                     {/* RSVP Buttons */}
                     <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
                         <button
                             onClick={() => handleRSVP('attending')}
                             disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('attending')}
-                            title={guestTooltip('Sign up to RSVP')}
+                            className={(() => {
+                                if (userAttendance === 'attending') {
+                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
+                                }
+                                return user
+                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
+                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('attending')}
                         </button>
                         <button
                             onClick={() => handleRSVP('maybe')}
                             disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('maybe')}
-                            title={guestTooltip('Sign up to RSVP')}
+                            className={(() => {
+                                if (userAttendance === 'maybe') {
+                                    return 'btn flex-1 flex items-center justify-center gap-2 btn-primary ring-2 ring-blue-600 ring-offset-2'
+                                }
+                                return user
+                                    ? 'btn flex-1 flex items-center justify-center gap-2 btn-secondary'
+                                    : 'btn flex-1 flex items-center justify-center gap-2 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to RSVP' : ''}
                         >
                             {renderRsvpButtonContent('maybe')}
                         </button>
                         <button
                             onClick={handleLike}
                             disabled={likeMutation.isPending}
-                            className={buildLikeButtonClass()}
-                            title={guestTooltip('Sign up to like this event')}
+                            className={(() => {
+                                if (userLiked) {
+                                    return 'btn flex-1 btn-primary ring-2 ring-red-600 ring-offset-2'
+                                }
+                                return user
+                                    ? 'btn flex-1 btn-secondary'
+                                    : 'btn flex-1 btn-secondary hover:bg-blue-50 border-blue-300'
+                            })()}
+                            title={!user ? 'Sign up to like this event' : ''}
                         >
                             ❤️ {event.likes?.length || 0}
                         </button>

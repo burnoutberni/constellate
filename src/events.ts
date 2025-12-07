@@ -13,8 +13,11 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
+import { normalizeTags } from './lib/tags.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
+import { handleError } from './lib/errors.js'
+import { config } from './config.js'
 import type { Event } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 
@@ -92,6 +95,7 @@ const EventSchema = z.object({
     visibility: VisibilitySchema.optional(),
     recurrencePattern: RecurrencePatternEnum.optional().nullable(),
     recurrenceEndDate: z.string().datetime().optional().nullable(),
+    tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
 })
 
 // Create event
@@ -105,7 +109,7 @@ app.post('/', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.parse(body)
-        const { visibility: requestedVisibility, ...eventInput } = validatedData
+        const { visibility: requestedVisibility } = validatedData
         const visibility = requestedVisibility ?? 'PUBLIC'
 
         const startTime = new Date(validatedData.startTime)
@@ -128,23 +132,56 @@ app.post('/', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
+        // Extract tags from validated data
+        const { tags } = validatedData
+
+        // Normalize tags and only create if there are valid tags after normalization
+        let tagsToCreate: Array<{ tag: string }> | undefined = undefined
+        if (tags && Array.isArray(tags) && tags.length > 0) {
+            try {
+                const normalizedTags = normalizeTags(tags)
+                if (normalizedTags && normalizedTags.length > 0) {
+                    tagsToCreate = normalizedTags.map(tag => ({ tag }))
+                }
+            } catch (error) {
+                console.error('Error normalizing tags:', error)
+                // Return validation error when tag normalization fails
+                return c.json({ 
+                    error: 'VALIDATION_ERROR', 
+                    message: 'Failed to process tags: ensure tags are valid strings',
+                    details: config.isDevelopment ? { originalError: String(error) } : undefined
+                }, 400)
+            }
+        }
+
         // Create event with sanitized input
         const event = await prisma.event.create({
             data: {
-                ...eventInput,
                 title: sanitizeText(validatedData.title),
                 summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
                 location: validatedData.location ? sanitizeText(validatedData.location) : null,
+                headerImage: validatedData.headerImage || null,
+                url: validatedData.url || null,
                 startTime,
                 endTime,
+                duration: validatedData.duration || null,
+                eventStatus: validatedData.eventStatus || null,
+                eventAttendanceMode: validatedData.eventAttendanceMode || null,
+                maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null,
                 userId,
                 attributedTo: actorUrl,
                 visibility,
                 recurrencePattern,
                 recurrenceEndDate,
+                ...(tagsToCreate && tagsToCreate.length > 0 ? {
+                    tags: {
+                        create: tagsToCreate,
+                    },
+                } : {}),
             },
             include: {
                 user: true,
+                tags: true,
             },
         })
 
@@ -193,11 +230,8 @@ app.post('/', moderateRateLimit, async (c) => {
 
         return c.json(event, 201)
     } catch (error) {
-        if (error instanceof ZodError) {
-            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
-        }
         console.error('Error creating event:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -281,6 +315,7 @@ app.get('/', async (c) => {
                     profileImage: true,
                 },
             },
+            tags: true,
             _count: {
                 select: {
                     attendance: true,
@@ -393,6 +428,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                         isRemote: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -748,6 +784,7 @@ app.get('/:id', async (c) => {
                         externalActorUrl: true,
                     },
                 },
+                tags: true,
                 attendance: {
                     include: {
                         user: {
@@ -827,7 +864,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = EventSchema.partial().parse(body)
-        const { visibility: requestedVisibility, ...eventInput } = validatedData
+        const { visibility: requestedVisibility } = validatedData
 
         // Check ownership
         const existingEvent = await prisma.event.findUnique({
@@ -861,18 +898,24 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
 
+        // Extract tags from validated data
+        const { tags } = validatedData
+        let normalizedTags: string[] | undefined
+
         // Update event with sanitized input
         const updateData: Record<string, unknown> = {
-            ...eventInput,
-            title: validatedData.title ? sanitizeText(validatedData.title) : undefined,
-            summary: validatedData.summary ? sanitizeText(validatedData.summary) : undefined,
-            location: validatedData.location ? sanitizeText(validatedData.location) : undefined,
-            startTime: validatedData.startTime ? new Date(validatedData.startTime) : undefined,
-            endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
-        }
-
-        if (requestedVisibility) {
-            updateData.visibility = requestedVisibility
+            ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
+            ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
+            ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
+            ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
+            ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
+            ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
+            ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
+            ...(validatedData.duration !== undefined && { duration: validatedData.duration ? validatedData.duration : null }),
+            ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus ? validatedData.eventStatus : null }),
+            ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
+            ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
+            ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
         }
 
         if (validatedData.recurrencePattern !== undefined) {
@@ -882,22 +925,88 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.recurrenceEndDate = nextRecurrenceEndDate
         }
 
-        const event = await prisma.event.update({
-            where: { id },
-            data: updateData,
-            include: {
-                user: true,
-            },
+        // Update tags if provided
+        if (tags !== undefined) {
+            try {
+                normalizedTags = Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
+            } catch (error) {
+                console.error('Error normalizing tags in update:', error)
+                // Return validation error when tag normalization fails (consistent with create)
+                return c.json({ 
+                    error: 'VALIDATION_ERROR', 
+                    message: 'Failed to process tags: ensure tags are valid strings',
+                    details: config.isDevelopment ? { originalError: String(error) } : undefined
+                }, 400)
+            }
+        }
+
+        const event = await prisma.$transaction(async (tx) => {
+            // If updateData is empty (only tags being updated), explicitly update updatedAt
+            // to trigger the timestamp update
+            let finalUpdateData = updateData
+            if (Object.keys(updateData).length === 0) {
+                finalUpdateData = { updatedAt: new Date() }
+            }
+            
+            const updatedEvent = await tx.event.update({
+                where: { id },
+                data: finalUpdateData,
+                include: {
+                    user: true,
+                    tags: true,
+                },
+            })
+
+            if (normalizedTags === undefined) {
+                return updatedEvent
+            }
+
+            await tx.eventTag.deleteMany({
+                where: { eventId: id },
+            })
+
+            if (normalizedTags.length > 0) {
+                await tx.eventTag.createMany({
+                    data: normalizedTags.map(tag => ({
+                        eventId: id,
+                        tag,
+                    })),
+                })
+            }
+
+            const refreshedEvent = await tx.event.findUnique({
+                where: { id },
+                include: {
+                    user: true,
+                    tags: true,
+                },
+            })
+
+            return refreshedEvent ?? updatedEvent
         })
+
+        if (!event) {
+            console.error('Failed to retrieve updated event after transaction', { eventId: id, userId })
+            return c.json({ error: 'Internal server error' }, 500)
+        }
 
         // Build and deliver Update activity
         // Ensure event object includes user property for activity builder
+        if (!event.user) {
+            throw new Error('Event missing user data - data integrity issue')
+        }
         const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
         const addressing = buildAddressingFromActivity(activity)
         await deliverActivity(activity, addressing, userId)
 
         const { broadcast, BroadcastEvents } = await import('./realtime.js')
         const broadcastTarget = getBroadcastTarget(event.visibility, userId)
+        
+        // These fields should always exist on an event from the database
+        if (!event.startTime || !event.createdAt || !event.updatedAt) {
+            throw new Error('Event missing required timestamp fields')
+        }
+        
         await broadcast({
             type: BroadcastEvents.EVENT_UPDATED,
             data: {

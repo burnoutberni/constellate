@@ -2,7 +2,7 @@
  * Tests for Event Management
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
@@ -11,6 +11,8 @@ import * as activityBuilder from '../services/ActivityBuilder.js'
 import * as activityDelivery from '../services/ActivityDelivery.js'
 import * as realtime from '../realtime.js'
 import * as authModule from '../auth.js'
+import * as tagsModule from '../lib/tags.js'
+import { config as appConfig } from '../config.js'
 
 // Mock dependencies
 vi.mock('../services/ActivityBuilder.js')
@@ -24,6 +26,7 @@ describe('Events API', () => {
 
     beforeEach(async () => {
         // Clean up
+        await prisma.eventTag.deleteMany({})
         await prisma.eventAttendance.deleteMany({})
         await prisma.eventLike.deleteMany({})
         await prisma.comment.deleteMany({})
@@ -643,8 +646,1230 @@ describe('Events API', () => {
 
     })
 
-    
+    describe('Event Tags', () => {
+        it('should create event with tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
 
-    
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Tagged Event',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'concert', 'live'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('music')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('concert')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('live')
+        })
+
+        it('should normalize tags to lowercase', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Tagged Event',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['MUSIC', 'ConCert', 'LIVE'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert', 'live'])
+        })
+
+        it('should remove # prefix from tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Tagged Event',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['#music', '#concert', '#live'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert', 'live'])
+        })
+
+        it('should include tags when listing events', async () => {
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Tagged Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [
+                            { tag: 'music' },
+                            { tag: 'concert' },
+                        ],
+                    },
+                },
+            })
+
+            const res = await app.request('/api/events')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
+            expect(foundEvent).toBeDefined()
+            expect(foundEvent.tags).toBeDefined()
+            expect(Array.isArray(foundEvent.tags)).toBe(true)
+            expect(foundEvent.tags.length).toBe(2)
+        })
+
+        it('should include tags when getting event by ID', async () => {
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Tagged Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [
+                            { tag: 'music' },
+                            { tag: 'concert' },
+                        ],
+                    },
+                },
+            })
+
+            const res = await app.request(`/api/events/${event.id}`)
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('music')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('concert')
+        })
+
+        it('should update event tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Tagged Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [
+                            { tag: 'music' },
+                            { tag: 'concert' },
+                        ],
+                    },
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const updateData = {
+                tags: ['music', 'festival', 'summer'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('music')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('festival')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('summer')
+            expect(body.tags.map((t: { tag: string }) => t.tag)).not.toContain('concert')
+        })
+
+        it('should handle empty tags array', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event Without Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: [],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+        it('should handle missing tags field', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event Without Tags Field',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+        })
+
+        it('should reject tags exceeding max length (50 chars)', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Long Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['a'.repeat(51)], // 51 characters, exceeds max of 50
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject empty string tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Empty Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: [''], // Empty string should fail validation
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject non-string values in tags array', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Invalid Tag',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: [123, 'music'], // Non-string value should fail validation
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject tags array with non-array value', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const eventData = {
+                title: 'Event With Invalid Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: 'not-an-array', // Should be array, not string
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should trim whitespace from tags', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event With Whitespace Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['  music  ', '  concert  ', '  live  '],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(3)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert', 'live'])
+        })
+
+        it('should remove duplicate tags after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const eventData = {
+                title: 'Event With Duplicate Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'MUSIC', '#music', '  music  ', 'concert'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert'])
+        })
+
+        it('should filter out tags that become empty after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Note: Empty strings are rejected by Zod validation before normalization
+            // So we test with tags that become empty after normalization (whitespace-only)
+            const eventData = {
+                title: 'Event With Empty Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', '   ', 'concert'], // Whitespace-only tags become empty after normalization
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['music', 'concert'])
+        })
+
+        it('should update event with only tags (no other fields)', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Original Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [{ tag: 'music' }],
+                    },
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const updateData = {
+                tags: ['festival', 'summer'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags.length).toBe(2)
+            expect(body.tags.map((t: { tag: string }) => t.tag)).toEqual(['festival', 'summer'])
+            // Verify updatedAt was updated even though no other fields changed
+            expect(new Date(body.updatedAt).getTime()).toBeGreaterThan(new Date(event.updatedAt).getTime())
+        })
+
+        it('should remove all tags when updating with empty array', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Tagged Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    tags: {
+                        create: [{ tag: 'music' }, { tag: 'concert' }],
+                    },
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+
+            const updateData = {
+                tags: [],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+        it('should reject tags exceeding max length during update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const updateData = {
+                tags: ['a'.repeat(51)], // 51 characters, exceeds max of 50
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should reject empty string tags during update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const updateData = {
+                tags: [''], // Empty string should fail validation
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+        })
+
+        it('should create event when all tags become empty after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // All tags become empty after normalization (only # and whitespace)
+            const eventData = {
+                title: 'Event With All Empty Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['#', '##', '   ', '\t', '\n'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+        it('should handle when tags is falsy (0) in create', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Tags is 0 (falsy) - should skip tag processing, but Zod will reject this
+            // So this tests the validation branch, not the tags && branch
+            const eventData = {
+                title: 'Event Without Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: 0 as any,
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            // Should fail validation since tags must be an array
+            expect(res.status).toBe(400)
+        })
+
+        it('should handle when tags is undefined in create', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Tags is undefined - should skip tag processing
+            const eventData = {
+                title: 'Event Without Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+        it('should handle when normalizedTags is falsy after normalization', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Tags that all become empty - normalizedTags.length === 0
+            const eventData = {
+                title: 'Event With Empty Normalized Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['#', '##', '###'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            // Should not create tags since normalizedTags.length === 0
+            expect(body.tags).toBeDefined()
+            expect(Array.isArray(body.tags)).toBe(true)
+            expect(body.tags.length).toBe(0)
+        })
+
+
+        it('should handle error when normalizeTags throws in create', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const eventData = {
+                title: 'Event With Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In development mode, should include error details
+            if (appConfig.isDevelopment) {
+                expect(body.details).toBeDefined()
+                expect(body.details.originalError).toBeDefined()
+            }
+
+            normalizeTagsSpy.mockRestore()
+        })
+
+        it('should handle error when normalizeTags throws in create (production mode)', async () => {
+            // Mock production mode
+            const isDevSpy = vi.spyOn(appConfig, 'isDevelopment', 'get').mockReturnValue(false)
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const eventData = {
+                title: 'Event With Tags',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In production mode, should NOT include error details
+            expect(body.details).toBeUndefined()
+
+            normalizeTagsSpy.mockRestore()
+            isDevSpy.mockRestore()
+        })
+
+        it('should handle error when normalizeTags throws in update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const updateData = {
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In development mode, should include error details
+            if (appConfig.isDevelopment) {
+                expect(body.details).toBeDefined()
+                expect(body.details.originalError).toBeDefined()
+            }
+
+            normalizeTagsSpy.mockRestore()
+        })
+
+        it('should handle error when normalizeTags throws in update (production mode)', async () => {
+            // Mock production mode
+            const isDevSpy = vi.spyOn(appConfig, 'isDevelopment', 'get').mockReturnValue(false)
+
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Mock normalizeTags to throw an error
+            const normalizeTagsSpy = vi.spyOn(tagsModule, 'normalizeTags').mockImplementation(() => {
+                throw new Error('Normalization failed')
+            })
+
+            const updateData = {
+                tags: ['music', 'concert'],
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBe('VALIDATION_ERROR')
+            expect(body.message).toBe('Failed to process tags: ensure tags are valid strings')
+            
+            // In production mode, should NOT include error details
+            expect(body.details).toBeUndefined()
+
+            normalizeTagsSpy.mockRestore()
+            isDevSpy.mockRestore()
+        })
+
+
+        it('should handle when tags is not an array in create', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
+                type: 'Create',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            // Tags is not an array - should fail validation before reaching normalization
+            const eventData = {
+                title: 'Event',
+                startTime: new Date(Date.now() + 86400000).toISOString(),
+                tags: 'not-an-array',
+            }
+
+            const res = await app.request('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+
+            // Should fail Zod validation
+            expect(res.status).toBe(400)
+        })
+
+        it('should handle when tags is not an array in update', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Tags is not an array - should use empty array branch
+            const updateData = {
+                tags: 'not-an-array',
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            // Should fail Zod validation
+            expect(res.status).toBe(400)
+        })
+
+    })
+
+    afterEach(() => {
+        // Restore all mocks and spies to prevent test isolation issues
+        vi.restoreAllMocks()
+    })
 })
 
