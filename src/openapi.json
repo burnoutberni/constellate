@@ -64,6 +64,10 @@
             "description": "User notifications and inbox"
         },
         {
+            "name": "Recommendations",
+            "description": "Personalized event suggestions"
+        },
+        {
             "name": "Admin",
             "description": "Administrative operations (admin only)"
         },
@@ -2391,6 +2395,146 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/recommendations": {
+            "get": {
+                "tags": [
+                    "Recommendations"
+                ],
+                "summary": "Get personalized event recommendations",
+                "description": "Returns upcoming events scored for the authenticated user based on recent attendance, likes, followed organizers, and current engagement.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum number of recommendations to return (1-20)",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 20,
+                            "default": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of recommended events",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "recommendations": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "event": {
+                                                        "$ref": "#/components/schemas/Event"
+                                                    },
+                                                    "score": {
+                                                        "type": "number",
+                                                        "description": "Composite recommendation score"
+                                                    },
+                                                    "reasons": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "signals": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "matchedTags": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "followedOrganizer": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "hostAffinity": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "popularityScore": {
+                                                                "type": "number"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "matchedTags",
+                                                            "followedOrganizer",
+                                                            "hostAffinity",
+                                                            "popularityScore"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "event",
+                                                    "score",
+                                                    "reasons",
+                                                    "signals"
+                                                ]
+                                            }
+                                        },
+                                        "metadata": {
+                                            "type": "object",
+                                            "properties": {
+                                                "generatedAt": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "signals": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "tags": {
+                                                            "type": "integer"
+                                                        },
+                                                        "hosts": {
+                                                            "type": "integer"
+                                                        },
+                                                        "followed": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "recommendations"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ]
             }
         },
         "/api/user-search": {

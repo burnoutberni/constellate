@@ -24,6 +24,7 @@ import userSearchRoutes from './userSearch.js'
 import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
+import recommendationsRoutes from './recommendations.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -228,6 +229,7 @@ app.route('/api', realtimeRoutes)
 app.route('/api/calendar', calendarRoutes)
 app.route('/api', templatesRoutes)
 app.route('/api/search', searchRoutes)
+app.route('/api/recommendations', recommendationsRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
 app.route('/api', activityRoutes)

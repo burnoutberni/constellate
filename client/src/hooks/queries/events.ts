@@ -1,11 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { Event, EventDetail } from '../../types'
+import type { Event, EventDetail, EventRecommendationPayload } from '../../types'
 
 interface EventsResponse {
     events: Event[]
 }
 
+interface RecommendationsResponse {
+    recommendations: EventRecommendationPayload[]
+    metadata: {
+        generatedAt: string
+        signals: {
+            tags: number
+            hosts: number
+            followed: number
+        }
+    }
+}
 
 interface RSVPInput {
     status: string
@@ -47,6 +58,35 @@ export function useEventDetail(username: string, eventId: string) {
             return response.json()
         },
         enabled: !!username && !!eventId,
+    })
+}
+
+export function useRecommendedEvents(limit: number = 6, options?: { enabled?: boolean }) {
+    return useQuery<RecommendationsResponse>({
+        queryKey: queryKeys.events.recommendations(limit),
+        enabled: options?.enabled ?? true,
+        retry: false,
+        queryFn: async () => {
+            const response = await fetch(`/api/recommendations?limit=${limit}`, {
+                credentials: 'include',
+            })
+
+            if (response.status === 401) {
+                return {
+                    recommendations: [],
+                    metadata: {
+                        generatedAt: new Date().toISOString(),
+                        signals: { tags: 0, hosts: 0, followed: 0 },
+                    },
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch recommendations')
+            }
+
+            return response.json()
+        },
     })
 }
 

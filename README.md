@@ -152,6 +152,15 @@ Notifications are streamed in real time over the existing SSE endpoint as `notif
 - Both surfaces are powered by the same React Query hooks (`client/src/hooks/queries/notifications.ts`) which wrap the REST endpoints above and keep the cache synchronized with SSE broadcasts for real-time UI updates.
 - When linking notifications to product experiences, populate `contextUrl` on the backend — the UI will navigate internally for relative URLs or fall back to `window.location` for absolute links.
 
+## Event Recommendations (WP-013)
+
+Constellate now suggests events tailored to each signed-in member’s interests:
+
+- `GET /api/recommendations?limit=6` returns a scored list of events the viewer can access, along with reasons (matching tags, followed hosts, popularity) and lightweight signal metadata. The endpoint requires authentication and respects the same visibility rules as the events feed.
+- Recommendations combine recently attended or liked events, preferred organizers, followed ActivityPub actors, and current engagement signals (attendance, likes, comments, recency).
+- The Home page and Feed sidebar display a “Recommended for you” card when a user is signed in. Each card surfaces the top reason and links directly to the detailed event view.
+- When no personal signals exist yet, the service automatically falls back to trending upcoming public events so the UI still has meaningful suggestions.
+
 ## License
 
 AGPL-3.0
