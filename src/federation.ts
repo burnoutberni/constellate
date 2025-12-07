@@ -10,12 +10,12 @@ import {
     ContentType,
 } from './constants/activitypub.js'
 import {
-
     cacheRemoteUser,
     fetchActor,
     getBaseUrl,
     fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
+import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import {
@@ -461,7 +461,7 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 async function findEventByReference(reference: string) {
     const eventIdCandidate = reference.split('/').pop()
-    const conditions = [
+    const conditions: Prisma.EventWhereInput[] = [
         { externalId: reference },
     ]
     if (eventIdCandidate) {

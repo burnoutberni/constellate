@@ -83,26 +83,26 @@ describe('Attendance Helper Functions', () => {
     describe('shouldNotifyFollowers', () => {
         // This function checks if visibility is PUBLIC or FOLLOWERS
         it('should return true for PUBLIC visibility', () => {
-            const visibility = 'PUBLIC'
+            const visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' = 'PUBLIC'
             const result = visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
             expect(result).toBe(true)
         })
 
         it('should return true for FOLLOWERS visibility', () => {
-            const visibility = 'FOLLOWERS'
-            const result = visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
+            const visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' = 'FOLLOWERS'
+            const result: boolean = (visibility as string) === 'PUBLIC' || (visibility as string) === 'FOLLOWERS'
             expect(result).toBe(true)
         })
 
         it('should return false for PRIVATE visibility', () => {
-            const visibility = 'PRIVATE'
-            const result = visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
+            const visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' = 'PRIVATE'
+            const result: boolean = (visibility as string) === 'PUBLIC' || (visibility as string) === 'FOLLOWERS'
             expect(result).toBe(false)
         })
 
         it('should return false for UNLISTED visibility', () => {
-            const visibility = 'UNLISTED'
-            const result = visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
+            const visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' = 'UNLISTED'
+            const result: boolean = (visibility as string) === 'PUBLIC' || (visibility as string) === 'FOLLOWERS'
             expect(result).toBe(false)
         })
     })

@@ -22,7 +22,10 @@ describe('Comments Helper Functions', () => {
         })
 
         it('should derive handle from attributedTo URL when user is null', () => {
-            const event = {
+            const event: {
+                user: { username: string } | null
+                attributedTo: string | null
+            } = {
                 user: null,
                 attributedTo: 'http://localhost:3000/users/bob',
             }
@@ -46,7 +49,10 @@ describe('Comments Helper Functions', () => {
         })
 
         it('should derive handle from remote attributedTo URL', () => {
-            const event = {
+            const event: {
+                user: { username: string } | null
+                attributedTo: string | null
+            } = {
                 user: null,
                 attributedTo: 'https://example.com/users/charlie',
             }
@@ -70,7 +76,10 @@ describe('Comments Helper Functions', () => {
         })
 
         it('should return empty string when attributedTo is invalid', () => {
-            const event = {
+            const event: {
+                user: { username: string } | null
+                attributedTo: string | null
+            } = {
                 user: null,
                 attributedTo: 'not-a-valid-url',
             }
@@ -95,7 +104,10 @@ describe('Comments Helper Functions', () => {
         })
 
         it('should return empty string when attributedTo has no username in path', () => {
-            const event = {
+            const event: {
+                user: { username: string } | null
+                attributedTo: string | null
+            } = {
                 user: null,
                 attributedTo: 'http://localhost:3000/',
             }
@@ -119,7 +131,10 @@ describe('Comments Helper Functions', () => {
         })
 
         it('should handle attributedTo with multiple path segments', () => {
-            const event = {
+            const event: {
+                user: { username: string } | null
+                attributedTo: string | null
+            } = {
                 user: null,
                 attributedTo: 'http://localhost:3000/users/dave/posts/123',
             }
