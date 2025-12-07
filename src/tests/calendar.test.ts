@@ -388,7 +388,7 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('RRULE')
             expect(icsContent).toContain('FREQ=WEEKLY')
-            const rruleLine = icsContent.split('\n').find(line => line.startsWith('RRULE:')) || ''
+            const rruleLine = icsContent.split('\n').find((line: string) => line.startsWith('RRULE:')) || ''
             expect(rruleLine).toMatch(/UNTIL=20240331T100000(Z)?/)
         })
 

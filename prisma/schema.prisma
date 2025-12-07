@@ -18,10 +18,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Basic info
-  username String  @unique
-  email    String? @unique // Only for local users
+  username      String  @unique
+  email         String? @unique // Only for local users
   emailVerified Boolean @default(false)
-  name     String?
+  name          String?
 
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events
@@ -37,49 +37,49 @@ model User {
   privateKey       String? // PEM format RSA private key (only for local users)
   inboxUrl         String? // Remote user's inbox URL
   sharedInboxUrl   String? // Remote user's shared inbox URL
-  
+
   // Admin role
-  isAdmin          Boolean @default(false) // Admin users can moderate content
-  
+  isAdmin Boolean @default(false) // Admin users can moderate content
+
   // Bot flag
-  isBot            Boolean @default(false) // Bot users (for crawlers, automated accounts)
-  
+  isBot Boolean @default(false) // Bot users (for crawlers, automated accounts)
+
   // Privacy settings
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
 
   // Relations
-  events          Event[]
-  following       Following[]       @relation("UserFollowing")
-  followers       Follower[]        @relation("UserFollowers")
-  eventAttendance EventAttendance[]
-  eventLikes      EventLike[]
-  comments        Comment[]
-  notifications   Notification[]     @relation("NotificationRecipient")
-  triggeredNotifications Notification[] @relation("NotificationActor")
-  mentionsReceived CommentMention[]
-  inboxItems      InboxItem[]
-  blockedUsers    BlockedUser[]     @relation("BlockingUser")
-  blockedBy       BlockedUser[]     @relation("BlockedUser")
-  reports         Report[]          @relation("Reporter")
-  reportedIn      Report[]          @relation("ReportedUser")
-  eventTemplates  EventTemplate[]
-  
+  events                 Event[]
+  following              Following[]       @relation("UserFollowing")
+  followers              Follower[]        @relation("UserFollowers")
+  eventAttendance        EventAttendance[]
+  eventLikes             EventLike[]
+  comments               Comment[]
+  notifications          Notification[]    @relation("NotificationRecipient")
+  triggeredNotifications Notification[]    @relation("NotificationActor")
+  mentionsReceived       CommentMention[]
+  inboxItems             InboxItem[]
+  blockedUsers           BlockedUser[]     @relation("BlockingUser")
+  blockedBy              BlockedUser[]     @relation("BlockedUser")
+  reports                Report[]          @relation("Reporter")
+  reportedIn             Report[]          @relation("ReportedUser")
+  eventTemplates         EventTemplate[]
+
   // Auth
-  sessions        Session[]
-  accounts        Account[]
-  apiKeys         ApiKey[]
+  sessions Session[]
+  accounts Account[]
+  apiKeys  ApiKey[]
 
   @@index([username])
   @@index([externalActorUrl])
 }
 
 enum NotificationType {
-    FOLLOW
-    COMMENT
-    LIKE
-    MENTION
-    EVENT
-    SYSTEM
+  FOLLOW
+  COMMENT
+  LIKE
+  MENTION
+  EVENT
+  SYSTEM
 }
 
 model Notification {
@@ -91,14 +91,14 @@ model Notification {
   user   User   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
 
   actorId String?
-  actor   User?  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor   User?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   type       NotificationType
   title      String
   body       String?
   contextUrl String?
   data       Json?
-  read       Boolean  @default(false)
+  read       Boolean          @default(false)
   readAt     DateTime?
 
   @@index([userId, read])
@@ -122,12 +122,12 @@ model Event {
   startTime  DateTime
   endTime    DateTime?
   duration   String? // ISO 8601 duration format
-  timezone   String   @default("UTC")
+  timezone   String          @default("UTC")
   visibility EventVisibility @default(PUBLIC)
 
   // ActivityPub extended properties
-  eventStatus            String? // EventScheduled, EventCancelled, EventPostponed
-  eventAttendanceMode    String? // OfflineEventAttendanceMode, OnlineEventAttendanceMode, MixedEventAttendanceMode
+  eventStatus             String? // EventScheduled, EventCancelled, EventPostponed
+  eventAttendanceMode     String? // OfflineEventAttendanceMode, OnlineEventAttendanceMode, MixedEventAttendanceMode
   maximumAttendeeCapacity Int?
 
   // Federation
@@ -135,35 +135,35 @@ model Event {
   externalId   String? @unique // For remote events
 
   // Relations
-  userId     String?
-  user       User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attendance EventAttendance[]
-  likes      EventLike[]
-  comments   Comment[]
-  tags       EventTag[]
+  userId            String?
+  user              User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance        EventAttendance[]
+  likes             EventLike[]
+  comments          Comment[]
+  tags              EventTag[]
   recurrencePattern RecurrencePattern?
   recurrenceEndDate DateTime?
-  sharedEventId String?
-  sharedEvent   Event?   @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
-  shares        Event[]  @relation("EventShares")
+  sharedEventId     String?
+  sharedEvent       Event?             @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
+  shares            Event[]            @relation("EventShares")
+  // Note: Unique constraint on [userId, sharedEventId] removed because:
+  // - When userId is null (remote events), multiple NULL values in composite unique constraints
+  //   are not treated as violations in SQL databases, allowing duplicate shares
+  // - Application-level validation should prevent duplicate shares for local users
+  // - For remote events, uniqueness should be handled via externalId or attributedTo
 
   @@index([userId])
   @@index([startTime])
   @@index([externalId])
   @@index([recurrenceEndDate])
   @@index([sharedEventId])
-  // Note: Unique constraint on [userId, sharedEventId] removed because:
-  // - When userId is null (remote events), multiple NULL values in composite unique constraints
-  //   are not treated as violations in SQL databases, allowing duplicate shares
-  // - Application-level validation should prevent duplicate shares for local users
-  // - For remote events, uniqueness should be handled via externalId or attributedTo
 }
 
 enum EventVisibility {
-    PUBLIC
-    FOLLOWERS
-    PRIVATE
-    UNLISTED
+  PUBLIC
+  FOLLOWERS
+  PRIVATE
+  UNLISTED
 }
 
 // Following relationship - who the user follows
@@ -288,7 +288,7 @@ model CommentMention {
   comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   mentionedUserId String
-  mentionedUser   User @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  mentionedUser   User   @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
 
   handle String // Stored as typed (e.g., @username or @username@domain)
 
@@ -320,10 +320,10 @@ model EventTemplate {
   data        Json
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([userId, name])
+  @@index([userId])
 }
 
 // Inbox items for activity feed
@@ -350,7 +350,7 @@ model ProcessedActivity {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  activityId String @unique // The ActivityPub activity ID
+  activityId String   @unique // The ActivityPub activity ID
   expiresAt  DateTime // 30 days from creation
 
   @@index([activityId])
@@ -377,7 +377,7 @@ model BlockedDomain {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  domain String @unique
+  domain String  @unique
   reason String?
 
   @@index([domain])
@@ -445,23 +445,23 @@ model Verification {
 
 // API Keys for bot authentication
 model ApiKey {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   lastUsedAt DateTime?
-  
+
   // Key details
-  name      String   // Human-readable name for the key
-  keyHash   String   @unique // Hashed API key (never store plain text)
-  prefix    String   // First 8 characters for display (e.g., "sk_live_")
-  
+  name    String // Human-readable name for the key
+  keyHash String @unique // Hashed API key (never store plain text)
+  prefix  String // First 8 characters for display (e.g., "sk_live_")
+
   // User association
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Metadata
   description String? // Optional description
-  
+
   @@index([userId])
   @@index([keyHash])
 }
@@ -471,5 +471,3 @@ enum RecurrencePattern {
   WEEKLY
   MONTHLY
 }
-
-

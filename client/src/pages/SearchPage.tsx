@@ -362,7 +362,7 @@ export function SearchPage() {
             )
         }
         if (data?.events) {
-            return data.events.map((event) => <EventResultCard key={event.id} event={event} />)
+            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} />)
         }
         return null
     }
