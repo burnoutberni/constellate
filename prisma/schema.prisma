@@ -25,6 +25,7 @@ model User {
 
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events
+  timezone     String  @default("UTC") // Preferred IANA timezone identifier
   bio          String?
   profileImage String? // URL to profile image
   headerImage  String? // URL to header/banner image
@@ -121,6 +122,7 @@ model Event {
   startTime  DateTime
   endTime    DateTime?
   duration   String? // ISO 8601 duration format
+  timezone   String   @default("UTC")
   visibility EventVisibility @default(PUBLIC)
 
   // ActivityPub extended properties

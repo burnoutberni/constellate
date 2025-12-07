@@ -32,6 +32,7 @@ import {
     DEFAULT_TRENDING_WINDOW_DAYS,
     DAY_IN_MS,
 } from './lib/trending.js'
+import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -165,6 +166,8 @@ const RecurrencePatternEnum = z.enum(RECURRENCE_PATTERNS)
 // Event validation schema
 const VisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
 
+const TimezoneSchema = z.string().refine(isValidTimeZone, 'Invalid timezone')
+
 const EventSchema = z.object({
     title: z.string().min(1).max(200),
     summary: z.string().optional(),
@@ -181,6 +184,7 @@ const EventSchema = z.object({
     recurrencePattern: RecurrencePatternEnum.optional().nullable(),
     recurrenceEndDate: z.string().datetime().optional().nullable(),
     tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
+    timezone: TimezoneSchema.optional(),
 })
 
 // Create event
@@ -214,6 +218,7 @@ app.post('/', moderateRateLimit, async (c) => {
             return c.json({ error: 'User not found or is remote' }, 404)
         }
 
+        const timezone = normalizeTimeZone(validatedData.timezone ?? user.timezone)
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
@@ -258,6 +263,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 visibility,
                 recurrencePattern,
                 recurrenceEndDate,
+                timezone,
                 ...(tagsToCreate && tagsToCreate.length > 0 ? {
                     tags: {
                         create: tagsToCreate,
@@ -292,6 +298,7 @@ app.post('/', moderateRateLimit, async (c) => {
                 visibility: event.visibility,
                 recurrencePattern: event.recurrencePattern,
                 recurrenceEndDate: event.recurrenceEndDate?.toISOString(),
+                timezone: event.timezone,
                 user: {
                     id: user.id,
                     username: user.username,
@@ -1179,6 +1186,7 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
                 startTime: originalEvent.startTime,
                 endTime: originalEvent.endTime,
                 duration: originalEvent.duration,
+                timezone: originalEvent.timezone,
                 eventStatus: originalEvent.eventStatus,
                 eventAttendanceMode: originalEvent.eventAttendanceMode,
                 maximumAttendeeCapacity: originalEvent.maximumAttendeeCapacity,
@@ -1278,6 +1286,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
             ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
             ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
             ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
+            ...(validatedData.timezone !== undefined && { timezone: normalizeTimeZone(validatedData.timezone) }),
         }
 
         if (validatedData.recurrencePattern !== undefined) {

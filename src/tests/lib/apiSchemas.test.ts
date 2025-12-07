@@ -224,6 +224,7 @@ describe('API Schemas', () => {
                 startTime: '2024-12-01T10:00:00Z',
                 endTime: '2024-12-01T11:00:00Z',
                 duration: 'PT1H',
+                timezone: 'UTC',
                 eventStatus: 'EventScheduled',
                 eventAttendanceMode: 'MixedEventAttendanceMode',
                 maximumAttendeeCapacity: 50,
@@ -238,6 +239,7 @@ describe('API Schemas', () => {
                     name: 'Alice Smith',
                     displayColor: '#3b82f6',
                     profileImage: null,
+                    timezone: 'UTC',
                 },
                 _count: {
                     attendance: 5,
@@ -260,6 +262,7 @@ describe('API Schemas', () => {
                 startTime: '2024-12-01T10:00:00Z',
                 endTime: null,
                 duration: null,
+                timezone: 'UTC',
                 eventStatus: null,
                 eventAttendanceMode: null,
                 maximumAttendeeCapacity: null,
@@ -289,6 +292,7 @@ describe('API Schemas', () => {
                         startTime: '2024-12-01T10:00:00Z',
                         endTime: null,
                         duration: null,
+                        timezone: 'UTC',
                         eventStatus: null,
                         eventAttendanceMode: null,
                         maximumAttendeeCapacity: null,
@@ -550,6 +554,7 @@ describe('API Schemas', () => {
                 profileImage: 'https://example.com/avatar.jpg',
                 headerImage: 'https://example.com/header.jpg',
                 displayColor: '#3b82f6',
+                timezone: 'UTC',
                 createdAt: '2024-12-01T09:00:00Z',
                 _count: {
                     followers: 10,
@@ -570,6 +575,7 @@ describe('API Schemas', () => {
                 profileImage: null,
                 headerImage: null,
                 displayColor: null,
+                timezone: 'UTC',
                 createdAt: '2024-12-01T09:00:00Z',
             }
             const result = ProfileSchema.safeParse(valid)

@@ -11,6 +11,7 @@ import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
 import { AppError } from './lib/errors.js'
+import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 
 const app = new Hono()
 
@@ -22,6 +23,7 @@ const ProfileUpdateSchema = z.object({
     profileImage: z.string().url().optional(),
     headerImage: z.string().url().optional(),
     autoAcceptFollowers: z.boolean().optional(),
+    timezone: z.string().optional().refine(isValidTimeZone, 'Invalid timezone'),
 })
 
 // Get current user's own profile (includes admin status)
@@ -45,6 +47,7 @@ app.get('/users/me/profile', async (c) => {
                 externalActorUrl: true,
                 isAdmin: true,
                 autoAcceptFollowers: true,
+                timezone: true,
                 createdAt: true,
                 _count: {
                     select: {
@@ -116,6 +119,7 @@ app.get('/users/:username/profile', async (c) => {
                 externalActorUrl: true,
                 isAdmin: true,
                 autoAcceptFollowers: true,
+                timezone: true,
                 createdAt: true,
                 _count: {
                     select: {
@@ -185,6 +189,7 @@ app.put('/profile', moderateRateLimit, async (c) => {
                 ...updates,
                 name: updates.name ? sanitizeText(updates.name) : undefined,
                 bio: updates.bio ? sanitizeText(updates.bio) : undefined,
+                timezone: updates.timezone !== undefined ? normalizeTimeZone(updates.timezone) : undefined,
             },
         })
 

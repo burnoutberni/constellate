@@ -35,6 +35,12 @@ Constellate comments now understand `@username` mentions:
 - New `CommentMention` entries power future notification history while keeping API responses lightweight.
 - The web client adds mention autocomplete (type `@` to search local users), inline highlighting, and real-time mention toasts in the bottom-right corner so people notice when they're called out.
 
+## Timezone Handling (WP-017)
+
+- **User preference:** Every account now has a stored IANA timezone (defaults to `UTC`). Update it from `/settings`, where the UI pulls from the platform-supported timezone list and persists via `PUT /api/profile`.
+- **Event metadata:** Newly created and shared events automatically capture the creator's timezone so other viewers know where the times originate. Event detail pages render times in the viewer's preferred/device timezone and call out the source timezone for clarity.
+- **Calendar exports:** All `.ics` exports embed the correct `VTIMEZONE` definitions and tag each event with `TZID`, so calendar clients convert to the subscriber's locale without losing the original schedule.
+
 ## Development
 
 ### Using Docker (Recommended)
