@@ -553,6 +553,7 @@ app.get('/nearby', async (c) => {
             AND: [
                 visibilityFilter,
                 { sharedEventId: null },
+                { startTime: { gte: new Date() } },
                 boundingWhere,
             ],
         }

@@ -1899,8 +1899,10 @@ describe('Events API', () => {
                 type: 'Update',
                 actor: `${baseUrl}/users/${testUser.username}`,
                 object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
             } as any)
-            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
 
             const updateData = {
                 tags: ['music', 'festival', 'summer'],
@@ -2290,8 +2292,10 @@ describe('Events API', () => {
                 type: 'Update',
                 actor: `${baseUrl}/users/${testUser.username}`,
                 object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
             } as any)
-            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
 
             const updateData = {
                 tags: ['festival', 'summer'],
@@ -2343,8 +2347,10 @@ describe('Events API', () => {
                 type: 'Update',
                 actor: `${baseUrl}/users/${testUser.username}`,
                 object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
             } as any)
-            vi.mocked(activityDelivery.deliverToFollowers).mockResolvedValue(undefined)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
 
             const updateData = {
                 tags: [],
@@ -2899,6 +2905,254 @@ describe('Events API', () => {
 
             // Should fail Zod validation
             expect(res.status).toBe(400)
+        })
+    })
+
+    describe('Location coordinate updates', () => {
+        it('should update both coordinates together', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Coordinates',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    locationLatitude: 40.7128,
+                    locationLongitude: -74.0060,
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const updateData = {
+                locationLatitude: 34.0522,
+                locationLongitude: -118.2437,
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            const body = await res.json() as any
+            expect(res.status).toBe(200)
+            expect(body.locationLatitude).toBe(34.0522)
+            expect(body.locationLongitude).toBe(-118.2437)
+        })
+
+        it('should reject update with only latitude', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Coordinates',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    locationLatitude: 40.7128,
+                    locationLongitude: -74.0060,
+                },
+            })
+
+            const updateData = {
+                locationLatitude: 34.0522,
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toContain('Latitude and longitude must both be provided')
+        })
+
+        it('should reject update with only longitude', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Coordinates',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    locationLatitude: 40.7128,
+                    locationLongitude: -74.0060,
+                },
+            })
+
+            const updateData = {
+                locationLongitude: -118.2437,
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toContain('Latitude and longitude must both be provided')
+        })
+
+        it('should allow clearing coordinates by setting both to null', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Coordinates',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    locationLatitude: 40.7128,
+                    locationLongitude: -74.0060,
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const updateData = {
+                locationLatitude: null,
+                locationLongitude: null,
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.locationLatitude).toBeNull()
+            expect(body.locationLongitude).toBeNull()
+        })
+
+        it('should allow omitting both coordinates (no change)', async () => {
+            vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'test-session',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Coordinates',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    locationLatitude: 40.7128,
+                    locationLongitude: -74.0060,
+                },
+            })
+
+            vi.mocked(activityBuilder.buildUpdateEventActivity).mockReturnValue({
+                type: 'Update',
+                actor: `${baseUrl}/users/${testUser.username}`,
+                object: { type: 'Event' },
+                to: undefined,
+                cc: undefined,
+            } as any)
+            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
+            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+            const updateData = {
+                title: 'Updated Title',
+            }
+
+            const res = await app.request(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData),
+            })
+
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.title).toBe('Updated Title')
+            expect(body.locationLatitude).toBe(40.7128)
+            expect(body.locationLongitude).toBe(-74.0060)
         })
     })
 

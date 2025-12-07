@@ -169,12 +169,13 @@ const VisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
 
 const TimezoneSchema = z.string().refine(isValidTimeZone, 'Invalid timezone')
 
-const EventSchema = z.object({
+// Base event schema without coordinate validation (used for both create and update)
+const BaseEventSchema = z.object({
     title: z.string().min(1).max(200),
     summary: z.string().optional(),
     location: z.string().optional(),
-    locationLatitude: z.number().min(-90).max(90).optional().nullable(),
-    locationLongitude: z.number().min(-180).max(180).optional().nullable(),
+    locationLatitude: z.number().min(-90).max(90).nullish(),
+    locationLongitude: z.number().min(-180).max(180).nullish(),
     headerImage: z.string().url().optional(),
     url: z.string().url().optional(),
     startTime: z.string().datetime(),
@@ -188,7 +189,10 @@ const EventSchema = z.object({
     recurrenceEndDate: z.string().datetime().optional().nullable(),
     tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
     timezone: TimezoneSchema.optional(),
-}).refine((data) => {
+})
+
+// Event schema for creates - requires both coordinates if either is provided
+const EventSchema = BaseEventSchema.refine((data) => {
     const hasLat = data.locationLatitude !== undefined && data.locationLatitude !== null
     const hasLon = data.locationLongitude !== undefined && data.locationLongitude !== null
     return hasLat === hasLon
@@ -301,6 +305,41 @@ async function broadcastEventCreation(
         ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
     })
 }
+
+// Event schema for updates - allows partial fields, validates coordinate pairs correctly
+const UpdateEventSchema = z.object({
+    title: z.string().min(1).max(200).optional(),
+    summary: z.string().optional(),
+    location: z.string().optional(),
+    locationLatitude: z.number().min(-90).max(90).nullish(),
+    locationLongitude: z.number().min(-180).max(180).nullish(),
+    headerImage: z.string().url().optional(),
+    url: z.string().url().optional(),
+    startTime: z.string().datetime().optional(),
+    endTime: z.string().datetime().optional(),
+    duration: z.string().optional(),
+    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
+    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
+    maximumAttendeeCapacity: z.number().int().positive().optional(),
+    visibility: VisibilitySchema.optional(),
+    recurrencePattern: RecurrencePatternEnum.nullish(),
+    recurrenceEndDate: z.string().datetime().nullish(),
+    tags: z.array(z.string().min(1).max(50)).optional(),
+    timezone: TimezoneSchema.optional(),
+}).refine((data) => {
+    // Only validate coordinate pairs if at least one coordinate is provided
+    const hasLat = data.locationLatitude !== undefined
+    const hasLon = data.locationLongitude !== undefined
+    // If neither is provided, that's fine (no change)
+    if (!hasLat && !hasLon) {
+        return true
+    }
+    // If one is provided, both must be provided (both can be null to clear)
+    return hasLat === hasLon
+}, {
+    message: 'Latitude and longitude must both be provided or both omitted',
+    path: ['locationLatitude'],
+})
 
 // Create event
 app.post('/', moderateRateLimit, async (c) => {
@@ -1359,7 +1398,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const validatedData = EventSchema.partial().parse(body)
+        const validatedData = UpdateEventSchema.parse(body)
         const { visibility: requestedVisibility } = validatedData
 
         // Check ownership
@@ -1451,7 +1490,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
                 return refreshedEvent ?? updatedEvent
             }
-
+            
             return updatedEvent
         })
 
@@ -1474,10 +1513,19 @@ app.put('/:id', moderateRateLimit, async (c) => {
         return c.json(event)
     } catch (error) {
         if (error instanceof ZodError) {
-            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+            // Check if there's a refine error message we should use
+            const refineError = error.issues.find(issue => issue.path.includes('locationLatitude'))
+            const errorMessage = refineError?.message || 'Validation failed'
+            return c.json({ error: errorMessage, details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        return c.json({ 
+            error: 'Internal server error', 
+            message: errorMessage, 
+            stack: errorStack 
+        }, 500)
     }
 })
 
