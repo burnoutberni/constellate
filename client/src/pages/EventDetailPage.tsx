@@ -24,7 +24,7 @@ interface MentionSuggestion {
     displayColor?: string | null
 }
 
-const mentionTriggerRegex = /(^|[\s({\[]])@([\w.-]+(?:@[\w.-]+)?)$/i
+const mentionTriggerRegex = /(^|[\s({[]])@([\w.-]+(?:@[\w.-]+)?)$/i
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
 export function EventDetailPage() {
@@ -174,7 +174,9 @@ export function EventDetailPage() {
             )
         } else if (e.key === 'Enter') {
             e.preventDefault()
-            applyMentionSuggestion(mentionSuggestions[activeMentionIndex])
+            if (activeMentionIndex >= 0 && activeMentionIndex < mentionSuggestions.length) {
+                applyMentionSuggestion(mentionSuggestions[activeMentionIndex])
+            }
         } else if (e.key === 'Escape') {
             e.preventDefault()
             resetMentionState()
