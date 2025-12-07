@@ -261,15 +261,7 @@ export function EventDetailPage() {
     // Check if user has already shared this event
     // Check if the current event is a share by this user, or if there's a share of the original event
     const userHasShared = event && user
-        ? (() => {
-            const originalEventId = event.sharedEvent?.id || event.id
-            // Check if there's a share record for this user and original event
-            // We'll need to check this from the server, but for now check if current event is a share by this user
-            if (event.userId === user.id && event.sharedEventId) {
-                return true
-            }
-            return false
-        })()
+        ? (event.userId === user.id && !!event.sharedEventId)
         : false
 
     const handleRSVP = async (status: string) => {
@@ -399,15 +391,8 @@ export function EventDetailPage() {
     useEffect(() => {
         // Check if user has already shared this event when event data loads
         if (event && user) {
-            const originalEventId = event.sharedEvent?.id || event.id
             // If the current event is a share by this user, mark as shared
-            if (event.userId === user.id && event.sharedEventId) {
-                setHasShared(true)
-            } else {
-                // Check if there's a share of the original event by this user
-                // This would require a server-side check, but for now we'll reset
-                setHasShared(false)
-            }
+            setHasShared(event.userId === user.id && !!event.sharedEventId)
         } else {
             setHasShared(false)
         }

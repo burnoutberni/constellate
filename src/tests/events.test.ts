@@ -206,6 +206,248 @@ describe('Events API', () => {
 
             sessionSpy.mockRestore()
         })
+
+        it('returns 404 when event does not exist', async () => {
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'share-session-notfound',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request('/api/events/non-existent-event-id/share', {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json() as any
+            expect(body.error).toBe('Event not found')
+
+            sessionSpy.mockRestore()
+        })
+
+        it('returns 404 when user is remote', async () => {
+            const remoteUser = await prisma.user.create({
+                data: {
+                    username: 'remote_share_user',
+                    email: 'remote@test.com',
+                    isRemote: true,
+                },
+            })
+
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_source_remote',
+                    email: 'source_remote@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Public Event for Remote',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: remoteUser.id,
+                    username: remoteUser.username,
+                    email: remoteUser.email,
+                },
+                session: {
+                    id: 'share-session-remote',
+                    userId: remoteUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(404)
+            const body = await res.json() as any
+            expect(body.error).toBe('User not found or is remote')
+
+            sessionSpy.mockRestore()
+        })
+
+        it('allows sharing an already-shared event (sharing the original)', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_original_source',
+                    email: 'original_source@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const originalEvent = await prisma.event.create({
+                data: {
+                    title: 'Original Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Create a share of the original event
+            const shareUser = await prisma.user.create({
+                data: {
+                    username: 'share_original_sharer',
+                    email: 'original_sharer@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const sharedEvent = await prisma.event.create({
+                data: {
+                    title: originalEvent.title,
+                    startTime: originalEvent.startTime,
+                    userId: shareUser.id,
+                    attributedTo: `${baseUrl}/users/${shareUser.username}`,
+                    visibility: 'PUBLIC',
+                    sharedEventId: originalEvent.id,
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: testUser.id,
+                    username: testUser.username,
+                    email: testUser.email,
+                },
+                session: {
+                    id: 'share-session-original',
+                    userId: testUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            mockAnnounceActivity(originalEvent.id)
+
+            // Share the original event (not the share itself)
+            const res = await app.request(`/api/events/${sharedEvent.id}/share`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(201)
+            const body = await res.json() as any
+            expect(body.share).toBeDefined()
+            expect(body.share.sharedEventId).toBe(originalEvent.id)
+            expect(body.alreadyShared).toBe(false)
+
+            sessionSpy.mockRestore()
+        })
+
+        it('returns 403 when user cannot view the original event', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_followers_source',
+                    email: 'followers_source@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Followers Only Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            // Create a user who doesn't follow the source
+            const nonFollower = await prisma.user.create({
+                data: {
+                    username: 'non_follower_share',
+                    email: 'non_follower@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: nonFollower.id,
+                    username: nonFollower.username,
+                    email: nonFollower.email,
+                },
+                session: {
+                    id: 'share-session-nonfollower',
+                    userId: nonFollower.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+
+            expect(res.status).toBe(403)
+            const body = await res.json() as any
+            expect(body.error).toBe('Forbidden')
+
+            sessionSpy.mockRestore()
+        })
+
+        it('prevents sharing FOLLOWERS visibility events even if user can view', async () => {
+            const sourceUser = await prisma.user.create({
+                data: {
+                    username: 'share_followers_visible',
+                    email: 'followers_visible@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Followers Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: sourceUser.id,
+                    attributedTo: `${baseUrl}/users/${sourceUser.username}`,
+                    visibility: 'FOLLOWERS',
+                },
+            })
+
+            // Use the event owner - they can always view their own events
+            // This ensures canUserViewEvent returns true, so we reach the visibility check
+            const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+                user: {
+                    id: sourceUser.id,
+                    username: sourceUser.username,
+                    email: sourceUser.email,
+                },
+                session: {
+                    id: 'share-session-owner',
+                    userId: sourceUser.id,
+                    expiresAt: new Date(Date.now() + 86400000),
+                },
+            } as any)
+
+            const res = await app.request(`/api/events/${event.id}/share`, {
+                method: 'POST',
+            })
+
+            // Even though user can view (they own it), only PUBLIC events can be shared
+            expect(res.status).toBe(403)
+            const body = await res.json() as any
+            expect(body.error).toBe('Only public events can be shared')
+
+            sessionSpy.mockRestore()
+        })
     })
 
     describe('Event visibility', () => {
