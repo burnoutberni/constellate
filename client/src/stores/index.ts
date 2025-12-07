@@ -1,2 +1,2 @@
-export { useUIStore } from './uiStore'
+export { useUIStore, type MentionNotification } from './uiStore'
 

@@ -25,8 +25,14 @@ jobs:
       - name: Install client dependencies
         run: npm ci --prefix client
 
+      - name: Type check root
+        run: npx tsc --noEmit
+
       - name: Lint root
         run: npm run lint
+
+      - name: Type check client
+        run: npx tsc --noEmit --project client/tsconfig.json
 
       - name: Lint client
         run: npm run lint --prefix client
@@ -218,10 +224,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-
-      - name: Install root dependencies
-        run: npm ci
 
       - name: Download PR coverage
         uses: actions/download-artifact@v4

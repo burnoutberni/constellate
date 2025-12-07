@@ -4,11 +4,22 @@
  */
 
 import { Hono } from 'hono'
-import ical, { ICalEventStatus } from 'ical-generator'
+import ical, { ICalEventStatus, ICalEventRepeatingFreq } from 'ical-generator'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
+function mapRecurrenceFrequency(freq: RecurrenceFrequency): ICalEventRepeatingFreq {
+    switch (freq) {
+        case 'DAILY':
+            return ICalEventRepeatingFreq.DAILY
+        case 'WEEKLY':
+            return ICalEventRepeatingFreq.WEEKLY
+        case 'MONTHLY':
+            return ICalEventRepeatingFreq.MONTHLY
+    }
+}
 
 const app = new Hono()
 
@@ -57,9 +68,9 @@ app.get('/:id/export.ics', async (c) => {
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
             repeating: event.recurrencePattern && event.recurrenceEndDate
                 ? {
-                    freq: event.recurrencePattern as RecurrenceFrequency,
+                    freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
                     until: event.recurrenceEndDate,
-                }
+                } as const
                 : undefined,
         })
 
@@ -132,9 +143,9 @@ app.get('/user/:username/export.ics', async (c) => {
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
                 repeating: event.recurrencePattern && event.recurrenceEndDate
                     ? {
-                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
                         until: event.recurrenceEndDate,
-                    }
+                    } as const
                     : undefined,
             })
         }
@@ -197,9 +208,9 @@ app.get('/feed.ics', async (c) => {
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
                 repeating: event.recurrencePattern && event.recurrenceEndDate
                     ? {
-                        freq: event.recurrencePattern as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+                        freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
                         until: event.recurrenceEndDate,
-                    }
+                    } as const
                     : undefined,
             })
         }

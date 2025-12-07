@@ -1,4 +1,4 @@
-import type { NotificationType, Prisma } from '@prisma/client'
+import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { sanitizeText } from '../lib/sanitization.js'
 import { broadcastToUser, BroadcastEvents } from '../realtime.js'
@@ -46,13 +46,23 @@ export function serializeNotification(notification: NotificationWithActor) {
     const createdAt = toIsoString(notification.createdAt) ?? new Date().toISOString()
     const updatedAt = toIsoString(notification.updatedAt) ?? createdAt
 
+    // Convert Prisma.JsonNull to null for serialization
+    // JsonNull is an object at runtime with constructor name 'JsonNull'
+    let data = notification.data
+    if (data !== null && typeof data === 'object' && (data as { constructor?: { name?: string } }).constructor?.name === 'JsonNull') {
+        data = null
+    }
+    if (data === undefined) {
+        data = null
+    }
+
     return {
         id: notification.id,
         type: notification.type,
         title: notification.title,
         body: notification.body,
         contextUrl: notification.contextUrl,
-        data: notification.data ?? null,
+        data,
         read: notification.read,
         readAt: toIsoString(notification.readAt),
         createdAt,
@@ -78,10 +88,10 @@ export async function createNotification(input: CreateNotificationInput) {
             title: sanitizeText(input.title),
             body: sanitizeOptionalText(input.body),
             contextUrl: input.contextUrl ?? null,
-            data: (input.data ?? null) as Prisma.JsonValue,
+            data: input.data ? (input.data as Prisma.InputJsonValue) : (Prisma.JsonNull as unknown as Prisma.InputJsonValue),
         },
         include: notificationInclude,
-    })
+    }) as NotificationWithActor
 
     await broadcastToUser(input.userId, {
         type: BroadcastEvents.NOTIFICATION_CREATED,
@@ -139,7 +149,7 @@ export async function markNotificationAsRead(userId: string, notificationId: str
             readAt: new Date(),
         },
         include: notificationInclude,
-    })
+    }) as NotificationWithActor
 
     await broadcastToUser(userId, {
         type: BroadcastEvents.NOTIFICATION_READ,
