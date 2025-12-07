@@ -538,4 +538,20 @@ describe('Event recommendations API', () => {
         const hasOwnEvent = body.recommendations.some((r) => r.event.id === ownEvent.id)
         expect(hasOwnEvent).toBe(false)
     })
+
+    it('returns structured error format for non-AppError exceptions', async () => {
+        // Import the module to spy on it
+        const recommendationsModule = await import('../services/recommendations.js')
+        const spy = vi.spyOn(recommendationsModule, 'getEventRecommendations')
+        spy.mockRejectedValueOnce(new Error('Database connection failed'))
+
+        const response = await app.request('/api/recommendations')
+        const body = await response.json() as { error: string; message: string }
+
+        expect(response.status).toBe(500)
+        expect(body.error).toBe('INTERNAL_ERROR')
+        expect(body.message).toBe('Unable to generate recommendations')
+
+        spy.mockRestore()
+    })
 })

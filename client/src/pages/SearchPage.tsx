@@ -105,7 +105,10 @@ const buildRequestFilters = (params: URLSearchParams): EventSearchFilters => {
 }
 
 const buildFormStateFromParams = (params: URLSearchParams): FormState => {
-    const categories = parseCommaList(params.get('categories') || params.get('tags'))
+    const categories = [
+        ...parseCommaList(params.get('categories')),
+        ...parseCommaList(params.get('tags'))
+    ]
     const startDateParam = params.get('startDate')
     const endDateParam = params.get('endDate')
     const dateRangeParam = params.get('dateRange') as DateRangeSelection | null

@@ -37,7 +37,7 @@ app.get('/', lenientRateLimit, async (c) => {
             )
         }
         console.error('Error getting recommendations:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return c.json({ error: 'INTERNAL_ERROR', message: 'Unable to generate recommendations' }, 500)
     }
 })
 
