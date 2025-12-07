@@ -40,6 +40,10 @@ export interface Event {
     }
 }
 
+/**
+ * EventDetail extends Event and includes all fields from Event (including tags, _count, etc.)
+ * plus additional detail fields like attendance, likes, and comments.
+ */
 export interface EventDetail extends Event {
     attendance: Array<{
         status: string

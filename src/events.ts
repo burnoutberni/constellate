@@ -986,7 +986,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
         })
 
         if (!event) {
-            throw new Error('Event not found after update transaction')
+            console.error('Failed to retrieve updated event after transaction', { eventId: id, userId })
+            return c.json({ error: 'Internal server error' }, 500)
         }
 
         // Build and deliver Update activity
