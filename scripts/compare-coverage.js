@@ -13,6 +13,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 function calculateCoverage(coverageData) {
+  // Prefer summary format if available (produced by json-summary reporter)
+  if (coverageData.total) {
+    const { statements, branches, functions, lines } = coverageData.total;
+    // Use 0% as conservative default if data is missing - this will surface real issues
+    // rather than masking them with incorrect 100% coverage
+    return {
+      statements: statements?.pct ?? 0,
+      branches: branches?.pct ?? 0,
+      functions: functions?.pct ?? 0,
+      lines: lines?.pct ?? 0,
+    };
+  }
+
   let totalStatements = 0;
   let coveredStatements = 0;
   let totalBranches = 0;
@@ -56,10 +69,12 @@ function calculateCoverage(coverageData) {
   }
 
   return {
-    statements: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 100,
-    branches: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 100,
-    functions: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 100,
-    lines: totalLines > 0 ? (coveredLines / totalLines) * 100 : 100,
+    // Use 0% as conservative default when no data is available - this will surface real issues
+    // rather than masking them with incorrect 100% coverage
+    statements: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0,
+    branches: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 0,
+    functions: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0,
+    lines: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0,
   };
 }
 
