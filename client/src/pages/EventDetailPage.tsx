@@ -537,6 +537,18 @@ export function EventDetailPage() {
         return <>🤔 Maybe ({maybe})</>
     }
 
+    const renderShareButtonContent = () => {
+        if (shareMutation.isPending) {
+            return renderSpinner('Sharing...')
+        }
+
+        if (hasShared) {
+            return '✅ Shared'
+        }
+
+        return '🔁 Share'
+    }
+
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Navigation */}
@@ -744,11 +756,7 @@ export function EventDetailPage() {
                             className={buildShareButtonClass()}
                             title={guestTooltip('Sign up to share this event')}
                         >
-                            {shareMutation.isPending
-                                ? renderSpinner('Sharing...')
-                                : hasShared
-                                    ? '✅ Shared'
-                                    : '🔁 Share'}
+                            {renderShareButtonContent()}
                         </button>
                     </div>
                     {!user && (
