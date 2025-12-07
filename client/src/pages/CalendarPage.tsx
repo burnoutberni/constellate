@@ -322,7 +322,7 @@ export function CalendarPage() {
                                                 )}
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleAddToGoogleCalendar(event.id)}
+                                                    onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(event.id); }}
                                                     className="btn btn-xs btn-outline mt-2"
                                                     aria-label={`Add ${event.title} to Google Calendar`}
                                                     disabled={exportingEventId === event.id}

@@ -75,7 +75,7 @@ function buildGoogleCalendarLink(event: {
     const start = formatDateForGoogle(event.startTime)
     const end = formatDateForGoogle(event.endTime || event.startTime)
     if (!start || !end) {
-        throw new Error('Invalid event date')
+        throw new Error(`Invalid event date: startTime=${event.startTime}, endTime=${event.endTime}`)
     }
 
     const googleUrl = new URL('https://calendar.google.com/calendar/render')
