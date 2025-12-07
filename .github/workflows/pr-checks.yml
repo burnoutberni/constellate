@@ -192,6 +192,13 @@ jobs:
         run: npm run test:coverage
         if: steps.base_cache.outputs.cache-hit != 'true'
 
+      - name: Ensure coverage summary exists
+        if: steps.base_cache.outputs.cache-hit != 'true'
+        run: |
+          if [ ! -f "coverage/coverage-summary.json" ] && [ -f "coverage/coverage-final.json" ]; then
+            cp coverage/coverage-final.json coverage/coverage-summary.json
+          fi
+
       - name: Use cached coverage file
         if: steps.base_cache.outputs.cache-hit == 'true'
         run: |
@@ -249,6 +256,11 @@ jobs:
       - name: Compare coverage
         if: steps.check_base.outputs.exists == 'true'
         run: |
+          for dir in coverage-pr coverage-base; do
+            if [ ! -f "$dir/coverage-summary.json" ] && [ -f "$dir/coverage-final.json" ]; then
+              cp "$dir/coverage-final.json" "$dir/coverage-summary.json"
+            fi
+          done
           node scripts/compare-coverage.js coverage-pr/coverage-summary.json coverage-base/coverage-summary.json
         continue-on-error: false
 
