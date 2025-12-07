@@ -12,7 +12,7 @@ export default defineConfig({
     setupFiles: ['./src/tests/setupVitest.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text-summary', 'json', 'html'],
+      reporter: ['text-summary', 'json', 'json-summary', 'html'],
       exclude: [
         'node_modules/',
         'dist/',

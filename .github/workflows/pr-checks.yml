@@ -162,7 +162,7 @@ jobs:
         id: base_cache
         uses: actions/cache@v4
         with:
-          path: coverage-base-cache/coverage-final.json
+          path: coverage-base-cache/coverage-summary.json
           key: coverage-base-${{ github.event.pull_request.base.sha }}
 
       - name: Setup Node.js
@@ -196,19 +196,19 @@ jobs:
         if: steps.base_cache.outputs.cache-hit == 'true'
         run: |
           mkdir -p coverage
-          cp coverage-base-cache/coverage-final.json coverage/coverage-final.json
+          cp coverage-base-cache/coverage-summary.json coverage/coverage-summary.json
 
       - name: Store coverage in cache path
         if: steps.base_cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p coverage-base-cache
-          cp coverage/coverage-final.json coverage-base-cache/coverage-final.json
+          cp coverage/coverage-summary.json coverage-base-cache/coverage-summary.json
 
       - name: Upload base coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-base
-          path: coverage/coverage-final.json
+          path: coverage/coverage-summary.json
           retention-days: 7
 
   coverage-check:
@@ -240,7 +240,7 @@ jobs:
       - name: Check if base coverage exists
         id: check_base
         run: |
-          if [ -f "coverage-base/coverage-final.json" ]; then
+          if [ -f "coverage-base/coverage-summary.json" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -249,7 +249,7 @@ jobs:
       - name: Compare coverage
         if: steps.check_base.outputs.exists == 'true'
         run: |
-          node scripts/compare-coverage.js coverage-pr/coverage-final.json coverage-base/coverage-final.json
+          node scripts/compare-coverage.js coverage-pr/coverage-summary.json coverage-base/coverage-summary.json
         continue-on-error: false
 
       - name: Skip coverage comparison (first PR)

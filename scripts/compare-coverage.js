@@ -13,6 +13,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 function calculateCoverage(coverageData) {
+  // Prefer summary format if available (produced by json-summary reporter)
+  if (coverageData.total) {
+    const { statements, branches, functions, lines } = coverageData.total;
+    return {
+      statements: statements?.pct ?? 100,
+      branches: branches?.pct ?? 100,
+      functions: functions?.pct ?? 100,
+      lines: lines?.pct ?? 100,
+    };
+  }
+
   let totalStatements = 0;
   let coveredStatements = 0;
   let totalBranches = 0;
