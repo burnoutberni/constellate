@@ -100,7 +100,6 @@ export function useRecommendedEvents(limit: number = 6, options?: { enabled?: bo
     })
 }
 
-
 export function useDeleteEvent(eventId: string) {
     const queryClient = useQueryClient()
 

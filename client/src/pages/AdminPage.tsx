@@ -3,6 +3,7 @@ import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { queryKeys } from '../hooks/queries/keys'
 
 interface User {
     id: string
@@ -49,7 +50,7 @@ export function AdminPage() {
 
     // Check if user is admin
     const { data: userProfile, isLoading: isLoadingProfile } = useQuery({
-        queryKey: ['admin-check', user?.id],
+        queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user) return null
             const response = await fetch(`/api/users/me/profile`, {

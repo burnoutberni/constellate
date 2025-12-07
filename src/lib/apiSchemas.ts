@@ -3,6 +3,7 @@
  */
 
 import { z } from '@hono/zod-openapi'
+import { isValidTimeZone } from './timezone.js'
 
 // Common response schemas
 export const ErrorSchema = z.object({
@@ -22,6 +23,7 @@ export const UserSchema = z.object({
     name: z.string().nullable().openapi({ example: 'Alice Smith' }),
     displayColor: z.string().nullable().openapi({ example: '#3b82f6' }),
     profileImage: z.string().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
+    timezone: z.string().optional().openapi({ example: 'America/New_York' }),
     isRemote: z.boolean().optional(),
     externalActorUrl: z.string().nullable().optional(),
 }).openapi('User')
@@ -38,6 +40,7 @@ export const EventInputSchema = z.object({
     startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
     endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
     duration: z.string().optional().openapi({ example: 'PT1H' }),
+    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/New_York' }),
     eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
     eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
     maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
@@ -56,6 +59,7 @@ export const EventSchema = z.object({
     startTime: z.string().datetime(),
     endTime: z.string().datetime().nullable(),
     duration: z.string().nullable(),
+    timezone: z.string().openapi({ example: 'America/New_York' }),
     eventStatus: z.string().nullable(),
     eventAttendanceMode: z.string().nullable(),
     maximumAttendeeCapacity: z.number().nullable(),
@@ -171,6 +175,7 @@ export const ProfileUpdateSchema = z.object({
     profileImage: z.string().url().optional(),
     headerImage: z.string().url().optional(),
     displayColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().openapi({ example: '#3b82f6' }),
+    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/Los_Angeles' }),
 }).openapi('ProfileUpdate')
 
 export const ProfileSchema = z.object({
@@ -182,6 +187,7 @@ export const ProfileSchema = z.object({
     profileImage: z.string().nullable(),
     headerImage: z.string().nullable(),
     displayColor: z.string().nullable(),
+    timezone: z.string().openapi({ example: 'UTC' }),
     createdAt: z.string().datetime(),
     _count: z.object({
         followers: z.number(),

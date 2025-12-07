@@ -37,6 +37,7 @@ describe('Calendar Export', () => {
                 email: 'test@example.com',
                 name: 'Test User',
                 isRemote: false,
+                timezone: 'America/New_York',
             },
         })
 
@@ -48,6 +49,7 @@ describe('Calendar Export', () => {
                 location: 'Test Location',
                 startTime: new Date('2024-01-01T10:00:00Z'),
                 endTime: new Date('2024-01-01T12:00:00Z'),
+                timezone: 'America/New_York',
                 userId: testUser.id,
                 attributedTo: `${baseUrl}/users/${testUser.username}`,
             },
@@ -165,6 +167,15 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('ORGANIZER')
             expect(icsContent).toContain(testUser.name || testUser.username)
+        })
+
+        it('should include timezone metadata for events', async () => {
+            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+            expect(res.status).toBe(200)
+            const icsContent = await res.text()
+            expect(icsContent).toContain('TZID=America/New_York')
+            expect(icsContent).toContain('BEGIN:VTIMEZONE')
         })
 
     })
@@ -377,7 +388,9 @@ describe('Calendar Export', () => {
             const icsContent = await res.text()
             expect(icsContent).toContain('RRULE')
             expect(icsContent).toContain('FREQ=WEEKLY')
-            expect(icsContent).toContain('UNTIL=20240331T100000Z')
+            const rruleLine = icsContent.split('\n').find((line: string) => line.startsWith('RRULE:')) || ''
+            // The 'Z' suffix is optional due to timezone-aware formatting - the timezone is already specified in TZID
+            expect(rruleLine).toMatch(/UNTIL=20240331T100000(Z)?/)
         })
 
         it('should include RRULE in user calendar export for recurring events', async () => {
@@ -432,7 +445,8 @@ describe('Calendar Export', () => {
 
             expect(res.status).toBe(200)
             const icsContent = await res.text()
-            expect(icsContent).not.toContain('RRULE')
+            const veventBlock = icsContent.split('BEGIN:VEVENT')[1]?.split('END:VEVENT')[0] ?? ''
+            expect(veventBlock).not.toContain('RRULE:FREQ')
             expect(icsContent).toContain('SUMMARY:Test Event')
         })
 

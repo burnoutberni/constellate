@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import {
     useEventDetail,
@@ -16,6 +16,7 @@ import { getVisibilityMeta } from '../lib/visibility'
 import type { EventVisibility } from '../types'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import type { CommentMention } from '../types'
+import { getDefaultTimezone } from '../lib/timezones'
 
 interface MentionSuggestion {
     id: string
@@ -239,6 +240,21 @@ export function EventDetailPage() {
 
     // Fetch event
     const { data: event, isLoading } = useEventDetail(username, eventId)
+    const { data: viewerProfile } = useQuery({
+        queryKey: queryKeys.users.currentProfile(user?.id),
+        queryFn: async () => {
+            if (!user?.id) return null
+            const response = await fetch('/api/users/me/profile', {
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                return null
+            }
+            return response.json()
+        },
+        enabled: !!user?.id,
+        staleTime: 5 * 60 * 1000,
+    })
 
     // Mutations
     const queryClient = useQueryClient()
@@ -409,21 +425,30 @@ export function EventDetailPage() {
         }
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-    }
+    const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
+    const viewerTimezone = viewerProfile?.timezone || defaultTimezone
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-        })
-    }
+    const formatDate = useMemo(() => {
+        return (dateString: string) => {
+            return new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: viewerTimezone,
+            }).format(new Date(dateString))
+        }
+    }, [viewerTimezone])
+
+    const formatTime = useMemo(() => {
+        return (dateString: string) => {
+            return new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZone: viewerTimezone,
+            }).format(new Date(dateString))
+        }
+    }, [viewerTimezone])
 
     if (isLoading) {
         return (
@@ -447,6 +472,7 @@ export function EventDetailPage() {
     }
 
     const displayedEvent = event.sharedEvent ?? event
+    const eventTimezone = displayedEvent.timezone || getDefaultTimezone()
     const originalOwner = event.sharedEvent?.user
     const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
     const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
@@ -635,6 +661,13 @@ export function EventDetailPage() {
                             <span>
                                 {formatTime(displayedEvent.startTime)}
                                 {displayedEvent.endTime && ` - ${formatTime(displayedEvent.endTime)}`}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-gray-500 text-sm">
+                            <span className="text-xl">🌐</span>
+                            <span>
+                                Times shown in {viewerTimezone}
+                                {viewerTimezone !== eventTimezone && ` (event scheduled in ${eventTimezone})`}
                             </span>
                         </div>
                         {displayedEvent.location && (

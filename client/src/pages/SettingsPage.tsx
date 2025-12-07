@@ -1,17 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../hooks/queries/keys'
+import { getDefaultTimezone, getSupportedTimezones } from '../lib/timezones'
 
 export function SettingsPage() {
     const { user, logout } = useAuth()
     const queryClient = useQueryClient()
+    const timezoneOptions = useMemo(() => getSupportedTimezones(), [])
 
     const { data: profile, isLoading } = useQuery({
-        queryKey: queryKeys.users.profile(user?.username || ''),
+        queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            const response = await fetch(`/api/users/${user?.username}/profile`, {
+            if (!user?.id) {
+                return null
+            }
+            const response = await fetch(`/api/users/me/profile`, {
                 credentials: 'include',
             })
             if (!response.ok) {
@@ -19,11 +24,13 @@ export function SettingsPage() {
             }
             return response.json()
         },
-        enabled: !!user?.username,
+        enabled: !!user?.id,
+        // Note: This query requires user?.id to be available. If id is not immediately available
+        // in the auth context, the query will be disabled until it becomes available.
     })
 
     const updateProfileMutation = useMutation({
-        mutationFn: async (data: { autoAcceptFollowers?: boolean }) => {
+        mutationFn: async (data: { autoAcceptFollowers?: boolean; timezone?: string }) => {
             const response = await fetch('/api/profile', {
                 method: 'PUT',
                 headers: {
@@ -38,11 +45,19 @@ export function SettingsPage() {
             return response.json()
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.users.profile(user?.username || '') })
+            queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(user?.id) })
         },
     })
 
-    const [autoAccept, setAutoAccept] = useState(profile?.autoAcceptFollowers ?? true)
+    const [autoAccept, setAutoAccept] = useState(true)
+    const [timezone, setTimezone] = useState(getDefaultTimezone())
+
+    useEffect(() => {
+        if (profile) {
+            setAutoAccept(profile.autoAcceptFollowers ?? true)
+            setTimezone(profile.timezone || getDefaultTimezone())
+        }
+    }, [profile])
 
     const handleToggleAutoAccept = async () => {
         const newValue = !autoAccept
@@ -54,6 +69,22 @@ export function SettingsPage() {
             console.error('Failed to update auto-accept setting:', error)
             setAutoAccept(!newValue)
             alert('Failed to update setting')
+        }
+    }
+
+    const handleTimezoneChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextTimezone = event.target.value
+        const previous = timezone
+        setTimezone(nextTimezone)
+        try {
+            await updateProfileMutation.mutateAsync({ timezone: nextTimezone })
+        } catch (error) {
+            console.error('Failed to update timezone preference to', nextTimezone, ':', error)
+            setTimezone(previous)
+            const errorMessage = error instanceof Error && error.message 
+                ? `Failed to update timezone preference: ${error.message}`
+                : 'Failed to update timezone preference. Please try again or contact support if the problem persists.'
+            alert(errorMessage)
         }
     }
 
@@ -97,6 +128,34 @@ export function SettingsPage() {
                                     }`}
                             />
                         </button>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Time & Region</h2>
+                    <div className="flex flex-col gap-2">
+                        <label className="font-medium text-gray-900" htmlFor="timezone-select">
+                            Preferred timezone
+                        </label>
+                        <p className="text-sm text-gray-500">
+                            Constellate will display event times using this timezone on supported pages.
+                        </p>
+                        <select
+                            id="timezone-select"
+                            className="select"
+                            value={timezone}
+                            onChange={handleTimezoneChange}
+                            disabled={updateProfileMutation.isPending}
+                        >
+                            {timezoneOptions.map((option) => (
+                                <option key={option} value={option}>
+                                    {option}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-sm text-gray-500">
+                            Times currently shown in <span className="font-semibold">{timezone}</span>.
+                        </p>
                     </div>
                 </div>
             </div>

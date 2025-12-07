@@ -98,6 +98,7 @@ describe('Profile API', () => {
             const data = await response.json() as any
             expect(data.id).toBe(testUser.id)
             expect(data.username).toBe(testUser.username)
+            expect(data.timezone).toBe('UTC')
             expect(data.isAdmin).toBeDefined()
             expect(data._count).toBeDefined()
             expect(data._count.followers).toBe(0)
@@ -112,6 +113,39 @@ describe('Profile API', () => {
                 headers: { 'Content-Type': 'application/json' },
             })
             expect(response.status).toBe(401)
+        })
+    })
+
+    describe('Timezone preferences', () => {
+        it('updates timezone preference via profile API', async () => {
+            mockAuth(testUser)
+
+            const response = await app.request('/api/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timezone: 'America/Los_Angeles' }),
+            })
+
+            expect(response.status).toBe(200)
+            const body = await response.json() as any
+            expect(body.timezone).toBe('America/Los_Angeles')
+
+            const dbUser = await prisma.user.findUnique({ where: { id: testUser.id } })
+            expect(dbUser?.timezone).toBe('America/Los_Angeles')
+        })
+
+        it('rejects invalid timezone identifiers', async () => {
+            mockAuth(testUser)
+
+            const response = await app.request('/api/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timezone: 'Not/AZone' }),
+            })
+
+            expect(response.status).toBe(400)
+            const body = await response.json() as any
+            expect(body.error).toBe('Validation failed')
         })
     })
 

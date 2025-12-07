@@ -30,6 +30,7 @@ async function main() {
             email: 'alice@localhost',
             name: 'Alice Wonder',
             displayColor: '#8b5cf6',
+            timezone: 'America/New_York',
             bio: 'Test user for Constellate',
             publicKey,
             privateKey,
@@ -55,6 +56,7 @@ async function main() {
             location: 'Conference Room A',
             startTime: tomorrow,
             endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000), // 1 hour later
+            timezone: 'America/New_York',
             userId: testUser.id,
             attributedTo: `http://localhost:3000/users/${testUser.username}`,
             eventStatus: 'EventScheduled',
@@ -70,6 +72,7 @@ async function main() {
             location: 'Virtual - Zoom',
             startTime: nextWeek,
             endTime: new Date(nextWeek.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
+            timezone: 'America/New_York',
             userId: testUser.id,
             attributedTo: `http://localhost:3000/users/${testUser.username}`,
             eventStatus: 'EventScheduled',

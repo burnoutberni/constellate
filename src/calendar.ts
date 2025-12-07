@@ -5,8 +5,10 @@
 
 import { Hono } from 'hono'
 import ical, { ICalEventStatus, ICalEventRepeatingFreq } from 'ical-generator'
+import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
+import { normalizeTimeZone } from './lib/timezone.js'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -94,6 +96,18 @@ function buildGoogleCalendarLink(event: {
 
 const app = new Hono()
 
+function ensureTimezone(calendar: ReturnType<typeof ical>, timezone: string, cache: Set<string>) {
+    if (cache.has(timezone)) {
+        return
+    }
+
+    calendar.timezone({
+        name: timezone,
+        generator: getVtimezoneComponent,
+    })
+    cache.add(timezone)
+}
+
 // Export single event as ICS
 app.get('/:id/export.ics', async (c) => {
     try {
@@ -123,6 +137,7 @@ app.get('/:id/export.ics', async (c) => {
 
         // Create calendar
         const calendar = ical({ name: 'Constellate' })
+        const usedTimezones = new Set<string>()
 
         const { pageUrl, description } = getEventExportMetadata(event)
         const organizer = event.user
@@ -133,6 +148,9 @@ app.get('/:id/export.ics', async (c) => {
             : undefined
 
         // Add event
+        const eventTimezone = normalizeTimeZone(event.timezone)
+        ensureTimezone(calendar, eventTimezone, usedTimezones)
+
         calendar.createEvent({
             start: event.startTime,
             end: event.endTime || event.startTime,
@@ -140,6 +158,7 @@ app.get('/:id/export.ics', async (c) => {
             description,
             location: event.location || undefined,
             url: pageUrl,
+            timezone: eventTimezone,
             organizer,
             status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
             repeating: event.recurrencePattern && event.recurrenceEndDate
@@ -195,6 +214,7 @@ app.get('/user/:username/export.ics', async (c) => {
             name: `${user.name || username}'s Events`,
             description: 'Events from Constellate',
         })
+        const usedTimezones = new Set<string>()
 
         const viewerId = c.get('userId') as string | undefined
         const filteredEvents = []
@@ -211,6 +231,9 @@ app.get('/user/:username/export.ics', async (c) => {
 
         for (const event of filteredEvents) {
             const { pageUrl, description } = getEventExportMetadata(event)
+            const eventTimezone = normalizeTimeZone(event.timezone)
+            ensureTimezone(calendar, eventTimezone, usedTimezones)
+
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
@@ -218,6 +241,7 @@ app.get('/user/:username/export.ics', async (c) => {
                 description,
                 location: event.location || undefined,
                 url: pageUrl,
+                timezone: eventTimezone,
                 organizer,
                 status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
                 repeating: event.recurrencePattern && event.recurrenceEndDate
@@ -296,10 +320,14 @@ app.get('/feed.ics', async (c) => {
             description: 'Public events from Constellate',
             url: resolveAppUrl('/api/calendar/feed.ics'),
         })
+        const usedTimezones = new Set<string>()
 
         // Add all events
         for (const event of events) {
             const { pageUrl, description } = getEventExportMetadata(event)
+            const eventTimezone = normalizeTimeZone(event.timezone)
+            ensureTimezone(calendar, eventTimezone, usedTimezones)
+
             calendar.createEvent({
                 start: event.startTime,
                 end: event.endTime || event.startTime,
@@ -307,6 +335,7 @@ app.get('/feed.ics', async (c) => {
                 description,
                 location: event.location || undefined,
                 url: pageUrl,
+                timezone: eventTimezone,
                 organizer: event.user
                     ? {
                         name: event.user.name || event.user.username,

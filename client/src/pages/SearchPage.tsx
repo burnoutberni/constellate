@@ -1,10 +1,13 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { useUIStore } from '../stores'
 import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
+import { queryKeys } from '../hooks/queries/keys'
 import { getVisibilityMeta } from '../lib/visibility'
+import { getDefaultTimezone } from '../lib/timezones'
 import type { Event } from '../types'
 
 const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
@@ -146,18 +149,25 @@ const formatDateLabel = (isoString: string) => {
     })
 }
 
-const formatEventDateTime = (isoString: string) => {
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) {
-        return isoString
-    }
-    return date.toLocaleString(undefined, {
+// Memoized formatter factory to avoid creating new Intl.DateTimeFormat instances on every call
+const createEventDateTimeFormatter = (timezone: string) => {
+    return new Intl.DateTimeFormat('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        timeZone: timezone,
     })
+}
+
+// Format event date/time - formatter should be memoized at component level for performance
+const formatEventDateTime = (isoString: string, formatter: Intl.DateTimeFormat) => {
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) {
+        return isoString
+    }
+    return formatter.format(date)
 }
 
 const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
@@ -179,6 +189,28 @@ export function SearchPage() {
 
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FormState>(initialFormState)
+
+    const { data: viewerProfile } = useQuery({
+        queryKey: queryKeys.users.currentProfile(user?.id),
+        queryFn: async () => {
+            if (!user?.id) return null
+            const response = await fetch('/api/users/me/profile', {
+                credentials: 'include',
+            })
+            if (!response.ok) return null
+            return response.json()
+        },
+        enabled: !!user?.id,
+    })
+
+    const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
+    const viewerTimezone = viewerProfile?.timezone || defaultTimezone
+    
+    // Memoize the date/time formatter to avoid creating new instances on every render
+    const eventDateTimeFormatter = useMemo(
+        () => createEventDateTimeFormatter(viewerTimezone),
+        [viewerTimezone]
+    )
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
@@ -362,7 +394,7 @@ export function SearchPage() {
             )
         }
         if (data?.events) {
-            return data.events.map((event) => <EventResultCard key={event.id} event={event} />)
+            return data.events.map((event: Event) => <EventResultCard key={event.id} event={event} formatter={eventDateTimeFormatter} />)
         }
         return null
     }
@@ -587,7 +619,7 @@ export function SearchPage() {
     )
 }
 
-function EventResultCard({ event }: { event: Event }) {
+function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.DateTimeFormat }) {
     const eventPath = event.user?.username
         ? `/@${event.user.username}/${event.originalEventId || event.id}`
         : undefined
@@ -599,7 +631,7 @@ function EventResultCard({ event }: { event: Event }) {
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
                     <p className="text-sm text-gray-500">
-                        {formatEventDateTime(event.startTime)}
+                        {formatEventDateTime(event.startTime, formatter)}
                         {event.location && <span> • {event.location}</span>}
                     </p>
                     {event.user && (

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
 import { NotificationBell } from './NotificationBell'
+import { queryKeys } from '../hooks/queries/keys'
 
 export function Navbar({ isConnected, user, onLogout }: {
   isConnected?: boolean
@@ -10,7 +11,7 @@ export function Navbar({ isConnected, user, onLogout }: {
 }) {
   // Check if current user is admin
   const { data: currentUserProfile } = useQuery({
-    queryKey: ['current-user-profile', user?.id],
+    queryKey: queryKeys.users.currentProfile(user?.id),
     queryFn: async () => {
       if (!user?.id) return null
       const response = await fetch(`/api/users/me/profile`, {

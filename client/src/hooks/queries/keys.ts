@@ -14,6 +14,7 @@ export const queryKeys = {
     users: {
         profile: (username: string) => ['users', 'profile', username] as const,
         followStatus: (username: string) => ['users', 'followStatus', username] as const,
+        currentProfile: (userId?: string | null) => ['users', 'current', 'profile', userId ?? null] as const,
     },
     activity: {
         feed: () => ['activity', 'feed'] as const,
