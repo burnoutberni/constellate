@@ -120,7 +120,12 @@ async function buildInterestProfile(userId: string): Promise<InterestProfile> {
             tagWeights.set(normalized, (tagWeights.get(normalized) ?? 0) + weight)
         }
 
-        const hostKey = event.userId ? `user:${event.userId}` : event.attributedTo ? `actor:${event.attributedTo}` : null
+        let hostKey: string | null = null
+        if (event.userId) {
+            hostKey = `user:${event.userId}`
+        } else if (event.attributedTo) {
+            hostKey = `actor:${event.attributedTo}`
+        }
         if (hostKey) {
             hostWeights.set(hostKey, (hostWeights.get(hostKey) ?? 0) + weight)
         }
@@ -182,7 +187,12 @@ function buildRecommendation(
     const matchedTags = normalizedTags.filter((tag) => tagWeights.has(tag))
     const tagScore = matchedTags.reduce((sum, tag) => sum + (tagWeights.get(tag) ?? 0), 0) * 2
 
-    const hostKey = event.userId ? `user:${event.userId}` : event.attributedTo ? `actor:${event.attributedTo}` : null
+    let hostKey: string | null = null
+    if (event.userId) {
+        hostKey = `user:${event.userId}`
+    } else if (event.attributedTo) {
+        hostKey = `actor:${event.attributedTo}`
+    }
     const hostAffinityRaw = hostKey ? hostWeights.get(hostKey) ?? 0 : 0
     const hostAffinityScore = hostAffinityRaw * 1.5
 
