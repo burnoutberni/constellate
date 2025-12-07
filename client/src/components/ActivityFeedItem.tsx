@@ -45,7 +45,7 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                 return (
                     <span>
                         <strong>{activity.user.name || activity.user.username}</strong> shared{' '}
-                        <strong>{activity.sharedEvent?.title || activity.event.title}</strong>
+                        <strong>{activity.sharedEvent?.title}</strong>
                         {activity.sharedEvent?.user && (
                             <>
                                 {' '}from <strong>@{activity.sharedEvent.user.username}</strong>

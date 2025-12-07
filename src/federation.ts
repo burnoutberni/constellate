@@ -523,6 +523,9 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
     })
 }
 
+// Maximum response size limit (10MB)
+const MAX_RESPONSE_SIZE = 10 * 1024 * 1024
+
 async function resolveSharedEventTarget(object: string | Record<string, unknown> | undefined) {
     if (!object) {
         return null
@@ -550,7 +553,7 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
             const contentLength = response.headers.get('content-length')
             if (contentLength) {
                 const size = parseInt(contentLength, 10)
-                if (!Number.isNaN(size) && size > 10 * 1024 * 1024) { // 10MB limit
+                if (!Number.isNaN(size) && size > MAX_RESPONSE_SIZE) {
                     console.error('Response too large:', size, 'bytes')
                     return null
                 }
@@ -559,12 +562,17 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
             if (response.ok) {
                 // Read response with size limit
                 const text = await response.text()
-                if (text.length > 10 * 1024 * 1024) { // 10MB limit
+                if (text.length > MAX_RESPONSE_SIZE) {
                     console.error('Response body too large:', text.length, 'bytes')
                     return null
                 }
-                const payload = JSON.parse(text) as Record<string, unknown>
-                return upsertRemoteEventFromObject(payload)
+                try {
+                    const payload = JSON.parse(text) as Record<string, unknown>
+                    return upsertRemoteEventFromObject(payload)
+                } catch (parseError) {
+                    console.error('Error parsing JSON response:', parseError)
+                    return null
+                }
             }
         } catch (error) {
             console.error('Error fetching announced event object:', error)

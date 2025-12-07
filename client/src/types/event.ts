@@ -67,6 +67,7 @@ export interface EventDetail extends Event {
         user: EventUser
     }>
     comments: Array<CommentWithMentions>
+    userHasShared?: boolean
 }
 
 export interface CommentMention {

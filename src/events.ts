@@ -324,7 +324,7 @@ app.get('/', async (c) => {
                 },
             },
             tags: true,
-            // Note: sharedEvent include removed since shares are filtered out with { sharedEventId: null }
+            // Note: sharedEvent include not needed here since shares are filtered out by the sharedEventId: null filter above
             _count: {
                 select: {
                     attendance: true,
@@ -517,6 +517,20 @@ app.get('/by-user/:username/:eventId', async (c) => {
         const canView = await canUserViewEvent(event, viewerId)
         if (!canView) {
             return c.json({ error: 'Forbidden' }, 403)
+        }
+
+        // Check if viewer has shared the original event
+        const originalEvent = event.sharedEvent ?? event
+        let userHasShared = false
+        if (viewerId) {
+            const existingShare = await prisma.event.findFirst({
+                where: {
+                    userId: viewerId,
+                    sharedEventId: originalEvent.id,
+                },
+                select: { id: true },
+            })
+            userHasShared = !!existingShare
         }
 
         // If it's a remote event, fetch fresh data from the remote server and cache it
@@ -759,10 +773,11 @@ app.get('/by-user/:username/:eventId', async (c) => {
                             externalActorUrl: user.externalActorUrl,
                             isRemote: user.isRemote,
                         },
+                        userHasShared,
                     }
                     return c.json(eventWithUser)
                 }
-                return c.json(updatedEvent)
+                return c.json({ ...updatedEvent, userHasShared })
             }
         }
 
@@ -779,11 +794,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     externalActorUrl: user.externalActorUrl,
                     isRemote: user.isRemote,
                 },
+                userHasShared,
             }
             return c.json(eventWithUser)
         }
 
-        return c.json(event)
+        return c.json({ ...event, userHasShared })
     } catch (error) {
         console.error('Error getting event by username:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -888,7 +904,21 @@ app.get('/:id', async (c) => {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
-        return c.json(event)
+        // Check if viewer has shared the original event
+        const originalEvent = event.sharedEvent ?? event
+        let userHasShared = false
+        if (viewerId) {
+            const existingShare = await prisma.event.findFirst({
+                where: {
+                    userId: viewerId,
+                    sharedEventId: originalEvent.id,
+                },
+                select: { id: true },
+            })
+            userHasShared = !!existingShare
+        }
+
+        return c.json({ ...event, userHasShared })
     } catch (error) {
         console.error('Error getting event:', error)
         return c.json({ error: 'Internal server error' }, 500)

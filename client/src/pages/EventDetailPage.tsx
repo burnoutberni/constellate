@@ -259,9 +259,10 @@ export function EventDetailPage() {
             : false
     
     // Check if user has already shared this event
-    // Check if the current event is a share by this user, or if there's a share of the original event
-    const userHasShared = event && user
-        ? (event.userId === user.id && !!event.sharedEvent)
+    // This checks if the current event is a share by this user, or if the user has shared the original event
+    const displayedEventId = event?.sharedEvent?.id ?? event?.id
+    const userHasShared = event && user && displayedEventId
+        ? (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
         : false
 
     const handleRSVP = async (status: string) => {
@@ -369,15 +370,6 @@ export function EventDetailPage() {
         }
     }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
 
-    useEffect(() => {
-        // Check if user has already shared this event when event data loads
-        if (event && user) {
-            // If the current event is a share by this user, mark as shared
-            setHasShared(event.userId === user.id && !!event.sharedEvent)
-        } else {
-            setHasShared(false)
-        }
-    }, [eventId, event, user])
 
     const handleDeleteComment = async (commentId: string) => {
         if (!user) return
