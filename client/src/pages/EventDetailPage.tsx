@@ -261,7 +261,7 @@ export function EventDetailPage() {
     // Check if user has already shared this event
     // Check if the current event is a share by this user, or if there's a share of the original event
     const userHasShared = event && user
-        ? (event.userId === user.id && !!event.sharedEventId)
+        ? (event.userId === user.id && !!event.sharedEvent)
         : false
 
     const handleRSVP = async (status: string) => {
@@ -373,7 +373,7 @@ export function EventDetailPage() {
         // Check if user has already shared this event when event data loads
         if (event && user) {
             // If the current event is a share by this user, mark as shared
-            setHasShared(event.userId === user.id && !!event.sharedEventId)
+            setHasShared(event.userId === user.id && !!event.sharedEvent)
         } else {
             setHasShared(false)
         }
@@ -904,7 +904,7 @@ export function EventDetailPage() {
                     setPendingAction(null)
                     setPendingRSVPStatus(null)
                 }}
-                action={pendingAction || undefined}
+                action={pendingAction && pendingAction !== 'share' ? pendingAction : undefined}
                 onSuccess={handleSignupSuccess}
             />
         </div>
