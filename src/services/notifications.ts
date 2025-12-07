@@ -46,13 +46,23 @@ export function serializeNotification(notification: NotificationWithActor) {
     const createdAt = toIsoString(notification.createdAt) ?? new Date().toISOString()
     const updatedAt = toIsoString(notification.updatedAt) ?? createdAt
 
+    // Convert Prisma.JsonNull to null for serialization
+    // JsonNull is an object at runtime with constructor name 'JsonNull'
+    let data = notification.data
+    if (data !== null && typeof data === 'object' && (data as { constructor?: { name?: string } }).constructor?.name === 'JsonNull') {
+        data = null
+    }
+    if (data === undefined) {
+        data = null
+    }
+
     return {
         id: notification.id,
         type: notification.type,
         title: notification.title,
         body: notification.body,
         contextUrl: notification.contextUrl,
-        data: notification.data ?? null,
+        data,
         read: notification.read,
         readAt: toIsoString(notification.readAt),
         createdAt,
