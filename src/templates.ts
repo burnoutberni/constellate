@@ -38,7 +38,7 @@ function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonValu
             sanitized[key] = value
         }
     }
-    return sanitized
+    return sanitized as Prisma.InputJsonValue
 }
 
 function serializeTemplate(template: { id: string; createdAt: Date; updatedAt: Date }): Record<string, unknown> {

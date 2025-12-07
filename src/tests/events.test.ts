@@ -1287,38 +1287,6 @@ describe('Events API', () => {
             expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('live')
         })
 
-            vi.mocked(activityBuilder.buildCreateEventActivity).mockReturnValue({
-                type: 'Create',
-                actor: `${baseUrl}/users/${testUser.username}`,
-                object: { type: 'Event' },
-            } as any)
-            vi.mocked(activityDelivery.deliverActivity).mockResolvedValue(undefined)
-            vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
-
-            const eventData = {
-                title: 'Tagged Event',
-                startTime: new Date(Date.now() + 86400000).toISOString(),
-                tags: ['music', 'concert', 'live'],
-            }
-
-            const res = await app.request('/api/events', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(eventData),
-            })
-
-            expect(res.status).toBe(201)
-            const body = await res.json() as any
-            expect(body.tags).toBeDefined()
-            expect(Array.isArray(body.tags)).toBe(true)
-            expect(body.tags.length).toBe(3)
-            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('music')
-            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('concert')
-            expect(body.tags.map((t: { tag: string }) => t.tag)).toContain('live')
-        })
-
         it('should normalize tags to lowercase', async () => {
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
