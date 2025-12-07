@@ -5,7 +5,7 @@ import { CreateEventModal } from '../components/CreateEventModal'
 import { MiniCalendar } from '../components/MiniCalendar'
 import { ActivityFeedItem } from '../components/ActivityFeedItem'
 import { useAuth } from '../contexts/AuthContext'
-import { useEvents, useActivityFeed, useRecommendedEvents } from '../hooks/queries'
+import { useEvents, useActivityFeed, useRecommendedEvents, useTrendingEvents } from '../hooks/queries'
 import { useUIStore } from '../stores'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../hooks/queries/keys'
@@ -23,12 +23,28 @@ export function FeedPage() {
     } = useRecommendedEvents(5, { enabled: Boolean(user) })
     const { openCreateEventModal, closeCreateEventModal, createEventModalOpen, sseConnected } = useUIStore()
     const [selectedDate, setSelectedDate] = useState(new Date())
+    const [activeTab, setActiveTab] = useState<'activity' | 'trending'>('activity')
+    const {
+        data: trendingData,
+        isLoading: trendingLoading,
+        isFetching: trendingFetching,
+        refetch: refetchTrending,
+        error: trendingError,
+    } = useTrendingEvents(5, 7, { enabled: activeTab === 'trending' })
     const navigate = useNavigate()
     const queryClient = useQueryClient()
 
     const events = eventsData?.events || []
     const activities = activityData?.activities || []
     const recommendedEvents = recommendedData?.recommendations || []
+    const trendingWindowLabel = trendingData ? `Last ${trendingData.windowDays} days` : 'Last 7 days'
+    const trendingUpdatedAt = trendingData?.generatedAt ? new Date(trendingData.generatedAt) : null
+    const trendingBusy = activeTab === 'trending' && (trendingLoading || (trendingFetching && !trendingData))
+    const tabButtonClasses = (tab: 'activity' | 'trending') =>
+        `px-4 py-2 font-semibold border-b-2 transition-colors ${
+            activeTab === tab ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent hover:text-gray-700'
+        }`
+    const trendingEvents = trendingData?.events || []
 
     // Get events for selected date
     const selectedDateStart = new Date(
@@ -65,6 +81,15 @@ export function FeedPage() {
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+        })
+    }
+
+    const formatDateTime = (dateString: string) => {
+        return new Date(dateString).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
         })
@@ -107,49 +132,177 @@ export function FeedPage() {
                     {/* Main Feed - Activity Feed */}
                     <div className="lg:col-span-2 space-y-4">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900">Activity Feed</h2>
-                            {!user && (
-                                <p className="text-sm text-gray-500">
-                                    <Link to="/login" className="text-blue-600 hover:underline">
-                                        Sign in
-                                    </Link>{' '}
-                                    to see activities from people you follow
-                                </p>
-                            )}
+                            <div className="flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    className={tabButtonClasses('activity')}
+                                    onClick={() => setActiveTab('activity')}
+                                >
+                                    Activity
+                                </button>
+                                <button
+                                    type="button"
+                                    className={tabButtonClasses('trending')}
+                                    onClick={() => setActiveTab('trending')}
+                                >
+                                    Trending
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-gray-500">
+                                {activeTab === 'activity' ? (
+                                    !user && (
+                                        <p>
+                                            <Link to="/login" className="text-blue-600 hover:underline">
+                                                Sign in
+                                            </Link>{' '}
+                                            to see activities from people you follow
+                                        </p>
+                                    )
+                                ) : (
+                                    <>
+                                        <span>
+                                            {trendingUpdatedAt
+                                                ? `Updated ${trendingUpdatedAt.toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                })}`
+                                                : 'Awaiting data'}{' '}
+                                            · {trendingWindowLabel}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => refetchTrending()}
+                                            disabled={trendingFetching}
+                                        >
+                                            Refresh
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
 
-                        {activityLoading ? (
-                            <div className="card p-8 text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
-                            </div>
-                        ) : (() => {
-                            if (activities.length === 0) {
-                                return (
-                                    <div className="card p-8 text-center text-gray-500">
-                                        {user ? (
-                                            <>
-                                                <p className="mb-2">No activity yet</p>
-                                                <p className="text-sm">
-                                                    Follow people to see their activities in your feed
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <p className="mb-2">Sign in to see your activity feed</p>
-                                                <Link to="/login" className="btn btn-primary mt-4">
-                                                    Sign In
-                                                </Link>
-                                            </>
-                                        )}
-                                    </div>
-                                )
-                            }
-                            return (
-                                activities.map((activity) => (
+                        {activeTab === 'activity' ? (
+                            activityLoading ? (
+                                <div className="card p-8 text-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
+                                </div>
+                            ) : (() => {
+                                if (activities.length === 0) {
+                                    return (
+                                        <div className="card p-8 text-center text-gray-500">
+                                            {user ? (
+                                                <>
+                                                    <p className="mb-2">No activity yet</p>
+                                                    <p className="text-sm">
+                                                        Follow people to see their activities in your feed
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="mb-2">Sign in to see your activity feed</p>
+                                                    <Link to="/login" className="btn btn-primary mt-4">
+                                                        Sign In
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </div>
+                                    )
+                                }
+                                return activities.map((activity) => (
                                     <ActivityFeedItem key={activity.id} activity={activity} />
                                 ))
-                            )
-                        })()}
+                            })()
+                        ) : (
+                            <div className="space-y-4">
+                                {trendingBusy ? (
+                                    <div className="card p-8 text-center text-gray-500">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-orange-500 border-t-transparent mx-auto" />
+                                        <p className="mt-3 text-sm">Surfacing trending events…</p>
+                                    </div>
+                                ) : trendingError ? (
+                                    <div className="card p-6 text-center text-red-600 space-y-3">
+                                        <p>We couldn&apos;t load trending events.</p>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => refetchTrending()}
+                                        >
+                                            Try again
+                                        </button>
+                                    </div>
+                                ) : trendingEvents.length === 0 ? (
+                                    <div className="card p-8 text-center text-gray-500">
+                                        <p className="mb-2">No trending events yet</p>
+                                        <p className="text-sm">
+                                            Likes, comments, and RSVPs will lift events into this tab.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    trendingEvents.map((event) => {
+                                        const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
+                                        return (
+                                            <div
+                                                key={event.id}
+                                                onClick={() => handleEventClick(event)}
+                                                className="card p-4 hover:border-blue-500 cursor-pointer transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                                                            <span className="font-semibold text-gray-400">
+                                                                #{event.trendingRank ?? '—'}
+                                                            </span>
+                                                            <span>{formatDateTime(event.startTime)}</span>
+                                                        </div>
+                                                        <h3 className="text-xl font-semibold text-gray-900">
+                                                            {event.title}
+                                                        </h3>
+                                                        {event.user && (
+                                                            <p className="text-sm text-gray-500">
+                                                                @{event.user.username}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700">
+                                                            🔥 {event.trendingScore?.toFixed(1) ?? '—'}
+                                                        </span>
+                                                        <div className="text-xs text-gray-500 mt-2">
+                                                            <span className={`badge ${visibilityMeta.badgeClass}`}>
+                                                                {visibilityMeta.icon} {visibilityMeta.label}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
+                                                    <span>👍 {event.trendingMetrics?.likes ?? 0} likes</span>
+                                                    <span>💬 {event.trendingMetrics?.comments ?? 0} comments</span>
+                                                    <span>👥 {event.trendingMetrics?.attendance ?? 0} RSVPs</span>
+                                                </div>
+                                                {event.tags?.length ? (
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {event.tags.slice(0, 4).map((tag) => (
+                                                            <span
+                                                                key={tag.id}
+                                                                className="badge badge-outline text-xs uppercase tracking-wide"
+                                                            >
+                                                                #{tag.tag}
+                                                            </span>
+                                                        ))}
+                                                        {event.tags.length > 4 && (
+                                                            <span className="text-xs text-gray-400">
+                                                                +{event.tags.length - 4} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        )
+                                    })
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Sidebar */}

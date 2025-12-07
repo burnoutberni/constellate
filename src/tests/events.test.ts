@@ -1048,6 +1048,160 @@ describe('Events API', () => {
         })
     })
 
+    describe('GET /events/trending', () => {
+        it('orders events by engagement score', async () => {
+            const likerOne = await prisma.user.create({
+                data: {
+                    username: 'liker_one',
+                    email: 'liker_one@test.com',
+                    isRemote: false,
+                },
+            })
+            const likerTwo = await prisma.user.create({
+                data: {
+                    username: 'liker_two',
+                    email: 'liker_two@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const eventLow = await prisma.event.create({
+                data: {
+                    title: 'Small Gathering',
+                    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const eventHigh = await prisma.event.create({
+                data: {
+                    title: 'Big Conference',
+                    startTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.eventLike.create({
+                data: {
+                    eventId: eventLow.id,
+                    userId: likerOne.id,
+                },
+            })
+
+            await prisma.eventLike.create({
+                data: {
+                    eventId: eventHigh.id,
+                    userId: likerOne.id,
+                },
+            })
+            await prisma.eventLike.create({
+                data: {
+                    eventId: eventHigh.id,
+                    userId: likerTwo.id,
+                },
+            })
+
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: eventHigh.id,
+                    userId: likerOne.id,
+                    status: 'attending',
+                },
+            })
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: eventHigh.id,
+                    userId: likerTwo.id,
+                    status: 'maybe',
+                },
+            })
+
+            await prisma.comment.create({
+                data: {
+                    eventId: eventHigh.id,
+                    authorId: likerOne.id,
+                    content: 'See you there!',
+                },
+            })
+
+            const res = await app.request('/api/events/trending?limit=5')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+
+            expect(Array.isArray(body.events)).toBe(true)
+            expect(body.events).toHaveLength(2)
+            expect(body.events[0].id).toBe(eventHigh.id)
+            expect(body.events[0].trendingRank).toBe(1)
+            expect(body.events[0].trendingMetrics.likes).toBe(2)
+            expect(body.events[0].trendingMetrics.comments).toBe(1)
+            expect(body.events[0].trendingMetrics.attendance).toBe(2)
+            expect(body.windowDays).toBeGreaterThan(0)
+        })
+
+        it('omits private events for anonymous viewers', async () => {
+            const audience = await prisma.user.create({
+                data: {
+                    username: 'private_fan',
+                    email: 'private_fan@test.com',
+                    isRemote: false,
+                },
+            })
+
+            const privateEvent = await prisma.event.create({
+                data: {
+                    title: 'Secret Meetup',
+                    startTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PRIVATE',
+                },
+            })
+
+            const publicEvent = await prisma.event.create({
+                data: {
+                    title: 'Open Meetup',
+                    startTime: new Date(Date.now() + 5 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.eventLike.create({
+                data: {
+                    eventId: privateEvent.id,
+                    userId: audience.id,
+                },
+            })
+            await prisma.eventLike.create({
+                data: {
+                    eventId: publicEvent.id,
+                    userId: audience.id,
+                },
+            })
+
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: publicEvent.id,
+                    userId: audience.id,
+                    status: 'attending',
+                },
+            })
+
+            const res = await app.request('/api/events/trending')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const eventIds = body.events.map((event: { id: string }) => event.id)
+
+            expect(eventIds).toContain(publicEvent.id)
+            expect(eventIds).not.toContain(privateEvent.id)
+        })
+    })
+
     describe('GET /events/:id', () => {
 
         it('should include related data', async () => {

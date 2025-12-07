@@ -51,6 +51,13 @@ export interface Event {
         likes: number
         comments: number
     }
+    trendingScore?: number
+    trendingRank?: number
+    trendingMetrics?: {
+        likes: number
+        comments: number
+        attendance: number
+    }
     sharedEvent?: SharedEventSummary | null
 }
 

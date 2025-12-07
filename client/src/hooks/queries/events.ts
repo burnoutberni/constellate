@@ -18,6 +18,16 @@ interface RecommendationsResponse {
     }
 }
 
+interface TrendingEventsResponse {
+    events: Event[]
+    windowDays: number
+    generatedAt: string
+}
+
+interface UseTrendingEventsOptions {
+    enabled?: boolean
+}
+
 interface RSVPInput {
     status: string
 }
@@ -403,6 +413,31 @@ export function useAddComment(eventId: string) {
             // Don't invalidate immediately - wait for SSE event
             // SSE will update the cache with accurate data
         },
+    })
+}
+
+export function useTrendingEvents(
+    limit: number = 5,
+    windowDays: number = 7,
+    options?: UseTrendingEventsOptions
+) {
+    return useQuery<TrendingEventsResponse>({
+        queryKey: queryKeys.events.trending(limit, windowDays),
+        queryFn: async () => {
+            const params = new URLSearchParams({
+                limit: String(limit),
+                windowDays: String(windowDays),
+            })
+            const response = await fetch(`/api/events/trending?${params.toString()}`, {
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                throw new Error('Failed to fetch trending events')
+            }
+            return response.json()
+        },
+        enabled: options?.enabled ?? true,
+        staleTime: 60_000,
     })
 }
 

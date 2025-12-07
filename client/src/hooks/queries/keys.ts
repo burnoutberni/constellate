@@ -5,6 +5,7 @@ export const queryKeys = {
         lists: () => ['events', 'list'] as const,
         details: () => ['events', 'detail'] as const,
         recommendations: (limit: number) => ['events', 'recommendations', limit] as const,
+        trending: (limit: number, windowDays: number) => ['events', 'trending', limit, windowDays] as const,
     },
     search: {
         events: (params: { filters: Record<string, unknown>; page: number; limit: number }) =>
