@@ -85,7 +85,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     const renderDropdownContent = () => {
         if (isLoading) {
             return (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-8" role="status" aria-label="Loading notifications" aria-live="polite">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                 </div>
             )
@@ -108,6 +108,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                             <button
                                 type="button"
                                 onClick={() => handleNotificationClick(notification)}
+                                aria-label={`View notification: ${notification.title}`}
                                 className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
                                     notification.read ? 'bg-white hover:bg-gray-50' : 'bg-blue-50'
                                 }`}

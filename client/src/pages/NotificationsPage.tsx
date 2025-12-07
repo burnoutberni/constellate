@@ -26,7 +26,7 @@ export function NotificationsPage() {
     const unreadCount = data?.unreadCount ?? 0
 
     const sortedNotifications = useMemo(() => {
-        return [...notifications].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        return [...notifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }, [notifications])
 
     const handleOpen = (notification: Notification) => {
@@ -80,7 +80,7 @@ export function NotificationsPage() {
     const renderNotificationList = () => {
         if (isLoading) {
             return (
-                <div className="card p-10 flex items-center justify-center">
+                <div className="card p-10 flex items-center justify-center" role="status" aria-label="Loading notifications" aria-live="polite">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
                 </div>
             )

@@ -82,7 +82,7 @@ export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema
         where.userId = user.id
     }
 
-    if (params.tags) {
+    if (params.tags && params.tags.trim()) {
         const tagList = normalizeTags(params.tags.split(','))
         if (tagList.length > 0) {
             where.tags = {
