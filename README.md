@@ -115,9 +115,25 @@ npm test
 
 The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
 
+## Follow System
+
+Constellate supports following users to build a personalized activity feed. The follow system integrates with ActivityPub for federated follows across instances:
+
+- `POST /api/users/:username/follow` — follow a user (local or remote)
+- `DELETE /api/users/:username/follow` — unfollow a user
+- `GET /api/users/:username/follow-status` — check if you're following a user
+- `GET /api/activity/feed` — get activities from users you follow
+
+Features:
+- **Auto-accept**: Users can configure whether to automatically accept follow requests
+- **Pending follows**: Follow requests to users with auto-accept disabled appear as "Pending"
+- **ActivityPub integration**: Following remote users sends ActivityPub Follow activities
+- **Activity feed**: See events, likes, RSVPs, and comments from people you follow
+- **Real-time updates**: Follow status changes are broadcast via SSE (`follow:pending`, `follow:accepted`, etc.)
+
 ## Notifications API
 
-Constellate now ships with a backend notification service that powers both the REST API and real-time delivery channel:
+Constellate ships with a backend notification service that powers both the REST API and real-time delivery channel:
 
 - `GET /api/notifications?limit=20` — returns the most recent notifications plus the unread count.
 - `POST /api/notifications/:notificationId/read` — marks a single notification as read.

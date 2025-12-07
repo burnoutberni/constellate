@@ -10,6 +10,7 @@ import { prisma } from './lib/prisma.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
+import { AppError } from './lib/errors.js'
 
 const app = new Hono()
 
@@ -86,6 +87,10 @@ app.get('/users/me/profile', async (c) => {
             },
         })
     } catch (error) {
+        // Re-throw AppError instances so the global error handler can process them
+        if (error instanceof AppError) {
+            throw error
+        }
         console.error('Error getting own profile:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
