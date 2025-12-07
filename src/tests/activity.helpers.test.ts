@@ -39,6 +39,7 @@ const {
     fetchRsvpActivities,
     fetchCommentActivities,
     fetchNewEventActivities,
+    fetchSharedEventActivities,
 } = __testExports
 
 type VisibilityTarget = Parameters<typeof canUserViewEvent>[0]
@@ -293,5 +294,111 @@ describe('activity helpers', () => {
         expect(activities[0].event.tags).toHaveLength(2)
         expect(activities[0].event.tags[0].tag).toBe('launch')
         expect(activities[0].event.tags[1].tag).toBe('product')
+    })
+
+    it('fetchSharedEventActivities returns shared event activities', async () => {
+        const createdAt = new Date('2024-01-01T12:00:00Z')
+        const originalEvent = {
+            id: 'original-event-1',
+            createdAt,
+            updatedAt: createdAt,
+            title: 'Original Event',
+            summary: null,
+            startTime: createdAt,
+            endTime: null,
+            duration: null,
+            location: null,
+            headerImage: null,
+            url: null,
+            visibility: 'PUBLIC' as const,
+            eventStatus: null,
+            eventAttendanceMode: null,
+            maximumAttendeeCapacity: null,
+            userId: 'original-owner',
+            attributedTo: null,
+            externalId: null,
+            sharedEventId: null,
+            recurrencePattern: null,
+            recurrenceEndDate: null,
+            user: { id: 'original-owner', username: 'original-owner', name: 'Original Owner', displayColor: '#000', profileImage: null },
+            tags: [{ id: 'tag-1', tag: 'original', eventId: 'original-event-1' }],
+        }
+        const share = {
+            id: 'share-1',
+            createdAt: new Date('2024-01-02T12:00:00Z'),
+            updatedAt: new Date('2024-01-02T12:00:00Z'),
+            title: 'Original Event',
+            summary: null,
+            startTime: createdAt,
+            endTime: null,
+            duration: null,
+            location: null,
+            headerImage: null,
+            url: null,
+            visibility: 'PUBLIC' as const,
+            eventStatus: null,
+            eventAttendanceMode: null,
+            maximumAttendeeCapacity: null,
+            userId: 'sharer',
+            attributedTo: null,
+            externalId: null,
+            sharedEventId: 'original-event-1',
+            recurrencePattern: null,
+            recurrenceEndDate: null,
+            user: { id: 'sharer', username: 'sharer', name: 'Sharer', displayColor: '#111', profileImage: null },
+            sharedEvent: originalEvent,
+        }
+
+        vi.mocked(prisma.event.findMany).mockResolvedValueOnce([
+            share,
+        ] as unknown as Awaited<ReturnType<typeof prisma.event.findMany>>)
+        vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+        const activities = await fetchSharedEventActivities(['sharer'], 'viewer')
+        expect(activities).toHaveLength(1)
+        expect(activities[0].type).toBe('event_shared')
+        expect(activities[0].id).toBe('share-share-1')
+        expect(activities[0].event.id).toBe('original-event-1')
+        expect(activities[0].event.title).toBe('Original Event')
+        expect(activities[0].sharedEvent).toBeDefined()
+        expect(activities[0].data).toEqual({
+            sharedEventId: 'share-1',
+            originalEventId: 'original-event-1',
+        })
+    })
+
+    it('fetchSharedEventActivities filters out shares without sharedEvent', async () => {
+        const shareWithoutEvent = {
+            id: 'share-2',
+            createdAt: new Date('2024-01-02T12:00:00Z'),
+            updatedAt: new Date('2024-01-02T12:00:00Z'),
+            title: 'Shared Event',
+            summary: null,
+            startTime: new Date('2024-01-02T12:00:00Z'),
+            endTime: null,
+            duration: null,
+            location: null,
+            headerImage: null,
+            url: null,
+            visibility: 'PUBLIC' as const,
+            eventStatus: null,
+            eventAttendanceMode: null,
+            maximumAttendeeCapacity: null,
+            userId: 'sharer',
+            attributedTo: null,
+            externalId: null,
+            sharedEventId: 'non-existent',
+            recurrencePattern: null,
+            recurrenceEndDate: null,
+            user: { id: 'sharer', username: 'sharer', name: 'Sharer', displayColor: '#111', profileImage: null },
+            sharedEvent: null,
+        }
+
+        vi.mocked(prisma.event.findMany).mockResolvedValueOnce([
+            shareWithoutEvent,
+        ] as unknown as Awaited<ReturnType<typeof prisma.event.findMany>>)
+
+        const activities = await fetchSharedEventActivities(['sharer'], 'viewer')
+        expect(activities).toHaveLength(0)
     })
 })
