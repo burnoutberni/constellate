@@ -44,6 +44,10 @@
             "description": "Search functionality"
         },
         {
+            "name": "Location",
+            "description": "Location autocomplete and geocoding"
+        },
+        {
             "name": "User Search",
             "description": "WebFinger user search"
         },
@@ -160,6 +164,18 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "locationLatitude": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Latitude in decimal degrees"
+                    },
+                    "locationLongitude": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Longitude in decimal degrees"
+                    },
                     "startTime": {
                         "type": "string",
                         "format": "date-time"
@@ -212,6 +228,12 @@
                     "sharedEvent": {
                         "$ref": "#/components/schemas/SharedEvent",
                         "nullable": true
+                    },
+                    "distanceKm": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Optional distance in kilometers relative to the provided origin (nearby search)"
                     }
                 }
             },
@@ -401,6 +423,51 @@
                         "minimum": 1
                     }
                 }
+            },
+            "LocationSuggestion": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Provider-specific identifier"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Human-readable place name"
+                    },
+                    "hint": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Short hint (city/state/country)"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "importance": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "class": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "label",
+                    "latitude",
+                    "longitude"
+                ]
             },
             "EventTemplateDataUpdate": {
                 "type": "object",
@@ -2802,6 +2869,164 @@
                         "cookieAuth": []
                     }
                 ]
+            }
+        },
+        "/api/search/nearby": {
+            "get": {
+                "tags": [
+                    "Search"
+                ],
+                "summary": "Find events near a latitude/longitude",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "minimum": -90,
+                            "maximum": 90
+                        },
+                        "description": "Origin latitude in decimal degrees"
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "minimum": -180,
+                            "maximum": 180
+                        },
+                        "description": "Origin longitude in decimal degrees"
+                    },
+                    {
+                        "name": "radiusKm",
+                        "in": "query",
+                        "schema": {
+                            "type": "number",
+                            "minimum": 1,
+                            "maximum": 500,
+                            "default": 25
+                        },
+                        "description": "Search radius in kilometers"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": "Maximum events to return"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Nearby events response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "origin": {
+                                            "type": "object",
+                                            "properties": {
+                                                "latitude": {
+                                                    "type": "number",
+                                                    "format": "double"
+                                                },
+                                                "longitude": {
+                                                    "type": "number",
+                                                    "format": "double"
+                                                },
+                                                "radiusKm": {
+                                                    "type": "number",
+                                                    "format": "double"
+                                                }
+                                            },
+                                            "required": [
+                                                "latitude",
+                                                "longitude",
+                                                "radiusKm"
+                                            ]
+                                        },
+                                        "events": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Event"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "origin",
+                                        "events"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/location/search": {
+            "get": {
+                "tags": [
+                    "Location"
+                ],
+                "summary": "Search for a place and return coordinates",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 2
+                        },
+                        "description": "Free-form place query"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10,
+                            "default": 5
+                        },
+                        "description": "Maximum suggestions to return"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Location suggestions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {
+                                            "type": "string"
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/LocationSuggestion"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "query",
+                                        "results"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/user-search": {

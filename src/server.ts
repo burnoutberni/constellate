@@ -22,6 +22,7 @@ import remindersRoutes from './reminders.js'
 import searchRoutes from './search.js'
 import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
+import locationRoutes from './location.js'
 import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
@@ -237,6 +238,7 @@ app.route('/api/recommendations', recommendationsRoutes)
 app.route('/api/location', locationRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
+app.route('/api/location', locationRoutes)
 app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)

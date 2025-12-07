@@ -173,6 +173,8 @@ const EventSchema = z.object({
     title: z.string().min(1).max(200),
     summary: z.string().optional(),
     location: z.string().optional(),
+    locationLatitude: z.number().min(-90).max(90).optional().nullable(),
+    locationLongitude: z.number().min(-180).max(180).optional().nullable(),
     headerImage: z.string().url().optional(),
     url: z.string().url().optional(),
     startTime: z.string().datetime(),
@@ -186,6 +188,13 @@ const EventSchema = z.object({
     recurrenceEndDate: z.string().datetime().optional().nullable(),
     tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
     timezone: TimezoneSchema.optional(),
+}).refine((data) => {
+    const hasLat = data.locationLatitude !== undefined && data.locationLatitude !== null
+    const hasLon = data.locationLongitude !== undefined && data.locationLongitude !== null
+    return hasLat === hasLon
+}, {
+    message: 'Latitude and longitude must both be provided',
+    path: ['locationLatitude'],
 })
 
 // Helper function to process and normalize tags for event creation
@@ -224,6 +233,8 @@ function buildEventCreationData(
         title: sanitizeText(validatedData.title),
         summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
         location: validatedData.location ? sanitizeText(validatedData.location) : null,
+        locationLatitude: validatedData.locationLatitude ?? null,
+        locationLongitude: validatedData.locationLongitude ?? null,
         headerImage: validatedData.headerImage || null,
         url: validatedData.url || null,
         startTime,
@@ -259,6 +270,8 @@ async function broadcastEventCreation(
             title: event.title,
             summary: event.summary,
             location: event.location,
+            locationLatitude: (event as { locationLatitude: number | null }).locationLatitude,
+            locationLongitude: (event as { locationLongitude: number | null }).locationLongitude,
             url: event.url,
             startTime: (event as { startTime: Date }).startTime.toISOString(),
             endTime: (event as { endTime: Date | null }).endTime?.toISOString(),
@@ -1194,6 +1207,8 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
                 title: originalEvent.title,
                 summary: originalEvent.summary,
                 location: originalEvent.location,
+                locationLatitude: originalEvent.locationLatitude,
+                locationLongitude: originalEvent.locationLongitude,
                 headerImage: originalEvent.headerImage,
                 url: originalEvent.url,
                 startTime: originalEvent.startTime,
@@ -1248,6 +1263,8 @@ function buildEventUpdateData(
         ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
         ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
         ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
+        ...(validatedData.locationLatitude !== undefined && { locationLatitude: validatedData.locationLatitude ?? null }),
+        ...(validatedData.locationLongitude !== undefined && { locationLongitude: validatedData.locationLongitude ?? null }),
         ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
         ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
         ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
@@ -1379,6 +1396,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Build update data
         const updateData = buildEventUpdateData(validatedData, requestedVisibility)
+        
+        // Override recurrence fields with validated values
         if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }

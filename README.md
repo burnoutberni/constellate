@@ -219,3 +219,15 @@ Recurring events automatically expand on calendar views and are exported with RR
 - iCal exports include canonical event URLs inside the description so calendar clients always preserve a link back to Constellate.
 - `GET /api/calendar/{id}/export/google` returns a ready-to-open Google Calendar link for any event, respecting the same visibility rules as iCal downloads.
 - The Calendar page now adds a per-event **Add to Google Calendar** action inside the Upcoming Events list so users can quickly push upcoming happenings to their personal calendar.
+
+## Location-Based Event Discovery (WP-014)
+
+Constellate now understands precise event coordinates and exposes a nearby search workflow:
+
+- `Event` records include optional `locationLatitude` / `locationLongitude` decimals (degrees). Supply both values to enable map tooling and geo queries.
+- `GET /api/location/search?q=coit%20tower` proxies to OpenStreetMap Nominatim and returns normalized suggestions so the web client can autocomplete venue and coordinate fields.
+- `GET /api/search/nearby?latitude=40.7128&longitude=-74.0060&radiusKm=50&limit=25` returns upcoming events sorted by distance from the provided point. Responses include each event's `distanceKm` plus the origin metadata.
+- The event creation modal now offers:
+  - Address/venue text, decimal coordinate inputs with validation, and "Use my location" shortcuts.
+  - Inline autocomplete so organizers can search for a place once and reuse it in templates.
+- The feed sidebar contains a **Find events nearby** card that lets anyone choose a saved location (or their current device location), pick a radius (10-100 km), and browse nearby events live.

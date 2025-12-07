@@ -4,6 +4,7 @@ import { Navbar } from '../components/Navbar'
 import { CreateEventModal } from '../components/CreateEventModal'
 import { MiniCalendar } from '../components/MiniCalendar'
 import { ActivityFeedItem } from '../components/ActivityFeedItem'
+import { LocationDiscoveryCard } from '../components/LocationDiscoveryCard'
 import { useAuth } from '../contexts/AuthContext'
 import { useEvents, useActivityFeed, useRecommendedEvents, useTrendingEvents } from '../hooks/queries'
 import { useUIStore } from '../stores'
@@ -497,6 +498,8 @@ export function FeedPage() {
                                 })()}
                             </div>
                         )}
+
+                        <LocationDiscoveryCard />
 
                         {/* Suggestions */}
                         <div className="card p-4">

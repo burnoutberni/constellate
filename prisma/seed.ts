@@ -54,6 +54,8 @@ async function main() {
             title: 'Team Meeting',
             summary: 'Weekly team sync to discuss project progress',
             location: 'Conference Room A',
+            locationLatitude: 37.7749,
+            locationLongitude: -122.4194,
             startTime: tomorrow,
             endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000), // 1 hour later
             timezone: 'America/New_York',
@@ -70,6 +72,8 @@ async function main() {
             title: 'Community Meetup',
             summary: 'Monthly community gathering for ActivityPub enthusiasts',
             location: 'Virtual - Zoom',
+            locationLatitude: 37.7749,
+            locationLongitude: -122.4194,
             startTime: nextWeek,
             endTime: new Date(nextWeek.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
             timezone: 'America/New_York',

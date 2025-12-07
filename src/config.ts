@@ -115,6 +115,11 @@ export const config = {
     isDevelopment: process.env.NODE_ENV !== 'production',
     isProduction: process.env.NODE_ENV === 'production',
 
+    // External service identifiers
+    locationSearch: {
+        userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'ConstellateLocation/1.0 (+http://localhost:3000)'),
+    },
+
     // SMTP Configuration
     smtp: {
         host: getEnv('SMTP_HOST', ''),

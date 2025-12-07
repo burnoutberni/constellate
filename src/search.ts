@@ -116,6 +116,34 @@ const SearchSchema = z.object({
     limit: z.string().optional(),
 })
 
+const NearbySearchSchema = z.object({
+    latitude: z.coerce.number().min(-90).max(90),
+    longitude: z.coerce.number().min(-180).max(180),
+    radiusKm: z.coerce.number().min(1).max(500).optional().default(25),
+    limit: z.coerce.number().min(1).max(100).optional().default(25),
+})
+
+const toRadians = (value: number) => (value * Math.PI) / 180
+
+const haversineDistanceKm = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+) => {
+    const R = 6371 // km
+    const dLat = toRadians(lat2 - lat1)
+    const dLon = toRadians(lon2 - lon1)
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+            Math.cos(toRadians(lat2)) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+}
+
 export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
     const where: Record<string, unknown> = {}
 
@@ -469,6 +497,130 @@ app.get('/popular', async (c) => {
         return c.json({ events: sorted })
     } catch (error) {
         console.error('Error getting popular events:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+app.get('/nearby', async (c) => {
+    try {
+        const params = NearbySearchSchema.parse({
+            latitude: c.req.query('latitude'),
+            longitude: c.req.query('longitude'),
+            radiusKm: c.req.query('radiusKm'),
+            limit: c.req.query('limit'),
+        })
+
+        const radiusKm = params.radiusKm
+        const requestedLimit = params.limit
+
+        const latDelta = radiusKm / 111.32
+        const cosLat = Math.cos(toRadians(params.latitude))
+        const lonDelta = radiusKm / (111.32 * Math.max(Math.abs(cosLat), 0.00001))
+
+        const latMin = Math.max(-90, params.latitude - latDelta)
+        const latMax = Math.min(90, params.latitude + latDelta)
+        let lonMin = params.longitude - lonDelta
+        let lonMax = params.longitude + lonDelta
+
+        if (lonMin < -180) lonMin = -180
+        if (lonMax > 180) lonMax = 180
+
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        const boundingWhere: Prisma.EventWhereInput = {
+            locationLatitude: {
+                gte: latMin,
+                lte: latMax,
+            },
+            locationLongitude: {
+                gte: lonMin,
+                lte: lonMax,
+            },
+        }
+
+        const combinedWhere: Prisma.EventWhereInput = {
+            AND: [
+                visibilityFilter,
+                { sharedEventId: null },
+                boundingWhere,
+            ],
+        }
+
+        const baseInclude = {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                },
+            },
+            tags: true,
+            _count: {
+                select: {
+                    attendance: true,
+                    likes: true,
+                    comments: true,
+                },
+            },
+        }
+
+        const searchBatchSize = Math.min(requestedLimit * 3, 200)
+
+        const events = await prisma.event.findMany({
+            where: combinedWhere,
+            include: baseInclude,
+            orderBy: { startTime: 'asc' },
+            take: searchBatchSize,
+        })
+
+        const results = events
+            .map((event) => {
+                if (event.locationLatitude === null || event.locationLongitude === null) {
+                    return null
+                }
+                const distanceKm = haversineDistanceKm(
+                    params.latitude,
+                    params.longitude,
+                    event.locationLatitude,
+                    event.locationLongitude,
+                )
+                return distanceKm <= radiusKm
+                    ? {
+                        ...event,
+                        distanceKm,
+                    }
+                    : null
+            })
+            .filter((event): event is typeof events[0] & { distanceKm: number } => event !== null)
+            .sort((a, b) => a.distanceKm - b.distanceKm)
+            .slice(0, requestedLimit)
+
+        return c.json({
+            origin: {
+                latitude: params.latitude,
+                longitude: params.longitude,
+                radiusKm,
+            },
+            events: results,
+        })
+    } catch (error) {
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Invalid nearby search parameters', details: error.issues }, 400 as const)
+        }
+        console.error('Error searching nearby events:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })

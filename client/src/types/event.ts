@@ -46,6 +46,8 @@ export interface Event {
     title: string
     summary?: string | null
     location?: string | null
+    locationLatitude?: number | null
+    locationLongitude?: number | null
     url?: string | null
     headerImage?: string | null
     startTime: string
@@ -77,6 +79,7 @@ export interface Event {
         attendance: number
     }
     sharedEvent?: SharedEventSummary | null
+    distanceKm?: number
 }
 
 export interface EventRecommendationPayload {

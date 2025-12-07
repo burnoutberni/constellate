@@ -115,6 +115,8 @@ model Event {
   title       String
   summary     String? // Description
   location    String?
+  locationLatitude Float? // Decimal degrees
+  locationLongitude Float? // Decimal degrees
   headerImage String? // Event banner image
   url         String? // External URL for more info
 
@@ -158,6 +160,7 @@ model Event {
   @@index([externalId])
   @@index([recurrenceEndDate])
   @@index([sharedEventId])
+  @@index([locationLatitude, locationLongitude])
 }
 
 enum EventVisibility {
