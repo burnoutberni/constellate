@@ -95,7 +95,7 @@ const buildRequestFilters = (params: URLSearchParams): EventSearchFilters => {
     const keys: Array<keyof EventSearchFilters> = ['q', 'location', 'startDate', 'endDate', 'dateRange', 'status', 'mode', 'username', 'tags', 'categories']
 
     keys.forEach((key) => {
-        const value = params.get(key)
+        const value = params.get(key as string)
         if (value) {
             filters[key] = value
         }
@@ -166,8 +166,6 @@ const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
     { value: 'next_30_days', label: DATE_RANGE_LABELS.next_30_days },
     { value: 'custom', label: DATE_RANGE_LABELS.custom },
 ]
-
-const backendDateRangeSet = new Set(BACKEND_DATE_RANGES)
 
 export function SearchPage() {
     const limit = 20
@@ -329,11 +327,41 @@ export function SearchPage() {
         setSearchParams(new URLSearchParams(), { replace: true })
     }
 
+    const handleRemoveCategory = (category: string) => {
+        setFormState((prev) => ({
+            ...prev,
+            categories: prev.categories.filter((item) => item !== category),
+        }))
+    }
+
     const handlePageChange = (page: number) => {
         const nextPage = Math.max(1, page)
         const next = new URLSearchParams(searchParams)
         next.set('page', String(nextPage))
         setSearchParams(next, { replace: true })
+    }
+
+    const renderEventResults = () => {
+        if (isLoading) {
+            return (
+                <div className="card p-10 text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mx-auto" />
+                    <p className="text-sm text-gray-500 mt-3">Looking for matching events…</p>
+                </div>
+            )
+        }
+        if (data && data.events && data.events.length === 0) {
+            return (
+                <div className="card p-10 text-center text-gray-500">
+                    <p className="font-medium">No events match these filters just yet.</p>
+                    <p className="text-sm mt-2">Try broadening your date range or removing a location filter.</p>
+                </div>
+            )
+        }
+        if (data?.events) {
+            return data.events.map((event) => <EventResultCard key={event.id} event={event} />)
+        }
+        return null
     }
 
     const totalPages = data?.pagination.pages ?? 0
@@ -460,12 +488,7 @@ export function SearchPage() {
                                             <button
                                                 type="button"
                                                 aria-label={`Remove ${category}`}
-                                                onClick={() =>
-                                                    setFormState((prev) => ({
-                                                        ...prev,
-                                                        categories: prev.categories.filter((item) => item !== category),
-                                                    }))
-                                                }
+                                                onClick={() => handleRemoveCategory(category)}
                                             >
                                                 ×
                                             </button>
@@ -492,7 +515,11 @@ export function SearchPage() {
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
                                 <p className="text-sm text-gray-500">
-                                    {isFetching ? 'Updating results…' : `${totalResults} event${totalResults === 1 ? '' : 's'} found`}
+                                    {(() => {
+                                        if (isFetching) return 'Updating results…'
+                                        const eventText = totalResults === 1 ? 'event' : 'events'
+                                        return `${totalResults} ${eventText} found`
+                                    })()}
                                 </p>
                             </div>
                             {appliedFilters.length > 0 && (
@@ -527,19 +554,7 @@ export function SearchPage() {
                             </div>
                         )}
 
-                        {isLoading ? (
-                            <div className="card p-10 text-center">
-                                <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mx-auto" />
-                                <p className="text-sm text-gray-500 mt-3">Looking for matching events…</p>
-                            </div>
-                        ) : data && data.events.length === 0 ? (
-                            <div className="card p-10 text-center text-gray-500">
-                                <p className="font-medium">No events match these filters just yet.</p>
-                                <p className="text-sm mt-2">Try broadening your date range or removing a location filter.</p>
-                            </div>
-                        ) : (
-                            data?.events.map((event) => <EventResultCard key={event.id} event={event} />)
-                        )}
+                        {renderEventResults()}
                     </div>
 
                     {totalPages > 1 && (

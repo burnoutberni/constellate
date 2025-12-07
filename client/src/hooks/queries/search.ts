@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { Event } from '../../types'
 
-export interface EventSearchFilters {
+export interface EventSearchFilters extends Record<string, string | undefined> {
     q?: string
     location?: string
     startDate?: string
@@ -15,7 +15,7 @@ export interface EventSearchFilters {
     categories?: string
 }
 
-interface EventSearchResponse {
+export interface EventSearchResponse {
     events: Event[]
     pagination: {
         page: number
@@ -56,6 +56,6 @@ export function useEventSearch(filters: EventSearchFilters, page = 1, limit = 20
 
             return response.json()
         },
-        keepPreviousData: true,
+        placeholderData: keepPreviousData,
     })
 }
