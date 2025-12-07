@@ -604,7 +604,7 @@ function EventResultCard({ event }: { event: Event }) {
                     )}
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                    <span className={`badge ${visibilityMeta.badgeClass}`}> {visibilityMeta.icon} {visibilityMeta.label}</span>
+                    <span className={`badge ${visibilityMeta.badgeClass}`}>{visibilityMeta.icon} {visibilityMeta.label}</span>
                     {event.eventStatus && (
                         <span className="badge badge-outline">{event.eventStatus.replace('Event', '')}</span>
                     )}

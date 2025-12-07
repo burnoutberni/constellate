@@ -51,6 +51,8 @@ const resolveDateRangeBounds = (preset: DateRangePreset): { start?: Date; end?: 
         }
         case 'this_weekend': {
             const day = now.getDay()
+            // When today is Saturday (day = 6), daysUntilSaturday = 0, so the weekend
+            // spans from today (Saturday) through Sunday, which is the intended behavior.
             const daysUntilSaturday = (6 - day + 7) % 7
             const saturday = addDays(now, daysUntilSaturday)
             const sunday = addDays(saturday, 1)
