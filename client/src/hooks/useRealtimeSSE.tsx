@@ -524,13 +524,31 @@ const setupEventListeners = (
         }
 
         updateNotificationCaches(queryClient, (current, limit) => {
+            // Find existing notification before filtering to check its read status
+            const existingNotification = current.notifications.find((item) => item.id === notification.id)
+            const wasExistingUnread = existingNotification ? !existingNotification.read : false
+            
             const filtered = current.notifications.filter((item) => item.id !== notification.id)
             const merged = [notification, ...filtered]
             const trimmed = typeof limit === 'number' ? merged.slice(0, limit) : merged
 
+            // Calculate unreadCount change:
+            // - If new notification is unread and old one wasn't (or didn't exist), increment
+            // - If new notification is read and old one was unread, decrement
+            // - Otherwise, no change
+            let unreadCountChange = 0
+            if (!notification.read && !wasExistingUnread) {
+                // New unread notification (old one was read or didn't exist)
+                unreadCountChange = 1
+            } else if (notification.read && wasExistingUnread) {
+                // New read notification (old one was unread)
+                unreadCountChange = -1
+            }
+            // If both are unread or both are read, no change needed
+
             return {
                 notifications: trimmed,
-                unreadCount: notification.read ? current.unreadCount : current.unreadCount + 1,
+                unreadCount: Math.max(0, current.unreadCount + unreadCountChange),
             }
         })
     })

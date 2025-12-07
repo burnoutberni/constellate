@@ -7,6 +7,7 @@ import {
 } from '../hooks/queries/notifications'
 import { formatRelativeTime } from '../lib/datetime'
 import { getNotificationTypeMeta } from '../lib/notifications'
+import { safeNavigate } from '../lib/urlValidation'
 import type { Notification } from '../types'
 
 interface NotificationBellProps {
@@ -76,11 +77,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         }
 
         if (notification.contextUrl) {
-            if (notification.contextUrl.startsWith('http')) {
-                window.location.href = notification.contextUrl
-            } else {
-                navigate(notification.contextUrl)
-            }
+            safeNavigate(notification.contextUrl, navigate)
             setIsOpen(false)
         }
     }

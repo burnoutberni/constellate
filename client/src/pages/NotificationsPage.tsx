@@ -10,6 +10,7 @@ import {
 import { useUIStore } from '../stores'
 import { formatRelativeTime } from '../lib/datetime'
 import { getNotificationTypeMeta } from '../lib/notifications'
+import { safeNavigate } from '../lib/urlValidation'
 import type { Notification } from '../types'
 
 export function NotificationsPage() {
@@ -37,11 +38,7 @@ export function NotificationsPage() {
             markNotificationRead(notification.id)
         }
 
-        if (notification.contextUrl.startsWith('http')) {
-            window.location.href = notification.contextUrl
-        } else {
-            navigate(notification.contextUrl)
-        }
+        safeNavigate(notification.contextUrl, navigate)
     }
 
     const handleMarkNotificationRead = (notificationId: string) => {
