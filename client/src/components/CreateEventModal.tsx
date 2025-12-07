@@ -221,6 +221,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             return
         }
         setGeoLoading(true)
+        // Geolocation is necessary here to allow users to quickly set event coordinates
+        // for location-based features like map display and nearby event discovery.
+        // eslint-disable-next-line sonarjs/no-intrusive-permissions
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setFormData((prev) => ({
@@ -328,6 +331,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         if (!formData.recurrencePattern) {
             return null
         }
+<<<<<<< HEAD
 
         if (!formData.recurrenceEndDate) {
             return 'Please choose when the recurring event should stop.'
@@ -351,6 +355,45 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     }
 
     const buildEventPayload = (): Record<string, unknown> => {
+=======
+        if (!formData.recurrenceEndDate) {
+            return 'Please choose when the recurring event should stop.'
+        }
+        const startDate = new Date(formData.startTime)
+        // Parse recurrence end date as end of day in UTC to avoid timezone issues
+        const recurrenceEnd = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z')
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
+            return 'Please provide valid dates for recurring events.'
+        }
+        // Compare only the date parts (without time) to match backend validation
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
+        // Backend requires recurrence end date to be strictly after start time
+        if (recurrenceEndDateOnly <= startDateOnly) {
+            return 'Recurrence end date must be after the start date.'
+        }
+        return null
+    }
+
+    const parseCoordinates = (): { latitude?: number; longitude?: number; error?: string } => {
+        const hasLatitude = formData.locationLatitude.trim() !== ''
+        const hasLongitude = formData.locationLongitude.trim() !== ''
+        if (hasLatitude !== hasLongitude) {
+            return { error: 'Please provide both latitude and longitude or leave both blank.' }
+        }
+        if (!hasLatitude && !hasLongitude) {
+            return {}
+        }
+        const latitude = Number(formData.locationLatitude)
+        const longitude = Number(formData.locationLongitude)
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return { error: 'Latitude and longitude must be valid decimal numbers.' }
+        }
+        return { latitude, longitude }
+    }
+
+    const buildEventPayload = (locationLatitude?: number, locationLongitude?: number): Record<string, unknown> => {
+>>>>>>> 9fa6134 (Fix suggestions)
         const payload: Record<string, unknown> = {
             title: formData.title,
             summary: formData.summary,
@@ -360,6 +403,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
             visibility: formData.visibility,
         }
+<<<<<<< HEAD
 
         const hasLatitude = formData.locationLatitude.trim() !== ''
         const hasLongitude = formData.locationLongitude.trim() !== ''
@@ -382,6 +426,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
         }
 
+=======
+        if (locationLatitude !== undefined && locationLongitude !== undefined) {
+            payload.locationLatitude = locationLatitude
+            payload.locationLongitude = locationLongitude
+        }
+        if (formData.recurrencePattern) {
+            payload.recurrencePattern = formData.recurrencePattern
+            // Use the same end-of-day parsing logic as validation to ensure consistency (UTC)
+            payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
+        }
+>>>>>>> 9fa6134 (Fix suggestions)
         return payload
     }
 
@@ -408,6 +463,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setLocationSearch('')
     }
 
+<<<<<<< HEAD
     const handleSuccessResponse = async () => {
         if (saveAsTemplate) {
             try {
@@ -419,12 +475,25 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     locationLatitudeNumber = Number(formData.locationLatitude)
                     locationLongitudeNumber = Number(formData.locationLongitude)
                 }
+=======
+    const handleSuccessfulSubmission = async (locationLatitude?: number, locationLongitude?: number) => {
+        if (saveAsTemplate) {
+            try {
+                // Note: Tags are intentionally excluded from templates as they are event-specific
+                // and shouldn't be part of a reusable template. When loading from a template,
+                // existing tags are preserved (see applyTemplate function).
+>>>>>>> 9fa6134 (Fix suggestions)
                 await saveTemplateFromEvent({
                     title: formData.title,
                     summary: formData.summary,
                     location: formData.location,
+<<<<<<< HEAD
                     locationLatitude: locationLatitudeNumber,
                     locationLongitude: locationLongitudeNumber,
+=======
+                    locationLatitude,
+                    locationLongitude,
+>>>>>>> 9fa6134 (Fix suggestions)
                     url: formData.url,
                     startTime: new Date(formData.startTime).toISOString(),
                     endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
@@ -458,6 +527,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         try {
             setSubmitting(true)
 
+<<<<<<< HEAD
             let payload: Record<string, unknown>
             try {
                 payload = buildEventPayload()
@@ -466,6 +536,23 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 setSubmitting(false)
                 return
             }
+=======
+            const recurrenceError = validateRecurrence()
+            if (recurrenceError) {
+                setError(recurrenceError)
+                setSubmitting(false)
+                return
+            }
+
+            const coordinateResult = parseCoordinates()
+            if (coordinateResult.error) {
+                setError(coordinateResult.error)
+                setSubmitting(false)
+                return
+            }
+
+            const payload = buildEventPayload(coordinateResult.latitude, coordinateResult.longitude)
+>>>>>>> 9fa6134 (Fix suggestions)
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {
@@ -479,7 +566,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             })
 
             if (response.ok) {
+<<<<<<< HEAD
                 await handleSuccessResponse()
+=======
+                await handleSuccessfulSubmission(coordinateResult.latitude, coordinateResult.longitude)
+>>>>>>> 9fa6134 (Fix suggestions)
             } else if (response.status === 401) {
                 setError('Authentication required. Please sign in.')
             } else {

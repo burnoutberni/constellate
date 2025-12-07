@@ -41,6 +41,9 @@ export function LocationDiscoveryCard() {
         }
         setGeoLoading(true)
         setGeoError(null)
+        // Geolocation is necessary here to enable users to discover events near their current
+        // location, which is a core feature of the location-based event discovery system.
+        // eslint-disable-next-line sonarjs/no-intrusive-permissions
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setSelectedLocation({
