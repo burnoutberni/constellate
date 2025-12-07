@@ -1373,9 +1373,8 @@ describe('Events API', () => {
                 const eventA_data = body.events.find((e: { id: string }) => e.id === eventA.id)
                 const eventB_data = body.events.find((e: { id: string }) => e.id === eventB.id)
                 if (eventA_data && eventB_data && eventA_data.trendingScore === eventB_data.trendingScore) {
-                    expect(new Date(eventA_data.startTime).getTime()).toBeLessThanOrEqual(
-                        new Date(eventB_data.startTime).getTime()
-                    )
+                    // Explicitly verify that Event A appears before Event B in the results array
+                    expect(indexA).toBeLessThan(indexB)
                 }
             }
         })
