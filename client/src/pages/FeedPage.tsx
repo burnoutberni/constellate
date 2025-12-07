@@ -188,10 +188,11 @@ export function FeedPage() {
         return trendingEvents.map((event) => {
             const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
             return (
-                <div
+                <button
                     key={event.id}
+                    type="button"
                     onClick={() => handleEventClick(event)}
-                    className="card p-4 hover:border-blue-500 cursor-pointer transition-colors"
+                    className="card p-4 hover:border-blue-500 cursor-pointer transition-colors text-left w-full"
                 >
                     <div className="flex items-start justify-between gap-4">
                         <div>
@@ -243,7 +244,7 @@ export function FeedPage() {
                             )}
                         </div>
                     ) : null}
-                </div>
+                </button>
             )
         })
     }
@@ -267,9 +268,13 @@ export function FeedPage() {
                     {/* Main Feed - Activity Feed */}
                     <div className="lg:col-span-2 space-y-4">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4" role="tablist">
                                 <button
                                     type="button"
+                                    id="activity-tab"
+                                    role="tab"
+                                    aria-selected={activeTab === 'activity'}
+                                    aria-controls="activity-tabpanel"
                                     className={tabButtonClasses('activity')}
                                     onClick={() => setActiveTab('activity')}
                                 >
@@ -277,6 +282,10 @@ export function FeedPage() {
                                 </button>
                                 <button
                                     type="button"
+                                    id="trending-tab"
+                                    role="tab"
+                                    aria-selected={activeTab === 'trending'}
+                                    aria-controls="trending-tabpanel"
                                     className={tabButtonClasses('trending')}
                                     onClick={() => setActiveTab('trending')}
                                 >
@@ -318,9 +327,11 @@ export function FeedPage() {
                         </div>
 
                         {activeTab === 'activity' ? (
-                            renderActivityFeed()
+                            <div role="tabpanel" id="activity-tabpanel" aria-labelledby="activity-tab">
+                                {renderActivityFeed()}
+                            </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div role="tabpanel" id="trending-tabpanel" aria-labelledby="trending-tab" className="space-y-4">
                                 {renderTrendingEvents()}
                             </div>
                         )}
@@ -355,10 +366,11 @@ export function FeedPage() {
                                     return (
                                         <div className="space-y-2">
                                             {recommendedEvents.map((item) => (
-                                                <div
+                                                <button
                                                     key={item.event.id}
+                                                    type="button"
                                                     onClick={() => handleEventClick(item.event)}
-                                                    className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200"
+                                                    className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200 text-left w-full"
                                                 >
                                                     <div className="font-medium text-sm text-gray-900 truncate">
                                                         {item.event.title}
@@ -375,7 +387,7 @@ export function FeedPage() {
                                                             {item.reasons[0]}
                                                         </div>
                                                     )}
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )
@@ -401,10 +413,11 @@ export function FeedPage() {
                                 return (
                                     <div className="space-y-2">
                                         {todayEvents.slice(0, 5).map((event) => (
-                                            <div
+                                            <button
                                                 key={event.id}
+                                                type="button"
                                                 onClick={() => handleEventClick(event)}
-                                                className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                                className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors text-left w-full"
                                             >
                                                 <div className="font-medium text-sm text-gray-900">
                                                     {event.title}
@@ -413,7 +426,7 @@ export function FeedPage() {
                                                     {formatTime(event.startTime)}
                                                     {event.location && ` • ${event.location}`}
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
                                         {todayEvents.length > 5 && (
                                             <div className="text-xs text-gray-400 text-center pt-2">
@@ -452,10 +465,11 @@ export function FeedPage() {
                                             {selectedDateEvents.map((event) => {
                                                 const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
                                                 return (
-                                                    <div
+                                                    <button
                                                         key={event.id}
+                                                        type="button"
                                                         onClick={() => handleEventClick(event)}
-                                                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors text-left w-full"
                                                     >
                                                         <div className="font-medium text-sm text-gray-900">
                                                             {event.title}
@@ -474,7 +488,7 @@ export function FeedPage() {
                                                                 {visibilityMeta.icon} {visibilityMeta.label}
                                                             </span>
                                                         </div>
-                                                    </div>
+                                                    </button>
                                                 )
                                             })}
                                         </div>

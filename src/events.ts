@@ -457,7 +457,7 @@ app.get('/trending', async (c) => {
         ]
         const where = filters.length === 1 ? filters[0] : { AND: filters }
 
-        const candidateLimit = Math.min(Math.max(limit * 3, limit), 100)
+        const candidateLimit = Math.min(limit * 3, 100)
         const candidateEvents = await prisma.event.findMany({
             where,
             include: buildEventInclude(userId),
