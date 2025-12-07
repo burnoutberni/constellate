@@ -12,12 +12,12 @@ describe('Setup Routes', () => {
     beforeEach(async () => {
         await prisma.user.deleteMany()
 
-        vi.spyOn(authModule.auth.api, 'signUpEmail').mockImplementation(async ({ body }) => {
+        vi.spyOn(authModule.auth.api, 'signUpEmail').mockImplementation(async (params: any) => {
             const createdUser = await prisma.user.create({
                 data: {
-                    username: body.username,
-                    email: body.email,
-                    name: body.name,
+                    username: params.body?.username || params.body.username,
+                    email: params.body?.email || params.body.email,
+                    name: params.body?.name || params.body.name,
                     isRemote: false,
                 },
             })

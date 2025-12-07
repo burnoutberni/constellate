@@ -1,4 +1,4 @@
-import type { NotificationType, Prisma } from '@prisma/client'
+import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { sanitizeText } from '../lib/sanitization.js'
 import { broadcastToUser, BroadcastEvents } from '../realtime.js'
@@ -78,10 +78,10 @@ export async function createNotification(input: CreateNotificationInput) {
             title: sanitizeText(input.title),
             body: sanitizeOptionalText(input.body),
             contextUrl: input.contextUrl ?? null,
-            data: (input.data ?? null) as Prisma.JsonValue,
+            data: input.data ? (input.data as Prisma.InputJsonValue) : (Prisma.JsonNull as unknown as Prisma.InputJsonValue),
         },
         include: notificationInclude,
-    })
+    }) as NotificationWithActor
 
     await broadcastToUser(input.userId, {
         type: BroadcastEvents.NOTIFICATION_CREATED,
@@ -139,7 +139,7 @@ export async function markNotificationAsRead(userId: string, notificationId: str
             readAt: new Date(),
         },
         include: notificationInclude,
-    })
+    }) as NotificationWithActor
 
     await broadcastToUser(userId, {
         type: BroadcastEvents.NOTIFICATION_READ,

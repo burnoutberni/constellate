@@ -95,7 +95,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             expect(body.activities).toEqual([])
         })
 
@@ -132,7 +132,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             const likeActivity = body.activities.find((a: any) => a.type === 'like')
             expect(likeActivity).toBeDefined()
             expect(likeActivity.event.tags).toBeDefined()
@@ -176,7 +176,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             const rsvpActivity = body.activities.find((a: any) => a.type === 'rsvp')
             expect(rsvpActivity).toBeDefined()
             expect(rsvpActivity.event.tags).toBeDefined()
@@ -218,7 +218,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             const commentActivity = body.activities.find((a: any) => a.type === 'comment')
             expect(commentActivity).toBeDefined()
             expect(commentActivity.event.tags).toBeDefined()
@@ -252,7 +252,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             expect(body.activities).toHaveLength(1)
             expect(body.activities[0].type).toBe('event_created')
             expect(body.activities[0].event.tags).toBeDefined()
@@ -291,7 +291,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             const likeActivity = body.activities.find((a: any) => a.type === 'like')
             expect(likeActivity).toBeDefined()
             expect(likeActivity.event.tags).toBeDefined()
@@ -354,7 +354,7 @@ describe('Activity Feed API', () => {
             })
 
             expect(res.status).toBe(200)
-            const body = await res.json()
+            const body = await res.json() as any
             expect(body.activities.length).toBeGreaterThanOrEqual(3)
 
             // Verify all activities have tags

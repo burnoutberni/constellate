@@ -2,7 +2,7 @@
  * Tests for Comments API
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
@@ -220,7 +220,7 @@ describe('Comments API', () => {
         })
 
         it('should record mentions and notify mentioned user', async () => {
-            const broadcastMock = realtime.broadcast as unknown as vi.Mock
+            const broadcastMock = realtime.broadcast as unknown as Mock
 
             vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
                 user: {
@@ -257,7 +257,7 @@ describe('Comments API', () => {
             expect(mentionRecords[0].mentionedUserId).toBe(testUser2.id)
 
             const mentionBroadcastCall = broadcastMock.mock.calls.find(
-                ([payload]) => payload.type === 'mention:received'
+                (call: any[]) => call[0]?.type === 'mention:received'
             )
             expect(mentionBroadcastCall).toBeTruthy()
             expect(mentionBroadcastCall?.[0]).toMatchObject({
