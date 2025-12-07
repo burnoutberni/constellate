@@ -75,13 +75,16 @@ export function safeNavigate(
         return false
     }
 
+    // Trim the URL for consistent processing (validation already checked trimmed version)
+    const trimmed = url.trim()
+
     // Check if it's an external URL (http/https)
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        window.location.href = url
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        window.location.href = trimmed
         return true
     }
 
     // Otherwise, it's a relative path - use React Router navigation
-    navigate(url)
+    navigate(trimmed)
     return true
 }
