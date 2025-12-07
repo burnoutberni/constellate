@@ -12,6 +12,70 @@ import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 
+const DATE_RANGE_PRESETS = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
+type DateRangePreset = typeof DATE_RANGE_PRESETS[number]
+
+const startOfDay = (input: Date) => {
+    const date = new Date(input)
+    date.setHours(0, 0, 0, 0)
+    return date
+}
+
+const endOfDay = (input: Date) => {
+    const date = new Date(input)
+    date.setHours(23, 59, 59, 999)
+    return date
+}
+
+const addDays = (input: Date, days: number) => {
+    const date = new Date(input)
+    date.setDate(date.getDate() + days)
+    return date
+}
+
+const resolveDateRangeBounds = (preset: DateRangePreset): { start?: Date; end?: Date } => {
+    const now = new Date()
+    switch (preset) {
+        case 'today': {
+            return {
+                start: startOfDay(now),
+                end: endOfDay(now),
+            }
+        }
+        case 'tomorrow': {
+            const tomorrow = addDays(now, 1)
+            return {
+                start: startOfDay(tomorrow),
+                end: endOfDay(tomorrow),
+            }
+        }
+        case 'this_weekend': {
+            const day = now.getDay()
+            const daysUntilSaturday = (6 - day + 7) % 7
+            const saturday = addDays(now, daysUntilSaturday)
+            const sunday = addDays(saturday, 1)
+            return {
+                start: startOfDay(saturday),
+                end: endOfDay(sunday),
+            }
+        }
+        case 'next_7_days': {
+            return {
+                start: startOfDay(now),
+                end: endOfDay(addDays(now, 6)),
+            }
+        }
+        case 'next_30_days': {
+            return {
+                start: startOfDay(now),
+                end: endOfDay(addDays(now, 29)),
+            }
+        }
+        default:
+            return {}
+    }
+}
+
 const app = new Hono()
 
 // Custom error class for user not found
@@ -32,10 +96,12 @@ const SearchSchema = z.object({
     location: z.string().max(200).optional(), // Location filter
     startDate: z.string().datetime().optional(), // Start date filter
     endDate: z.string().datetime().optional(), // End date filter
+    dateRange: z.enum(DATE_RANGE_PRESETS).optional(), // Date range presets
     status: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
     mode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
     username: z.string().max(200).optional(), // Filter by organizer
     tags: z.string().optional(), // Comma-separated tags
+    categories: z.string().optional(), // Alias for tags
     page: z.string().optional(),
     limit: z.string().optional(),
 })
@@ -54,13 +120,19 @@ export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema
         where.location = { contains: params.location, mode: 'insensitive' }
     }
 
-    if (params.startDate || params.endDate) {
+    const presetBounds = params.dateRange ? resolveDateRangeBounds(params.dateRange) : undefined
+    const explicitStart = params.startDate ? new Date(params.startDate) : undefined
+    const explicitEnd = params.endDate ? new Date(params.endDate) : undefined
+    const startBound = explicitStart ?? presetBounds?.start
+    const endBound = explicitEnd ?? presetBounds?.end
+
+    if (startBound || endBound) {
         where.startTime = {} as { gte?: Date; lte?: Date }
-        if (params.startDate) {
-            (where.startTime as { gte: Date }).gte = new Date(params.startDate)
+        if (startBound) {
+            (where.startTime as { gte?: Date }).gte = startBound
         }
-        if (params.endDate) {
-            (where.startTime as { lte: Date }).lte = new Date(params.endDate)
+        if (endBound) {
+            (where.startTime as { lte?: Date }).lte = endBound
         }
     }
 
@@ -82,16 +154,19 @@ export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema
         where.userId = user.id
     }
 
-    if (params.tags && params.tags.trim()) {
-        const tagList = normalizeTags(params.tags.split(','))
-        if (tagList.length > 0) {
-            where.tags = {
-                some: {
-                    tag: {
-                        in: tagList,
-                    },
+    const inputTags = params.tags && params.tags.trim() ? normalizeTags(params.tags.split(',')) : []
+    const inputCategories = params.categories && params.categories.trim()
+        ? normalizeTags(params.categories.split(','))
+        : []
+    const combinedTags = Array.from(new Set([...inputTags, ...inputCategories]))
+
+    if (combinedTags.length > 0) {
+        where.tags = {
+            some: {
+                tag: {
+                    in: combinedTags,
                 },
-            }
+            },
         }
     }
 
@@ -106,10 +181,12 @@ app.get('/', async (c) => {
             location: c.req.query('location'),
             startDate: c.req.query('startDate'),
             endDate: c.req.query('endDate'),
+            dateRange: c.req.query('dateRange'),
             status: c.req.query('status'),
             mode: c.req.query('mode'),
             username: c.req.query('username'),
             tags: c.req.query('tags'),
+            categories: c.req.query('categories'),
             page: c.req.query('page'),
             limit: c.req.query('limit'),
         })
@@ -196,10 +273,12 @@ app.get('/', async (c) => {
                 location: params.location,
                 startDate: params.startDate,
                 endDate: params.endDate,
+                dateRange: params.dateRange,
                 status: params.status,
                 mode: params.mode,
                 username: params.username,
                 tags: params.tags,
+                categories: params.categories,
             },
         })
     } catch (error) {

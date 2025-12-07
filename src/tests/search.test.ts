@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
 import { prisma } from '../lib/prisma.js'
 
-describe('Search API - Tag Filtering', () => {
+describe('Search API - Advanced Filters', () => {
     let testUser: any
     const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
 
@@ -28,6 +28,10 @@ describe('Search API - Tag Filtering', () => {
                 isRemote: false,
             },
         })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
     })
 
     it('should filter events by single tag', async () => {
@@ -470,5 +474,97 @@ describe('Search API - Tag Filtering', () => {
         // Should return all events since no valid tags to filter by
         const eventIds = body.events.map((e: { id: string }) => e.id)
         expect(eventIds).toContain(event.id)
+    })
+
+    it('should filter events by date range presets', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2025-01-05T12:00:00.000Z'))
+
+        const insideRange = await prisma.event.create({
+            data: {
+                title: 'Upcoming Hackathon',
+                startTime: new Date('2025-01-08T15:00:00.000Z'),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+            },
+        })
+
+        await prisma.event.create({
+            data: {
+                title: 'Spring Festival',
+                startTime: new Date('2025-02-10T15:00:00.000Z'),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+            },
+        })
+
+        const res = await app.request('/api/search?dateRange=next_7_days')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(insideRange.id)
+        expect(eventIds.length).toBe(1)
+    })
+
+    it('should support category aliases when filtering tags', async () => {
+        const artEvent = await prisma.event.create({
+            data: {
+                title: 'Art Walk',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'art' }, { tag: 'gallery' }],
+                },
+            },
+        })
+
+        await prisma.event.create({
+            data: {
+                title: 'Tech Meetup',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+                tags: {
+                    create: [{ tag: 'tech' }],
+                },
+            },
+        })
+
+        const res = await app.request('/api/search?categories=Art')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(artEvent.id)
+        expect(eventIds.length).toBe(1)
+    })
+
+    it('should match partial location filters', async () => {
+        const nycEvent = await prisma.event.create({
+            data: {
+                title: 'Central Park Picnic',
+                location: 'New York City, NY',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+            },
+        })
+
+        await prisma.event.create({
+            data: {
+                title: 'Sunset Ride',
+                location: 'Los Angeles',
+                startTime: new Date(Date.now() + 86400000),
+                userId: testUser.id,
+                attributedTo: `${baseUrl}/users/${testUser.username}`,
+            },
+        })
+
+        const res = await app.request('/api/search?location=York')
+        expect(res.status).toBe(200)
+        const body = await res.json() as any
+        const eventIds = body.events.map((e: { id: string }) => e.id)
+        expect(eventIds).toContain(nycEvent.id)
+        expect(eventIds.length).toBe(1)
     })
 })

@@ -7,10 +7,12 @@ const baseParams = () => ({
     location: undefined,
     startDate: undefined,
     endDate: undefined,
+    dateRange: undefined,
     status: undefined,
     mode: undefined,
     username: undefined,
     tags: undefined,
+    categories: undefined,
     page: undefined,
     limit: undefined,
 })
@@ -19,6 +21,7 @@ describe('buildSearchWhereClause', () => {
 
     afterEach(() => {
         vi.restoreAllMocks()
+        vi.useRealTimers()
     })
 
     it('combines text, location, date, status, and mode filters', async () => {
@@ -95,6 +98,50 @@ describe('buildSearchWhereClause', () => {
         })
 
         expect(where.tags).toBeUndefined()
+    })
+
+    it('applies preset date range bounds when explicit dates are missing', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2025-03-10T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'next_7_days',
+        })
+
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-03-10T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-03-16T23:59:59.999Z')
+    })
+
+    it('prefers explicit date bounds over presets', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2025-03-10T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'today',
+            startDate: '2025-05-01T00:00:00.000Z',
+            endDate: '2025-05-07T23:59:59.999Z',
+        })
+
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-05-01T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-05-07T23:59:59.999Z')
+    })
+
+    it('treats categories as tag aliases and merges them', async () => {
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            tags: 'music',
+            categories: 'Workshops, MUSIC ',
+        })
+
+        expect(where.tags).toEqual({
+            some: {
+                tag: {
+                    in: ['music', 'workshops'],
+                },
+            },
+        })
     })
 })
 

@@ -8,6 +8,24 @@ A federated event management platform implementing the ActivityPub protocol for 
 
 - **Event sharing & reposts**: Share any public event (local or remote) with your followers. Shares are federated using ActivityPub `Announce` activities, appear in the activity feed with attribution, and include a dedicated share action on the event detail page.
 
+## Advanced Event Search (WP-011)
+
+Constellate now ships with a dedicated `/search` experience and richer backend filtering so community members can zero in on the events that matter most.
+
+- **Filter UI:** The new `SearchPage` pairs keyword search with location filters, attendance mode/status toggles, tag/category chips, and both preset and custom date ranges. All filters sync to the URL, making searches easy to share.
+- **API updates:** `GET /api/search` accepts the following query parameters (all optional):
+  - `q` — keyword (title/summary)
+  - `location` — case-insensitive substring match
+  - `dateRange` — one of `today`, `tomorrow`, `this_weekend`, `next_7_days`, `next_30_days`
+  - `startDate` / `endDate` — ISO timestamps for custom ranges (leave `dateRange` unset to rely exclusively on explicit bounds)
+  - `mode` — `OfflineEventAttendanceMode`, `OnlineEventAttendanceMode`, or `MixedEventAttendanceMode`
+  - `status` — `EventScheduled`, `EventPostponed`, `EventCancelled`
+  - `categories` or `tags` — comma-separated list of normalized tags (aliases are treated interchangeably)
+  - `username` — filter by organizer handle
+  - `page` / `limit` — pagination controls (limit capped at 100)
+- **Preset handling:** When `dateRange` is provided and explicit dates are omitted, the backend now expands the preset into start/end boundaries (e.g., `next_7_days` resolves to “today through six days from now”) while still respecting visibility constraints.
+- **Documentation-first:** Filters are echoed back under `filters` in the JSON payload so clients can display applied chips without re-parsing URLs.
+
 ## User Mentions in Comments
 
 Constellate comments now understand `@username` mentions:
