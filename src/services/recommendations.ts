@@ -7,6 +7,7 @@ const MAX_LIMIT = 20
 const CANDIDATE_MULTIPLIER = 4
 const LOOKBACK_ATTENDANCE = 75
 const LOOKBACK_LIKES = 75
+const MIN_ATTENDANCE_FOR_POPULARITY_REASON = 5
 
 const eventInclude = {
     user: {
@@ -139,32 +140,45 @@ async function buildInterestProfile(userId: string): Promise<InterestProfile> {
 }
 
 async function hydrateEventUsers(events: EventWithRelations[]): Promise<EventWithRelations[]> {
-    return Promise.all(
-        events.map(async (event) => {
-            if (event.user || !event.attributedTo) {
-                return event
-            }
+    // Collect all unique attributedTo URLs from events without users
+    const attributedToUrls = new Set<string>()
+    for (const event of events) {
+        if (!event.user && event.attributedTo) {
+            attributedToUrls.add(event.attributedTo)
+        }
+    }
 
-            const remoteUser = await prisma.user.findFirst({
-                where: { externalActorUrl: event.attributedTo },
-                select: {
-                    id: true,
-                    username: true,
-                    name: true,
-                    displayColor: true,
-                    profileImage: true,
-                    externalActorUrl: true,
-                    isRemote: true,
-                },
-            })
+    // Fetch all matching remote users in a single query
+    const remoteUsers = attributedToUrls.size > 0
+        ? await prisma.user.findMany({
+              where: { externalActorUrl: { in: Array.from(attributedToUrls) } },
+              select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  displayColor: true,
+                  profileImage: true,
+                  externalActorUrl: true,
+                  isRemote: true,
+              },
+          })
+        : []
 
-            if (remoteUser) {
-                return { ...event, user: remoteUser }
-            }
+    // Map the results back to events
+    const userMap = new Map(remoteUsers.map((user) => [user.externalActorUrl, user]))
 
+    return events.map((event) => {
+        if (event.user || !event.attributedTo) {
             return event
-        })
-    )
+        }
+
+        const remoteUser = userMap.get(event.attributedTo)
+        if (remoteUser) {
+            return { ...event, user: remoteUser }
+        }
+
+        return event
+    })
 }
 
 function formatTagReason(tags: string[]): string {
@@ -220,8 +234,9 @@ function buildRecommendation(
     if (hostAffinityRaw > 0 && !followedOrganizer) {
         reasons.push('You engaged with this host before')
     }
-    if (attendanceCount >= 5) {
-        reasons.push(`Already ${attendanceCount} people plan to attend`)
+    if (attendanceCount >= MIN_ATTENDANCE_FOR_POPULARITY_REASON) {
+        const peopleText = attendanceCount === 1 ? 'person plans' : 'people plan'
+        reasons.push(`Already ${attendanceCount} ${peopleText} to attend`)
     }
     if (reasons.length === 0) {
         reasons.push('Upcoming event that matches your activity')
@@ -304,7 +319,8 @@ export async function getEventRecommendations(userId: string, limit?: number) {
             {
                 visibility: 'PUBLIC',
                 sharedEventId: null,
-                startTime: { gte: now },
+                startTime: { gte: startTimeCutoff },
+                NOT: { userId },
             },
             safeLimit
         )

@@ -179,7 +179,7 @@ describe('Event recommendations API', () => {
     })
 
     it('handles events with neither userId nor attributedTo', async () => {
-        const event = await prisma.event.create({
+        await prisma.event.create({
             data: {
                 title: 'Event Without Host',
                 startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
