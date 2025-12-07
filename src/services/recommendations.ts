@@ -235,8 +235,7 @@ function buildRecommendation(
         reasons.push('You engaged with this host before')
     }
     if (attendanceCount >= MIN_ATTENDANCE_FOR_POPULARITY_REASON) {
-        const peopleText = attendanceCount === 1 ? 'person' : 'people'
-        reasons.push(`Already ${attendanceCount} ${peopleText} attending`)
+        reasons.push(`Already ${attendanceCount} people attending`)
     }
     if (reasons.length === 0) {
         reasons.push('Upcoming event that matches your activity')
