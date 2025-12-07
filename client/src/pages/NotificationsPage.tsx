@@ -56,7 +56,6 @@ export function NotificationsPage() {
         const initial =
             notification.actor.name?.[0] ??
             notification.actor.username?.[0] ??
-            notification.actor.displayColor?.[0] ??
             '?'
 
         return (

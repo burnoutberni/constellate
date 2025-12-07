@@ -49,8 +49,18 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             }
         }
 
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                setIsOpen(false)
+            }
+        }
+
         document.addEventListener('mousedown', handleClick)
-        return () => document.removeEventListener('mousedown', handleClick)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('mousedown', handleClick)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
     }, [isOpen])
 
     if (!userId) {
@@ -143,6 +153,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             <button
                 type="button"
                 aria-label="Notifications"
+                aria-expanded={isOpen}
+                aria-haspopup="menu"
                 onClick={() => setIsOpen((prev) => !prev)}
                 className="relative rounded-full p-2 hover:bg-gray-100 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >

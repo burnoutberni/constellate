@@ -96,7 +96,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 return prev
             }
         })
-    }, [tagInput])
+    }, [tagInput, setTagError, setTagInput, setFormData])
 
     const loadTemplates = useCallback(async (): Promise<EventTemplate[]> => {
         if (!user) {
