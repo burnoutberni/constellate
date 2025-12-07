@@ -38,6 +38,9 @@ export function Navbar({ isConnected, user, onLogout }: {
               <Link to="/calendar" className="nav-link">
                 Calendar
               </Link>
+              <Link to="/search" className="nav-link">
+                Search
+              </Link>
               <Link to="/about" className="nav-link">
                 About
               </Link>

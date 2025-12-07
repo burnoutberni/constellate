@@ -7,10 +7,12 @@ const baseParams = () => ({
     location: undefined,
     startDate: undefined,
     endDate: undefined,
+    dateRange: undefined,
     status: undefined,
     mode: undefined,
     username: undefined,
     tags: undefined,
+    categories: undefined,
     page: undefined,
     limit: undefined,
 })
@@ -19,6 +21,7 @@ describe('buildSearchWhereClause', () => {
 
     afterEach(() => {
         vi.restoreAllMocks()
+        vi.useRealTimers()
     })
 
     it('combines text, location, date, status, and mode filters', async () => {
@@ -95,6 +98,80 @@ describe('buildSearchWhereClause', () => {
         })
 
         expect(where.tags).toBeUndefined()
+    })
+
+    it('applies preset date range bounds when explicit dates are missing', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2025-03-10T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'next_7_days',
+        })
+
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-03-10T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-03-16T23:59:59.999Z')
+    })
+
+    it('prefers explicit date bounds over presets', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2025-03-10T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'today',
+            startDate: '2025-05-01T00:00:00.000Z',
+            endDate: '2025-05-07T23:59:59.999Z',
+        })
+
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-05-01T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-05-07T23:59:59.999Z')
+    })
+
+    it('treats categories as tag aliases and merges them', async () => {
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            tags: 'music',
+            categories: 'Workshops, MUSIC ',
+        })
+
+        expect(where.tags).toEqual({
+            some: {
+                tag: {
+                    in: ['music', 'workshops'],
+                },
+            },
+        })
+    })
+
+    it('handles this_weekend on Sunday correctly (returns just Sunday)', async () => {
+        vi.useFakeTimers()
+        // Set to a Sunday (2025-03-09 is a Sunday)
+        vi.setSystemTime(new Date('2025-03-09T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'this_weekend',
+        })
+
+        // On Sunday, should return just that Sunday (not next weekend)
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-03-09T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-03-09T23:59:59.999Z')
+    })
+
+    it('handles this_weekend on Saturday correctly (returns Saturday and Sunday)', async () => {
+        vi.useFakeTimers()
+        // Set to a Saturday (2025-03-08 is a Saturday)
+        vi.setSystemTime(new Date('2025-03-08T12:00:00.000Z'))
+
+        const where = await buildSearchWhereClause({
+            ...baseParams(),
+            dateRange: 'this_weekend',
+        })
+
+        // On Saturday, should return Saturday and Sunday
+        expect((where.startTime as { gte?: Date })?.gte?.toISOString()).toBe('2025-03-08T00:00:00.000Z')
+        expect((where.startTime as { lte?: Date })?.lte?.toISOString()).toBe('2025-03-09T23:59:59.999Z')
     })
 })
 
