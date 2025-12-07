@@ -4,6 +4,7 @@ export const queryKeys = {
         detail: (username: string, eventId: string) => ['events', 'detail', username, eventId] as const,
         lists: () => ['events', 'list'] as const,
         details: () => ['events', 'detail'] as const,
+        recommendations: (limit: number) => ['events', 'recommendations', limit] as const,
     },
     users: {
         profile: (username: string) => ['users', 'profile', username] as const,

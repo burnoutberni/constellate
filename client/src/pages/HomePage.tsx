@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEvents } from '../hooks/queries/events'
+import { useEvents, useRecommendedEvents } from '../hooks/queries/events'
 import { useUIStore } from '../stores'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
@@ -7,10 +7,15 @@ import { useAuth } from '../contexts/AuthContext'
 export function HomePage() {
     const { user, logout } = useAuth()
     const { data, isLoading } = useEvents(100)
+    const {
+        data: recommendationsData,
+        isLoading: recommendationsLoading,
+    } = useRecommendedEvents(6, { enabled: Boolean(user) })
     const { calendarCurrentDate, setCalendarDate, sseConnected } = useUIStore()
     const navigate = useNavigate()
 
     const events = data?.events || []
+    const recommendations = recommendationsData?.recommendations || []
     const currentDate = calendarCurrentDate
 
     // Get today's events
@@ -213,6 +218,56 @@ export function HomePage() {
 
                     {/* Right Column - Today's Events & Sign Up */}
                     <div className="space-y-6">
+                        {user && (
+                            <div className="card p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xl font-bold">Recommended for you</h2>
+                                    {recommendationsData?.metadata?.generatedAt && (
+                                        <span className="text-xs text-gray-500">
+                                            Updated {new Date(recommendationsData.metadata.generatedAt).toLocaleTimeString()}
+                                        </span>
+                                    )}
+                                </div>
+                                {recommendationsLoading ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                                    </div>
+                                ) : recommendations.length === 0 ? (
+                                    <div className="text-center py-6 text-gray-500 text-sm">
+                                        Interact with events to train your recommendations.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {recommendations.map((item) => (
+                                            <button
+                                                key={item.event.id}
+                                                type="button"
+                                                onClick={() => handleEventClick(item.event)}
+                                                className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                            >
+                                                <div className="font-semibold text-gray-900 flex items-center justify-between gap-2">
+                                                    <span className="truncate">{item.event.title}</span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {formatDate(item.event.startTime)}
+                                                    </span>
+                                                </div>
+                                                <div className="text-sm text-gray-600">
+                                                    {item.event.location || 'Online event'}
+                                                </div>
+                                                {item.reasons.length > 0 && (
+                                                    <div className="text-xs text-teal-700 mt-2">
+                                                        {item.reasons[0]}
+                                                        {item.reasons.length > 1 && (
+                                                            <span className="text-gray-500"> · +{item.reasons.length - 1} more</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {/* Today's Events */}
                         <div className="card p-6">
                             <h2 className="text-xl font-bold mb-4">Today's Events</h2>

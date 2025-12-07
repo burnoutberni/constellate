@@ -54,6 +54,18 @@ export interface Event {
     sharedEvent?: SharedEventSummary | null
 }
 
+export interface EventRecommendationPayload {
+    event: Event
+    score: number
+    reasons: string[]
+    signals: {
+        matchedTags: string[]
+        followedOrganizer: boolean
+        hostAffinity: boolean
+        popularityScore: number
+    }
+}
+
 /**
  * EventDetail extends Event and includes all fields from Event (including tags, _count, etc.)
  * plus additional detail fields like attendance, likes, and comments.
