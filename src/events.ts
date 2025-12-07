@@ -431,7 +431,6 @@ app.get('/trending', lenientRateLimit, async (c) => {
 
         const now = new Date()
         const windowStart = new Date(now.getTime() - windowDays * DAY_IN_MS)
-        const windowStartForEngagement = new Date(now.getTime() - windowDays * DAY_IN_MS)
 
         let followedActorUrls: string[] = []
         if (userId) {
@@ -484,21 +483,21 @@ app.get('/trending', lenientRateLimit, async (c) => {
             prisma.eventLike.findMany({
                 where: {
                     eventId: { in: eventIds },
-                    createdAt: { gte: windowStartForEngagement },
+                    createdAt: { gte: windowStart },
                 },
                 select: { eventId: true },
             }),
             prisma.comment.findMany({
                 where: {
                     eventId: { in: eventIds },
-                    createdAt: { gte: windowStartForEngagement },
+                    createdAt: { gte: windowStart },
                 },
                 select: { eventId: true },
             }),
             prisma.eventAttendance.findMany({
                 where: {
                     eventId: { in: eventIds },
-                    createdAt: { gte: windowStartForEngagement },
+                    createdAt: { gte: windowStart },
                 },
                 select: { eventId: true },
             }),

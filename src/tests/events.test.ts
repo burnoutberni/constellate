@@ -1318,13 +1318,6 @@ describe('Events API', () => {
                     isRemote: false,
                 },
             })
-            const likerTwo = await prisma.user.create({
-                data: {
-                    username: 'tie_breaker_two',
-                    email: 'tie_breaker_two@test.com',
-                    isRemote: false,
-                },
-            })
 
             // Create two events with identical engagement
             const eventA = await prisma.event.create({
