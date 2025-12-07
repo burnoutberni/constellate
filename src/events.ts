@@ -15,7 +15,7 @@ import {
 import { deliverActivity } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
-import { moderateRateLimit } from './middleware/rateLimit.js'
+import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { normalizeTags } from './lib/tags.js'
@@ -25,6 +25,13 @@ import { handleError } from './lib/errors.js'
 import { config } from './config.js'
 import type { Event } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
+import {
+    calculateTrendingScore,
+    clampTrendingLimit,
+    clampTrendingWindowDays,
+    DEFAULT_TRENDING_WINDOW_DAYS,
+    DAY_IN_MS,
+} from './lib/trending.js'
 
 declare module 'hono' {
     interface ContextVariableMap {
@@ -51,6 +58,79 @@ const commentMentionInclude = {
         },
     },
 } as const
+
+const eventUserSummarySelect = {
+    id: true,
+    username: true,
+    name: true,
+    displayColor: true,
+    profileImage: true,
+    isRemote: true,
+} as const
+
+const eventBaseInclude = {
+    user: {
+        select: eventUserSummarySelect,
+    },
+    tags: true,
+    _count: {
+        select: {
+            attendance: true,
+            likes: true,
+            comments: true,
+        },
+    },
+} as const
+
+const authenticatedEventExtras = {
+    attendance: {
+        select: {
+            status: true,
+            userId: true,
+        },
+    },
+    likes: {
+        select: {
+            userId: true,
+        },
+    },
+} as const
+
+function buildEventInclude(userId?: string) {
+    if (userId) {
+        return {
+            ...eventBaseInclude,
+            ...authenticatedEventExtras,
+        }
+    }
+    return eventBaseInclude
+}
+
+async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
+    events: T[]
+): Promise<T[]> {
+    return Promise.all(
+        events.map(async (event) => {
+            if (!event.user && event.attributedTo) {
+                const remoteUser = await prisma.user.findFirst({
+                    where: { externalActorUrl: event.attributedTo },
+                    select: eventUserSummarySelect,
+                })
+                if (remoteUser) {
+                    return { ...event, user: remoteUser }
+                }
+            }
+            return event
+        })
+    )
+}
+
+function buildCountMap(records: Array<{ eventId: string }>) {
+    return records.reduce<Record<string, number>>((acc, record) => {
+        acc[record.eventId] = (acc[record.eventId] ?? 0) + 1
+        return acc
+    }, {})
+}
 
 export function normalizeRecipients(value?: string | string[]): string[] {
     if (!value) {
@@ -313,72 +393,15 @@ app.get('/', async (c) => {
         }
         const where = filters.length === 1 ? filters[0] : { AND: filters }
 
-        const baseInclude = {
-            user: {
-                select: {
-                    id: true,
-                    username: true,
-                    name: true,
-                    displayColor: true,
-                    profileImage: true,
-                },
-            },
-            tags: true,
-            // Note: sharedEvent include not needed here since shares are filtered out by the sharedEventId: null filter above
-            _count: {
-                select: {
-                    attendance: true,
-                    likes: true,
-                    comments: true,
-                },
-            },
-        }
-
-        const authenticatedInclude = userId
-            ? {
-                ...baseInclude,
-                attendance: {
-                    select: {
-                        status: true,
-                        userId: true,
-                    },
-                },
-                likes: {
-                    select: {
-                        userId: true,
-                    },
-                },
-            }
-            : baseInclude
-
         const events = await prisma.event.findMany({
             where,
-            include: authenticatedInclude,
+            include: buildEventInclude(userId),
             orderBy: { startTime: 'asc' },
             skip,
             take: limit,
         })
 
-        // For events without user (remote events), populate from cached remote users
-        const eventsWithUsers = await Promise.all(
-            events.map(async (event) => {
-                if (!event.user && event.attributedTo) {
-                    // Find cached remote user by attributedTo
-                    const remoteUser = await prisma.user.findFirst({
-                        where: { externalActorUrl: event.attributedTo },
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                        },
-                    })
-                    return { ...event, user: remoteUser }
-                }
-                return event
-            })
-        )
+        const eventsWithUsers = await hydrateEventUsers(events)
 
         const total = await prisma.event.count({ where })
 
@@ -393,6 +416,144 @@ app.get('/', async (c) => {
         })
     } catch (error) {
         console.error('Error listing events:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+app.get('/trending', lenientRateLimit, async (c) => {
+    try {
+        const userId = c.get('userId') as string | undefined
+        const limitParam = Number.parseInt(c.req.query('limit') ?? '')
+        const windowParam = Number.parseInt(c.req.query('windowDays') ?? '')
+
+        const limit = clampTrendingLimit(limitParam)
+        const windowDays = clampTrendingWindowDays(windowParam || DEFAULT_TRENDING_WINDOW_DAYS)
+
+        const now = new Date()
+        const windowStart = new Date(now.getTime() - windowDays * DAY_IN_MS)
+
+        let followedActorUrls: string[] = []
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            followedActorUrls = following.map(f => f.actorUrl)
+        }
+
+        const visibilityWhere = userId
+            ? buildVisibilityWhere({ userId, followedActorUrls })
+            : { visibility: 'PUBLIC' as const }
+
+        const filters: Prisma.EventWhereInput[] = [
+            visibilityWhere,
+            { sharedEventId: null },
+            {
+                OR: [
+                    { startTime: { gte: windowStart } },
+                    { updatedAt: { gte: windowStart } },
+                ],
+            },
+        ]
+        const where = filters.length === 1 ? filters[0] : { AND: filters }
+
+        const candidateLimit = Math.min(limit * 3, 100)
+        const candidateEvents = await prisma.event.findMany({
+            where,
+            include: buildEventInclude(userId),
+            orderBy: [
+                { updatedAt: 'desc' },
+                { startTime: 'asc' },
+            ],
+            take: candidateLimit,
+        })
+
+        const hydratedEvents = await hydrateEventUsers(candidateEvents)
+        const eventIds = hydratedEvents.map((event) => event.id)
+
+        if (eventIds.length === 0) {
+            return c.json({
+                events: [],
+                windowDays,
+                generatedAt: now.toISOString(),
+            })
+        }
+
+        const [likes, comments, attendance] = await Promise.all([
+            prisma.eventLike.findMany({
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStart },
+                },
+                select: { eventId: true },
+            }),
+            prisma.comment.findMany({
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStart },
+                },
+                select: { eventId: true },
+            }),
+            prisma.eventAttendance.findMany({
+                where: {
+                    eventId: { in: eventIds },
+                    createdAt: { gte: windowStart },
+                },
+                select: { eventId: true },
+            }),
+        ])
+
+        const likeCountMap = buildCountMap(likes)
+        const commentCountMap = buildCountMap(comments)
+        const attendanceCountMap = buildCountMap(attendance)
+
+        const scoredEvents = hydratedEvents
+            .map((event) => {
+                const metrics = {
+                    likes: likeCountMap[event.id] ?? 0,
+                    comments: commentCountMap[event.id] ?? 0,
+                    attendance: attendanceCountMap[event.id] ?? 0,
+                }
+                const engagementTotal = metrics.likes + metrics.comments + metrics.attendance
+                const score = calculateTrendingScore({
+                    metrics,
+                    event,
+                    windowDays,
+                    now,
+                })
+                return {
+                    event,
+                    metrics,
+                    engagementTotal,
+                    score,
+                }
+            })
+            .filter(({ engagementTotal, score }) => engagementTotal > 0 && score > 0)
+            .sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score
+                }
+                if (b.metrics.likes !== a.metrics.likes) {
+                    return b.metrics.likes - a.metrics.likes
+                }
+                return a.event.startTime.getTime() - b.event.startTime.getTime()
+            })
+            .slice(0, limit)
+
+        const events = scoredEvents.map(({ event, metrics, score }, index) => ({
+            ...event,
+            trendingScore: score,
+            trendingRank: index + 1,
+            trendingMetrics: metrics,
+        }))
+
+        return c.json({
+            events,
+            windowDays,
+            generatedAt: now.toISOString(),
+        })
+    } catch (error) {
+        console.error('Error fetching trending events:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })

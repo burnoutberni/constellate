@@ -172,12 +172,18 @@ Notifications are streamed in real time over the existing SSE endpoint as `notif
 
 ## Event Recommendations (WP-013)
 
-Constellate now suggests events tailored to each signed-in member’s interests:
+Constellate now suggests events tailored to each signed-in member's interests:
 
 - `GET /api/recommendations?limit=6` returns a scored list of events the viewer can access, along with reasons (matching tags, followed hosts, popularity) and lightweight signal metadata. The endpoint requires authentication and respects the same visibility rules as the events feed.
 - Recommendations combine recently attended or liked events, preferred organizers, followed ActivityPub actors, and current engagement signals (attendance, likes, comments, recency).
-- The Home page and Feed sidebar display a “Recommended for you” card when a user is signed in. Each card surfaces the top reason and links directly to the detailed event view.
+- The Home page and Feed sidebar display a "Recommended for you" card when a user is signed in. Each card surfaces the top reason and links directly to the detailed event view.
 - When no personal signals exist yet, the service automatically falls back to trending upcoming public events so the UI still has meaningful suggestions.
+
+## Trending Events (WP-012)
+
+- `GET /api/events/trending?limit=10&windowDays=7` surfaces the most engaged events from the recent window. Each response contains the trending window, generation timestamp, and an array of events annotated with `trendingScore`, `trendingRank`, and a `trendingMetrics` breakdown (likes, comments, RSVPs).
+- Scores weight engagement (likes ×4, comments ×5, attendance ×3) and apply a decay/boost curve so upcoming and freshly updated events outrank stale listings. Only events with real engagement are returned, and standard visibility rules still apply.
+- The feed page now exposes Activity / Trending tabs; the Trending tab shows the hottest events with live metrics, visibility badges, tag chips, and a manual refresh control that re-runs the algorithm on demand.
 
 ## License
 
