@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
+import { ReminderStatus } from '@prisma/client'
 import remindersApp from '../reminders.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -57,7 +58,7 @@ const mockReminder = {
     eventId: 'event_1',
     userId: 'user_1',
     minutesBeforeStart: 30,
-    status: 'PENDING',
+    status: ReminderStatus.PENDING,
     remindAt: new Date('2025-02-01T09:30:00Z').toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
+import { ReminderStatus } from '@prisma/client'
 import attendanceApp from '../attendance.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -75,7 +76,19 @@ describe('Attendance API', () => {
         vi.mocked(requireAuth).mockReturnValue('user_123')
         vi.mocked(scheduleReminderForEvent).mockReset()
         vi.mocked(cancelReminderForEvent).mockReset()
-        vi.mocked(scheduleReminderForEvent).mockResolvedValue({})
+        vi.mocked(scheduleReminderForEvent).mockResolvedValue({
+            id: 'reminder_123',
+            eventId: 'event_123',
+            userId: 'user_123',
+            minutesBeforeStart: 30,
+            status: ReminderStatus.PENDING,
+            remindAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deliveredAt: null,
+            lastAttemptAt: null,
+            failureReason: null,
+        })
         vi.mocked(cancelReminderForEvent).mockResolvedValue(true)
     })
 

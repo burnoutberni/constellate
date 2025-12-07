@@ -42,7 +42,7 @@ async function processReminder(reminderId: string) {
         },
     })
 
-    if (claimed === 0) {
+    if (claimed.count === 0) {
         return
     }
 
