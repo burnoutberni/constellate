@@ -324,20 +324,7 @@ app.get('/', async (c) => {
                 },
             },
             tags: true,
-            sharedEvent: {
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                            isRemote: true,
-                        },
-                    },
-                },
-            },
+            // Note: sharedEvent include removed since shares are filtered out with { sharedEventId: null }
             _count: {
                 select: {
                     attendance: true,
@@ -962,13 +949,16 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
 
         const originalEvent = event.sharedEvent ?? event
 
-        if (originalEvent.visibility !== 'PUBLIC') {
-            return c.json({ error: 'Only public events can be shared' }, 403 as const)
-        }
-
+        // Check if user can view the original event (this already enforces visibility rules)
         const canViewOriginal = await canUserViewEvent(originalEvent, userId)
         if (!canViewOriginal) {
             return c.json({ error: 'Forbidden' }, 403)
+        }
+
+        // Explicitly check visibility for sharing - only PUBLIC events can be shared
+        // This is a business rule separate from viewing permissions
+        if (originalEvent.visibility !== 'PUBLIC') {
+            return c.json({ error: 'Only public events can be shared' }, 403 as const)
         }
 
         const duplicateShare = await prisma.event.findFirst({

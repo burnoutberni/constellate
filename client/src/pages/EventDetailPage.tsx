@@ -249,18 +249,28 @@ export function EventDetailPage() {
     const deleteEventMutation = useDeleteEvent(eventId)
 
     // Derive user's attendance and like status from event data
-    const getUserAttendance = () => {
-        if (!event || !user) return null
-        return event.attendance?.find((a) => a.user.id === user.id)?.status || null
-    }
-
-    const getUserLiked = () => {
-        if (!event || !user) return false
-        return !!event.likes?.find((l) => l.user.id === user.id)
-    }
-
-    const userAttendance = getUserAttendance()
-    const userLiked = getUserLiked()
+    const userAttendance =
+        event && user
+            ? event.attendance?.find((a) => a.user.id === user.id)?.status || null
+            : null
+    const userLiked =
+        event && user
+            ? !!event.likes?.find((l) => l.user.id === user.id)
+            : false
+    
+    // Check if user has already shared this event
+    // Check if the current event is a share by this user, or if there's a share of the original event
+    const userHasShared = event && user
+        ? (() => {
+            const originalEventId = event.sharedEvent?.id || event.id
+            // Check if there's a share record for this user and original event
+            // We'll need to check this from the server, but for now check if current event is a share by this user
+            if (event.userId === user.id && event.sharedEventId) {
+                return true
+            }
+            return false
+        })()
+        : false
 
     const handleRSVP = async (status: string) => {
         if (!user) {
@@ -304,7 +314,11 @@ export function EventDetailPage() {
             setHasShared(true)
         } catch (error) {
             console.error('Share failed:', error)
-            alert('Failed to share event')
+            let errorMessage = 'Failed to share event'
+            if (error instanceof Error) {
+                errorMessage = error.message
+            }
+            alert(errorMessage)
         }
     }
 
@@ -383,8 +397,21 @@ export function EventDetailPage() {
     }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
 
     useEffect(() => {
-        setHasShared(false)
-    }, [eventId])
+        // Check if user has already shared this event when event data loads
+        if (event && user) {
+            const originalEventId = event.sharedEvent?.id || event.id
+            // If the current event is a share by this user, mark as shared
+            if (event.userId === user.id && event.sharedEventId) {
+                setHasShared(true)
+            } else {
+                // Check if there's a share of the original event by this user
+                // This would require a server-side check, but for now we'll reset
+                setHasShared(false)
+            }
+        } else {
+            setHasShared(false)
+        }
+    }, [eventId, event, user])
 
     const handleDeleteComment = async (commentId: string) => {
         if (!user) return
@@ -495,7 +522,7 @@ export function EventDetailPage() {
 
     const buildShareButtonClass = () => {
         const baseClass = 'btn flex-1'
-        if (hasShared) {
+        if (hasShared || userHasShared) {
             return `${baseClass} btn-primary ring-2 ring-indigo-600 ring-offset-2`
         }
         if (user) {
@@ -542,7 +569,7 @@ export function EventDetailPage() {
             return renderSpinner('Sharing...')
         }
 
-        if (hasShared) {
+        if (hasShared || userHasShared) {
             return '✅ Shared'
         }
 
@@ -752,7 +779,7 @@ export function EventDetailPage() {
                         </button>
                         <button
                             onClick={handleShare}
-                            disabled={shareMutation.isPending || hasShared}
+                            disabled={shareMutation.isPending || hasShared || userHasShared}
                             className={buildShareButtonClass()}
                             title={guestTooltip('Sign up to share this event')}
                         >

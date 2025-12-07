@@ -24,6 +24,7 @@ import {
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import type { Prisma } from '@prisma/client'
 import type {
     Activity,
     FollowActivity,
@@ -534,14 +535,35 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
         }
 
         try {
-            const response = await fetch(object, {
-                headers: {
-                    Accept: ContentType.ACTIVITY_JSON,
+            // Use safeFetch to prevent SSRF attacks with timeout and size limits
+            const response = await safeFetch(
+                object,
+                {
+                    headers: {
+                        Accept: ContentType.ACTIVITY_JSON,
+                    },
                 },
-            })
+                10000 // 10 second timeout
+            )
+
+            // Check content-length header if available
+            const contentLength = response.headers.get('content-length')
+            if (contentLength) {
+                const size = parseInt(contentLength, 10)
+                if (!Number.isNaN(size) && size > 10 * 1024 * 1024) { // 10MB limit
+                    console.error('Response too large:', size, 'bytes')
+                    return null
+                }
+            }
 
             if (response.ok) {
-                const payload = await response.json() as Record<string, unknown>
+                // Read response with size limit
+                const text = await response.text()
+                if (text.length > 10 * 1024 * 1024) { // 10MB limit
+                    console.error('Response body too large:', text.length, 'bytes')
+                    return null
+                }
+                const payload = JSON.parse(text) as Record<string, unknown>
                 return upsertRemoteEventFromObject(payload)
             }
         } catch (error) {
@@ -1177,7 +1199,7 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
         return
     }
 
-    const duplicateConditions = []
+    const duplicateConditions: Prisma.EventWhereInput[] = []
     if (activity.id) {
         duplicateConditions.push({ externalId: activity.id })
     }

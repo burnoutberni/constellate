@@ -396,8 +396,10 @@ async function fetchSharedEventActivities(followedUserIds: string[], viewerId: s
             type: 'event_shared',
             createdAt: share.createdAt.toISOString(),
             user: share.user,
-            event: buildEventSummary(share),
-            sharedEvent: buildEventSummary(share.sharedEvent!),
+            // event should reference the original event being shared (for consistency with other activity types)
+            event: buildEventSummary(share.sharedEvent!),
+            // sharedEvent can reference the share record itself if needed for UI purposes
+            sharedEvent: buildEventSummary(share),
             data: {
                 sharedEventId: share.id,
                 originalEventId: share.sharedEventId,

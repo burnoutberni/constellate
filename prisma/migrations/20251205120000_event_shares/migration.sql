@@ -5,8 +5,8 @@ ALTER TABLE "Event"
 -- CreateIndex
 CREATE INDEX "Event_sharedEventId_idx" ON "Event"("sharedEventId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "Event_userId_sharedEventId_key" ON "Event"("userId", "sharedEventId");
+-- Note: Unique constraint on [userId, sharedEventId] intentionally omitted
+-- See schema.prisma comments for explanation
 
 -- AddForeignKey
 ALTER TABLE "Event"
