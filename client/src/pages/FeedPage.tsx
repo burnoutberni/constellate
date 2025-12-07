@@ -83,8 +83,6 @@ export function FeedPage() {
         )
     }
 
-
-
     return (
         <div className="min-h-screen bg-gray-100">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />

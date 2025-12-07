@@ -119,9 +119,8 @@ describe('Attendance Helper Functions', () => {
     describe('resolveEventFollowersUrl', () => {
         it('should return undefined when notifyFollowers is false', () => {
             const notifyFollowers = false
-            if (!notifyFollowers) {
-                expect(undefined).toBeUndefined()
-            }
+            const shouldResolve = notifyFollowers
+            expect(shouldResolve).toBe(false)
         })
 
         it('should construct URL from event user', () => {
@@ -161,12 +160,8 @@ describe('Attendance Helper Functions', () => {
                 attributedTo: 'http://remote.example.com/users/charlie',
             }
             const notifyFollowers = true
-            if (notifyFollowers && !event.user && event.attributedTo?.startsWith(baseUrl)) {
-                // Should not enter this branch
-                expect(false).toBe(true) // This should not execute
-            } else {
-                expect(true).toBe(true) // This should execute
-            }
+            const shouldResolve = notifyFollowers && !event.user && event.attributedTo?.startsWith(baseUrl)
+            expect(shouldResolve).toBe(false)
         })
     })
 
