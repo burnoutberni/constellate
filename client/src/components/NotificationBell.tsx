@@ -35,7 +35,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement | null>(null)
     const navigate = useNavigate()
-    const { data, isLoading } = useNotifications(10, { enabled: !!userId })
+    const { data, isLoading, error, isError } = useNotifications(10, { enabled: !!userId })
     const { mutate: markNotificationRead } = useMarkNotificationRead()
     const { mutate: markAllNotificationsRead, isPending: markAllPending } = useMarkAllNotificationsRead()
 
@@ -87,6 +87,17 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             return (
                 <div className="flex items-center justify-center py-8" role="status" aria-label="Loading notifications" aria-live="polite">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                </div>
+            )
+        }
+
+        if (isError) {
+            return (
+                <div className="px-4 py-8 text-center text-sm">
+                    <p className="font-semibold text-gray-900 mb-1">Unable to load notifications</p>
+                    <p className="text-gray-600 text-xs">
+                        {error instanceof Error ? error.message : 'An error occurred while fetching notifications.'}
+                    </p>
                 </div>
             )
         }

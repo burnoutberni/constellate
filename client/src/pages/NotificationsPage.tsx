@@ -18,7 +18,7 @@ export function NotificationsPage() {
     const { sseConnected } = useUIStore()
     const navigate = useNavigate()
 
-    const { data, isLoading, isFetching } = useNotifications(50, { enabled: !!user })
+    const { data, isLoading, isFetching, error, isError } = useNotifications(50, { enabled: !!user })
     const { mutate: markNotificationRead } = useMarkNotificationRead()
     const { mutate: markAllNotificationsRead, isPending: markAllPending } = useMarkAllNotificationsRead()
 
@@ -86,6 +86,24 @@ export function NotificationsPage() {
             )
         }
 
+        if (isError) {
+            return (
+                <div className="card p-10 text-center">
+                    <p className="text-lg font-semibold text-gray-900 mb-2">Unable to load notifications</p>
+                    <p className="text-gray-600 mb-4">
+                        {error instanceof Error ? error.message : 'An error occurred while fetching notifications.'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="btn btn-primary"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )
+        }
+
         if (sortedNotifications.length === 0) {
             return (
                 <div className="card p-10 text-center text-gray-500">
@@ -135,6 +153,7 @@ export function NotificationsPage() {
                                         type="button"
                                         onClick={() => handleMarkNotificationRead(notification.id)}
                                         className="btn btn-ghost text-sm"
+                                        aria-label={`Mark "${notification.title}" as read`}
                                     >
                                         Mark as read
                                     </button>
@@ -144,6 +163,7 @@ export function NotificationsPage() {
                                         type="button"
                                         onClick={() => handleOpen(notification)}
                                         className="btn btn-primary text-sm"
+                                        aria-label={`View details for "${notification.title}"`}
                                     >
                                         View details
                                     </button>

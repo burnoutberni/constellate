@@ -6,6 +6,10 @@ export function formatRelativeTime(value: string | number | Date) {
 
     const diffSeconds = Math.floor((Date.now() - date.getTime()) / 1000)
 
+    if (diffSeconds < 0) {
+        return 'just now'
+    }
+
     if (diffSeconds < 5) {
         return 'just now'
     }
