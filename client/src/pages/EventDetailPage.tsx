@@ -18,6 +18,7 @@ import type { EventVisibility } from '../types'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import type { CommentMention } from '../types'
 import { getDefaultTimezone } from '../lib/timezones'
+import { useUIStore } from '../stores'
 
 interface MentionSuggestion {
     id: string
@@ -44,6 +45,7 @@ export function EventDetailPage() {
     const location = useLocation()
     const navigate = useNavigate()
     const { user } = useAuth()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
     const [comment, setComment] = useState('')
     const [username, setUsername] = useState<string>('')
     const [eventId, setEventId] = useState<string>('')
@@ -335,7 +337,7 @@ export function EventDetailPage() {
 
         if (!canManageReminder) {
             setSelectedReminder(activeReminderMinutes)
-            alert('RSVP as Going or Maybe to enable reminders.')
+            addErrorToast('RSVP as Going or Maybe to enable reminders.')
             return
         }
 
@@ -346,7 +348,7 @@ export function EventDetailPage() {
         } catch (error) {
             console.error('Failed to update reminder:', error)
             setSelectedReminder(previousValue ?? null)
-            alert('Failed to update reminder')
+            addErrorToast('Failed to update reminder. Please try again.')
         }
     }
 
@@ -378,7 +380,7 @@ export function EventDetailPage() {
             if (error instanceof Error) {
                 errorMessage = error.message
             }
-            alert(errorMessage)
+            addErrorToast(errorMessage)
         }
     }
 
@@ -460,7 +462,7 @@ export function EventDetailPage() {
             })
         } catch (error) {
             console.error('Delete comment failed:', error)
-            alert('Failed to delete comment')
+            addErrorToast('Failed to delete comment. Please try again.')
         }
     }
 
@@ -474,7 +476,7 @@ export function EventDetailPage() {
             navigate('/feed', { replace: true })
         } catch (error) {
             console.error('Delete event failed:', error)
-            alert('Failed to delete event')
+            addErrorToast('Failed to delete event. Please try again.')
         }
     }
 
@@ -840,6 +842,7 @@ export function EventDetailPage() {
                                     value={selectedReminder !== null ? String(selectedReminder) : ''}
                                     onChange={handleReminderChange}
                                     disabled={!user || !canManageReminder || reminderMutation.isPending}
+                                    aria-label="Reminder notification timing"
                                 >
                                     {REMINDER_OPTIONS.map((option) => (
                                         <option

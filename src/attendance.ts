@@ -230,10 +230,10 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         try {
             if (status === AttendanceStatus.NOT_ATTENDING) {
                 await cancelReminderForEvent(id, userId)
-            } else if (typeof reminderMinutesBeforeStart === 'number') {
-                await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
             } else if (reminderMinutesBeforeStart === null) {
                 await cancelReminderForEvent(id, userId)
+            } else if (typeof reminderMinutesBeforeStart === 'number') {
+                await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
             }
         } catch (reminderError) {
             // Log reminder error but allow attendance update to succeed

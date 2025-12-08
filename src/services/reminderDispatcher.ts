@@ -157,9 +157,9 @@ export async function runReminderDispatcherCycle(limit: number = PROCESSING_LIMI
             take: limit,
         })
 
-        for (const reminder of reminders) {
-            await processReminder(reminder.id)
-        }
+        // Process reminders concurrently to avoid blocking on slow operations
+        // Use Promise.allSettled to ensure all reminders are processed even if some fail
+        await Promise.allSettled(reminders.map((reminder) => processReminder(reminder.id)))
     } catch (error) {
         console.error('Reminder dispatcher error:', error)
     } finally {

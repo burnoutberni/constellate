@@ -118,9 +118,8 @@ export async function cancelReminderForEvent(eventId: string, userId: string) {
         },
         data: {
             status: 'CANCELLED' satisfies ReminderStatus,
-            deliveredAt: null,
-            lastAttemptAt: null,
-            failureReason: null,
+            // Preserve diagnostic fields for debugging and audit trails
+            // deliveredAt, lastAttemptAt, and failureReason are not cleared
         },
     })
 
@@ -143,9 +142,8 @@ export async function deleteReminderById(reminderId: string, userId: string) {
         where: { id: reminderId },
         data: {
             status: 'CANCELLED' satisfies ReminderStatus,
-            deliveredAt: null,
-            lastAttemptAt: null,
-            failureReason: null,
+            // Preserve diagnostic fields for debugging and audit trails
+            // deliveredAt, lastAttemptAt, and failureReason are not cleared
         },
     })
 

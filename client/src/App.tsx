@@ -18,6 +18,7 @@ import { SearchPage } from './pages/SearchPage'
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { MentionNotifications } from './components/MentionNotifications'
+import { ErrorToasts } from './components/ErrorToasts'
 
 function AppContent() {
     // Global SSE connection
@@ -65,6 +66,7 @@ function AppContent() {
                 <Route path="/*" element={<ProfileOrEventPage />} />
             </Routes>
             <MentionNotifications />
+            <ErrorToasts />
         </>
     )
 }
