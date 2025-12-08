@@ -567,4 +567,201 @@ describe('Search API - Advanced Filters', () => {
         expect(eventIds).toContain(nycEvent.id)
         expect(eventIds.length).toBe(1)
     })
+
+    describe('Upcoming events endpoint', () => {
+        it('should return only upcoming events', async () => {
+            const upcomingEvent = await prisma.event.create({
+                data: {
+                    title: 'Future Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const pastEvent = await prisma.event.create({
+                data: {
+                    title: 'Past Event',
+                    startTime: new Date(Date.now() - 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search/upcoming')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(Array.isArray(body.events)).toBe(true)
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            expect(eventIds).toContain(upcomingEvent.id)
+            expect(eventIds).not.toContain(pastEvent.id)
+        })
+
+        it('should respect limit parameter', async () => {
+            // Create multiple upcoming events
+            for (let i = 0; i < 5; i++) {
+                await prisma.event.create({
+                    data: {
+                        title: `Event ${i}`,
+                        startTime: new Date(Date.now() + (i + 1) * 86400000),
+                        userId: testUser.id,
+                        attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    },
+                })
+            }
+
+            const res = await app.request('/api/search/upcoming?limit=3')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events.length).toBeLessThanOrEqual(3)
+        })
+
+        it('should cap limit at 50', async () => {
+            const res = await app.request('/api/search/upcoming?limit=100')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            // Should not exceed 50 even if limit=100 is requested
+            expect(body.events.length).toBeLessThanOrEqual(50)
+        })
+
+        it('should include user and count data', async () => {
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Event with Data',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search/upcoming')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
+            expect(foundEvent).toBeDefined()
+            expect(foundEvent.user).toBeDefined()
+            expect(foundEvent._count).toBeDefined()
+            expect(typeof foundEvent._count.attendance).toBe('number')
+            expect(typeof foundEvent._count.likes).toBe('number')
+            expect(typeof foundEvent._count.comments).toBe('number')
+        })
+    })
+
+    describe('Popular events endpoint', () => {
+        it('should return events sorted by popularity (attendance + likes)', async () => {
+            const lessPopular = await prisma.event.create({
+                data: {
+                    title: 'Less Popular',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [{ userId: testUser.id, status: 'attending' }],
+                    },
+                },
+            })
+
+            const morePopular = await prisma.event.create({
+                data: {
+                    title: 'More Popular',
+                    startTime: new Date(Date.now() + 172800000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [
+                            { userId: testUser.id, status: 'attending' },
+                        ],
+                    },
+                    likes: {
+                        create: [{ userId: testUser.id }],
+                    },
+                },
+            })
+
+            const res = await app.request('/api/search/popular')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(Array.isArray(body.events)).toBe(true)
+            expect(body.events.length).toBeGreaterThan(0)
+            
+            // More popular event should appear first
+            const morePopularIndex = body.events.findIndex((e: { id: string }) => e.id === morePopular.id)
+            const lessPopularIndex = body.events.findIndex((e: { id: string }) => e.id === lessPopular.id)
+            expect(morePopularIndex).toBeGreaterThanOrEqual(0)
+            expect(lessPopularIndex).toBeGreaterThanOrEqual(0)
+            expect(morePopularIndex).toBeLessThan(lessPopularIndex)
+        })
+
+        it('should only return upcoming events', async () => {
+            const upcomingEvent = await prisma.event.create({
+                data: {
+                    title: 'Upcoming Popular',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [{ userId: testUser.id, status: 'attending' }],
+                    },
+                },
+            })
+
+            const pastEvent = await prisma.event.create({
+                data: {
+                    title: 'Past Popular',
+                    startTime: new Date(Date.now() - 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [{ userId: testUser.id, status: 'attending' }],
+                    },
+                },
+            })
+
+            const res = await app.request('/api/search/popular')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            expect(eventIds).toContain(upcomingEvent.id)
+            expect(eventIds).not.toContain(pastEvent.id)
+        })
+
+        it('should respect limit parameter', async () => {
+            const res = await app.request('/api/search/popular?limit=5')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events.length).toBeLessThanOrEqual(5)
+        })
+
+        it('should cap limit at 50', async () => {
+            const res = await app.request('/api/search/popular?limit=200')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events.length).toBeLessThanOrEqual(50)
+        })
+
+        it('should include user and count data', async () => {
+            const event = await prisma.event.create({
+                data: {
+                    title: 'Popular Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search/popular')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
+            if (foundEvent) {
+                expect(foundEvent.user).toBeDefined()
+                expect(foundEvent._count).toBeDefined()
+                expect(typeof foundEvent._count.attendance).toBe('number')
+                expect(typeof foundEvent._count.likes).toBe('number')
+                expect(typeof foundEvent._count.comments).toBe('number')
+            }
+        })
+    })
 })

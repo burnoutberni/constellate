@@ -347,7 +347,7 @@ export function EventDetailPage() {
             await reminderMutation.mutateAsync(nextValue)
         } catch (error) {
             console.error('Failed to update reminder:', error)
-            setSelectedReminder(previousValue ?? null)
+            setSelectedReminder(previousValue !== undefined ? previousValue : null)
             addErrorToast('Failed to update reminder. Please try again.')
         }
     }

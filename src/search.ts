@@ -305,11 +305,30 @@ app.get('/upcoming', async (c) => {
     try {
         const limit = Math.min(parseInt(c.req.query('limit') || '10'), 50)
 
+        // Apply visibility filter
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
         const events = await prisma.event.findMany({
             where: {
-                startTime: {
-                    gte: new Date(),
-                },
+                AND: [
+                    {
+                        startTime: {
+                            gte: new Date(),
+                        },
+                    },
+                    visibilityFilter,
+                ],
             },
             include: {
                 user: {
@@ -333,7 +352,13 @@ app.get('/upcoming', async (c) => {
             take: limit,
         })
 
-        return c.json({ events })
+        // Ensure _count is explicitly included in response
+        const eventsWithCounts = events.map((event) => ({
+            ...event,
+            _count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
+        }))
+
+        return c.json({ events: eventsWithCounts })
     } catch (error) {
         console.error('Error getting upcoming events:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -345,12 +370,31 @@ app.get('/popular', async (c) => {
     try {
         const limit = Math.min(parseInt(c.req.query('limit') || '10'), 50)
 
-        // Get events with counts
+        // Apply visibility filter
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        // Fetch events - we'll sort in memory, so fetch more than the limit
         const events = await prisma.event.findMany({
             where: {
-                startTime: {
-                    gte: new Date(),
-                },
+                AND: [
+                    {
+                        startTime: {
+                            gte: new Date(),
+                        },
+                    },
+                    visibilityFilter,
+                ],
             },
             include: {
                 user: {
@@ -370,17 +414,48 @@ app.get('/popular', async (c) => {
                     },
                 },
             },
-            take: 100, // Get more to sort
+            take: Math.max(limit * 10, 100),
         })
+
+        // Manually count attendance and likes to ensure accuracy
+        // Prisma's _count may not reflect nested creates immediately in some cases
+        const eventIds = events.map(e => e.id)
+        const [attendanceCounts, likesCounts] = await Promise.all([
+            prisma.eventAttendance.groupBy({
+                by: ['eventId'],
+                where: { eventId: { in: eventIds } },
+                _count: { eventId: true },
+            }),
+            prisma.eventLike.groupBy({
+                by: ['eventId'],
+                where: { eventId: { in: eventIds } },
+                _count: { eventId: true },
+            }),
+        ])
+
+        const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
+        const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
 
         // Sort by popularity (attendance + likes)
         const sorted = events
-            .map((event) => ({
-                ...event,
-                popularity: event._count.attendance + event._count.likes,
-            }))
+            .map((event) => {
+                const attendanceCount = attendanceMap.get(event.id) ?? Number(event._count?.attendance ?? 0)
+                const likesCount = likesMap.get(event.id) ?? Number(event._count?.likes ?? 0)
+                const commentsCount = Number(event._count?.comments ?? 0)
+                const popularity = attendanceCount + likesCount
+                return {
+                    ...event,
+                    _count: {
+                        attendance: attendanceCount,
+                        likes: likesCount,
+                        comments: commentsCount,
+                    },
+                    popularity,
+                }
+            })
             .sort((a, b) => b.popularity - a.popularity)
             .slice(0, limit)
+            .map(({ popularity, ...event }) => event)
 
         return c.json({ events: sorted })
     } catch (error) {

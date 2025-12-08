@@ -20,6 +20,7 @@ const DATE_RANGE_LABELS: Record<string, string> = {
     next_30_days: 'Next 30 days',
 }
 
+// Backend date range presets - must match backend validation in src/search.ts
 type BackendDateRange = 'today' | 'tomorrow' | 'this_weekend' | 'next_7_days' | 'next_30_days'
 type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
 
