@@ -226,7 +226,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
-        // Handle reminder operations - don't fail attendance update if reminder fails
+        // Handle reminder operations - distinguish validation errors from unexpected errors
         try {
             if (status === AttendanceStatus.NOT_ATTENDING) {
                 await cancelReminderForEvent(id, userId)
@@ -236,8 +236,13 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
                 await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
             }
         } catch (reminderError) {
-            // Log reminder error but allow attendance update to succeed
-            console.error('Reminder operation failed during attendance update:', reminderError)
+            // Validation errors (e.g., event already started, invalid offset) should be surfaced to user
+            if (reminderError instanceof AppError && reminderError.statusCode === 400) {
+                // Re-throw validation errors so they're returned to the client
+                throw reminderError
+            }
+            // Log unexpected errors but allow attendance update to succeed
+            console.error('Unexpected reminder operation error during attendance update:', reminderError)
         }
 
         return c.json(attendance)

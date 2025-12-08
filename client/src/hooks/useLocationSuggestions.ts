@@ -73,6 +73,8 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
 
         return () => {
             window.clearTimeout(timer)
+            abortRef.current?.abort()
+            abortRef.current = null
         }
     }, [query, enabled])
 

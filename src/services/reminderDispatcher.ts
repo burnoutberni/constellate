@@ -127,7 +127,7 @@ async function processReminder(reminderId: string) {
             },
         })
     } catch (error) {
-        console.error('Reminder delivery failed:', error)
+        console.error('Failed to deliver reminder, marking as FAILED:', error)
         await prisma.eventReminder.update({
             where: { id: reminder.id },
             data: {

@@ -108,22 +108,42 @@ export async function scheduleReminderForEvent(
 }
 
 export async function cancelReminderForEvent(eventId: string, userId: string) {
-    const updated = await prisma.eventReminder.updateMany({
-        where: {
-            eventId,
-            userId,
-            status: {
-                in: ['PENDING', 'SENDING', 'FAILED'] satisfies ReminderStatus[],
+    try {
+        const reminder = await prisma.eventReminder.findUnique({
+            where: {
+                eventId_userId: {
+                    eventId,
+                    userId,
+                },
             },
-        },
-        data: {
-            status: 'CANCELLED' satisfies ReminderStatus,
-            // Preserve diagnostic fields for debugging and audit trails
-            // deliveredAt, lastAttemptAt, and failureReason are not cleared
-        },
-    })
+        })
 
-    return updated.count > 0
+        if (!reminder || !['PENDING', 'SENDING', 'FAILED'].includes(reminder.status)) {
+            return false
+        }
+
+        await prisma.eventReminder.update({
+            where: {
+                eventId_userId: {
+                    eventId,
+                    userId,
+                },
+            },
+            data: {
+                status: 'CANCELLED' satisfies ReminderStatus,
+                // Preserve diagnostic fields for debugging and audit trails
+                // deliveredAt, lastAttemptAt, and failureReason are not cleared
+            },
+        })
+
+        return true
+    } catch (error) {
+        // If reminder doesn't exist, return false (not an error condition)
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+            return false
+        }
+        throw error
+    }
 }
 
 export async function deleteReminderById(reminderId: string, userId: string) {

@@ -484,49 +484,4 @@ export function useEventReminder(eventId: string, username: string) {
     })
 }
 
-interface NearbyEventsResponse {
-    events: Array<Event & { distanceKm?: number }>
-}
-
-export function useNearbyEvents(
-    location: { latitude: number; longitude: number } | undefined,
-    radiusKm: number,
-    enabled: boolean = true
-) {
-    return useQuery<NearbyEventsResponse>({
-        queryKey: location
-            ? queryKeys.events.nearby(location.latitude, location.longitude, radiusKm)
-            : ['events', 'nearby', 'disabled'],
-        enabled: enabled && !!location,
-        queryFn: async () => {
-            if (!location) {
-                return { events: [] }
-            }
-
-            // Note: The backend doesn't currently support lat/long/radius queries.
-            // This is a placeholder implementation that returns empty results.
-            // To implement properly, the backend would need a geospatial search endpoint.
-            const params = new URLSearchParams({
-                latitude: location.latitude.toString(),
-                longitude: location.longitude.toString(),
-                radiusKm: radiusKm.toString(),
-            })
-            const response = await fetch(`/api/events/nearby?${params.toString()}`, {
-                credentials: 'include',
-            })
-
-            // If the endpoint doesn't exist (404), return empty results
-            if (response.status === 404) {
-                return { events: [] }
-            }
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch nearby events')
-            }
-
-            return response.json()
-        },
-    })
-}
-
 

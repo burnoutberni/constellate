@@ -319,7 +319,7 @@ export function EventDetailPage() {
                 await rsvpMutation.mutateAsync(null)
                 setSelectedReminder(null)
             } else {
-                await rsvpMutation.mutateAsync({ status, reminderMinutesBeforeStart: selectedReminder ?? null })
+                await rsvpMutation.mutateAsync({ status, reminderMinutesBeforeStart: selectedReminder })
             }
         } catch (error) {
             console.error('RSVP failed:', error)
