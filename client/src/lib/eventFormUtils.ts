@@ -61,6 +61,12 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         return { error: 'Latitude and longitude must be valid decimal numbers.' }
     }
+    if (latitude < -90 || latitude > 90) {
+        return { error: 'Latitude must be between -90 and 90 degrees.' }
+    }
+    if (longitude < -180 || longitude > 180) {
+        return { error: 'Longitude must be between -180 and 180 degrees.' }
+    }
     return { latitude, longitude }
 }
 

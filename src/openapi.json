@@ -2984,7 +2984,7 @@
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "minLength": 2
+                            "minLength": 3
                         },
                         "description": "Free-form place query"
                     },

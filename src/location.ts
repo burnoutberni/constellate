@@ -7,8 +7,10 @@ const app = new Hono()
 
 app.use('*', lenientRateLimit)
 
-// Minimum query length for location search (aligned with frontend)
+// Minimum query length for location search
 // 3 characters provides better geocoding results by reducing ambiguous queries
+// Note: This value is intentionally aligned with the frontend MIN_QUERY_LENGTH constant
+// in client/src/hooks/useLocationSuggestions.ts. Both should be kept in sync.
 const MIN_LOCATION_QUERY_LENGTH = 3
 
 const LocationSearchSchema = z.object({
