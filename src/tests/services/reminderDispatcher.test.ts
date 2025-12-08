@@ -97,4 +97,19 @@ describe('Reminder dispatcher', () => {
             })
         )
     })
+
+    it('marks reminder as failed when email fails but notification succeeds', async () => {
+        vi.mocked(sendEmail).mockRejectedValueOnce(new Error('Email service unavailable'))
+
+        await runReminderDispatcherCycle(5)
+
+        expect(createNotification).toHaveBeenCalled()
+        expect(sendEmail).toHaveBeenCalled()
+        expect(prisma.eventReminder.update).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { id: dueReminder.id },
+                data: expect.objectContaining({ status: 'FAILED' }),
+            })
+        )
+    })
 })

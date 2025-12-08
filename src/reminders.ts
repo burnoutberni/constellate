@@ -11,12 +11,16 @@ import {
     cancelReminderForEvent,
     deleteReminderById,
     getReminderOptions,
+    REMINDER_MINUTE_OPTIONS,
 } from './services/reminders.js'
 
 const app = new Hono()
 
 const reminderRequestSchema = z.object({
-    minutesBeforeStart: z.number().int({ message: 'Reminder offset must be an integer' }),
+    minutesBeforeStart: z.number().int({ message: 'Reminder offset must be an integer' }).refine(
+        (val) => REMINDER_MINUTE_OPTIONS.includes(val),
+        { message: `Reminder offset must be one of: ${REMINDER_MINUTE_OPTIONS.join(', ')}` }
+    ),
 })
 
 async function loadEventOrThrow(eventId: string) {

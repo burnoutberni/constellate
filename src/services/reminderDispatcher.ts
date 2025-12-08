@@ -73,13 +73,19 @@ async function processReminder(reminderId: string) {
     })
 
     if (!reminder || !reminder.event || !reminder.user) {
-        await prisma.eventReminder.update({
-            where: { id: reminderId },
-            data: {
-                status: ReminderStatus.FAILED,
-                failureReason: 'Reminder missing event or user context',
-            },
-        })
+        if (reminder) {
+            try {
+                await prisma.eventReminder.update({
+                    where: { id: reminderId },
+                    data: {
+                        status: ReminderStatus.FAILED,
+                        failureReason: 'Reminder missing event or user context',
+                    },
+                })
+            } catch {
+                // Reminder was deleted, ignore
+            }
+        }
         return
     }
 

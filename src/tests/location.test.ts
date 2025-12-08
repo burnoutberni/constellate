@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
-import { prisma } from '../lib/prisma.js'
 
 describe('Location Search API', () => {
     const originalFetch = global.fetch

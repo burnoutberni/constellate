@@ -226,12 +226,18 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
-        if (status === AttendanceStatus.NOT_ATTENDING) {
-            await cancelReminderForEvent(id, userId)
-        } else if (typeof reminderMinutesBeforeStart === 'number') {
-            await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
-        } else if (reminderMinutesBeforeStart === null) {
-            await cancelReminderForEvent(id, userId)
+        // Handle reminder operations - don't fail attendance update if reminder fails
+        try {
+            if (status === AttendanceStatus.NOT_ATTENDING) {
+                await cancelReminderForEvent(id, userId)
+            } else if (typeof reminderMinutesBeforeStart === 'number') {
+                await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
+            } else if (reminderMinutesBeforeStart === null) {
+                await cancelReminderForEvent(id, userId)
+            }
+        } catch (reminderError) {
+            // Log reminder error but allow attendance update to succeed
+            console.error('Reminder operation failed during attendance update:', reminderError)
         }
 
         return c.json(attendance)
@@ -307,7 +313,13 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
-        await cancelReminderForEvent(id, userId)
+        // Handle reminder cancellation - don't fail attendance removal if reminder fails
+        try {
+            await cancelReminderForEvent(id, userId)
+        } catch (reminderError) {
+            // Log reminder error but allow attendance removal to succeed
+            console.error('Reminder cancellation failed during attendance removal:', reminderError)
+        }
 
         return c.json({ success: true })
     } catch (error) {

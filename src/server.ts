@@ -35,7 +35,7 @@ import { strictRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
-import { startReminderDispatcher } from './services/reminderDispatcher.js'
+import { startReminderDispatcher, stopReminderDispatcher } from './services/reminderDispatcher.js'
 
 const app = new OpenAPIHono()
 

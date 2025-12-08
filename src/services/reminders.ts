@@ -15,7 +15,7 @@ function ensureValidEventStart(event: EventForReminder) {
     }
 
     if (event.startTime.getTime() <= Date.now()) {
-        throw new AppError('REMINDER_EVENT_PAST', 'Cannot schedule a reminder for an event that already started', 400)
+        throw new AppError('REMINDER_EVENT_PAST', 'Cannot schedule a reminder for an event that has already started', 400)
     }
 }
 
@@ -36,7 +36,11 @@ function computeRemindAt(startTime: Date, minutesBeforeStart: number) {
     if (!Number.isFinite(remindTimestamp)) {
         throw new AppError('REMINDER_COMPUTE_ERROR', 'Failed to compute reminder time', 400)
     }
-    return new Date(remindTimestamp)
+    const remindAt = new Date(remindTimestamp)
+    if (remindAt.getTime() <= Date.now()) {
+        throw new AppError('REMINDER_TOO_LATE', 'Reminder time is in the past. The event is starting too soon for this reminder offset.', 400)
+    }
+    return remindAt
 }
 
 export function serializeReminder(reminder: SerializableReminder) {
@@ -141,6 +145,7 @@ export async function deleteReminderById(reminderId: string, userId: string) {
             status: 'CANCELLED' satisfies ReminderStatus,
             deliveredAt: null,
             lastAttemptAt: null,
+            failureReason: null,
         },
     })
 
