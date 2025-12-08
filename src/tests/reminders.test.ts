@@ -130,4 +130,133 @@ describe('Event reminders API', () => {
         const res = await app.request('/api/events/event_1/reminders')
         expect(res.status).toBe(403)
     })
+
+    it('returns 404 when event does not exist', async () => {
+        vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+        const res = await app.request('/api/events/nonexistent/reminders')
+        expect(res.status).toBe(404)
+    })
+
+    it('returns 400 for invalid reminder offset', async () => {
+        const res = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 999 }),
+        })
+
+        expect(res.status).toBe(400)
+        const body = await res.json() as { error?: string }
+        expect(body.error).toBeDefined()
+    })
+
+    it('returns 400 for non-integer reminder offset', async () => {
+        const res = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 15.5 }),
+        })
+
+        expect(res.status).toBe(400)
+    })
+
+    it('returns 400 for missing minutesBeforeStart', async () => {
+        const res = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        })
+
+        expect(res.status).toBe(400)
+    })
+
+    it('handles errors from scheduleReminderForEvent', async () => {
+        vi.mocked(scheduleReminderForEvent).mockRejectedValue(new Error('Event has already started'))
+        const res = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 15 }),
+        })
+
+        expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it('handles errors from cancelReminderForEvent', async () => {
+        vi.mocked(cancelReminderForEvent).mockRejectedValue(new Error('Database error'))
+        const res = await app.request('/api/events/event_1/reminders', {
+            method: 'DELETE',
+        })
+
+        expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it('handles errors from deleteReminderById', async () => {
+        vi.mocked(deleteReminderById).mockRejectedValue(new Error('Reminder not found'))
+        const res = await app.request('/api/events/event_1/reminders/reminder_1', {
+            method: 'DELETE',
+        })
+
+        expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it('returns 404 when deleting non-existent reminder', async () => {
+        const { AppError } = await import('../lib/errors.js')
+        vi.mocked(deleteReminderById).mockRejectedValue(
+            new AppError('REMINDER_NOT_FOUND', 'Reminder not found', 404)
+        )
+        const res = await app.request('/api/events/event_1/reminders/nonexistent', {
+            method: 'DELETE',
+        })
+
+        expect(res.status).toBe(404)
+    })
+
+    it('returns 403 when event not found on DELETE', async () => {
+        vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+        const res = await app.request('/api/events/nonexistent/reminders', {
+            method: 'DELETE',
+        })
+        expect(res.status).toBe(404)
+    })
+
+    it('returns 403 when event not found on POST', async () => {
+        vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+        const res = await app.request('/api/events/nonexistent/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 15 }),
+        })
+        expect(res.status).toBe(404)
+    })
+
+    it('returns 403 when event not found on DELETE by id', async () => {
+        vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+        const res = await app.request('/api/events/nonexistent/reminders/reminder_1', {
+            method: 'DELETE',
+        })
+        expect(res.status).toBe(404)
+    })
+
+    it('handles database errors gracefully', async () => {
+        vi.mocked(prisma.event.findUnique).mockRejectedValue(new Error('Database connection failed'))
+        const res = await app.request('/api/events/event_1/reminders')
+        expect(res.status).toBeGreaterThanOrEqual(500)
+    })
+
+    it('validates reminder offset against allowed options', async () => {
+        // Test with valid option
+        const validRes = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 5 }),
+        })
+        expect(validRes.status).toBe(201)
+
+        // Test with another valid option
+        const validRes2 = await app.request('/api/events/event_1/reminders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutesBeforeStart: 1440 }),
+        })
+        expect(validRes2.status).toBe(201)
+    })
 })
