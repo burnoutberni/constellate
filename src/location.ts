@@ -13,9 +13,12 @@ app.use('*', lenientRateLimit)
 // in client/src/hooks/useLocationSuggestions.ts. Both should be kept in sync.
 const MIN_LOCATION_QUERY_LENGTH = 3
 
+// Default limit for location search results
+const DEFAULT_LOCATION_LIMIT = 5
+
 const LocationSearchSchema = z.object({
     q: z.string().min(MIN_LOCATION_QUERY_LENGTH).max(200),
-    limit: z.string().optional(),
+    limit: z.coerce.number().optional(),
 })
 
 const NominatimResultSchema = z.object({
@@ -53,7 +56,9 @@ app.get('/search', async (c) => {
             limit: c.req.query('limit'),
         })
 
-        const limit = Math.max(1, Math.min(parseInt(parsed.limit || '5', 10) || 5, 10))
+        // Clamp limit to valid range (1-10) instead of rejecting invalid values
+        const rawLimit = parsed.limit ?? DEFAULT_LOCATION_LIMIT
+        const limit = Math.max(1, Math.min(10, rawLimit))
 
         const url = new URL(config.locationSearch.nominatimEndpoint)
         url.searchParams.set('q', parsed.q)

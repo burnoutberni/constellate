@@ -19,7 +19,11 @@ vi.mock('../../lib/prisma.js', () => ({
         },
         $transaction: vi.fn(),
         $queryRaw: vi.fn(),
+<<<<<<< HEAD
         $executeRaw: vi.fn(),
+=======
+        $executeRawUnsafe: vi.fn(),
+>>>>>>> 82382c0 (Fix suggestions)
     },
 }))
 
@@ -127,6 +131,7 @@ describe('Reminder dispatcher', () => {
             })
         )
     })
+<<<<<<< HEAD
 
     it('handles reminder with missing event context', async () => {
         vi.mocked(prisma.eventReminder.findUnique).mockResolvedValue({
@@ -429,4 +434,6 @@ describe('Reminder dispatcher', () => {
             expect(prisma.eventReminder.update).toHaveBeenCalled()
         })
     })
+=======
+>>>>>>> 82382c0 (Fix suggestions)
 })

@@ -16,6 +16,11 @@ export interface MentionNotification {
     createdAt: string
 }
 
+export interface ErrorToast {
+    id: string
+    message: string
+}
+
 interface UIState {
     // Create Event Modal
     createEventModalOpen: boolean
@@ -52,14 +57,8 @@ interface UIState {
     closeFollowersModal: () => void
     addMentionNotification: (notification: MentionNotification) => void
     dismissMentionNotification: (id: string) => void
-    addErrorToast: (message: string) => void
+    addErrorToast: (toast: ErrorToast) => void
     dismissErrorToast: (id: string) => void
-}
-
-export interface ErrorToast {
-    id: string
-    message: string
-    createdAt: number
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -105,15 +104,10 @@ export const useUIStore = create<UIState>((set) => ({
     dismissMentionNotification: (id) => set((state) => ({
         mentionNotifications: state.mentionNotifications.filter((item) => item.id !== id),
     })),
-    addErrorToast: (message) => set((state) => {
-        const id = `error-${Date.now()}-${crypto.randomUUID()}`
-        const newToast: ErrorToast = {
-            id,
-            message,
-            createdAt: Date.now(),
-        }
+    addErrorToast: (toast) => set((state) => {
+        const existing = state.errorToasts.filter((item) => item.id !== toast.id)
         return {
-            errorToasts: [newToast, ...state.errorToasts].slice(0, 5),
+            errorToasts: [toast, ...existing].slice(0, 20),
         }
     }),
     dismissErrorToast: (id) => set((state) => ({

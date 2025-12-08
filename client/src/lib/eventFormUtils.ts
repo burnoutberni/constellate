@@ -51,7 +51,8 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
     const hasLatitude = formData.locationLatitude.trim() !== ''
     const hasLongitude = formData.locationLongitude.trim() !== ''
     if (hasLatitude !== hasLongitude) {
-        return { error: 'Latitude and longitude must both be provided or both omitted.' }
+        const missingField = hasLatitude ? 'longitude' : 'latitude'
+        return { error: `Both latitude and longitude must be provided together, but ${missingField} is missing.` }
     }
     if (!hasLatitude && !hasLongitude) {
         return {}

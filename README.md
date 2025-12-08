@@ -226,6 +226,7 @@ Constellate now understands precise event coordinates and exposes a nearby searc
 
 - `Event` records include optional `locationLatitude` / `locationLongitude` decimals (degrees). Supply both values to enable map tooling and geo queries.
 - `GET /api/location/search?q=coit%20tower` proxies to OpenStreetMap Nominatim and returns normalized suggestions so the web client can autocomplete venue and coordinate fields.
+  - **Note:** The Nominatim endpoint is configurable via the `NOMINATIM_ENDPOINT` environment variable (defaults to the public Nominatim instance). This allows self-hosting or using alternative Nominatim instances.
 - `GET /api/search/nearby?latitude=40.7128&longitude=-74.0060&radiusKm=50&limit=25` returns upcoming events sorted by distance from the provided point. Responses include each event's `distanceKm` plus the origin metadata.
 - The event creation modal now offers:
   - Address/venue text, decimal coordinate inputs with validation, and "Use my location" shortcuts.

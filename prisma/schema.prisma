@@ -64,6 +64,7 @@ model User {
   reportedIn             Report[]          @relation("ReportedUser")
   eventTemplates         EventTemplate[]
   reminders              EventReminder[]
+
   // Auth
   sessions Session[]
   accounts Account[]
@@ -143,6 +144,7 @@ model Event {
   likes             EventLike[]
   comments          Comment[]
   tags              EventTag[]
+  reminders         EventReminder[]
   recurrencePattern RecurrencePattern?
   recurrenceEndDate DateTime?
   sharedEventId     String?
@@ -484,6 +486,10 @@ enum ReminderStatus {
   CANCELLED
 }
 
+<<<<<<< HEAD
+=======
+// Event reminders - scheduled notifications for users
+>>>>>>> 82382c0 (Fix suggestions)
 model EventReminder {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -495,6 +501,7 @@ model EventReminder {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+<<<<<<< HEAD
   minutesBeforeStart Int
   remindAt           DateTime
   status             ReminderStatus @default(PENDING)
@@ -503,5 +510,22 @@ model EventReminder {
   failureReason      String?
 
   @@unique([eventId, userId])
+=======
+  // Reminder configuration
+  minutesBeforeStart Int // Minutes before event start to send reminder
+  remindAt           DateTime // Calculated time when reminder should be sent
+
+  // Status tracking
+  status ReminderStatus @default(PENDING)
+
+  // Delivery tracking
+  deliveredAt   DateTime? // When reminder was successfully delivered
+  lastAttemptAt DateTime? // Last time we attempted to send
+  failureReason String?   // Error message if delivery failed
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@index([eventId])
+>>>>>>> 82382c0 (Fix suggestions)
   @@index([status, remindAt])
 }

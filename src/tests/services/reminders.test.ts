@@ -115,6 +115,7 @@ describe('Reminder service', () => {
             expect(result.minutesBeforeStart).toBe(30)
         })
     })
+<<<<<<< HEAD
 
     describe('computeRemindAt edge cases', () => {
         it('should reject reminder time in the past', () => {
@@ -529,4 +530,6 @@ describe('Reminder service', () => {
             expect(prisma.eventReminder.upsert).toHaveBeenCalled()
         })
     })
+=======
+>>>>>>> 82382c0 (Fix suggestions)
 })

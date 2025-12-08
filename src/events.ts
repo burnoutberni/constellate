@@ -1514,9 +1514,11 @@ app.put('/:id', moderateRateLimit, async (c) => {
         return c.json(event)
     } catch (error) {
         if (error instanceof ZodError) {
-            // Check if there's a refine error message we should use
-            const refineError = error.issues.find(issue => issue.path.includes('locationLatitude'))
-            const errorMessage = refineError?.message || 'Validation failed'
+            // Check for coordinate validation errors on both fields
+            const latError = error.issues.find(issue => issue.path.includes('locationLatitude'))
+            const lonError = error.issues.find(issue => issue.path.includes('locationLongitude'))
+            // Prefer the refine error message if found, otherwise use any coordinate error, otherwise generic
+            const errorMessage = latError?.message || lonError?.message || 'Validation failed'
             return c.json({ error: errorMessage, details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)

@@ -13,6 +13,14 @@ interface CreateEventModalProps {
 
 const MAX_TAG_LENGTH = 50
 
+// Geolocation timeout in milliseconds (10 seconds)
+// This provides sufficient time for high-accuracy location while preventing indefinite waits
+const GEO_TIMEOUT_MS = 10000
+
+// Coordinate precision: 6 decimal places provides approximately 0.1 meter precision
+// This is sufficient for most event location needs while keeping coordinate strings manageable
+const COORDINATE_DECIMAL_PLACES = 6
+
 // Helper function to normalize tag input
 const normalizeTagInput = (input: string): string => {
     return input.trim().replace(/^#+/, '').trim().toLowerCase()
@@ -201,8 +209,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setFormData((prev) => ({
             ...prev,
             location: suggestion.label,
-            locationLatitude: suggestion.latitude.toFixed(6),
-            locationLongitude: suggestion.longitude.toFixed(6),
+            locationLatitude: suggestion.latitude.toFixed(COORDINATE_DECIMAL_PLACES),
+            locationLongitude: suggestion.longitude.toFixed(COORDINATE_DECIMAL_PLACES),
         }))
         setLocationSearch('')
     }
@@ -228,8 +236,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             (position) => {
                 setFormData((prev) => ({
                     ...prev,
-                    locationLatitude: position.coords.latitude.toFixed(6),
-                    locationLongitude: position.coords.longitude.toFixed(6),
+                    locationLatitude: position.coords.latitude.toFixed(COORDINATE_DECIMAL_PLACES),
+                    locationLongitude: position.coords.longitude.toFixed(COORDINATE_DECIMAL_PLACES),
                 }))
                 setGeoLoading(false)
             },
@@ -238,7 +246,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 window.alert('Unable to access your current location.')
                 setGeoLoading(false)
             },
-            { enableHighAccuracy: true, timeout: 10000 },
+            { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
         )
     }
 

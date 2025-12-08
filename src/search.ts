@@ -12,6 +12,16 @@ import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 
+// Geographic constants for nearby search
+const KM_PER_DEGREE = 111 // Approximate kilometers per degree of latitude
+const MIN_COS_LAT_THRESHOLD = 0.01 // Minimum cosine threshold to prevent division by zero near poles
+
+// Search batching constants
+const SMALL_LIMIT_THRESHOLD = 10 // Threshold for small vs large limits
+const SMALL_LIMIT_MULTIPLIER = 3 // Multiplier for small limits (fetch more to account for filtering)
+const LARGE_LIMIT_MULTIPLIER = 1.5 // Multiplier for large limits
+const MAX_SEARCH_BATCH_SIZE = 500 // Maximum batch size for search queries
+
 const DATE_RANGE_PRESETS = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
 type DateRangePreset = typeof DATE_RANGE_PRESETS[number]
 
@@ -514,17 +524,17 @@ app.get('/nearby', async (c) => {
         const requestedLimit = params.limit
 
         // Reject searches at extreme latitudes where the calculation breaks down
-        // Near the poles (beyond ±85°), longitude calculations become unreliable
+        // Beyond ±85°, longitude calculations become unreliable due to convergence of meridians near the poles
         if (Math.abs(params.latitude) > 85) {
             return c.json({ 
-                error: 'Searches near the poles are not supported. Please use a latitude between -85° and 85°.' 
+                error: 'Searches beyond ±85° latitude are not supported near the poles. Please use a latitude between -85° and 85°.' 
             }, 400)
         }
 
-        const latDelta = radiusKm / 111.32
+        const latDelta = radiusKm / KM_PER_DEGREE
         const cosLat = Math.cos(toRadians(params.latitude))
         // Clamp cosLat to prevent division by extremely small values near poles
-        const lonDelta = radiusKm / (111.32 * Math.max(Math.abs(cosLat), 0.01))
+        const lonDelta = radiusKm / (KM_PER_DEGREE * Math.max(Math.abs(cosLat), MIN_COS_LAT_THRESHOLD))
 
         const latMin = Math.max(-90, params.latitude - latDelta)
         const latMax = Math.min(90, params.latitude + latDelta)
@@ -604,9 +614,8 @@ app.get('/nearby', async (c) => {
 
         // Fetch more events than requested to account for Haversine filtering
         // Use a multiplier that scales better for smaller limits
-        // For small limits (<=10), use 2x multiplier; for larger limits, use 1.5x
-        const multiplier = requestedLimit <= 10 ? 2 : 1.5
-        const searchBatchSize = Math.min(Math.ceil(requestedLimit * multiplier), 200)
+        const multiplier = requestedLimit <= SMALL_LIMIT_THRESHOLD ? SMALL_LIMIT_MULTIPLIER : LARGE_LIMIT_MULTIPLIER
+        const searchBatchSize = Math.min(Math.ceil(requestedLimit * multiplier), MAX_SEARCH_BATCH_SIZE)
 
         const events = await prisma.event.findMany({
             where: combinedWhere,

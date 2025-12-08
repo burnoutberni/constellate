@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom'
 import { useNearbyEvents } from '../hooks/queries'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 
+// Radius options for nearby event discovery (in kilometers)
+// These values align with common search distances and are within the backend's max radius of 500 km
 const RADIUS_OPTIONS = [10, 25, 50, 100]
+
+// Geolocation timeout in milliseconds (10 seconds)
+// This provides sufficient time for high-accuracy location while preventing indefinite waits
+const GEO_TIMEOUT_MS = 10000
 
 export function LocationDiscoveryCard() {
     const [locationQuery, setLocationQuery] = useState('')
@@ -59,7 +65,7 @@ export function LocationDiscoveryCard() {
                 setGeoError('Unable to access your current location.')
                 setGeoLoading(false)
             },
-            { enableHighAccuracy: true, timeout: 10000 },
+            { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
         )
     }
 

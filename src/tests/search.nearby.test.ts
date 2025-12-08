@@ -122,29 +122,8 @@ describe('Search API - Nearby events', () => {
         expect(body2.error).toContain('poles')
     })
 
-    it('rejects searches with radius too large (lonDelta > 180)', async () => {
-        // At the equator, a radius of ~20000km would create a lonDelta > 180
-        // This is beyond the max radius of 500km, but let's test with a location
-        // where even a smaller radius could cause issues
-        // Actually, with max radius of 500km, this shouldn't happen at normal latitudes
-        // But we can test the validation by using a very large radius if the schema allows
-        // The schema limits radiusKm to max 500, so we need to test the actual edge case
-        // where lonDelta calculation exceeds 180 even with valid radius
-        
-        // At latitude 0 (equator), radius of 500km gives lonDelta ~4.5°
-        // At latitude 85°, cos(85°) ≈ 0.087, so lonDelta = 500 / (111.32 * 0.087) ≈ 51.6°
-        // We need to test a case where lonDelta > 180, which would require a very large radius
-        // or a location where the calculation breaks down
-        
-        // Since the schema limits radius to 500km max, the lonDelta > 180 check
-        // is a safety check for edge cases. Let's test with a location near the pole
-        // where even a moderate radius could cause issues, but we're already blocking >85°
-        
-        // Actually, the check happens after the >85° check, so we can test it
-        // by using a location where the calculation would exceed 180
-        // But with max radius 500km, this is unlikely. The test validates the error handling exists.
-        
-        // For now, let's test that invalid radius values are rejected by the schema
+    it('rejects invalid radius values exceeding schema limits', async () => {
+        // The schema limits radiusKm to max 500km
         const response = await app.request('/api/search/nearby?latitude=0&longitude=0&radiusKm=1000')
         expect(response.status).toBe(400)
         const body = await response.json() as { error: string; details?: unknown }
@@ -291,7 +270,7 @@ describe('Search API - Nearby events', () => {
         expect(body.events[0].id).toBe(publicEvent.id)
     })
 
-    it('returns user\'s own private events when authenticated', async () => {
+    it('excludes private events for unauthenticated requests', async () => {
         const user = await prisma.user.create({
             data: {
                 username: 'auth_user',
@@ -334,20 +313,16 @@ describe('Search API - Nearby events', () => {
             },
         })
 
-        // Note: This test assumes authentication can be set up in tests
-        // For now, we test that the endpoint exists and handles the request
-        // Full authentication testing would require session setup
         const response = await app.request('/api/search/nearby?latitude=40.7128&longitude=-74.0060&radiusKm=10')
         expect(response.status).toBe(200)
 
         // Without authentication, only public events should be returned
-        // This test validates the visibility filtering works for unauthenticated users
         const body = await response.json() as { events: Array<{ id: string }> }
         // Should not include private events when unauthenticated
         expect(body.events.find(e => e.id === ownPrivateEvent.id)).toBeUndefined()
     })
 
-    it('returns followers-only events for users who follow the creator', async () => {
+    it('excludes followers-only events for unauthenticated requests', async () => {
         const creator = await prisma.user.create({
             data: {
                 username: 'creator',
@@ -361,14 +336,6 @@ describe('Search API - Nearby events', () => {
                 username: 'follower',
                 email: 'follower@test.com',
                 name: 'Follower',
-            },
-        })
-
-        const nonFollower = await prisma.user.create({
-            data: {
-                username: 'non_follower',
-                email: 'nonfollower@test.com',
-                name: 'Non Follower',
             },
         })
 

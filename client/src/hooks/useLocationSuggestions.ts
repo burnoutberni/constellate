@@ -54,7 +54,19 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
                 })
 
                 if (!response.ok) {
-                    throw new Error('Location lookup failed')
+                    const statusCode = response.status
+                    const isClientError = statusCode >= 400 && statusCode < 500
+                    const isServerError = statusCode >= 500
+                    
+                    let errorMessage: string
+                    if (isClientError) {
+                        errorMessage = `Location lookup failed (${statusCode}): Please check your search query.`
+                    } else if (isServerError) {
+                        errorMessage = `Location lookup failed (${statusCode}): Service temporarily unavailable.`
+                    } else {
+                        errorMessage = `Location lookup failed (${statusCode})`
+                    }
+                    throw new Error(errorMessage)
                 }
 
                 const body = await response.json() as SuggestionResponse
