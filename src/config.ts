@@ -117,7 +117,7 @@ export const config = {
 
     // External service identifiers
     locationSearch: {
-        userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'ConstellateLocation/1.0 (+http://localhost:3000)'),
+        userAgent: '', // Will be set after config.baseUrl is available
         nominatimEndpoint: getEnv('NOMINATIM_ENDPOINT', 'https://nominatim.openstreetmap.org/search'),
     },
 
@@ -138,6 +138,23 @@ export const config = {
 
     // Reminder Dispatcher Configuration
     enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
+}
+
+// Set default User-Agent for location search using baseUrl
+// This ensures a valid contact method is included per OpenStreetMap's usage policy
+const customUserAgent = process.env.LOCATION_SEARCH_USER_AGENT
+if (customUserAgent) {
+    config.locationSearch.userAgent = customUserAgent
+} else {
+    // Extract base URL without path if it includes one
+    try {
+        const url = new URL(config.baseUrl)
+        const baseUrlWithoutPath = `${url.protocol}//${url.host}`
+        config.locationSearch.userAgent = `ConstellateLocation/1.0 (+${baseUrlWithoutPath})`
+    } catch {
+        // If baseUrl is not a valid URL, fall back to using it as-is
+        config.locationSearch.userAgent = `ConstellateLocation/1.0 (+${config.baseUrl})`
+    }
 }
 
 // Validate encryption key format
