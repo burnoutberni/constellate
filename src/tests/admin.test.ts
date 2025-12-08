@@ -130,7 +130,7 @@ describe('Admin Routes', () => {
 
         it('should filter by isBot=true', async () => {
             // Create a bot user
-            const botUser = await prisma.user.create({
+            await prisma.user.create({
                 data: {
                     username: 'bot_user',
                     email: 'bot@example.com',

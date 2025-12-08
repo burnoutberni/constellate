@@ -396,7 +396,6 @@ describe('Search API - Nearby events', () => {
 
         // Mock authentication
         const { auth } = await import('../auth.js')
-        const originalGetSession = auth.api.getSession
         vi.spyOn(auth.api, 'getSession').mockResolvedValue({
             user: {
                 id: user.id,

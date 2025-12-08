@@ -1489,7 +1489,9 @@ app.put('/:id', moderateRateLimit, async (c) => {
                     },
                 })
                 
-                return refreshedEvent ?? updatedEvent
+                if (refreshedEvent) {
+                    return refreshedEvent
+                }
             }
             
             return updatedEvent

@@ -30,7 +30,6 @@ function isBackendDateRange(value: string): value is BackendDateRange {
     return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
 }
 
-// Export for use in other files if needed
 export { BACKEND_DATE_RANGES }
 type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
 
