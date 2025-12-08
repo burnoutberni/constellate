@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import type { EventVisibility } from '../types'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
-import { useLocationSuggestions, LocationSuggestion } from '../hooks/useLocationSuggestions'
+import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
+import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
 
 interface CreateEventModalProps {
     isOpen: boolean
@@ -323,69 +324,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setTemplates((current) => [created, ...current.filter((item) => item.id !== created.id)])
     }
 
-    const locationQueryActive = locationSearch.trim().length >= 3
-
-    const validateRecurrence = (): string | null => {
-        if (!formData.recurrencePattern) {
-            return null
-        }
-        if (!formData.recurrenceEndDate) {
-            return 'Please choose when the recurring event should stop.'
-        }
-        const startDate = new Date(formData.startTime)
-        // Parse recurrence end date as end of day in UTC to avoid timezone issues
-        const recurrenceEnd = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z')
-        if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
-            return 'Please provide valid dates for recurring events.'
-        }
-        // Compare only the date parts (without time) to match backend validation
-        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-        const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
-        // Backend requires recurrence end date to be strictly after start time
-        if (recurrenceEndDateOnly <= startDateOnly) {
-            return 'Recurrence end date must be after the start date.'
-        }
-        return null
-    }
-
-    const parseCoordinates = (): { latitude?: number; longitude?: number; error?: string } => {
-        const hasLatitude = formData.locationLatitude.trim() !== ''
-        const hasLongitude = formData.locationLongitude.trim() !== ''
-        if (hasLatitude !== hasLongitude) {
-            return { error: 'Please provide both latitude and longitude or leave both blank.' }
-        }
-        if (!hasLatitude && !hasLongitude) {
-            return {}
-        }
-        const latitude = Number(formData.locationLatitude)
-        const longitude = Number(formData.locationLongitude)
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            return { error: 'Latitude and longitude must be valid decimal numbers.' }
-        }
-        return { latitude, longitude }
-    }
-
-    const buildEventPayload = (locationLatitude?: number, locationLongitude?: number): Record<string, unknown> => {
-        const payload: Record<string, unknown> = {
-            title: formData.title,
-            summary: formData.summary,
-            location: formData.location,
-            url: formData.url,
-            startTime: new Date(formData.startTime).toISOString(),
-            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
-            visibility: formData.visibility,
-        }
-        if (locationLatitude !== undefined && locationLongitude !== undefined) {
-            payload.locationLatitude = locationLatitude
-            payload.locationLongitude = locationLongitude
-        }
-        if (formData.recurrencePattern) {
-            payload.recurrencePattern = formData.recurrencePattern
-            // Use the same end-of-day parsing logic as validation to ensure consistency (UTC)
-            payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
-        }
-        return payload
-    }
+    const locationQueryActive = locationSearch.trim().length >= MIN_QUERY_LENGTH
 
     const resetForm = () => {
         setFormData({
@@ -455,14 +394,21 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         try {
             setSubmitting(true)
 
-            const coordinateResult = parseCoordinates()
+            const recurrenceError = validateRecurrence(formData)
+            if (recurrenceError) {
+                setError(recurrenceError)
+                setSubmitting(false)
+                return
+            }
+
+            const coordinateResult = parseCoordinates(formData)
             if (coordinateResult.error) {
                 setError(coordinateResult.error)
                 setSubmitting(false)
                 return
             }
 
-            const payload = buildEventPayload(coordinateResult.latitude, coordinateResult.longitude)
+            const payload = buildEventPayloadUtil(formData, coordinateResult.latitude, coordinateResult.longitude)
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {

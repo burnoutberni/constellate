@@ -3002,7 +3002,7 @@ describe('Events API', () => {
 
             expect(res.status).toBe(400)
             const body = await res.json() as any
-            expect(body.error).toContain('Latitude and longitude must both be provided')
+            expect(body.error).toBe('Latitude and longitude must both be provided or both omitted')
         })
 
         it('should reject update with only longitude', async () => {
@@ -3044,7 +3044,7 @@ describe('Events API', () => {
 
             expect(res.status).toBe(400)
             const body = await res.json() as any
-            expect(body.error).toContain('Latitude and longitude must both be provided')
+            expect(body.error).toBe('Latitude and longitude must both be provided or both omitted')
         })
 
         it('should allow clearing coordinates by setting both to null', async () => {

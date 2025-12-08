@@ -118,6 +118,7 @@ export const config = {
     // External service identifiers
     locationSearch: {
         userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'ConstellateLocation/1.0 (+http://localhost:3000)'),
+        nominatimEndpoint: getEnv('NOMINATIM_ENDPOINT', 'https://nominatim.openstreetmap.org/search'),
     },
 
     // SMTP Configuration

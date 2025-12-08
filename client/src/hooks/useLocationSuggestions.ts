@@ -12,7 +12,7 @@ interface SuggestionResponse {
     results: LocationSuggestion[]
 }
 
-const MIN_QUERY_LENGTH = 3
+export const MIN_QUERY_LENGTH = 3
 const DEBOUNCE_MS = 300
 
 export function useLocationSuggestions(query: string, enabled: boolean = true) {

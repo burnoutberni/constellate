@@ -7,8 +7,12 @@ const app = new Hono()
 
 app.use('*', lenientRateLimit)
 
+// Minimum query length for location search (aligned with frontend)
+// 3 characters provides better geocoding results by reducing ambiguous queries
+const MIN_LOCATION_QUERY_LENGTH = 3
+
 const LocationSearchSchema = z.object({
-    q: z.string().min(2).max(200),
+    q: z.string().min(MIN_LOCATION_QUERY_LENGTH).max(200),
     limit: z.string().optional(),
 })
 
@@ -23,7 +27,8 @@ const NominatimResultSchema = z.object({
     address: z.record(z.string(), z.string()).optional(),
 })
 
-const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search'
+// Nominatim endpoint is configurable via NOMINATIM_ENDPOINT environment variable
+// Defaults to the public Nominatim instance
 
 const pickAddressLine = (address: Record<string, string> | undefined): string | undefined => {
     if (!address) {
@@ -48,7 +53,7 @@ app.get('/search', async (c) => {
 
         const limit = Math.max(1, Math.min(parseInt(parsed.limit || '5', 10) || 5, 10))
 
-        const url = new URL(NOMINATIM_ENDPOINT)
+        const url = new URL(config.locationSearch.nominatimEndpoint)
         url.searchParams.set('q', parsed.q)
         url.searchParams.set('format', 'jsonv2')
         url.searchParams.set('addressdetails', '1')

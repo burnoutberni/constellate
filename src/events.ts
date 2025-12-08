@@ -1480,6 +1480,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
             if (normalizedTags !== undefined) {
                 await updateEventTags(tx, id, normalizedTags)
                 
+                // Refresh to get the latest tags after update
                 const refreshedEvent = await tx.event.findUnique({
                     where: { id },
                     include: {
@@ -1487,7 +1488,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
                         tags: true,
                     },
                 })
-
+                
                 return refreshedEvent ?? updatedEvent
             }
             
@@ -1523,8 +1524,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const errorStack = error instanceof Error ? error.stack : undefined
         return c.json({ 
             error: 'Internal server error', 
-            message: errorMessage, 
-            stack: errorStack 
+            message: errorMessage,
+            ...(config.isDevelopment && { stack: errorStack })
         }, 500)
     }
 })

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useNearbyEvents } from '../hooks/queries'
-import { useLocationSuggestions, LocationSuggestion } from '../hooks/useLocationSuggestions'
+import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 
 const RADIUS_OPTIONS = [10, 25, 50, 100]
 
@@ -97,7 +97,7 @@ export function LocationDiscoveryCard() {
                     onChange={(event) => setLocationQuery(event.target.value)}
                 />
                 {suggestionError && <p className="text-xs text-red-500">{suggestionError}</p>}
-                {locationQuery.trim().length >= 3 && (
+                {locationQuery.trim().length >= MIN_QUERY_LENGTH && (
                     <div className="space-y-2">
                         {suggestionLoading && <p className="text-xs text-gray-500">Searching places…</p>}
                         {!suggestionLoading && suggestions.length === 0 && (

@@ -513,17 +513,41 @@ app.get('/nearby', async (c) => {
         const radiusKm = params.radiusKm
         const requestedLimit = params.limit
 
+        // Reject searches at extreme latitudes where the calculation breaks down
+        // Near the poles (beyond ±85°), longitude calculations become unreliable
+        if (Math.abs(params.latitude) > 85) {
+            return c.json({ 
+                error: 'Searches near the poles are not supported. Please use a latitude between -85° and 85°.' 
+            }, 400)
+        }
+
         const latDelta = radiusKm / 111.32
         const cosLat = Math.cos(toRadians(params.latitude))
-        const lonDelta = radiusKm / (111.32 * Math.max(Math.abs(cosLat), 0.00001))
+        // Clamp cosLat to prevent division by extremely small values near poles
+        const lonDelta = radiusKm / (111.32 * Math.max(Math.abs(cosLat), 0.01))
 
         const latMin = Math.max(-90, params.latitude - latDelta)
         const latMax = Math.min(90, params.latitude + latDelta)
         let lonMin = params.longitude - lonDelta
         let lonMax = params.longitude + lonDelta
 
-        if (lonMin < -180) lonMin = -180
-        if (lonMax > 180) lonMax = 180
+        // Handle longitude wrapping and antimeridian crossing
+        // If the bounding box crosses the antimeridian, we need to split the query
+        // For now, we'll clamp and note that this may miss some events near ±180°
+        if (lonMin < -180) {
+            lonMin = -180
+        }
+        if (lonMax > 180) {
+            lonMax = 180
+        }
+        
+        // If the bounding box would wrap around the globe (lonDelta > 180), 
+        // the search area is too large and we should reject it
+        if (lonDelta > 180) {
+            return c.json({ 
+                error: 'Search radius is too large for this location. Please use a smaller radius.' 
+            }, 400)
+        }
 
         const userId = c.get('userId') as string | undefined
         let visibilityFilter: Prisma.EventWhereInput
@@ -578,7 +602,11 @@ app.get('/nearby', async (c) => {
             },
         }
 
-        const searchBatchSize = Math.min(requestedLimit * 3, 200)
+        // Fetch more events than requested to account for Haversine filtering
+        // Use a multiplier that scales better for smaller limits
+        // For small limits (<=10), use 2x multiplier; for larger limits, use 1.5x
+        const multiplier = requestedLimit <= 10 ? 2 : 1.5
+        const searchBatchSize = Math.min(Math.ceil(requestedLimit * multiplier), 200)
 
         const events = await prisma.event.findMany({
             where: combinedWhere,
