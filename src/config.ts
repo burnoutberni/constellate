@@ -124,6 +124,14 @@ export const config = {
         pass: getEnv('SMTP_PASS', ''),
         from: getEnv('SMTP_FROM', 'noreply@example.com'),
     },
+
+    // Location Search Configuration
+    locationSearch: {
+        userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'Constellate/1.0'),
+    },
+
+    // Reminder Dispatcher Configuration
+    enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
 }
 
 // Validate encryption key format

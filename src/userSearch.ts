@@ -503,6 +503,163 @@ app.get('/profile/:username/following', async (c) => {
     }
 })
 
+// Helper function to resolve and cache remote user
+async function resolveAndCacheRemoteUser(username: string) {
+    const parsedHandle = parseHandle(username)
+
+    if (!parsedHandle || isLocalHandle(parsedHandle.domain)) {
+        return null
+    }
+
+    console.log(`🔍 Attempting to resolve remote user: ${username}`)
+
+    // Resolve via WebFinger
+    const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
+    const actorUrl = await resolveWebFinger(resource)
+
+    if (!actorUrl) return null
+
+    // Fetch actor
+    const actor = await fetchActor(actorUrl)
+    if (!actor) return null
+
+    // Cache remote user
+    const cachedUser = await cacheRemoteUser(actor as unknown as Person)
+
+    // Re-fetch the user with all fields
+    const refetchedUser = await prisma.user.findFirst({
+        where: { id: cachedUser.id },
+        select: {
+            id: true,
+            username: true,
+            name: true,
+            bio: true,
+            profileImage: true,
+            headerImage: true,
+            displayColor: true,
+            isRemote: true,
+            externalActorUrl: true,
+            createdAt: true,
+            _count: {
+                select: {
+                    events: true,
+                    followers: true,
+                    following: true,
+                },
+            },
+        },
+    })
+
+    if (refetchedUser) {
+        console.log(`✅ Resolved and cached remote user: ${username}`)
+        return refetchedUser
+    }
+
+    return null
+}
+
+// Helper function to extract location value from event location
+function extractLocationValue(
+    eventLocation: string | Record<string, unknown> | undefined
+): string | null {
+    if (!eventLocation) return null
+    if (typeof eventLocation === 'string') return eventLocation
+    if (typeof eventLocation === 'object' && 'name' in eventLocation) {
+        return eventLocation.name as string
+    }
+    return null
+}
+
+// Helper function to cache event from remote outbox activity
+async function cacheEventFromOutboxActivity(
+    activityObj: Record<string, unknown>,
+    userExternalActorUrl: string
+) {
+    const activityType = activityObj.type
+    const activityObject = activityObj.object as Record<string, unknown> | undefined
+
+    if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+        return
+    }
+
+    const eventObj = activityObject as Record<string, unknown>
+    const eventId = eventObj.id as string | undefined
+    const eventName = eventObj.name as string | undefined
+    const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+    const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
+    const eventStartTime = eventObj.startTime as string | undefined
+    const eventEndTime = eventObj.endTime as string | undefined
+    const eventDuration = eventObj.duration as string | undefined
+    const eventUrl = eventObj.url as string | undefined
+    const eventStatus = eventObj.eventStatus as string | undefined
+    const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
+    const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
+    const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
+
+    if (!eventId || !eventName || !eventStartTime) return
+
+    const locationValue = extractLocationValue(eventLocation)
+
+    await prisma.event.upsert({
+        where: { externalId: eventId },
+        update: {
+            title: eventName,
+            summary: eventSummary || null,
+            location: locationValue,
+            startTime: new Date(eventStartTime),
+            endTime: eventEndTime ? new Date(eventEndTime) : null,
+            duration: eventDuration || null,
+            url: eventUrl || null,
+            eventStatus: eventStatus || null,
+            eventAttendanceMode: eventAttendanceMode || null,
+            maximumAttendeeCapacity: eventMaxCapacity || null,
+            headerImage: eventAttachment?.[0]?.url || null,
+            attributedTo: userExternalActorUrl,
+        },
+        create: {
+            externalId: eventId,
+            title: eventName,
+            summary: eventSummary || null,
+            location: locationValue,
+            startTime: new Date(eventStartTime),
+            endTime: eventEndTime ? new Date(eventEndTime) : null,
+            duration: eventDuration || null,
+            url: eventUrl || null,
+            eventStatus: eventStatus || null,
+            eventAttendanceMode: eventAttendanceMode || null,
+            maximumAttendeeCapacity: eventMaxCapacity || null,
+            headerImage: eventAttachment?.[0]?.url || null,
+            attributedTo: userExternalActorUrl,
+            userId: null,
+        },
+    })
+}
+
+// Helper function to fetch and cache events from remote user outbox
+async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
+    try {
+        const outboxUrl = `${userExternalActorUrl}/outbox?page=1`
+        const response = await fetch(outboxUrl, {
+            headers: {
+                Accept: 'application/activity+json',
+            },
+        })
+
+        if (!response || !response.ok) return
+
+        const outbox = await response.json() as { orderedItems?: unknown[] } | undefined
+        const activities = outbox?.orderedItems || []
+
+        // Cache events from outbox
+        for (const activity of activities) {
+            const activityObj = activity as Record<string, unknown>
+            await cacheEventFromOutboxActivity(activityObj, userExternalActorUrl)
+        }
+    } catch (error) {
+        console.error('Error fetching events from outbox:', error)
+    }
+}
+
 app.get('/profile/:username', async (c) => {
     try {
         // Decode username in case it's URL encoded (e.g., alice%40app1.local -> alice@app1.local)
@@ -541,56 +698,9 @@ app.get('/profile/:username', async (c) => {
 
         // If user not found and it's a remote user, try to resolve and cache them
         if (!user && isRemote) {
-            const parsedHandle = parseHandle(username)
-
-            if (parsedHandle && !isLocalHandle(parsedHandle.domain)) {
-                console.log(`🔍 Attempting to resolve remote user: ${username}`)
-
-                // Resolve via WebFinger
-                const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
-                const actorUrl = await resolveWebFinger(resource)
-
-                if (actorUrl) {
-                    // Fetch actor
-                    const actor = await fetchActor(actorUrl)
-
-                    if (actor) {
-                        // Cache remote user
-                        const cachedUser = await cacheRemoteUser(actor as unknown as Person)
-
-                        // Re-fetch the user with all fields
-                        const refetchedUser = await prisma.user.findFirst({
-                            where: {
-                                id: cachedUser.id,
-                            },
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                bio: true,
-                                profileImage: true,
-                                headerImage: true,
-                                displayColor: true,
-                                isRemote: true,
-                                externalActorUrl: true,
-                                createdAt: true,
-                                _count: {
-                                    select: {
-                                        events: true,
-                                        followers: true,
-                                        following: true,
-                                    },
-                                },
-                            },
-                        })
-
-                        if (refetchedUser) {
-                            user = refetchedUser
-                        }
-
-                        console.log(`✅ Resolved and cached remote user: ${username}`)
-                    }
-                }
+            const resolvedUser = await resolveAndCacheRemoteUser(username)
+            if (resolvedUser) {
+                user = resolvedUser
             }
         }
 
@@ -660,115 +770,32 @@ app.get('/profile/:username', async (c) => {
 
         // If remote user has no cached events, fetch from their outbox
         if (isRemote && events.length === 0 && user.externalActorUrl) {
-            try {
-                const outboxUrl = `${user.externalActorUrl}/outbox?page=1`
-                const response = await fetch(outboxUrl, {
-                    headers: {
-                        Accept: 'application/activity+json',
-                    },
-                })
+            await fetchAndCacheEventsFromOutbox(user.externalActorUrl)
 
-                if (response && response.ok) {
-                    const outbox = await response.json() as { orderedItems?: unknown[] } | undefined
-                    const activities = outbox?.orderedItems || []
-
-                    // Cache events from outbox
-                    for (const activity of activities) {
-                        const activityObj = activity as Record<string, unknown>
-                        const activityType = activityObj.type
-                        const activityObject = activityObj.object as Record<string, unknown> | undefined
-                        if (activityType === 'Create' && activityObject && activityObject.type === 'Event') {
-                            const eventObj = activityObject as Record<string, unknown>
-                            const eventId = eventObj.id as string | undefined
-                            const eventName = eventObj.name as string | undefined
-                            const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
-                            const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
-                            const eventStartTime = eventObj.startTime as string | undefined
-                            const eventEndTime = eventObj.endTime as string | undefined
-                            const eventDuration = eventObj.duration as string | undefined
-                            const eventUrl = eventObj.url as string | undefined
-                            const eventStatus = eventObj.eventStatus as string | undefined
-                            const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
-                            const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
-                            const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
-
-                            if (!eventId || !eventName || !eventStartTime) continue
-
-                            // Extract location value
-                            let locationValue: string | null = null
-                            if (typeof eventLocation === 'string') {
-                                locationValue = eventLocation
-                            } else if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation) {
-                                locationValue = eventLocation.name as string
-                            }
-
-                            await prisma.event.upsert({
-                                where: { externalId: eventId },
-                                update: {
-                                    title: eventName,
-                                    summary: eventSummary || null,
-                                    location: locationValue,
-                                    startTime: new Date(eventStartTime),
-                                    endTime: eventEndTime ? new Date(eventEndTime) : null,
-                                    duration: eventDuration || null,
-                                    url: eventUrl || null,
-                                    eventStatus: eventStatus || null,
-                                    eventAttendanceMode: eventAttendanceMode || null,
-                                    maximumAttendeeCapacity: eventMaxCapacity || null,
-                                    headerImage: eventAttachment?.[0]?.url || null,
-                                    attributedTo: user.externalActorUrl,
-                                },
-                                create: {
-                                    externalId: eventId,
-                                    title: eventName,
-                                    summary: eventSummary || null,
-                                    location: locationValue,
-                                    startTime: new Date(eventStartTime),
-                                    endTime: eventEndTime ? new Date(eventEndTime) : null,
-                                    duration: eventDuration || null,
-                                    url: eventUrl || null,
-                                    eventStatus: eventStatus || null,
-                                    eventAttendanceMode: eventAttendanceMode || null,
-                                    maximumAttendeeCapacity: eventMaxCapacity || null,
-                                    headerImage: eventAttachment?.[0]?.url || null,
-                                    attributedTo: user.externalActorUrl,
-                                    userId: null,
-                                },
-                            })
-                        }
-                    }
-
-                    // Re-fetch events after caching
-                    events = await prisma.event.findMany({
-                        where: { attributedTo: user.externalActorUrl },
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    name: true,
-                                    displayColor: true,
-                                    profileImage: true,
-                                },
-                            },
-                            _count: {
-                                select: {
-                                    attendance: true,
-                                    likes: true,
-                                    comments: true,
-                                },
-                            },
+            // Re-fetch events after caching
+            events = await prisma.event.findMany({
+                where: { attributedTo: user.externalActorUrl },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            displayColor: true,
+                            profileImage: true,
                         },
-                        orderBy: { startTime: 'desc' },
-                        take: 50,
-                    })
-
-                    console.log(`✅ Cached ${activities.length} activities from ${user.username}'s outbox`)
-                }
-            } catch (error) {
-                console.error('Error fetching remote outbox:', error)
-                // Continue with empty events array
-            }
+                    },
+                    _count: {
+                        select: {
+                            attendance: true,
+                            likes: true,
+                            comments: true,
+                        },
+                    },
+                },
+                orderBy: { startTime: 'desc' },
+                take: 50,
+            })
         }
 
         // Manually count events for proper display

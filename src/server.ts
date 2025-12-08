@@ -18,6 +18,7 @@ import notificationsRoutes from './notifications.js'
 import realtimeRoutes from './realtime.js'
 import calendarRoutes from './calendar.js'
 import templatesRoutes from './templates.js'
+import remindersRoutes from './reminders.js'
 import searchRoutes from './search.js'
 import moderationRoutes from './moderation.js'
 import userSearchRoutes from './userSearch.js'
@@ -25,6 +26,7 @@ import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
 import recommendationsRoutes from './recommendations.js'
+import locationRoutes from './location.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -33,6 +35,7 @@ import { strictRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
+import { startReminderDispatcher, stopReminderDispatcher, getIsProcessing } from './services/reminderDispatcher.js'
 
 const app = new OpenAPIHono()
 
@@ -221,6 +224,7 @@ app.on(['GET'], '/api/auth/*', async (c) => {
 app.route('/', activitypubRoutes)
 app.route('/api/events', eventsRoutes)
 app.route('/api/events', attendanceRoutes)
+app.route('/api/events', remindersRoutes)
 app.route('/api/events', likesRoutes)
 app.route('/api/events', commentsRoutes)
 app.route('/api', profileRoutes)
@@ -230,6 +234,7 @@ app.route('/api/calendar', calendarRoutes)
 app.route('/api', templatesRoutes)
 app.route('/api/search', searchRoutes)
 app.route('/api/recommendations', recommendationsRoutes)
+app.route('/api/location', locationRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
 app.route('/api', activityRoutes)
@@ -329,8 +334,46 @@ if (process.env.NODE_ENV === 'production') {
     })
 }
 
-// Only start server when not in test environment
+// Only start background jobs and server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    if (config.enableReminderDispatcher) {
+        startReminderDispatcher()
+    }
+
+    // Graceful shutdown handler
+    const shutdown = async () => {
+        console.log('🛑 Shutting down gracefully...')
+        
+        // Stop accepting new work
+        stopReminderDispatcher()
+        
+        // Wait for current processing cycle to complete (with timeout)
+        const shutdownTimeout = 30000 // 30 seconds
+        const startTime = Date.now()
+        
+        while (getIsProcessing() && (Date.now() - startTime) < shutdownTimeout) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        
+        if (getIsProcessing()) {
+            console.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
+        } else {
+            console.log('✅ All operations completed')
+        }
+        
+        // Close database connection
+        try {
+            await prisma.$disconnect()
+        } catch (error) {
+            console.error('Error disconnecting from database:', error)
+        }
+        
+        process.exit(0)
+    }
+
+    process.on('SIGTERM', shutdown)
+    process.on('SIGINT', shutdown)
+
     console.log(`🚀 Server starting on port ${config.port}`)
 
     serve({

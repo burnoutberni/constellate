@@ -30,6 +30,7 @@ interface UseTrendingEventsOptions {
 
 interface RSVPInput {
     status: string
+    reminderMinutesBeforeStart?: number | null
 }
 
 interface CommentInput {
@@ -149,13 +150,17 @@ export function useRSVP(eventId: string, userId?: string) {
                 return response.json()
             } else {
                 // Set attendance
+                const payload: Record<string, unknown> = { status: input.status }
+                if (input.reminderMinutesBeforeStart !== undefined) {
+                    payload.reminderMinutesBeforeStart = input.reminderMinutesBeforeStart
+                }
                 const response = await fetch(`/api/events/${eventId}/attend`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     credentials: 'include',
-                    body: JSON.stringify({ status: input.status }),
+                    body: JSON.stringify(payload),
                 })
                 if (!response.ok) {
                     throw new Error('Failed to set attendance')
@@ -437,6 +442,45 @@ export function useTrendingEvents(
         },
         enabled: options?.enabled ?? true,
         staleTime: 60_000,
+    })
+}
+
+export function useEventReminder(eventId: string, username: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: async (minutesBeforeStart: number | null) => {
+            if (minutesBeforeStart === null) {
+                const response = await fetch(`/api/events/${eventId}/reminders`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                })
+
+                if (!response.ok) {
+                    throw new Error('Failed to remove reminder')
+                }
+
+                return response.json()
+            }
+
+            const response = await fetch(`/api/events/${eventId}/reminders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ minutesBeforeStart }),
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to update reminder')
+            }
+
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
+        },
     })
 }
 

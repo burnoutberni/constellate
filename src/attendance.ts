@@ -21,6 +21,8 @@ import { broadcast } from './realtime.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
+import { scheduleReminderForEvent, cancelReminderForEvent } from './services/reminders.js'
+import { AppError } from './lib/errors.js'
 
 const app = new Hono()
 
@@ -159,6 +161,7 @@ function buildAttendanceActivityForStatus(
 // Attendance validation schema
 const AttendanceSchema = z.object({
     status: z.enum(['attending', 'maybe', 'not_attending']),
+    reminderMinutesBeforeStart: z.number().int().optional().nullable(),
 })
 
 // Set or update attendance status
@@ -168,7 +171,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const { status } = AttendanceSchema.parse(body)
+        const { status, reminderMinutesBeforeStart } = AttendanceSchema.parse(body)
 
         const event = requireResource(
             (await prisma.event.findUnique({
@@ -223,6 +226,31 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
+        // Handle reminder operations - distinguish validation errors from unexpected errors
+        try {
+            if (status === AttendanceStatus.NOT_ATTENDING) {
+                await cancelReminderForEvent(id, userId)
+            } else if (reminderMinutesBeforeStart === null) {
+                await cancelReminderForEvent(id, userId)
+            } else if (typeof reminderMinutesBeforeStart === 'number') {
+                await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
+            }
+        } catch (reminderError) {
+            // Only surface reminder-specific validation errors to the user
+            // Check for reminder error codes to ensure we're not catching unrelated validation errors
+            if (
+                reminderError instanceof AppError &&
+                reminderError.statusCode === 400 &&
+                typeof reminderError.code === 'string' &&
+                reminderError.code.startsWith('REMINDER_')
+            ) {
+                // Re-throw reminder-specific validation errors so they're returned to the client
+                throw reminderError
+            }
+            // Log unexpected errors but allow attendance update to succeed
+            console.error('Unexpected reminder operation error during attendance update:', reminderError)
+        }
+
         return c.json(attendance)
     } catch (error) {
         if (error instanceof ZodError) {
@@ -230,6 +258,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
         }
         if (error instanceof HttpError) {
             return c.json(error.body, error.status as HttpErrorStatus)
+        }
+        if (error instanceof AppError) {
+            return c.json({ error: error.code, message: error.message }, error.statusCode as HttpErrorStatus)
         }
         console.error('Error setting attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -293,10 +324,21 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
             },
         })
 
+        // Handle reminder cancellation - don't fail attendance removal if reminder fails
+        try {
+            await cancelReminderForEvent(id, userId)
+        } catch (reminderError) {
+            // Log reminder error but allow attendance removal to succeed
+            console.error('Reminder cancellation failed during attendance removal:', reminderError)
+        }
+
         return c.json({ success: true })
     } catch (error) {
         if (error instanceof HttpError) {
             return c.json(error.body, error.status as HttpErrorStatus)
+        }
+        if (error instanceof AppError) {
+            return c.json({ error: error.code, message: error.message }, error.statusCode as HttpErrorStatus)
         }
         console.error('Error removing attendance:', error)
         return c.json({ error: 'Internal server error' }, 500)

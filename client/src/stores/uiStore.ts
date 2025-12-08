@@ -37,6 +37,7 @@ interface UIState {
     followersModalUsername: string | null
     followersModalType: 'followers' | 'following' | null
     mentionNotifications: MentionNotification[]
+    errorToasts: ErrorToast[]
     
     // Actions
     openCreateEventModal: () => void
@@ -51,6 +52,14 @@ interface UIState {
     closeFollowersModal: () => void
     addMentionNotification: (notification: MentionNotification) => void
     dismissMentionNotification: (id: string) => void
+    addErrorToast: (message: string) => void
+    dismissErrorToast: (id: string) => void
+}
+
+export interface ErrorToast {
+    id: string
+    message: string
+    createdAt: number
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -66,6 +75,7 @@ export const useUIStore = create<UIState>((set) => ({
     followersModalUsername: null,
     followersModalType: null,
     mentionNotifications: [],
+    errorToasts: [],
     
     // Actions
     openCreateEventModal: () => set({ createEventModalOpen: true }),
@@ -94,6 +104,20 @@ export const useUIStore = create<UIState>((set) => ({
     }),
     dismissMentionNotification: (id) => set((state) => ({
         mentionNotifications: state.mentionNotifications.filter((item) => item.id !== id),
+    })),
+    addErrorToast: (message) => set((state) => {
+        const id = `error-${Date.now()}-${crypto.randomUUID()}`
+        const newToast: ErrorToast = {
+            id,
+            message,
+            createdAt: Date.now(),
+        }
+        return {
+            errorToasts: [newToast, ...state.errorToasts].slice(0, 5),
+        }
+    }),
+    dismissErrorToast: (id) => set((state) => ({
+        errorToasts: state.errorToasts.filter((item) => item.id !== id),
     })),
 }))
 

@@ -10,7 +10,6 @@ import { getVisibilityMeta } from '../lib/visibility'
 import { getDefaultTimezone } from '../lib/timezones'
 import type { Event } from '../types'
 
-const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
 const DATE_RANGE_LABELS: Record<string, string> = {
     anytime: 'Any time',
     custom: 'Custom range',
@@ -21,7 +20,8 @@ const DATE_RANGE_LABELS: Record<string, string> = {
     next_30_days: 'Next 30 days',
 }
 
-type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
+// Backend date range presets - must match backend validation in src/search.ts
+type BackendDateRange = 'today' | 'tomorrow' | 'this_weekend' | 'next_7_days' | 'next_30_days'
 type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
 
 interface FormState {
