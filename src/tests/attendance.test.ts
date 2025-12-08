@@ -586,5 +586,58 @@ describe('Attendance API', () => {
             expect(body.counts.total).toBe(0)
         })
     })
+
+    describe('Reminder error handling', () => {
+        it('should surface reminder-specific validation errors to the user', async () => {
+            const { AppError } = await import('../lib/errors.js')
+            const reminderError = new AppError('REMINDER_TOO_LATE', 'Event already started', 400)
+            
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+                id: 'attendance_123',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: AttendanceStatus.ATTENDING,
+            } as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+            vi.mocked(scheduleReminderForEvent).mockRejectedValue(reminderError)
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'attending', reminderMinutesBeforeStart: 30 }),
+            })
+
+            expect(res.status).toBe(400)
+            const body = await res.json() as { error: string; message: string }
+            expect(body.error).toBe('REMINDER_TOO_LATE')
+        })
+
+        it('should not surface non-reminder validation errors', async () => {
+            const { AppError } = await import('../lib/errors.js')
+            const nonReminderError = new AppError('SOME_OTHER_ERROR', 'Some other error', 400)
+            
+            vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as any)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+                id: 'attendance_123',
+                eventId: 'event_123',
+                userId: 'user_123',
+                status: AttendanceStatus.ATTENDING,
+            } as any)
+            vi.mocked(deliverActivity).mockResolvedValue()
+            vi.mocked(scheduleReminderForEvent).mockRejectedValue(nonReminderError)
+
+            const res = await app.request('/api/attendance/event_123/attend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'attending', reminderMinutesBeforeStart: 30 }),
+            })
+
+            // Non-reminder errors should be logged but not surfaced - attendance should succeed
+            expect(res.status).toBe(200)
+        })
+    })
 })
 

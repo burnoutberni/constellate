@@ -12,6 +12,9 @@ vi.mock('../../lib/prisma.js', () => ({
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        $transaction: vi.fn(),
+        $queryRaw: vi.fn(),
+        $executeRawUnsafe: vi.fn(),
     },
 }))
 
@@ -50,8 +53,14 @@ const hydratedReminder = {
 describe('Reminder dispatcher', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        vi.mocked(prisma.eventReminder.findMany).mockResolvedValue([dueReminder] as any)
-        vi.mocked(prisma.eventReminder.updateMany).mockResolvedValue(1 as any)
+        // Mock transaction to return reminder IDs
+        vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+            const tx = {
+                $queryRaw: vi.fn().mockResolvedValue([{ id: dueReminder.id }]),
+                $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+            }
+            return callback(tx)
+        })
         vi.mocked(prisma.eventReminder.findUnique).mockResolvedValue(hydratedReminder as any)
         vi.mocked(createNotification).mockResolvedValue(undefined as any)
         vi.mocked(sendEmail).mockResolvedValue(undefined)
@@ -61,15 +70,7 @@ describe('Reminder dispatcher', () => {
     it('delivers due reminders', async () => {
         await runReminderDispatcherCycle(5)
 
-        expect(prisma.eventReminder.findMany).toHaveBeenCalled()
-        expect(prisma.eventReminder.updateMany).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: {
-                    id: dueReminder.id,
-                    status: 'PENDING',
-                },
-            })
-        )
+        expect(prisma.$transaction).toHaveBeenCalled()
         expect(createNotification).toHaveBeenCalledWith(
             expect.objectContaining({
                 userId: 'user-1',
@@ -98,17 +99,21 @@ describe('Reminder dispatcher', () => {
         )
     })
 
-    it('marks reminder as failed when email fails but notification succeeds', async () => {
+    it('marks reminder as SENT when email fails but notification succeeds', async () => {
         vi.mocked(sendEmail).mockRejectedValueOnce(new Error('Email service unavailable'))
 
         await runReminderDispatcherCycle(5)
 
         expect(createNotification).toHaveBeenCalled()
         expect(sendEmail).toHaveBeenCalled()
+        // Email failure is non-critical - reminder should still be marked as SENT
         expect(prisma.eventReminder.update).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: { id: dueReminder.id },
-                data: expect.objectContaining({ status: 'FAILED' }),
+                data: expect.objectContaining({
+                    status: 'SENT',
+                    failureReason: expect.stringContaining('Email failed'),
+                }),
             })
         )
     })

@@ -31,8 +31,26 @@ function normalizeReminderMinutes(minutes: number): ReminderMinutesOption {
     return minutes as ReminderMinutesOption
 }
 
-function computeRemindAt(startTime: Date, minutesBeforeStart: number) {
-    const remindTimestamp = startTime.getTime() - minutesBeforeStart * 60000
+export function computeRemindAt(startTime: Date, minutesBeforeStart: number) {
+    // Validate minutesBeforeStart range before multiplication to prevent overflow
+    // Maximum safe value: Number.MAX_SAFE_INTEGER / 60000 ≈ 1,500,000,000 minutes (≈ 2,850 years)
+    // We use a more reasonable limit: 10 years in minutes (5,256,000 minutes)
+    const MAX_MINUTES = 5_256_000
+    if (minutesBeforeStart < 0 || minutesBeforeStart > MAX_MINUTES) {
+        throw new AppError(
+            'REMINDER_INVALID_OFFSET',
+            `Reminder offset must be between 0 and ${MAX_MINUTES} minutes`,
+            400
+        )
+    }
+
+    // Safe calculation: multiply in steps to avoid overflow
+    const millisecondsOffset = minutesBeforeStart * 60000
+    if (!Number.isFinite(millisecondsOffset)) {
+        throw new AppError('REMINDER_COMPUTE_ERROR', 'Failed to compute reminder time offset', 400)
+    }
+
+    const remindTimestamp = startTime.getTime() - millisecondsOffset
     if (!Number.isFinite(remindTimestamp)) {
         throw new AppError('REMINDER_COMPUTE_ERROR', 'Failed to compute reminder time', 400)
     }

@@ -236,9 +236,15 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
                 await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
             }
         } catch (reminderError) {
-            // Validation errors (e.g., event already started, invalid offset) should be surfaced to user
-            if (reminderError instanceof AppError && reminderError.statusCode === 400) {
-                // Re-throw validation errors so they're returned to the client
+            // Only surface reminder-specific validation errors to the user
+            // Check for reminder error codes to ensure we're not catching unrelated validation errors
+            if (
+                reminderError instanceof AppError &&
+                reminderError.statusCode === 400 &&
+                typeof reminderError.code === 'string' &&
+                reminderError.code.startsWith('REMINDER_')
+            ) {
+                // Re-throw reminder-specific validation errors so they're returned to the client
                 throw reminderError
             }
             // Log unexpected errors but allow attendance update to succeed

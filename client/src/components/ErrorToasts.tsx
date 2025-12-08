@@ -27,7 +27,7 @@ function ErrorToast({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (id: s
     }, [toast.id, onDismiss])
 
     return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl" role="alert">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl" role="alert" aria-atomic="true">
             <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-red-900">Error</span>
                 <button

@@ -35,7 +35,7 @@ import { strictRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
-import { startReminderDispatcher, stopReminderDispatcher } from './services/reminderDispatcher.js'
+import { startReminderDispatcher, stopReminderDispatcher, getIsProcessing } from './services/reminderDispatcher.js'
 
 const app = new OpenAPIHono()
 
@@ -339,9 +339,33 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
     startReminderDispatcher()
 
     // Graceful shutdown handler
-    const shutdown = () => {
+    const shutdown = async () => {
         console.log('🛑 Shutting down gracefully...')
+        
+        // Stop accepting new work
         stopReminderDispatcher()
+        
+        // Wait for current processing cycle to complete (with timeout)
+        const shutdownTimeout = 30000 // 30 seconds
+        const startTime = Date.now()
+        
+        while (getIsProcessing() && (Date.now() - startTime) < shutdownTimeout) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        
+        if (getIsProcessing()) {
+            console.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
+        } else {
+            console.log('✅ All operations completed')
+        }
+        
+        // Close database connection
+        try {
+            await prisma.$disconnect()
+        } catch (error) {
+            console.error('Error disconnecting from database:', error)
+        }
+        
         process.exit(0)
     }
 

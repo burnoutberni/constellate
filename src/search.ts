@@ -439,9 +439,18 @@ app.get('/popular', async (c) => {
         // Sort by popularity (attendance + likes)
         const sorted = events
             .map((event) => {
-                const attendanceCount = attendanceMap.get(event.id) ?? Number(event._count?.attendance ?? 0)
-                const likesCount = likesMap.get(event.id) ?? Number(event._count?.likes ?? 0)
-                const commentsCount = Number(event._count?.comments ?? 0)
+                // Use attendanceMap and likesMap as the source of truth
+                // Only fall back to event._count if the map doesn't have the value
+                // and validate that _count values are actually numbers
+                const attendanceFromMap = attendanceMap.get(event.id)
+                const likesFromMap = likesMap.get(event.id)
+                
+                const attendanceCount = attendanceFromMap ?? 
+                    (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
+                const likesCount = likesFromMap ?? 
+                    (typeof event._count?.likes === 'number' ? event._count.likes : 0)
+                const commentsCount = typeof event._count?.comments === 'number' ? event._count.comments : 0
+                
                 const popularity = attendanceCount + likesCount
                 return {
                     ...event,
@@ -455,7 +464,7 @@ app.get('/popular', async (c) => {
             })
             .sort((a, b) => b.popularity - a.popularity)
             .slice(0, limit)
-            .map(({ popularity, ...event }) => event)
+            .map(({ popularity: _popularity, ...event }) => event)
 
         return c.json({ events: sorted })
     } catch (error) {

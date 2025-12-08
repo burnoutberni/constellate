@@ -11,6 +11,10 @@ let dispatcherStarted = false
 let isProcessing = false
 let intervalHandle: NodeJS.Timeout | null = null
 
+export function getIsProcessing() {
+    return isProcessing
+}
+
 function buildEventUrl(event: { id: string; user: { username?: string | null } | null }) {
     if (event.user?.username) {
         return `${config.baseUrl}/@${event.user.username}/${event.id}`
@@ -30,21 +34,8 @@ function formatEventStart(startTime: Date) {
 }
 
 async function processReminder(reminderId: string) {
-    const now = new Date()
-    const claimed = await prisma.eventReminder.updateMany({
-        where: {
-            id: reminderId,
-            status: ReminderStatus.PENDING,
-        },
-        data: {
-            status: ReminderStatus.SENDING,
-            lastAttemptAt: now,
-        },
-    })
-
-    if (claimed.count === 0) {
-        return
-    }
+    // Reminder has already been claimed and set to SENDING in the transaction
+    // Just verify it still exists and is in SENDING status
 
     const reminder = await prisma.eventReminder.findUnique({
         where: { id: reminderId },
@@ -89,45 +80,77 @@ async function processReminder(reminderId: string) {
         return
     }
 
+    let notificationSucceeded = false
+    let notificationError: Error | null = null
+    let emailError: Error | null = null
+
     try {
         const eventUrl = buildEventUrl(reminder.event)
         const eventStartFormatted = formatEventStart(reminder.event.startTime)
         const reminderLabel = `Reminder: ${reminder.event.title}`
 
-        await createNotification({
-            userId: reminder.user.id,
-            type: NotificationType.EVENT,
-            title: reminderLabel,
-            body: `"${reminder.event.title}" starts at ${eventStartFormatted}.`,
-            contextUrl: eventUrl,
-            data: {
-                eventId: reminder.event.id,
-                reminderId: reminder.id,
-                remindAt: reminder.remindAt.toISOString(),
-            },
-        })
-
-        if (reminder.user.email) {
-            const greeting = reminder.user.name || reminder.user.username
-            const textBody = `Hi ${greeting},\n\nThis is your reminder for "${reminder.event.title}".\n\nStart time: ${eventStartFormatted}\nReminder offset: ${reminder.minutesBeforeStart} minutes before start\n\nView event: ${eventUrl}\n\n— Constellate`
-
-            await sendEmail({
-                to: reminder.user.email,
-                subject: reminderLabel,
-                text: textBody,
+        // Try to create notification
+        try {
+            await createNotification({
+                userId: reminder.user.id,
+                type: NotificationType.EVENT,
+                title: reminderLabel,
+                body: `"${reminder.event.title}" starts at ${eventStartFormatted}.`,
+                contextUrl: eventUrl,
+                data: {
+                    eventId: reminder.event.id,
+                    reminderId: reminder.id,
+                    remindAt: reminder.remindAt.toISOString(),
+                },
             })
+            notificationSucceeded = true
+        } catch (error) {
+            notificationError = error instanceof Error ? error : new Error(String(error))
+            console.error('Failed to create notification for reminder:', error)
         }
 
-        await prisma.eventReminder.update({
-            where: { id: reminder.id },
-            data: {
-                status: ReminderStatus.SENT,
-                deliveredAt: new Date(),
-                failureReason: null,
-            },
-        })
+        // Try to send email (non-critical, don't fail if this fails)
+        if (reminder.user.email) {
+            try {
+                const greeting = reminder.user.name || reminder.user.username
+                const textBody = `Hi ${greeting},\n\nThis is your reminder for "${reminder.event.title}".\n\nStart time: ${eventStartFormatted}\nReminder offset: ${reminder.minutesBeforeStart} minutes before start\n\nView event: ${eventUrl}\n\n— Constellate`
+
+                await sendEmail({
+                    to: reminder.user.email,
+                    subject: reminderLabel,
+                    text: textBody,
+                })
+            } catch (error) {
+                emailError = error instanceof Error ? error : new Error(String(error))
+                console.warn('Failed to send email for reminder (non-critical):', error)
+            }
+        }
+
+        // Determine final status based on what succeeded
+        if (notificationSucceeded) {
+            // Notification succeeded - reminder is considered sent
+            // Email failure is non-critical and logged as a warning
+            await prisma.eventReminder.update({
+                where: { id: reminder.id },
+                data: {
+                    status: ReminderStatus.SENT,
+                    deliveredAt: new Date(),
+                    failureReason: emailError ? `Email failed: ${emailError.message}` : null,
+                },
+            })
+        } else {
+            // Notification failed - mark as failed
+            await prisma.eventReminder.update({
+                where: { id: reminder.id },
+                data: {
+                    status: ReminderStatus.FAILED,
+                    failureReason: notificationError?.message || 'Unknown error',
+                },
+            })
+        }
     } catch (error) {
-        console.error('Failed to deliver reminder, marking as FAILED:', error)
+        // Unexpected error during processing
+        console.error('Unexpected error processing reminder, marking as FAILED:', error)
         await prisma.eventReminder.update({
             where: { id: reminder.id },
             data: {
@@ -146,20 +169,42 @@ export async function runReminderDispatcherCycle(limit: number = PROCESSING_LIMI
     isProcessing = true
     try {
         const now = new Date()
-        const reminders = await prisma.eventReminder.findMany({
-            where: {
-                status: ReminderStatus.PENDING,
-                remindAt: {
-                    lte: now,
-                },
-            },
-            orderBy: { remindAt: 'asc' },
-            take: limit,
+        // Use a transaction with FOR UPDATE SKIP LOCKED to atomically select and claim reminders
+        // This prevents race conditions when multiple dispatcher instances run simultaneously
+        const reminderIds = await prisma.$transaction(async (tx) => {
+            // Select and lock reminders atomically
+            const reminders = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT id
+                FROM "EventReminder"
+                WHERE status = ${ReminderStatus.PENDING}::"ReminderStatus"
+                  AND "remindAt" <= ${now}
+                ORDER BY "remindAt" ASC
+                LIMIT ${limit}
+                FOR UPDATE SKIP LOCKED
+            `
+
+            // Immediately update status to SENDING to claim them
+            if (reminders.length > 0) {
+                const ids = reminders.map(r => r.id)
+                await tx.$executeRawUnsafe(
+                    `UPDATE "EventReminder"
+                     SET status = $1::"ReminderStatus",
+                         "lastAttemptAt" = $2
+                     WHERE id = ANY($3::text[])
+                       AND status = $4::"ReminderStatus"`,
+                    ReminderStatus.SENDING,
+                    now,
+                    ids,
+                    ReminderStatus.PENDING
+                )
+            }
+
+            return reminders.map(r => r.id)
         })
 
         // Process reminders concurrently to avoid blocking on slow operations
         // Use Promise.allSettled to ensure all reminders are processed even if some fail
-        await Promise.allSettled(reminders.map((reminder) => processReminder(reminder.id)))
+        await Promise.allSettled(reminderIds.map((reminderId) => processReminder(reminderId)))
     } catch (error) {
         console.error('Reminder dispatcher error:', error)
     } finally {

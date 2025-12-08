@@ -301,6 +301,9 @@ export function EventDetailPage() {
         return (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
     }, [event, user, displayedEventId])
 
+    // Note: viewerReminders is an array from the API, but the schema enforces a unique constraint
+    // on [eventId, userId], so there should only ever be one reminder per user per event.
+    // Accessing [0] is safe and semantically correct.
     const activeReminderMinutes = event?.viewerReminders?.[0]?.minutesBeforeStart ?? null
 
     useEffect(() => {
