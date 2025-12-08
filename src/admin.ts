@@ -9,6 +9,7 @@ import { requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
+import { AppError } from './lib/errors.js'
 
 const app = new Hono()
 
@@ -134,6 +135,9 @@ app.get('/users', async (c) => {
             },
         })
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
@@ -182,6 +186,9 @@ app.get('/users/:id', async (c) => {
 
         return c.json(user)
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         console.error('Error getting user:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
@@ -290,6 +297,9 @@ app.post('/users', async (c) => {
 
         return c.json(user, 201)
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
@@ -365,6 +375,9 @@ app.put('/users/:id', async (c) => {
 
         return c.json(user)
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
@@ -402,6 +415,9 @@ app.delete('/users/:id', async (c) => {
 
         return c.json({ success: true })
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         console.error('Error deleting user:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
@@ -448,6 +464,9 @@ app.get('/api-keys', async (c) => {
 
         return c.json({ apiKeys: sanitizedKeys })
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         console.error('Error listing API keys:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
@@ -508,6 +527,9 @@ app.post('/api-keys', async (c) => {
             warning: 'Save this key now. You will not be able to see it again.',
         }, 201)
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
@@ -539,6 +561,9 @@ app.delete('/api-keys/:id', async (c) => {
 
         return c.json({ success: true })
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error // Let the global error handler deal with it
+        }
         console.error('Error deleting API key:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }

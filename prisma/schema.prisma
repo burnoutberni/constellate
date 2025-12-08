@@ -486,10 +486,7 @@ enum ReminderStatus {
   CANCELLED
 }
 
-<<<<<<< HEAD
-=======
 // Event reminders - scheduled notifications for users
->>>>>>> 82382c0 (Fix suggestions)
 model EventReminder {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -501,16 +498,6 @@ model EventReminder {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-<<<<<<< HEAD
-  minutesBeforeStart Int
-  remindAt           DateTime
-  status             ReminderStatus @default(PENDING)
-  deliveredAt        DateTime?
-  lastAttemptAt      DateTime?
-  failureReason      String?
-
-  @@unique([eventId, userId])
-=======
   // Reminder configuration
   minutesBeforeStart Int // Minutes before event start to send reminder
   remindAt           DateTime // Calculated time when reminder should be sent
@@ -526,6 +513,5 @@ model EventReminder {
   @@unique([eventId, userId])
   @@index([userId])
   @@index([eventId])
->>>>>>> 82382c0 (Fix suggestions)
   @@index([status, remindAt])
 }
