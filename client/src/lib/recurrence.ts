@@ -40,12 +40,87 @@ export function getRecurrenceLabel(pattern: RecurrencePattern): string {
     return RECURRENCE_LABELS[pattern]
 }
 
+function isValidDateRange(rangeStart: Date, rangeEnd: Date): boolean {
+    return !Number.isNaN(rangeStart.getTime()) && !Number.isNaN(rangeEnd.getTime()) && rangeEnd >= rangeStart
+}
+
+function createOccurrence(
+    event: Event,
+    currentStart: Date,
+    eventStart: Date,
+    durationMs: number,
+    baseEnd: Date | null,
+    originId: string
+): Event {
+    const startIso = currentStart.toISOString()
+    const occurrenceEndIso =
+        baseEnd && durationMs >= 0
+            ? new Date(currentStart.getTime() + durationMs).toISOString()
+            : undefined
+    const isBaseOccurrence = currentStart.getTime() === eventStart.getTime()
+    
+    return {
+        ...event,
+        id: isBaseOccurrence ? event.id : `${event.id}::${startIso}`,
+        startTime: startIso,
+        endTime: occurrenceEndIso ?? event.endTime ?? null,
+        originalEventId: originId,
+    }
+}
+
+function processNonRecurringEvent(
+    event: Event,
+    eventStart: Date,
+    safeStart: Date,
+    safeEnd: Date,
+    originId: string
+): Event | null {
+    if (eventStart >= safeStart && eventStart <= safeEnd) {
+        return {
+            ...event,
+            originalEventId: originId,
+        }
+    }
+    return null
+}
+
+function processRecurringEvent(
+    event: Event,
+    eventStart: Date,
+    safeStart: Date,
+    safeEnd: Date,
+    originId: string,
+    baseEnd: Date | null,
+    durationMs: number
+): Event[] {
+    const recurrenceEnd = new Date(event.recurrenceEndDate!)
+    if (Number.isNaN(recurrenceEnd.getTime()) || recurrenceEnd < safeStart) {
+        return []
+    }
+
+    const originalDayOfMonth = event.recurrencePattern === 'MONTHLY' ? eventStart.getDate() : undefined
+    const results: Event[] = []
+    let currentStart = new Date(eventStart.getTime())
+    let iterations = 0
+
+    while (currentStart <= safeEnd && currentStart <= recurrenceEnd && iterations < MAX_OCCURRENCES) {
+        if (currentStart >= safeStart) {
+            results.push(createOccurrence(event, currentStart, eventStart, durationMs, baseEnd, originId))
+        }
+
+        currentStart = advanceDate(currentStart, event.recurrencePattern!, originalDayOfMonth)
+        iterations++
+    }
+
+    return results
+}
+
 /**
  * Returns all event instances (including recurring occurrences) that fall within the provided range.
  * Each additional occurrence receives a synthetic id while keeping a reference to the originalEventId.
  */
 export function eventsWithinRange(events: Event[], rangeStart: Date, rangeEnd: Date): Event[] {
-    if (Number.isNaN(rangeStart.getTime()) || Number.isNaN(rangeEnd.getTime()) || rangeEnd < rangeStart) {
+    if (!isValidDateRange(rangeStart, rangeEnd)) {
         return []
     }
 
@@ -58,52 +133,21 @@ export function eventsWithinRange(events: Event[], rangeStart: Date, rangeEnd: D
         if (Number.isNaN(eventStart.getTime())) {
             continue
         }
+
         const baseEnd = event.endTime ? new Date(event.endTime) : null
         const durationMs = baseEnd ? baseEnd.getTime() - eventStart.getTime() : 0
         const originId = event.originalEventId ?? event.id
 
         if (!event.recurrencePattern || !event.recurrenceEndDate) {
-            if (eventStart >= safeStart && eventStart <= safeEnd) {
-                results.push({
-                    ...event,
-                    originalEventId: originId,
-                })
+            const nonRecurring = processNonRecurringEvent(event, eventStart, safeStart, safeEnd, originId)
+            if (nonRecurring) {
+                results.push(nonRecurring)
             }
             continue
         }
 
-        const recurrenceEnd = new Date(event.recurrenceEndDate)
-        if (Number.isNaN(recurrenceEnd.getTime()) || recurrenceEnd < safeStart) {
-            continue
-        }
-
-        // Store the original day of month for monthly recurrence to preserve it across iterations
-        // This ensures events like "31st of every month" correctly handle month-end edge cases
-        const originalDayOfMonth = event.recurrencePattern === 'MONTHLY' ? eventStart.getDate() : undefined
-
-        let currentStart = new Date(eventStart.getTime())
-        let iterations = 0
-
-        while (currentStart <= safeEnd && currentStart <= recurrenceEnd && iterations < MAX_OCCURRENCES) {
-            if (currentStart >= safeStart) {
-                const startIso = currentStart.toISOString()
-                const occurrenceEndIso =
-                    baseEnd && durationMs >= 0
-                        ? new Date(currentStart.getTime() + durationMs).toISOString()
-                        : undefined
-                const isBaseOccurrence = currentStart.getTime() === eventStart.getTime()
-                results.push({
-                    ...event,
-                    id: isBaseOccurrence ? event.id : `${event.id}::${startIso}`,
-                    startTime: startIso,
-                    endTime: occurrenceEndIso ?? event.endTime ?? null,
-                    originalEventId: originId,
-                })
-            }
-
-            currentStart = advanceDate(currentStart, event.recurrencePattern, originalDayOfMonth)
-            iterations++
-        }
+        const recurring = processRecurringEvent(event, eventStart, safeStart, safeEnd, originId, baseEnd, durationMs)
+        results.push(...recurring)
     }
 
     return results

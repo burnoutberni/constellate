@@ -278,21 +278,26 @@ export function EventDetailPage() {
     const reminderMutation = useEventReminder(eventId, username)
 
     // Derive user's attendance and like status from event data
-    const userAttendance =
-        event && user
-            ? event.attendance?.find((a) => a.user.id === user.id)?.status || null
-            : null
-    const userLiked =
-        event && user
-            ? !!event.likes?.find((l) => l.user.id === user.id)
-            : false
+    const userAttendance = useMemo(() => {
+        if (!event || !user) return null
+        return event.attendance?.find((a) => a.user.id === user.id)?.status || null
+    }, [event, user])
+
+    const userLiked = useMemo(() => {
+        if (!event || !user) return false
+        return !!event.likes?.find((l) => l.user.id === user.id)
+    }, [event, user])
     
     // Check if user has already shared this event
     // This checks if the current event is a share by this user, or if the user has shared the original event
-    const displayedEventId = event?.sharedEvent?.id ?? event?.id
-    const userHasShared = event && user && displayedEventId
-        ? (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
-        : false
+    const displayedEventId = useMemo(() => {
+        return event?.sharedEvent?.id ?? event?.id
+    }, [event])
+
+    const userHasShared = useMemo(() => {
+        if (!event || !user || !displayedEventId) return false
+        return (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
+    }, [event, user, displayedEventId])
 
     const activeReminderMinutes = event?.viewerReminders?.[0]?.minutesBeforeStart ?? null
 
@@ -403,34 +408,36 @@ export function EventDetailPage() {
         // This callback is called after successful signup/login
     }
 
+    const executePendingAction = useCallback(async () => {
+        if (!pendingAction) return
+
+        try {
+            if (pendingAction === 'rsvp' && pendingRSVPStatus) {
+                await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
+            } else if (pendingAction === 'like') {
+                await likeMutation.mutateAsync(false) // false = like (not unlike)
+            } else if (pendingAction === 'comment' && comment.trim()) {
+                await addCommentMutation.mutateAsync({ content: comment })
+                setComment('')
+            } else if (pendingAction === 'share') {
+                await shareMutation.mutateAsync()
+                setHasShared(true)
+            }
+        } catch (error) {
+            console.error('Failed to perform action after signup:', error)
+        } finally {
+            setPendingAction(null)
+            setPendingRSVPStatus(null)
+        }
+    }, [pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
+
     useEffect(() => {
         if (user && pendingAction) {
-            const executeAction = async () => {
-                try {
-                    if (pendingAction === 'rsvp' && pendingRSVPStatus) {
-                        await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
-                    } else if (pendingAction === 'like') {
-                        await likeMutation.mutateAsync(false) // false = like (not unlike)
-                    } else if (pendingAction === 'comment' && comment.trim()) {
-                        await addCommentMutation.mutateAsync({ content: comment })
-                        setComment('')
-                    } else if (pendingAction === 'share') {
-                        await shareMutation.mutateAsync()
-                        setHasShared(true)
-                    }
-                } catch (error) {
-                    console.error('Failed to perform action after signup:', error)
-                } finally {
-                    setPendingAction(null)
-                    setPendingRSVPStatus(null)
-                }
-            }
-
             // Small delay to ensure mutations are ready
-            const timer = setTimeout(executeAction, 100)
+            const timer = setTimeout(executePendingAction, 100)
             return () => clearTimeout(timer)
         }
-    }, [user, pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
+    }, [user, pendingAction, executePendingAction])
 
 
     const handleDeleteComment = async (commentId: string) => {
@@ -517,15 +524,15 @@ export function EventDetailPage() {
         )
     }
 
-    const displayedEvent = event.sharedEvent ?? event
-    const eventTimezone = displayedEvent.timezone || getDefaultTimezone()
-    const originalOwner = event.sharedEvent?.user
-    const attending = event.attendance?.filter((a) => a.status === 'attending').length || 0
-    const maybe = event.attendance?.filter((a) => a.status === 'maybe').length || 0
-    const visibilityMeta = getVisibilityMeta(displayedEvent.visibility as EventVisibility | undefined)
-    const eventStartDate = new Date(displayedEvent.startTime)
-    const eventHasStarted = eventStartDate.getTime() <= Date.now()
-    const canManageReminder = Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe'))
+    const displayedEvent = useMemo(() => event.sharedEvent ?? event, [event])
+    const eventTimezone = useMemo(() => displayedEvent.timezone || getDefaultTimezone(), [displayedEvent])
+    const originalOwner = useMemo(() => event.sharedEvent?.user, [event])
+    const attending = useMemo(() => event.attendance?.filter((a) => a.status === 'attending').length || 0, [event])
+    const maybe = useMemo(() => event.attendance?.filter((a) => a.status === 'maybe').length || 0, [event])
+    const visibilityMeta = useMemo(() => getVisibilityMeta(displayedEvent.visibility as EventVisibility | undefined), [displayedEvent])
+    const eventStartDate = useMemo(() => new Date(displayedEvent.startTime), [displayedEvent])
+    const eventHasStarted = useMemo(() => eventStartDate.getTime() <= Date.now(), [eventStartDate])
+    const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
 
     const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
         const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
@@ -607,6 +614,16 @@ export function EventDetailPage() {
         }
 
         return '🔁 Share'
+    }
+
+    const getReminderHelperText = () => {
+        if (!user) {
+            return 'Sign up to save reminder notifications.'
+        }
+        if (canManageReminder) {
+            return 'We will send reminder notifications and email (if configured).'
+        }
+        return 'RSVP as Going or Maybe to enable reminders.'
     }
 
     return (
@@ -838,11 +855,7 @@ export function EventDetailPage() {
                                 )}
                             </div>
                             <p className="text-xs text-gray-500 mt-2">
-                                {!user
-                                    ? 'Sign up to save reminder notifications.'
-                                    : canManageReminder
-                                        ? 'We will send reminder notifications and email (if configured).'
-                                        : 'RSVP as Going or Maybe to enable reminders.'}
+                                {getReminderHelperText()}
                             </p>
                         </div>
                     )}

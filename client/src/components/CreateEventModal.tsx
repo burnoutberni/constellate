@@ -251,58 +251,112 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setTemplates((current) => [created, ...current.filter((item) => item.id !== created.id)])
     }
 
+    const validateRecurrence = (): string | null => {
+        if (!formData.recurrencePattern) {
+            return null
+        }
+
+        if (!formData.recurrenceEndDate) {
+            return 'Please choose when the recurring event should stop.'
+        }
+
+        const startDate = new Date(formData.startTime)
+        const recurrenceEnd = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z')
+        
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
+            return 'Please provide valid dates for recurring events.'
+        }
+
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
+        
+        if (recurrenceEndDateOnly <= startDateOnly) {
+            return 'Recurrence end date must be after the start date.'
+        }
+
+        return null
+    }
+
+    const buildEventPayload = (): Record<string, unknown> => {
+        const payload: Record<string, unknown> = {
+            title: formData.title,
+            summary: formData.summary,
+            location: formData.location,
+            url: formData.url,
+            startTime: new Date(formData.startTime).toISOString(),
+            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+            visibility: formData.visibility,
+        }
+
+        if (formData.recurrencePattern) {
+            payload.recurrencePattern = formData.recurrencePattern
+            payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
+        }
+
+        return payload
+    }
+
+    const resetForm = () => {
+        setFormData({
+            title: '',
+            summary: '',
+            location: '',
+            url: '',
+            startTime: '',
+            endTime: '',
+            visibility: 'PUBLIC',
+            recurrencePattern: '',
+            recurrenceEndDate: '',
+            tags: [],
+        })
+        setSelectedTemplateId('')
+        setSaveAsTemplate(false)
+        setTemplateName('')
+        setTemplateDescription('')
+        setTagInput('')
+    }
+
+    const handleSuccessResponse = async () => {
+        if (saveAsTemplate) {
+            try {
+                await saveTemplateFromEvent({
+                    title: formData.title,
+                    summary: formData.summary,
+                    location: formData.location,
+                    url: formData.url,
+                    startTime: new Date(formData.startTime).toISOString(),
+                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+                })
+            } catch (err) {
+                console.error('Failed to save template', err)
+                window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
+            }
+        }
+        resetForm()
+        onSuccess()
+        onClose()
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
+        
         if (!user) {
             setError('You must be signed in to create an event.')
             return
         }
+
+        const validationError = validateRecurrence()
+        if (validationError) {
+            setError(validationError)
+            setSubmitting(false)
+            return
+        }
+
         try {
             setSubmitting(true)
 
-            if (formData.recurrencePattern && !formData.recurrenceEndDate) {
-                setError('Please choose when the recurring event should stop.')
-                setSubmitting(false)
-                return
-            }
-
-            if (formData.recurrencePattern && formData.recurrenceEndDate) {
-                const startDate = new Date(formData.startTime)
-                // Parse recurrence end date as end of day in UTC to avoid timezone issues
-                const recurrenceEndDateStr = formData.recurrenceEndDate
-                const recurrenceEnd = new Date(recurrenceEndDateStr + 'T23:59:59.999Z')
-                if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
-                    setError('Please provide valid dates for recurring events.')
-                    setSubmitting(false)
-                    return
-                }
-                // Compare only the date parts (without time) to match backend validation
-                const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-                const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
-                // Backend requires recurrence end date to be strictly after start time
-                if (recurrenceEndDateOnly <= startDateOnly) {
-                    setError('Recurrence end date must be after the start date.')
-                    setSubmitting(false)
-                    return
-                }
-            }
-
-            const payload: Record<string, unknown> = {
-                title: formData.title,
-                summary: formData.summary,
-                location: formData.location,
-                url: formData.url,
-                startTime: new Date(formData.startTime).toISOString(),
-                endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
-                visibility: formData.visibility,
-            }
-
-            if (formData.recurrencePattern) {
-                payload.recurrencePattern = formData.recurrencePattern
-                // Use the same end-of-day parsing logic as validation to ensure consistency (UTC)
-                payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
-            }
+            const payload = buildEventPayload()
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {
@@ -314,44 +368,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                     tags: formData.tags.length > 0 ? formData.tags : undefined,
                 }),
             })
+
             if (response.ok) {
-                if (saveAsTemplate) {
-                    try {
-                        // Note: Tags are intentionally excluded from templates as they are event-specific
-                        // and shouldn't be part of a reusable template. When loading from a template,
-                        // existing tags are preserved (see applyTemplate function).
-                        await saveTemplateFromEvent({
-                            title: formData.title,
-                            summary: formData.summary,
-                            location: formData.location,
-                            url: formData.url,
-                            startTime: new Date(formData.startTime).toISOString(),
-                            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
-                        })
-                    } catch (err) {
-                        console.error('Failed to save template', err)
-                        window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
-                    }
-                }
-                setFormData({
-                    title: '',
-                    summary: '',
-                    location: '',
-                    url: '',
-                    startTime: '',
-                    endTime: '',
-                    visibility: 'PUBLIC',
-                    recurrencePattern: '',
-                    recurrenceEndDate: '',
-                    tags: [],
-                })
-                setSelectedTemplateId('')
-                setSaveAsTemplate(false)
-                setTemplateName('')
-                setTemplateDescription('')
-                setTagInput('')
-                onSuccess()
-                onClose()
+                await handleSuccessResponse()
             } else if (response.status === 401) {
                 setError('Authentication required. Please sign in.')
             } else {

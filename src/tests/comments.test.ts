@@ -248,7 +248,7 @@ describe('Comments API', () => {
             expect(res.status).toBe(201)
             const body = await res.json() as any
             expect(body.mentions).toHaveLength(1)
-            expect(body.mentions[0].user.username).toBe(testUser2.username)
+            expect(body.mentions[0].mentionedUser.username).toBe(testUser2.username)
 
             const mentionRecords = await prisma.commentMention.findMany({
                 where: { commentId: body.id },

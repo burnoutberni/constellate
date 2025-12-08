@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import type { Event, User } from '@prisma/client'
+import type { Comment, Event, User } from '@prisma/client'
 import { buildCreateCommentActivity, buildDeleteCommentActivity } from './services/ActivityBuilder.js'
 import { deliverToActors, deliverToFollowers } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
@@ -66,6 +66,141 @@ const CommentSchema = z.object({
     content: z.string().min(1).max(5000),
     inReplyToId: z.string().optional(),
 })
+
+// Helper function to get event author followers URL
+function getEventAuthorFollowersUrl(event: EventWithOwner, baseUrl: string): string | undefined {
+    const eventAuthorUrl = event.attributedTo!
+    
+    if (event.user) {
+        return `${baseUrl}/users/${event.user.username}/followers`
+    }
+    if (eventAuthorUrl.startsWith(baseUrl)) {
+        const username = eventAuthorUrl.split('/').pop()
+        if (username) {
+            return `${baseUrl}/users/${username}/followers`
+        }
+    }
+    return undefined
+}
+
+// Helper function to get parent comment author URL
+async function getParentCommentAuthorUrl(
+    inReplyToId: string | undefined,
+    userId: string,
+    baseUrl: string
+): Promise<string | undefined> {
+    if (!inReplyToId) return undefined
+    
+    const parentComment = await prisma.comment.findUnique({
+        where: { id: inReplyToId },
+        include: { author: true },
+    })
+    
+    if (parentComment && parentComment.author.id !== userId) {
+        return parentComment.author.externalActorUrl ||
+            `${baseUrl}/users/${parentComment.author.username}`
+    }
+    
+    return undefined
+}
+
+// Helper function to create comment mentions
+async function createCommentMentions(commentId: string, sanitizedContent: string) {
+    const mentionTargets = await resolveMentions(sanitizedContent)
+
+    if (mentionTargets.length) {
+        await prisma.commentMention.createMany({
+            data: mentionTargets.map((target) => ({
+                commentId,
+                mentionedUserId: target.user.id,
+                handle: target.handle,
+            })),
+            skipDuplicates: true,
+        })
+    }
+
+    return mentionTargets
+}
+
+// Helper function to build and deliver comment activity
+async function buildAndDeliverCommentActivity(
+    comment: Comment & { author: User; event: Event },
+    event: EventWithOwner,
+    eventAuthorFollowersUrl: string | undefined,
+    parentCommentAuthorUrl: string | undefined,
+    userId: string
+) {
+    const eventAuthorUrl = event.attributedTo!
+    const isPublic = isPublicVisibility(event.visibility)
+    const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
+
+    const activity = buildCreateCommentActivity(
+        comment,
+        eventAuthorUrl,
+        eventAuthorFollowersUrl,
+        parentCommentAuthorUrl,
+        isPublic
+    )
+
+    // Build recipients list
+    const recipients: string[] = [eventAuthorUrl]
+    if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
+        recipients.push(parentCommentAuthorUrl)
+    }
+
+    // Deliver to direct recipients
+    await deliverToActors(activity, recipients, userId)
+
+    // Also deliver to event author's followers if event allows it
+    if (eventAuthorFollowersUrl && event.user && shouldNotifyFollowers) {
+        await deliverToFollowers(activity, event.user.id)
+    }
+}
+
+// Helper function to build comment broadcast data
+function buildCommentBroadcastData(
+    commentWithRelations: {
+        id: string
+        content: string
+        createdAt: Date
+        author: unknown
+        mentions: Array<{
+            id: string
+            handle: string
+            mentionedUser: {
+                id: string
+                username: string
+                name: string | null
+                displayColor: string | null
+                profileImage: string | null
+            }
+        }>
+    },
+    eventId: string
+) {
+    const mentionPayload = commentWithRelations.mentions.map((mention) => ({
+        id: mention.id,
+        handle: mention.handle,
+        user: {
+            id: mention.mentionedUser.id,
+            username: mention.mentionedUser.username,
+            name: mention.mentionedUser.name,
+            displayColor: mention.mentionedUser.displayColor,
+            profileImage: mention.mentionedUser.profileImage,
+        },
+    }))
+
+    return {
+        eventId,
+        comment: {
+            id: commentWithRelations.id,
+            content: commentWithRelations.content,
+            createdAt: commentWithRelations.createdAt.toISOString(),
+            author: commentWithRelations.author,
+            mentions: mentionPayload,
+        },
+    }
+}
 
 // Create comment
 app.post('/:id/comments', moderateRateLimit, async (c) => {
@@ -128,18 +263,8 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
             },
         })
 
-        const mentionTargets = await resolveMentions(sanitizedContent)
-
-        if (mentionTargets.length) {
-            await prisma.commentMention.createMany({
-                data: mentionTargets.map((target) => ({
-                    commentId: comment.id,
-                    mentionedUserId: target.user.id,
-                    handle: target.handle,
-                })),
-                skipDuplicates: true,
-            })
-        }
+        // Create mentions
+        const mentionTargets = await createCommentMentions(comment.id, sanitizedContent)
 
         const commentWithRelations = await prisma.comment.findUnique({
             where: { id: comment.id },
@@ -157,92 +282,22 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 
         // Build and deliver Create(Note) activity
         const baseUrl = getBaseUrl()
-        const eventAuthorUrl = event.attributedTo!
-
-        const getEventAuthorFollowersUrl = () => {
-            if (event.user) {
-                return `${baseUrl}/users/${event.user.username}/followers`
-            }
-            if (eventAuthorUrl.startsWith(baseUrl)) {
-                const username = eventAuthorUrl.split('/').pop()
-                if (username) {
-                    return `${baseUrl}/users/${username}/followers`
-                }
-            }
-            return undefined
-        }
-
-        const getParentCommentAuthorUrl = async () => {
-            if (!inReplyToId) return undefined
-            const parentComment = await prisma.comment.findUnique({
-                where: { id: inReplyToId },
-                include: { author: true },
-            })
-            if (parentComment && parentComment.author.id !== userId) {
-                return parentComment.author.externalActorUrl ||
-                    `${baseUrl}/users/${parentComment.author.username}`
-            }
-            return undefined
-        }
-
-        // Get event author's followers URL only when needed
         const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
-        const eventAuthorFollowersUrl = shouldNotifyFollowers ? getEventAuthorFollowersUrl() : undefined
-        const parentCommentAuthorUrl = await getParentCommentAuthorUrl()
+        const eventAuthorFollowersUrl = shouldNotifyFollowers
+            ? getEventAuthorFollowersUrl(event, baseUrl)
+            : undefined
+        const parentCommentAuthorUrl = await getParentCommentAuthorUrl(inReplyToId, userId, baseUrl)
 
-        // Determine if event is public
-        const isPublic = isPublicVisibility(event.visibility)
-
-        const activity = buildCreateCommentActivity(
+        await buildAndDeliverCommentActivity(
             comment,
-            eventAuthorUrl,
+            event,
             eventAuthorFollowersUrl,
             parentCommentAuthorUrl,
-            isPublic
+            userId
         )
 
-        // Build recipients list
-        const recipients: string[] = [eventAuthorUrl]
-        if (parentCommentAuthorUrl && parentCommentAuthorUrl !== eventAuthorUrl) {
-            recipients.push(parentCommentAuthorUrl)
-        }
-
-        // Deliver to direct recipients
-        await deliverToActors(activity, recipients, userId)
-
-        // Also deliver to event author's followers if event allows it
-        if (eventAuthorFollowersUrl && event.user && shouldNotifyFollowers) {
-            await deliverToFollowers(activity, event.user.id)
-        }
-
         // Broadcast real-time update
-        const mentionPayload = commentWithRelations.mentions.map((mention) => ({
-            id: mention.id,
-            handle: mention.handle,
-            user: {
-                id: mention.mentionedUser.id,
-                username: mention.mentionedUser.username,
-                name: mention.mentionedUser.name,
-                displayColor: mention.mentionedUser.displayColor,
-                profileImage: mention.mentionedUser.profileImage,
-            },
-        }))
-
-        const responseComment = {
-            ...commentWithRelations,
-            mentions: mentionPayload,
-        }
-
-        const broadcastData = {
-            eventId: id,
-            comment: {
-                id: responseComment.id,
-                content: responseComment.content,
-                createdAt: responseComment.createdAt.toISOString(),
-                author: responseComment.author,
-                mentions: responseComment.mentions,
-            },
-        }
+        const broadcastData = buildCommentBroadcastData(commentWithRelations, id)
         console.log(`📡 Broadcasting comment:added for event ${id}`)
         await broadcast({
             type: BroadcastEvents.COMMENT_ADDED,
@@ -278,7 +333,7 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
             }
         }
 
-        return c.json(responseComment, 201)
+        return c.json(commentWithRelations, 201)
     } catch (error) {
         if (error instanceof AppError) {
             throw error
@@ -371,25 +426,16 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
         const eventAuthorUrl = event.attributedTo!
 
         // Get event author's followers URL
-        let eventAuthorFollowersUrl: string | undefined
         const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
-        if (shouldNotifyFollowers) {
-            if (event.user) {
-                eventAuthorFollowersUrl = `${baseUrl}/users/${event.user.username}/followers`
-            } else if (eventAuthorUrl.startsWith(baseUrl)) {
-                const username = eventAuthorUrl.split('/').pop()
-                if (username) {
-                    eventAuthorFollowersUrl = `${baseUrl}/users/${username}/followers`
-                }
-            }
-        }
+        const eventAuthorFollowersUrl = shouldNotifyFollowers
+            ? getEventAuthorFollowersUrl(event, baseUrl)
+            : undefined
 
         // Get parent comment author URL if replying
-        let parentCommentAuthorUrl: string | undefined
-        if (comment.inReplyTo && comment.inReplyTo.author.id !== userId) {
-            parentCommentAuthorUrl = comment.inReplyTo.author.externalActorUrl ||
-                `${baseUrl}/users/${comment.inReplyTo.author.username}`
-        }
+        const parentCommentAuthorUrl = comment.inReplyTo && comment.inReplyTo.author.id !== userId
+            ? (comment.inReplyTo.author.externalActorUrl ||
+                `${baseUrl}/users/${comment.inReplyTo.author.username}`)
+            : undefined
 
         const isPublic = isPublicVisibility(event.visibility)
 

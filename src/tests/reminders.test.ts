@@ -29,13 +29,17 @@ vi.mock('../lib/eventVisibility.js', () => ({
     canUserViewEvent: vi.fn(),
 }))
 
-vi.mock('../services/reminders.js', () => ({
-    listEventRemindersForUser: vi.fn(),
-    scheduleReminderForEvent: vi.fn(),
-    cancelReminderForEvent: vi.fn(),
-    deleteReminderById: vi.fn(),
-    getReminderOptions: vi.fn(() => [5, 15, 30]),
-}))
+vi.mock('../services/reminders.js', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../services/reminders.js')>()
+    return {
+        ...actual,
+        listEventRemindersForUser: vi.fn(),
+        scheduleReminderForEvent: vi.fn(),
+        cancelReminderForEvent: vi.fn(),
+        deleteReminderById: vi.fn(),
+        getReminderOptions: vi.fn(() => [5, 15, 30]),
+    }
+})
 
 const app = new Hono()
 app.route('/api/events', remindersApp)

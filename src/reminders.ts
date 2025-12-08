@@ -18,7 +18,7 @@ const app = new Hono()
 
 const reminderRequestSchema = z.object({
     minutesBeforeStart: z.number().int({ message: 'Reminder offset must be an integer' }).refine(
-        (val) => REMINDER_MINUTE_OPTIONS.includes(val),
+        (val) => REMINDER_MINUTE_OPTIONS.includes(val as typeof REMINDER_MINUTE_OPTIONS[number]),
         { message: `Reminder offset must be one of: ${REMINDER_MINUTE_OPTIONS.join(', ')}` }
     ),
 })

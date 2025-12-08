@@ -23,7 +23,7 @@ import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
 import { config } from './config.js'
-import type { Event } from '@prisma/client'
+import type { Event, EventVisibility, RecurrencePattern } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 import {
     calculateTrendingScore,
@@ -188,6 +188,107 @@ const EventSchema = z.object({
     timezone: TimezoneSchema.optional(),
 })
 
+// Helper function to process and normalize tags for event creation
+function processTagsForCreation(tags: unknown): Array<{ tag: string }> | undefined {
+    if (!tags || !Array.isArray(tags) || tags.length === 0) {
+        return undefined
+    }
+
+    try {
+        const normalizedTags = normalizeTags(tags)
+        if (normalizedTags && normalizedTags.length > 0) {
+            return normalizedTags.map(tag => ({ tag }))
+        }
+    } catch (error) {
+        console.error('Error normalizing tags:', error)
+        throw error
+    }
+
+    return undefined
+}
+
+// Helper function to build event creation data
+function buildEventCreationData(
+    validatedData: z.infer<typeof EventSchema>,
+    userId: string,
+    actorUrl: string,
+    visibility: EventVisibility,
+    startTime: Date,
+    endTime: Date | null,
+    recurrencePattern: RecurrencePattern | null,
+    recurrenceEndDate: Date | null,
+    timezone: string,
+    tagsToCreate: Array<{ tag: string }> | undefined
+) {
+    return {
+        title: sanitizeText(validatedData.title),
+        summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
+        location: validatedData.location ? sanitizeText(validatedData.location) : null,
+        headerImage: validatedData.headerImage || null,
+        url: validatedData.url || null,
+        startTime,
+        endTime,
+        duration: validatedData.duration || null,
+        eventStatus: validatedData.eventStatus || null,
+        eventAttendanceMode: validatedData.eventAttendanceMode || null,
+        maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null,
+        userId,
+        attributedTo: actorUrl,
+        visibility,
+        recurrencePattern,
+        recurrenceEndDate,
+        timezone,
+        ...(tagsToCreate && tagsToCreate.length > 0 ? {
+            tags: {
+                create: tagsToCreate,
+            },
+        } : {}),
+    }
+}
+
+// Helper function to broadcast event creation
+async function broadcastEventCreation(
+    event: Event & { user: unknown; tags: unknown[] },
+    user: { id: string; username: string; name: string | null; displayColor: string | null; profileImage: string | null },
+    userId: string
+) {
+    const { broadcast, BroadcastEvents } = await import('./realtime.js')
+    const broadcastPayload = {
+        event: {
+            id: event.id,
+            title: event.title,
+            summary: event.summary,
+            location: event.location,
+            url: event.url,
+            startTime: (event as { startTime: Date }).startTime.toISOString(),
+            endTime: (event as { endTime: Date | null }).endTime?.toISOString(),
+            eventStatus: (event as { eventStatus: string | null }).eventStatus,
+            visibility: (event as { visibility: string | null }).visibility,
+            recurrencePattern: (event as { recurrencePattern: string | null }).recurrencePattern,
+            recurrenceEndDate: (event as { recurrenceEndDate: Date | null }).recurrenceEndDate?.toISOString(),
+            timezone: (event as { timezone: string | null }).timezone,
+            user: {
+                id: user.id,
+                username: user.username,
+                name: user.name,
+                displayColor: user.displayColor,
+                profileImage: user.profileImage,
+            },
+            _count: {
+                attendance: 0,
+                likes: 0,
+                comments: 0,
+            },
+        },
+    }
+    const broadcastTarget = getBroadcastTarget((event as { visibility: EventVisibility | null }).visibility, userId)
+    await broadcast({
+        type: BroadcastEvents.EVENT_CREATED,
+        data: broadcastPayload,
+        ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
+    })
+}
+
 // Create event
 app.post('/', moderateRateLimit, async (c) => {
     try {
@@ -200,11 +301,11 @@ app.post('/', moderateRateLimit, async (c) => {
         const body = await c.req.json()
         const validatedData = EventSchema.parse(body)
         const { visibility: requestedVisibility } = validatedData
-        const visibility = requestedVisibility ?? 'PUBLIC'
+        const visibility: EventVisibility = (requestedVisibility ?? 'PUBLIC') as EventVisibility
 
         const startTime = new Date(validatedData.startTime)
         const endTime = validatedData.endTime ? new Date(validatedData.endTime) : null
-        const recurrencePattern = validatedData.recurrencePattern ?? null
+        const recurrencePattern: RecurrencePattern | null = validatedData.recurrencePattern ?? null
         const recurrenceEndDate = validatedData.recurrenceEndDate
             ? new Date(validatedData.recurrenceEndDate)
             : null
@@ -223,54 +324,34 @@ app.post('/', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const actorUrl = `${baseUrl}/users/${user.username}`
 
-        // Extract tags from validated data
+        // Extract and process tags from validated data
         const { tags } = validatedData
-
-        // Normalize tags and only create if there are valid tags after normalization
-        let tagsToCreate: Array<{ tag: string }> | undefined = undefined
-        if (tags && Array.isArray(tags) && tags.length > 0) {
-            try {
-                const normalizedTags = normalizeTags(tags)
-                if (normalizedTags && normalizedTags.length > 0) {
-                    tagsToCreate = normalizedTags.map(tag => ({ tag }))
-                }
-            } catch (error) {
-                console.error('Error normalizing tags:', error)
-                // Return validation error when tag normalization fails
-                return c.json({ 
-                    error: 'VALIDATION_ERROR', 
-                    message: 'Failed to process tags: ensure tags are valid strings',
-                    details: config.isDevelopment ? { originalError: String(error) } : undefined
-                }, 400)
-            }
+        let tagsToCreate: Array<{ tag: string }> | undefined
+        try {
+            tagsToCreate = processTagsForCreation(tags)
+        } catch (error) {
+            // Return validation error when tag normalization fails
+            return c.json({ 
+                error: 'VALIDATION_ERROR', 
+                message: 'Failed to process tags: ensure tags are valid strings',
+                details: config.isDevelopment ? { originalError: String(error) } : undefined
+            }, 400)
         }
 
         // Create event with sanitized input
         const event = await prisma.event.create({
-            data: {
-                title: sanitizeText(validatedData.title),
-                summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
-                location: validatedData.location ? sanitizeText(validatedData.location) : null,
-                headerImage: validatedData.headerImage || null,
-                url: validatedData.url || null,
+            data: buildEventCreationData(
+                validatedData,
+                userId,
+                actorUrl,
+                visibility,
                 startTime,
                 endTime,
-                duration: validatedData.duration || null,
-                eventStatus: validatedData.eventStatus || null,
-                eventAttendanceMode: validatedData.eventAttendanceMode || null,
-                maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity || null,
-                userId,
-                attributedTo: actorUrl,
-                visibility,
                 recurrencePattern,
                 recurrenceEndDate,
                 timezone,
-                ...(tagsToCreate && tagsToCreate.length > 0 ? {
-                    tags: {
-                        create: tagsToCreate,
-                    },
-                } : {}),
-            },
+                tagsToCreate
+            ),
             include: {
                 user: true,
                 tags: true,
@@ -285,41 +366,7 @@ app.post('/', moderateRateLimit, async (c) => {
         await deliverActivity(activity, addressing, userId)
 
         // Broadcast real-time update
-        const { broadcast, BroadcastEvents } = await import('./realtime.js')
-        const broadcastPayload = {
-            event: {
-                id: event.id,
-                title: event.title,
-                summary: event.summary,
-                location: event.location,
-                url: event.url,
-                startTime: event.startTime.toISOString(),
-                endTime: event.endTime?.toISOString(),
-                eventStatus: event.eventStatus,
-                visibility: event.visibility,
-                recurrencePattern: event.recurrencePattern,
-                recurrenceEndDate: event.recurrenceEndDate?.toISOString(),
-                timezone: event.timezone,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    name: user.name,
-                    displayColor: user.displayColor,
-                    profileImage: user.profileImage,
-                },
-                _count: {
-                    attendance: 0,
-                    likes: 0,
-                    comments: 0,
-                },
-            },
-        }
-        const broadcastTarget = getBroadcastTarget(event.visibility, userId)
-        await broadcast({
-            type: BroadcastEvents.EVENT_CREATED,
-            data: broadcastPayload,
-            ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
-        })
+        await broadcastEventCreation(event as Event & { user: typeof user; tags: unknown[] }, user, userId)
 
         return c.json(event, 201)
     } catch (error) {
@@ -566,6 +613,263 @@ app.get('/trending', lenientRateLimit, async (c) => {
     }
 })
 
+// Helper function to get event with full includes
+function getEventFullInclude() {
+    return {
+        user: {
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                displayColor: true,
+                profileImage: true,
+                externalActorUrl: true,
+                isRemote: true,
+            },
+        },
+        tags: true,
+        sharedEvent: {
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        displayColor: true,
+                        profileImage: true,
+                        externalActorUrl: true,
+                        isRemote: true,
+                    },
+                },
+            },
+        },
+        attendance: {
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        profileImage: true,
+                        isRemote: true,
+                    },
+                },
+            },
+        },
+        likes: {
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        name: true,
+                        profileImage: true,
+                        isRemote: true,
+                    },
+                },
+            },
+        },
+        comments: {
+            include: {
+                author: {
+                    select: commentUserSelect,
+                },
+                ...commentMentionInclude,
+                replies: {
+                    include: {
+                        author: {
+                            select: commentUserSelect,
+                        },
+                        ...commentMentionInclude,
+                    },
+                },
+            },
+            where: {
+                inReplyToId: null,
+            },
+            orderBy: { createdAt: 'desc' as const },
+        },
+        _count: {
+            select: {
+                attendance: true,
+                likes: true,
+                comments: true,
+            },
+        },
+    }
+}
+
+// Helper function to find or cache remote user
+async function findOrCacheRemoteUser(actorUrl: string | undefined) {
+    if (!actorUrl) return null
+
+    let user = await prisma.user.findFirst({
+        where: { externalActorUrl: actorUrl },
+    })
+
+    if (!user) {
+        const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
+        const actor = await fetchActor(actorUrl)
+        if (actor) {
+            user = await cacheRemoteUser(actor as unknown as Person)
+        }
+    }
+
+    return user
+}
+
+// Helper function to cache attendance from remote event reply
+async function cacheAttendanceFromReply(
+    replyObj: Record<string, unknown>,
+    eventId: string
+) {
+    const replyType = replyObj.type
+    if (replyType !== 'Accept' && replyType !== 'TentativeAccept' && replyType !== 'Reject') {
+        return
+    }
+
+    const actorUrl = replyObj.actor as string | undefined
+    const attendeeUser = await findOrCacheRemoteUser(actorUrl)
+
+    if (!attendeeUser) return
+
+    let status = 'attending'
+    if (replyType === 'TentativeAccept') status = 'maybe'
+    if (replyType === 'Reject') status = 'not_attending'
+
+    await prisma.eventAttendance.upsert({
+        where: {
+            eventId_userId: {
+                userId: attendeeUser.id,
+                eventId,
+            },
+        },
+        update: { status },
+        create: {
+            userId: attendeeUser.id,
+            eventId,
+            status,
+        },
+    })
+}
+
+// Helper function to cache comment from remote event reply
+async function cacheCommentFromReply(
+    replyObj: Record<string, unknown>,
+    eventId: string
+) {
+    const replyType = replyObj.type
+    if (replyType !== 'Note') return
+
+    const actorUrl = replyObj.attributedTo as string | undefined
+    const content = replyObj.content as string | undefined
+
+    if (!actorUrl || !content || !replyObj.id) return
+
+    const authorUser = await findOrCacheRemoteUser(actorUrl)
+    if (!authorUser) return
+
+    await prisma.comment.upsert({
+        where: { externalId: replyObj.id as string },
+        update: { content },
+        create: {
+            externalId: replyObj.id as string,
+            content,
+            eventId,
+            authorId: authorUser.id,
+        },
+    })
+}
+
+// Helper function to cache likes from remote event
+async function cacheLikesFromRemoteEvent(
+    likes: { items?: unknown[] } | undefined,
+    eventId: string
+) {
+    if (!likes?.items) return
+
+    for (const like of likes.items) {
+        const likeObj = like as Record<string, unknown> | string
+        let actorUrl: string | undefined
+
+        if (typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj) {
+            actorUrl = likeObj.actor as string
+        } else if (typeof likeObj === 'string') {
+            actorUrl = likeObj
+        }
+
+        if (!actorUrl) continue
+
+        const likerUser = await findOrCacheRemoteUser(actorUrl)
+        if (!likerUser) continue
+
+        await prisma.eventLike.upsert({
+            where: {
+                eventId_userId: {
+                    userId: likerUser.id,
+                    eventId,
+                },
+            },
+            update: {},
+            create: {
+                userId: likerUser.id,
+                eventId,
+            },
+        })
+    }
+}
+
+// Helper function to cache remote event data
+async function cacheRemoteEventData(eventId: string, externalId: string) {
+    try {
+        const remoteResponse = await fetch(externalId, {
+            headers: {
+                Accept: 'application/activity+json',
+            },
+        })
+
+        if (!remoteResponse.ok) return
+
+        const remoteEvent = await remoteResponse.json() as Record<string, unknown>
+
+        // Cache attendance and comments from replies
+        if (remoteEvent && typeof remoteEvent === 'object' && 'replies' in remoteEvent) {
+            const replies = remoteEvent.replies as { items?: unknown[] } | undefined
+            if (replies?.items) {
+                for (const reply of replies.items) {
+                    const replyObj = reply as Record<string, unknown>
+                    await cacheAttendanceFromReply(replyObj, eventId)
+                    await cacheCommentFromReply(replyObj, eventId)
+                }
+            }
+        }
+
+        // Cache likes
+        const likes = remoteEvent.likes as { items?: unknown[] } | undefined
+        await cacheLikesFromRemoteEvent(likes, eventId)
+
+        // Update event URL if present
+        const remoteUrl = remoteEvent.url as string | undefined
+        if (remoteUrl) {
+            const existingEvent = await prisma.event.findUnique({
+                where: { id: eventId },
+                select: { url: true },
+            })
+            if (remoteUrl !== existingEvent?.url) {
+                await prisma.event.update({
+                    where: { id: eventId },
+                    data: { url: remoteUrl },
+                })
+            }
+        }
+
+        console.log(`✅ Cached attendance and likes for remote event ${eventId}`)
+    } catch (error) {
+        console.error('Error fetching remote event details:', error)
+        // Continue with cached data
+    }
+}
+
 // Get event by username and eventId (Mastodon-style URL)
 app.get('/by-user/:username/:eventId', async (c) => {
     try {
@@ -594,88 +898,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
                     ? { attributedTo: user.externalActorUrl || undefined }
                     : { userId: user.id }),
             },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        username: true,
-                        name: true,
-                        displayColor: true,
-                        profileImage: true,
-                        externalActorUrl: true,
-                        isRemote: true,
-                    },
-                },
-                tags: true,
-                sharedEvent: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                displayColor: true,
-                                profileImage: true,
-                                externalActorUrl: true,
-                                isRemote: true,
-                            },
-                        },
-                    },
-                },
-                attendance: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                profileImage: true,
-                                isRemote: true,
-                            },
-                        },
-                    },
-                },
-                likes: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                profileImage: true,
-                                isRemote: true,
-                            },
-                        },
-                    },
-                },
-                comments: {
-                    include: {
-                        author: {
-                            select: commentUserSelect,
-                        },
-                        ...commentMentionInclude,
-                        replies: {
-                            include: {
-                                author: {
-                                    select: commentUserSelect,
-                                },
-                                ...commentMentionInclude,
-                            },
-                        },
-                    },
-                    where: {
-                        inReplyToId: null, // Top-level comments only
-                    },
-                    orderBy: { createdAt: 'desc' },
-                },
-                _count: {
-                    select: {
-                        attendance: true,
-                        likes: true,
-                        comments: true,
-                    },
-                },
-            },
+            include: getEventFullInclude(),
         })
 
         if (!event) {
@@ -707,228 +930,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
 
         // If it's a remote event, fetch fresh data from the remote server and cache it
         if (isRemote && event.externalId) {
-            try {
-                const remoteResponse = await fetch(event.externalId, {
-                    headers: {
-                        Accept: 'application/activity+json',
-                    },
-                })
-
-                if (remoteResponse.ok) {
-                    const remoteEvent = await remoteResponse.json() as Record<string, unknown>
-
-                    // Cache attendance from remote event
-                    if (remoteEvent && typeof remoteEvent === 'object' && 'replies' in remoteEvent) {
-                        const replies = remoteEvent.replies as { items?: unknown[] } | undefined
-                        if (replies?.items) {
-                            for (const reply of replies.items) {
-                                const replyObj = reply as Record<string, unknown>
-                                const replyType = replyObj.type
-                                if (replyType === 'Accept' || replyType === 'TentativeAccept' || replyType === 'Reject') {
-                                    const actorUrl = replyObj.actor as string | undefined
-
-                                    // Find or cache the remote user
-                                    let attendeeUser = await prisma.user.findFirst({
-                                        where: { externalActorUrl: actorUrl },
-                                    })
-
-                                    if (!attendeeUser) {
-                                        // Fetch and cache the remote user
-                                        const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                        const actor = actorUrl ? await fetchActor(actorUrl) : null
-                                        if (actor) {
-                                            attendeeUser = await cacheRemoteUser(actor as unknown as Person)
-                                        }
-                                    }
-
-                                    if (attendeeUser) {
-                                        // Determine status
-                                        let status = 'attending'
-                                        if (replyType === 'TentativeAccept') status = 'maybe'
-                                        if (replyType === 'Reject') status = 'not_attending'
-
-                                        // Cache attendance
-                                        await prisma.eventAttendance.upsert({
-                                            where: {
-                                                eventId_userId: {
-                                                    userId: attendeeUser.id,
-                                                    eventId: event.id,
-                                                },
-                                            },
-                                            update: { status },
-                                            create: {
-                                                userId: attendeeUser.id,
-                                                eventId: event.id,
-                                                status,
-                                            },
-                                        })
-                                    }
-                                } else if (replyType === 'Note') {
-                                    // Cache comment
-                                    const actorUrl = replyObj.attributedTo as string | undefined
-                                    const content = replyObj.content as string | undefined
-
-                                    if (!actorUrl || !content) continue
-
-                                    // Find or cache the remote user
-                                    let authorUser = await prisma.user.findFirst({
-                                        where: { externalActorUrl: actorUrl },
-                                    })
-
-                                    if (!authorUser) {
-                                        const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                        const actor = await fetchActor(actorUrl)
-                                        if (actor) {
-                                            authorUser = await cacheRemoteUser(actor as unknown as Person)
-                                        }
-                                    }
-
-                                    if (authorUser && content && replyObj.id) {
-                                        await prisma.comment.upsert({
-                                            where: { externalId: replyObj.id as string },
-                                            update: {
-                                                content,
-                                            },
-                                            create: {
-                                                externalId: replyObj.id as string,
-                                                content,
-                                                eventId: event.id,
-                                                authorId: authorUser.id,
-                                            },
-                                        })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Cache likes from remote event
-                    const likes = remoteEvent.likes as { items?: unknown[] } | undefined
-                    if (likes?.items) {
-                        for (const like of likes.items) {
-                            const likeObj = like as Record<string, unknown> | string
-                            let actorUrl: string | undefined
-                            if (typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj) {
-                                actorUrl = likeObj.actor as string
-                            } else if (typeof likeObj === 'string') {
-                                actorUrl = likeObj
-                            }
-
-                            let likerUser = await prisma.user.findFirst({
-                                where: { externalActorUrl: actorUrl },
-                            })
-
-                            if (!likerUser && actorUrl) {
-                                const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
-                                const actor = await fetchActor(actorUrl)
-                                if (actor) {
-                                    likerUser = await cacheRemoteUser(actor as unknown as Person)
-                                }
-                            }
-
-                            if (likerUser) {
-                                await prisma.eventLike.upsert({
-                                    where: {
-                                        eventId_userId: {
-                                            userId: likerUser.id,
-                                            eventId: event.id,
-                                        },
-                                    },
-                                    update: {},
-                                    create: {
-                                        userId: likerUser.id,
-                                        eventId: event.id,
-                                    },
-                                })
-                            }
-                        }
-                    }
-
-                    // Update event URL if present in remote event
-                    const remoteUrl = remoteEvent.url as string | undefined
-                    if (remoteUrl && remoteUrl !== event.url) {
-                        await prisma.event.update({
-                            where: { id: event.id },
-                            data: { url: remoteUrl },
-                        })
-                    }
-
-                    console.log(`✅ Cached attendance and likes for remote event ${event.id}`)
-                }
-            } catch (error) {
-                console.error('Error fetching remote event details:', error)
-                // Continue with cached data
-            }
+            await cacheRemoteEventData(event.id, event.externalId)
 
             // Re-fetch event with updated attendance and likes
             const updatedEvent = await prisma.event.findFirst({
                 where: { id: event.id },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                            externalActorUrl: true,
-                            isRemote: true,
-                        },
-                    },
-                    attendance: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    name: true,
-                                    profileImage: true,
-                                    isRemote: true,
-                                },
-                            },
-                        },
-                    },
-                    likes: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    name: true,
-                                    profileImage: true,
-                                    isRemote: true,
-                                },
-                            },
-                        },
-                    },
-                    comments: {
-                        include: {
-                            author: {
-                                select: commentUserSelect,
-                            },
-                            ...commentMentionInclude,
-                            replies: {
-                                include: {
-                                    author: {
-                                        select: commentUserSelect,
-                                    },
-                                    ...commentMentionInclude,
-                                },
-                            },
-                        },
-                        where: {
-                            inReplyToId: null,
-                        },
-                        orderBy: { createdAt: 'desc' },
-                    },
-                    _count: {
-                        select: {
-                            attendance: true,
-                            likes: true,
-                            comments: true,
-                        },
-                    },
-                },
+                include: getEventFullInclude(),
             })
 
             if (updatedEvent) {
@@ -1054,7 +1061,7 @@ app.get('/:id', async (c) => {
                     where: {
                         inReplyToId: null, // Top-level comments only
                     },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: { createdAt: 'desc' as const },
                 },
                 _count: {
                     select: {
@@ -1232,6 +1239,102 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
     }
 })
 
+// Helper function to build update data from validated input
+function buildEventUpdateData(
+    validatedData: Partial<z.infer<typeof EventSchema>> & { visibility?: string },
+    requestedVisibility: string | undefined
+) {
+    const updateData: Record<string, unknown> = {
+        ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
+        ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
+        ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
+        ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
+        ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
+        ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
+        ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
+        ...(validatedData.duration !== undefined && { duration: validatedData.duration ? validatedData.duration : null }),
+        ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus ? validatedData.eventStatus : null }),
+        ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
+        ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
+        ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
+        ...(validatedData.timezone !== undefined && { timezone: normalizeTimeZone(validatedData.timezone) }),
+    }
+
+    if (validatedData.recurrencePattern !== undefined) {
+        updateData.recurrencePattern = validatedData.recurrencePattern || null
+    }
+    if (validatedData.recurrenceEndDate !== undefined) {
+        updateData.recurrenceEndDate = validatedData.recurrenceEndDate ? new Date(validatedData.recurrenceEndDate) : null
+    }
+
+    return updateData
+}
+
+// Helper function to normalize tags with error handling
+function normalizeTagsSafely(tags: unknown): string[] {
+    try {
+        return Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
+    } catch (error) {
+        console.error('Error normalizing tags in update:', error)
+        throw error
+    }
+}
+
+// Helper function to update event tags in transaction
+async function updateEventTags(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    normalizedTags: string[]
+) {
+    await tx.eventTag.deleteMany({
+        where: { eventId },
+    })
+
+    if (normalizedTags.length > 0) {
+        await tx.eventTag.createMany({
+            data: normalizedTags.map(tag => ({
+                eventId,
+                tag,
+            })),
+        })
+    }
+}
+
+// Helper function to broadcast event update
+async function broadcastEventUpdate(event: Event & { user: unknown; tags: unknown[] }) {
+    const { broadcast, BroadcastEvents } = await import('./realtime.js')
+    const userId = (event as { userId: string | null }).userId
+    const visibility = (event as { visibility: string | null }).visibility
+
+    if (!userId) return
+
+    const broadcastTarget = getBroadcastTarget(visibility as EventVisibility | null, userId)
+
+    // These fields should always exist on an event from the database
+    const startTime = (event as { startTime: Date | null }).startTime
+    const createdAt = (event as { createdAt: Date | null }).createdAt
+    const updatedAt = (event as { updatedAt: Date | null }).updatedAt
+    const endTime = (event as { endTime: Date | null }).endTime
+
+    if (!startTime || !createdAt || !updatedAt) {
+        throw new Error('Event missing required timestamp fields')
+    }
+
+    await broadcast({
+        type: BroadcastEvents.EVENT_UPDATED,
+        data: {
+            event: {
+                ...event,
+                startTime: startTime.toISOString(),
+                endTime: endTime?.toISOString(),
+                createdAt: createdAt.toISOString(),
+                updatedAt: updatedAt.toISOString(),
+            },
+        },
+        ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
+    })
+}
+
 // Update event
 app.put('/:id', moderateRateLimit, async (c) => {
     try {
@@ -1274,27 +1377,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
 
-        // Extract tags from validated data
-        const { tags } = validatedData
-        let normalizedTags: string[] | undefined
-
-        // Update event with sanitized input
-        const updateData: Record<string, unknown> = {
-            ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
-            ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
-            ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
-            ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
-            ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
-            ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
-            ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
-            ...(validatedData.duration !== undefined && { duration: validatedData.duration ? validatedData.duration : null }),
-            ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus ? validatedData.eventStatus : null }),
-            ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
-            ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
-            ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
-            ...(validatedData.timezone !== undefined && { timezone: normalizeTimeZone(validatedData.timezone) }),
-        }
-
+        // Build update data
+        const updateData = buildEventUpdateData(validatedData, requestedVisibility)
         if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }
@@ -1302,12 +1386,13 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.recurrenceEndDate = nextRecurrenceEndDate
         }
 
-        // Update tags if provided
+        // Extract and normalize tags if provided
+        const { tags } = validatedData
+        let normalizedTags: string[] | undefined
         if (tags !== undefined) {
             try {
-                normalizedTags = Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
+                normalizedTags = normalizeTagsSafely(tags)
             } catch (error) {
-                console.error('Error normalizing tags in update:', error)
                 // Return validation error when tag normalization fails (consistent with create)
                 return c.json({ 
                     error: 'VALIDATION_ERROR', 
@@ -1334,32 +1419,21 @@ app.put('/:id', moderateRateLimit, async (c) => {
                 },
             })
 
-            if (normalizedTags === undefined) {
-                return updatedEvent
-            }
-
-            await tx.eventTag.deleteMany({
-                where: { eventId: id },
-            })
-
-            if (normalizedTags.length > 0) {
-                await tx.eventTag.createMany({
-                    data: normalizedTags.map(tag => ({
-                        eventId: id,
-                        tag,
-                    })),
+            if (normalizedTags !== undefined) {
+                await updateEventTags(tx, id, normalizedTags)
+                
+                const refreshedEvent = await tx.event.findUnique({
+                    where: { id },
+                    include: {
+                        user: true,
+                        tags: true,
+                    },
                 })
+
+                return refreshedEvent ?? updatedEvent
             }
 
-            const refreshedEvent = await tx.event.findUnique({
-                where: { id },
-                include: {
-                    user: true,
-                    tags: true,
-                },
-            })
-
-            return refreshedEvent ?? updatedEvent
+            return updatedEvent
         })
 
         if (!event) {
@@ -1376,27 +1450,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const addressing = buildAddressingFromActivity(activity)
         await deliverActivity(activity, addressing, userId)
 
-        const { broadcast, BroadcastEvents } = await import('./realtime.js')
-        const broadcastTarget = getBroadcastTarget(event.visibility, userId)
-        
-        // These fields should always exist on an event from the database
-        if (!event.startTime || !event.createdAt || !event.updatedAt) {
-            throw new Error('Event missing required timestamp fields')
-        }
-        
-        await broadcast({
-            type: BroadcastEvents.EVENT_UPDATED,
-            data: {
-                event: {
-                    ...event,
-                    startTime: event.startTime.toISOString(),
-                    endTime: event.endTime?.toISOString(),
-                    createdAt: event.createdAt.toISOString(),
-                    updatedAt: event.updatedAt.toISOString(),
-                },
-            },
-            ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
-        })
+        await broadcastEventUpdate(event)
 
         return c.json(event)
     } catch (error) {
