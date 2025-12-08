@@ -303,8 +303,10 @@ export function EventDetailPage() {
 
     // Note: viewerReminders is an array from the API, but the schema enforces a unique constraint
     // on [eventId, userId], so there should only ever be one reminder per user per event.
-    // Accessing [0] is safe and semantically correct.
-    const activeReminderMinutes = event?.viewerReminders?.[0]?.minutesBeforeStart ?? null
+    // Accessing [0] is safe and semantically correct, but we add defensive code for robustness.
+    const activeReminderMinutes = (event?.viewerReminders && Array.isArray(event.viewerReminders) && event.viewerReminders.length > 0)
+        ? event.viewerReminders[0]?.minutesBeforeStart ?? null
+        : null
 
     useEffect(() => {
         setSelectedReminder(activeReminderMinutes)

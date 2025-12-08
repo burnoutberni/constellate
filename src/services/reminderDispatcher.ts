@@ -1,4 +1,4 @@
-import { NotificationType, ReminderStatus } from '@prisma/client'
+import { NotificationType, ReminderStatus, Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { createNotification } from './notifications.js'
 import { config } from '../config.js'
@@ -186,16 +186,14 @@ export async function runReminderDispatcherCycle(limit: number = PROCESSING_LIMI
             // Immediately update status to SENDING to claim them
             if (reminders.length > 0) {
                 const ids = reminders.map(r => r.id)
-                await tx.$executeRawUnsafe(
-                    `UPDATE "EventReminder"
-                     SET status = $1::"ReminderStatus",
-                         "lastAttemptAt" = $2
-                     WHERE id = ANY($3::text[])
-                       AND status = $4::"ReminderStatus"`,
-                    ReminderStatus.SENDING,
-                    now,
-                    ids,
-                    ReminderStatus.PENDING
+                await tx.$executeRaw(
+                    Prisma.sql`
+                        UPDATE "EventReminder"
+                        SET status = ${ReminderStatus.SENDING}::"ReminderStatus",
+                            "lastAttemptAt" = ${now}
+                        WHERE id = ANY(${ids}::text[])
+                          AND status = ${ReminderStatus.PENDING}::"ReminderStatus"
+                    `
                 )
             }
 

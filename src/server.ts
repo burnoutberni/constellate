@@ -336,7 +336,9 @@ if (process.env.NODE_ENV === 'production') {
 
 // Only start background jobs and server when not in test environment
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-    startReminderDispatcher()
+    if (config.enableReminderDispatcher) {
+        startReminderDispatcher()
+    }
 
     // Graceful shutdown handler
     const shutdown = async () => {

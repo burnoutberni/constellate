@@ -129,6 +129,9 @@ export const config = {
     locationSearch: {
         userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'Constellate/1.0'),
     },
+
+    // Reminder Dispatcher Configuration
+    enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
 }
 
 // Validate encryption key format

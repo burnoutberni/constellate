@@ -8,7 +8,6 @@ import {
 import { prisma } from '../../lib/prisma.js'
 import { createNotification } from '../../services/notifications.js'
 import { sendEmail } from '../../lib/email.js'
-import { ReminderStatus } from '@prisma/client'
 
 vi.mock('../../lib/prisma.js', () => ({
     prisma: {
@@ -20,7 +19,7 @@ vi.mock('../../lib/prisma.js', () => ({
         },
         $transaction: vi.fn(),
         $queryRaw: vi.fn(),
-        $executeRawUnsafe: vi.fn(),
+        $executeRaw: vi.fn(),
     },
 }))
 
@@ -63,7 +62,7 @@ describe('Reminder dispatcher', () => {
         vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
             const tx = {
                 $queryRaw: vi.fn().mockResolvedValue([{ id: dueReminder.id }]),
-                $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+                $executeRaw: vi.fn().mockResolvedValue(1),
             }
             return callback(tx)
         })
@@ -225,7 +224,7 @@ describe('Reminder dispatcher', () => {
                     { id: 'reminder_1' },
                     { id: 'reminder_2' },
                 ]),
-                $executeRawUnsafe: vi.fn().mockResolvedValue(2),
+                $executeRaw: vi.fn().mockResolvedValue(2),
             }
             return callback(tx)
         })
@@ -244,7 +243,7 @@ describe('Reminder dispatcher', () => {
         vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
             const tx = {
                 $queryRaw: vi.fn().mockResolvedValue([]),
-                $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+                $executeRaw: vi.fn().mockResolvedValue(0),
             }
             return callback(tx)
         })
@@ -349,7 +348,7 @@ describe('Reminder dispatcher', () => {
                         { id: 'reminder_2' },
                         { id: 'reminder_3' },
                     ]),
-                    $executeRawUnsafe: vi.fn().mockResolvedValue(3),
+                    $executeRaw: vi.fn().mockResolvedValue(3),
                 }
                 return callback(tx)
             })
@@ -358,6 +357,76 @@ describe('Reminder dispatcher', () => {
 
             // Should only process up to limit
             expect(prisma.eventReminder.findUnique).toHaveBeenCalledTimes(limit)
+        })
+
+        it('handles reminder update failure when reminder is missing context', async () => {
+            vi.mocked(prisma.eventReminder.findUnique).mockResolvedValue({
+                ...dueReminder,
+                event: null,
+                user: hydratedReminder.user,
+            } as any)
+            // Mock update to fail (reminder was deleted)
+            vi.mocked(prisma.eventReminder.update).mockRejectedValueOnce(new Error('Record not found'))
+
+            await runReminderDispatcherCycle(5)
+
+            // Should not throw, just skip processing
+            expect(createNotification).not.toHaveBeenCalled()
+            expect(sendEmail).not.toHaveBeenCalled()
+        })
+
+        it('handles event without username in URL building', async () => {
+            const reminderWithoutUsername = {
+                ...hydratedReminder,
+                event: {
+                    ...hydratedReminder.event,
+                    user: null,
+                },
+            }
+
+            vi.mocked(prisma.eventReminder.findUnique).mockResolvedValue(reminderWithoutUsername as any)
+
+            await runReminderDispatcherCycle(5)
+
+            // Should still create notification successfully
+            expect(createNotification).toHaveBeenCalled()
+            expect(prisma.eventReminder.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: dueReminder.id },
+                    data: expect.objectContaining({ status: 'SENT' }),
+                })
+            )
+        })
+
+        it('handles database update failure during error handling', async () => {
+            vi.mocked(createNotification).mockRejectedValueOnce(new Error('Notification failed'))
+            // Mock the final update to fail
+            vi.mocked(prisma.eventReminder.update)
+                .mockResolvedValueOnce(hydratedReminder as any) // First call succeeds (if any)
+                .mockRejectedValueOnce(new Error('Database error')) // Second call fails
+
+            await runReminderDispatcherCycle(5)
+
+            // Should attempt to mark as failed, but handle the error gracefully
+            expect(createNotification).toHaveBeenCalled()
+        })
+
+        it('handles formatEventStart with invalid date', async () => {
+            const reminderWithInvalidDate = {
+                ...hydratedReminder,
+                event: {
+                    ...hydratedReminder.event,
+                    startTime: new Date('invalid'),
+                },
+            }
+
+            vi.mocked(prisma.eventReminder.findUnique).mockResolvedValue(reminderWithInvalidDate as any)
+
+            await runReminderDispatcherCycle(5)
+
+            // Should fall back to ISO string format
+            expect(createNotification).toHaveBeenCalled()
+            expect(prisma.eventReminder.update).toHaveBeenCalled()
         })
     })
 })
