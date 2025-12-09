@@ -2263,7 +2263,6 @@ describe('Federation Handlers', () => {
                 })
 
                 // Test default auto-accept behavior (autoAcceptFollowers defaults to true)
-                
                 const remoteActor = {
                     id: 'https://example.com/users/charlie',
                     type: 'Person',
