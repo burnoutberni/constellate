@@ -20,17 +20,12 @@ export function CalendarPage() {
             start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
             end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
         } else if (view === 'week') {
-            start = new Date(currentDate)
-            start.setDate(currentDate.getDate() - currentDate.getDay())
-            start.setHours(0, 0, 0, 0)
-            end = new Date(start)
-            end.setDate(start.getDate() + 6)
-            end.setHours(23, 59, 59, 999)
+            const weekStartDate = currentDate.getDate() - currentDate.getDay()
+            start = new Date(currentDate.getFullYear(), currentDate.getMonth(), weekStartDate, 0, 0, 0, 0)
+            end = new Date(currentDate.getFullYear(), currentDate.getMonth(), weekStartDate + 6, 23, 59, 59, 999)
         } else {
-            start = new Date(currentDate)
-            start.setHours(0, 0, 0, 0)
-            end = new Date(currentDate)
-            end.setHours(23, 59, 59, 999)
+            start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0, 0)
+            end = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59, 999)
         }
         
         return {
@@ -137,12 +132,10 @@ export function CalendarPage() {
         if (view === 'month') {
             setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
         } else if (view === 'week') {
-            const newDate = new Date(currentDate)
-            newDate.setDate(currentDate.getDate() - 7)
+            const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 7)
             setCurrentDate(newDate)
         } else {
-            const newDate = new Date(currentDate)
-            newDate.setDate(currentDate.getDate() - 1)
+            const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1)
             setCurrentDate(newDate)
         }
     }
@@ -151,12 +144,10 @@ export function CalendarPage() {
         if (view === 'month') {
             setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
         } else if (view === 'week') {
-            const newDate = new Date(currentDate)
-            newDate.setDate(currentDate.getDate() + 7)
+            const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 7)
             setCurrentDate(newDate)
         } else {
-            const newDate = new Date(currentDate)
-            newDate.setDate(currentDate.getDate() + 1)
+            const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1)
             setCurrentDate(newDate)
         }
     }

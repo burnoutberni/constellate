@@ -32,29 +32,35 @@ interface ViewProps {
 }
 
 function MonthView({ currentDate, events, loading }: ViewProps) {
-    const getDaysInMonth = (date: Date) => {
-        const year = date.getFullYear()
-        const month = date.getMonth()
+    const monthMetadata = useMemo(() => {
+        const year = currentDate.getFullYear()
+        const month = currentDate.getMonth()
         const firstDay = new Date(year, month, 1)
         const lastDay = new Date(year, month + 1, 0)
         const daysInMonth = lastDay.getDate()
         const startingDayOfWeek = firstDay.getDay()
-
+        
         return { daysInMonth, startingDayOfWeek, year, month }
-    }
+    }, [currentDate])
 
-    const getEventsForDay = (day: number) => {
-        const { year, month } = getDaysInMonth(currentDate)
-        const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-        const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
+    const eventsByDay = useMemo(() => {
+        const map = new Map<number, Event[]>()
+        const { year, month, daysInMonth } = monthMetadata
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayStart = new Date(year, month, day, 0, 0, 0, 0)
+            const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
+            
+            const filtered = events.filter((event) => {
+                const eventDate = new Date(event.startTime)
+                return eventDate >= dayStart && eventDate <= dayEnd
+            })
+            map.set(day, filtered)
+        }
+        return map
+    }, [events, monthMetadata])
 
-        return events.filter((event) => {
-            const eventDate = new Date(event.startTime)
-            return eventDate >= dayStart && eventDate <= dayEnd
-        })
-    }
-
-    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
+    const { daysInMonth, startingDayOfWeek } = monthMetadata
 
     return (
         <div>
@@ -89,7 +95,7 @@ function MonthView({ currentDate, events, loading }: ViewProps) {
 
                         return Array.from({ length: daysInMonth }).map((_, i) => {
                             const day = i + 1
-                            const dayEvents = getEventsForDay(day)
+                            const dayEvents = eventsByDay.get(day) || []
                             const dayDate = new Date(
                                 currentDate.getFullYear(),
                                 currentDate.getMonth(),
@@ -137,14 +143,22 @@ function MonthView({ currentDate, events, loading }: ViewProps) {
 
 function WeekView({ currentDate, events, loading }: ViewProps) {
     const weekDays = useMemo(() => {
-        const startOfWeek = new Date(currentDate)
-        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-        startOfWeek.setHours(0, 0, 0, 0)
+        const dayOfWeek = currentDate.getDay()
+        const startOfWeek = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            currentDate.getDate() - dayOfWeek,
+            0, 0, 0, 0
+        )
 
         const days = []
         for (let i = 0; i < 7; i++) {
-            const day = new Date(startOfWeek)
-            day.setDate(startOfWeek.getDate() + i)
+            const day = new Date(
+                startOfWeek.getFullYear(),
+                startOfWeek.getMonth(),
+                startOfWeek.getDate() + i,
+                0, 0, 0, 0
+            )
             days.push(day)
         }
         return days
@@ -239,17 +253,23 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
 }
 
 function DayView({ currentDate, events, loading }: ViewProps) {
-    const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
+    const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
-    const getEventsForHour = (hour: number) => {
-        const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
-        const hourEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 59, 59, 999)
-
-        return events.filter((event) => {
-            const eventDate = new Date(event.startTime)
-            return eventDate >= hourStart && eventDate <= hourEnd
-        })
-    }
+    const eventsByHour = useMemo(() => {
+        const map = new Map<number, Event[]>()
+        
+        for (const hour of hours) {
+            const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
+            const hourEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 59, 59, 999)
+            
+            const filtered = events.filter((event) => {
+                const eventDate = new Date(event.startTime)
+                return eventDate >= hourStart && eventDate <= hourEnd
+            })
+            map.set(hour, filtered)
+        }
+        return map
+    }, [events, currentDate, hours])
 
     const today = new Date()
     const isToday = currentDate.toDateString() === today.toDateString()
@@ -277,7 +297,7 @@ function DayView({ currentDate, events, loading }: ViewProps) {
                     {/* Time slots */}
                     <div className="space-y-2">
                         {hours.map((hour) => {
-                            const hourEvents = getEventsForHour(hour)
+                            const hourEvents = eventsByHour.get(hour) || []
                             return (
                                 <div key={hour} className="flex gap-4">
                                     <div className="w-20 text-sm text-gray-500 py-2 text-right flex-shrink-0">
