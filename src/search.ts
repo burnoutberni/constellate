@@ -625,20 +625,10 @@ app.get('/nearby', async (c) => {
             // Crossing from west: range extends past -180° to the east
             // Normalize lonMin: lonMin + 360 converts negative longitude < -180 to equivalent positive longitude
             // Example: lonMin = -185 → easternLonMin = 175, query [175, 180°] (eastern side) OR [-180°, lonMax] (western side)
-            const easternLonMin = lonMin + 360 // Converts to 0-180° range for the eastern side of the antimeridian
-            
-            // Validate that the normalized value doesn't exceed 180°
-            // This can happen if lonDelta calculation produced an invalid result
-            // Note: easternLonMin may still be negative if lonMin is very negative (e.g., lonMin = -400 → easternLonMin = -40)
-            // but the validation below ensures it doesn't exceed 180°, which would indicate an invalid search area
-            if (easternLonMin > 180) {
-                return c.json({ 
-                    error: 'Search radius is too large for this location. Please use a smaller radius.' 
-                }, 400)
-            }
-            
-            // easternLonMin is now validated to be <= 180°
-            // It may be negative if lonMin was very negative, but that's handled by the query logic below
+            // Note: Since lonMin < -180, easternLonMin = lonMin + 360 will always be < 180, so no validation needed
+            // easternLonMin may be negative if lonMin is very negative (e.g., lonMin = -400 → easternLonMin = -40),
+            // but that's handled by the query logic below
+            const easternLonMin = lonMin + 360 // Converts to equivalent longitude for the eastern side of the antimeridian
             boundingWhere = {
                 AND: [
                     { locationLatitude: { gte: latMin, lte: latMax } },
