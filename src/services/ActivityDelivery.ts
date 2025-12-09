@@ -371,18 +371,22 @@ export async function processDeadLetterQueue(): Promise<void> {
         const now = new Date()
         
         // Find deliveries ready for retry
-        const pendingDeliveries = await prisma.failedDelivery.findMany({
+        // Note: We filter by attemptCount < maxAttempts after fetching
+        // since Prisma doesn't support field-to-field comparisons in WHERE clauses
+        const allPendingDeliveries = await prisma.failedDelivery.findMany({
             where: {
                 status: 'PENDING',
                 nextRetryAt: {
                     lte: now,
                 },
-                attemptCount: {
-                    lt: prisma.failedDelivery.fields.maxAttempts,
-                },
             },
-            take: 50, // Process in batches
+            take: 100, // Fetch more and filter in memory
         })
+        
+        // Filter to only those that haven't exceeded max attempts
+        const pendingDeliveries = allPendingDeliveries
+            .filter(d => d.attemptCount < d.maxAttempts)
+            .slice(0, 50) // Process in batches of 50
 
         if (pendingDeliveries.length === 0) {
             return
@@ -425,13 +429,9 @@ export async function processDeadLetterQueue(): Promise<void> {
                 )
 
                 if (success) {
-                    // Mark as resolved
-                    await prisma.failedDelivery.update({
+                    // Delete successful delivery from queue (no need to keep it)
+                    await prisma.failedDelivery.delete({
                         where: { id: delivery.id },
-                        data: {
-                            status: 'FAILED',
-                            resolvedAt: new Date(),
-                        },
                     })
                     console.log(`[Dead Letter Queue] Successfully delivered: ${delivery.activityId} -> ${delivery.inboxUrl}`)
                 } else {
@@ -499,12 +499,9 @@ export async function retryFailedDelivery(deliveryId: string): Promise<boolean> 
     )
 
     if (success) {
-        await prisma.failedDelivery.update({
+        // Delete successful delivery from queue (no need to keep it)
+        await prisma.failedDelivery.delete({
             where: { id: deliveryId },
-            data: {
-                status: 'FAILED',
-                resolvedAt: new Date(),
-            },
         })
     }
 
