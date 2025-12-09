@@ -155,8 +155,8 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
     const eventsByDayAndHour = useMemo(() => {
         const map = new Map<string, Event[]>()
         
-        weekDays.forEach(day => {
-            hours.forEach(hour => {
+        for (const day of weekDays) {
+            for (const hour of hours) {
                 const key = `${day.toISOString()}-${hour}`
                 const hourStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0)
                 const hourEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 59, 59, 999)
@@ -166,8 +166,8 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
                     return eventDate >= hourStart && eventDate <= hourEnd
                 })
                 map.set(key, filtered)
-            })
-        })
+            }
+        }
         return map
     }, [events, weekDays, hours])
 
