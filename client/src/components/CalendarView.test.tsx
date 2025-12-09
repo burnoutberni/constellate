@@ -40,6 +40,10 @@ describe('CalendarView date calculations', () => {
     })
 
     it('filters events for specific hour correctly', () => {
+        // Note: This test assumes the system timezone matches UTC.
+        // In non-UTC timezones, the UTC timestamp will be converted to local time,
+        // which may place events in different hours than expected.
+        // For production use, consider using a timezone-aware date library.
         const mockEvents = [
             {
                 id: '1',

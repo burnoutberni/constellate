@@ -169,10 +169,7 @@ export function CalendarPage() {
         if (view === 'month') {
             return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
         } else if (view === 'week') {
-            const startOfWeek = new Date(currentDate)
-            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-            const endOfWeek = new Date(startOfWeek)
-            endOfWeek.setDate(startOfWeek.getDate() + 6)
+            const { start: startOfWeek, end: endOfWeek } = dateRange
             
             if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
                 return `${startOfWeek.toLocaleDateString('en-US', { month: 'long' })} ${startOfWeek.getDate()} - ${endOfWeek.getDate()}, ${startOfWeek.getFullYear()}`
@@ -212,9 +209,11 @@ export function CalendarPage() {
             <div className="max-w-6xl mx-auto px-4 py-4">
                 <div className="flex justify-between items-center gap-4">
                     {/* View Switcher */}
-                    <div className="flex gap-1 bg-white rounded-lg p-1 border">
+                    <div className="flex gap-1 bg-white rounded-lg p-1 border" role="group" aria-label="Calendar view options">
                         <button
                             onClick={() => setView('month')}
+                            aria-pressed={view === 'month'}
+                            aria-label="Month view"
                             className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
                                 view === 'month'
                                     ? 'bg-blue-600 text-white'
@@ -225,6 +224,8 @@ export function CalendarPage() {
                         </button>
                         <button
                             onClick={() => setView('week')}
+                            aria-pressed={view === 'week'}
+                            aria-label="Week view"
                             className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
                                 view === 'week'
                                     ? 'bg-blue-600 text-white'
@@ -235,6 +236,8 @@ export function CalendarPage() {
                         </button>
                         <button
                             onClick={() => setView('day')}
+                            aria-pressed={view === 'day'}
+                            aria-label="Day view"
                             className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
                                 view === 'day'
                                     ? 'bg-blue-600 text-white'
