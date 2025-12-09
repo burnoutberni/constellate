@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { Prisma, FailedDeliveryStatus } from '@prisma/client'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
 import { handleError } from './lib/errors.js'
@@ -531,6 +532,168 @@ app.delete('/api-keys/:id', async (c) => {
             where: { id },
         })
 
+        return c.json({ success: true })
+    } catch (error) {
+        return handleError(error, c)
+    }
+})
+
+// ===========================
+// Federation Management
+// ===========================
+
+const FailedDeliveryQuerySchema = z.object({
+    page: z.string().optional().transform((val) => parseInt(val || '1')),
+    limit: z.string().optional().transform((val) => Math.min(parseInt(val || '20'), 100)),
+    status: z.enum(['PENDING', 'RETRYING', 'FAILED', 'DISCARDED']).optional(),
+    inboxUrl: z.string().optional(),
+})
+
+// Get failed deliveries
+app.get('/failed-deliveries', requireAdmin, async (c) => {
+    try {
+        const query = FailedDeliveryQuerySchema.parse({
+            page: c.req.query('page'),
+            limit: c.req.query('limit'),
+            status: c.req.query('status'),
+            inboxUrl: c.req.query('inboxUrl'),
+        })
+
+        const skip = (query.page - 1) * query.limit
+
+        const where: Prisma.FailedDeliveryWhereInput = {}
+        if (query.status) {
+            where.status = query.status as FailedDeliveryStatus
+        }
+        if (query.inboxUrl) {
+            where.inboxUrl = { contains: query.inboxUrl }
+        }
+
+        const [deliveries, total] = await Promise.all([
+            prisma.failedDelivery.findMany({
+                where,
+                skip,
+                take: query.limit,
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.failedDelivery.count({ where }),
+        ])
+
+        return c.json({
+            deliveries: deliveries.map((d) => ({
+                id: d.id,
+                activityId: d.activityId,
+                activityType: d.activityType,
+                inboxUrl: d.inboxUrl,
+                userId: d.userId,
+                lastError: d.lastError,
+                lastErrorCode: d.lastErrorCode,
+                lastAttemptAt: d.lastAttemptAt,
+                attemptCount: d.attemptCount,
+                maxAttempts: d.maxAttempts,
+                nextRetryAt: d.nextRetryAt,
+                status: d.status,
+                createdAt: d.createdAt,
+                resolvedAt: d.resolvedAt,
+                resolvedBy: d.resolvedBy,
+            })),
+            pagination: {
+                page: query.page,
+                limit: query.limit,
+                total,
+                totalPages: Math.ceil(total / query.limit),
+            },
+        })
+    } catch (error) {
+        return handleError(error, c)
+    }
+})
+
+// Get federation statistics
+app.get('/federation-stats', requireAdmin, async (c) => {
+    try {
+        const [
+            pendingCount,
+            retryingCount,
+            failedCount,
+            discardedCount,
+            recentDeliveries,
+        ] = await Promise.all([
+            prisma.failedDelivery.count({ where: { status: 'PENDING' } }),
+            prisma.failedDelivery.count({ where: { status: 'RETRYING' } }),
+            prisma.failedDelivery.count({ where: { status: 'FAILED' } }),
+            prisma.failedDelivery.count({ where: { status: 'DISCARDED' } }),
+            prisma.failedDelivery.findMany({
+                where: {
+                    createdAt: {
+                        gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+                    },
+                },
+                select: {
+                    inboxUrl: true,
+                    status: true,
+                },
+            }),
+        ])
+
+        // Group by inbox domain
+        const domainStats = new Map<string, { success: number; failed: number }>()
+        for (const delivery of recentDeliveries) {
+            try {
+                const domain = new URL(delivery.inboxUrl).hostname
+                const stats = domainStats.get(domain) || { success: 0, failed: 0 }
+                if (delivery.status === 'FAILED' || delivery.status === 'PENDING') {
+                    stats.failed++
+                } else {
+                    stats.success++
+                }
+                domainStats.set(domain, stats)
+            } catch {
+                // Invalid URL, skip
+            }
+        }
+
+        return c.json({
+            summary: {
+                pending: pendingCount,
+                retrying: retryingCount,
+                failed: failedCount,
+                discarded: discardedCount,
+                total: pendingCount + retryingCount + failedCount + discardedCount,
+            },
+            domainStats: Array.from(domainStats.entries()).map(([domain, stats]) => ({
+                domain,
+                ...stats,
+            })),
+        })
+    } catch (error) {
+        return handleError(error, c)
+    }
+})
+
+// Retry a failed delivery
+app.post('/failed-deliveries/:id/retry', requireAdmin, async (c) => {
+    try {
+        const { id } = c.req.param()
+        const { retryFailedDelivery } = await import('./services/ActivityDelivery.js')
+        
+        const success = await retryFailedDelivery(id)
+        
+        return c.json({ success })
+    } catch (error) {
+        return handleError(error, c)
+    }
+})
+
+// Discard a failed delivery
+app.post('/failed-deliveries/:id/discard', requireAdmin, async (c) => {
+    try {
+        const { id } = c.req.param()
+        const userId = c.get('userId')
+        const { discardFailedDelivery } = await import('./services/ActivityDelivery.js')
+        
+        await discardFailedDelivery(id, userId)
+        
         return c.json({ success: true })
     } catch (error) {
         return handleError(error, c)

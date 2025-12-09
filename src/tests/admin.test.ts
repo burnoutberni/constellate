@@ -855,4 +855,38 @@ describe('Admin Routes', () => {
             expect(data.error).toBe('API key not found')
         })
     })
+
+    describe('Federation Management', () => {
+        describe('GET /failed-deliveries', () => {
+            it('should require admin authentication', async () => {
+                const res = await app.request('/api/admin/failed-deliveries')
+                expect(res.status).toBe(401)
+            })
+        })
+
+        describe('GET /federation-stats', () => {
+            it('should require admin authentication', async () => {
+                const res = await app.request('/api/admin/federation-stats')
+                expect(res.status).toBe(401)
+            })
+        })
+
+        describe('POST /failed-deliveries/:id/retry', () => {
+            it('should require admin authentication', async () => {
+                const res = await app.request('/api/admin/failed-deliveries/delivery-1/retry', {
+                    method: 'POST',
+                })
+                expect(res.status).toBe(401)
+            })
+        })
+
+        describe('POST /failed-deliveries/:id/discard', () => {
+            it('should require admin authentication', async () => {
+                const res = await app.request('/api/admin/failed-deliveries/delivery-1/discard', {
+                    method: 'POST',
+                })
+                expect(res.status).toBe(401)
+            })
+        })
+    })
 })

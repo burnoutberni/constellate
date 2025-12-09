@@ -106,7 +106,17 @@ export async function handleActivity(activity: Activity): Promise<void> {
                 console.log(`Unhandled activity type: ${activity.type}`)
         }
     } catch (error) {
-        console.error('Error handling activity:', error)
+        // Structured error logging for federation issues
+        console.error('[Federation] Error handling activity:', {
+            timestamp: new Date().toISOString(),
+            activityId: activity.id,
+            activityType: activity.type,
+            actor: activity.actor,
+            error: {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+            },
+        })
         // If activity processing failed, we should still keep it marked as processed
         // to prevent infinite retry loops. The activity was accepted (202), so we
         // don't want to reprocess it even if handling failed.

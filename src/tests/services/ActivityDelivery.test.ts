@@ -68,6 +68,7 @@ describe('Activity Delivery Service', () => {
         }
 
         mockActivity = {
+            id: 'https://example.com/activities/123',
             type: 'Create',
             actor: 'https://example.com/users/testuser',
             object: {
@@ -603,6 +604,624 @@ describe('Activity Delivery Service', () => {
 
             expect(result).toBe(false)
             expect(ssrfProtection.safeFetch).toHaveBeenCalledTimes(3)
+        })
+    })
+
+    describe('Dead Letter Queue', () => {
+        beforeEach(() => {
+            // Add failedDelivery mock to prisma
+            (prisma as any).failedDelivery = {
+                create: vi.fn(),
+                findMany: vi.fn(),
+                findUnique: vi.fn(),
+                update: vi.fn(),
+                count: vi.fn(),
+                fields: {
+                    maxAttempts: {},
+                },
+            }
+        })
+
+        it('should record failed delivery after max retries', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+
+            await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 2, true)
+
+            expect((prisma as any).failedDelivery.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        activityId: mockActivity.id,
+                        activityType: mockActivity.type,
+                        inboxUrl: 'https://remote.com/inbox',
+                        userId: 'user-123',
+                        attemptCount: 2,
+                    }),
+                })
+            )
+        })
+
+        it('should not record failure if recordFailure is false', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+
+            await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 2, false)
+
+            expect((prisma as any).failedDelivery.create).not.toHaveBeenCalled()
+        })
+
+        it('should not record failure if user has no id', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+            const userWithoutId = { username: mockUser.username, privateKey: mockUser.privateKey }
+
+            await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithoutId, 2, true)
+
+            expect((prisma as any).failedDelivery.create).not.toHaveBeenCalled()
+        })
+
+        it('should process pending deliveries from queue', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await processDeadLetterQueue()
+
+            expect((prisma as any).failedDelivery.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'failed-1' },
+                    data: expect.objectContaining({
+                        status: 'RETRYING',
+                    }),
+                })
+            )
+        })
+
+        it('should increment attempt count on retry failure', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+
+            await processDeadLetterQueue()
+
+            // Should update with incremented attempt count
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const finalUpdateCall = updateCalls[updateCalls.length - 1]
+            expect(finalUpdateCall[0].data.attemptCount).toBe(2)
+        })
+
+        it('should mark as failed after max attempts', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 2,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+
+            await processDeadLetterQueue()
+
+            // Should mark as failed since attemptCount + 1 = maxAttempts
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const finalUpdateCall = updateCalls[updateCalls.length - 1]
+            expect(finalUpdateCall[0].data.status).toBe('FAILED')
+        })
+
+        it('should delete successful delivery from queue', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            const mockDelete = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            ;(prisma as any).failedDelivery.delete = mockDelete
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await processDeadLetterQueue()
+
+            // Should delete successful delivery
+            expect(mockDelete).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'failed-1' },
+                })
+            )
+        })
+
+        it('should handle missing user in queue processing', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+
+            await processDeadLetterQueue()
+
+            // Should mark as failed with error message
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const finalUpdateCall = updateCalls[updateCalls.length - 1]
+            expect(finalUpdateCall[0].data.lastError).toBe('User not found')
+        })
+
+        it('should skip deliveries that exceed max attempts', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 3,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+
+            await processDeadLetterQueue()
+
+            // Should not attempt delivery (no RETRYING update)
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const retryingCalls = updateCalls.filter((call: any) => call[0].data.status === 'RETRYING')
+            expect(retryingCalls).toHaveLength(0)
+        })
+
+        it('should handle manual retry', async () => {
+            const { retryFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 2,
+                maxAttempts: 3,
+                status: 'FAILED',
+            }
+
+            const mockDelete = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            vi.mocked((prisma as any).failedDelivery.findUnique).mockResolvedValue(mockFailedDelivery)
+            ;(prisma as any).failedDelivery.delete = mockDelete
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            const result = await retryFailedDelivery('failed-1')
+
+            expect(result).toBe(true)
+            expect(mockDelete).toHaveBeenCalled()
+        })
+
+        it('should handle discard delivery', async () => {
+            const { discardFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            const mockUpdate = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            ;(prisma as any).failedDelivery.update = mockUpdate
+
+            await discardFailedDelivery('failed-1', 'admin-user-id')
+
+            expect(mockUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'failed-1' },
+                    data: expect.objectContaining({
+                        status: 'DISCARDED',
+                        resolvedBy: 'admin-user-id',
+                    }),
+                })
+            )
+        })
+
+        it('should handle error when adding to dead letter queue fails', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false, status: 500 } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn().mockRejectedValue(new Error('Database error'))
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            // Should not throw even if queue add fails
+            await expect(deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 2, true))
+                .resolves.not.toThrow()
+        })
+
+        it('should handle network error with proper error code', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockRejectedValue(new Error('ECONNREFUSED'))
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            const result = await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 2, true)
+
+            expect(result).toBe(false)
+            // Verify that dead letter queue was called after all retries failed
+            expect(mockCreate).toHaveBeenCalled()
+            const call = mockCreate.mock.calls[0][0]
+            expect(call.data.lastError).toBe('All retry attempts failed')
+            expect(call.data.lastErrorCode).toBe('MAX_RETRIES_EXCEEDED')
+        })
+
+        it('should record HTTP error codes in dead letter queue', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ 
+                ok: false, 
+                status: 503, 
+                statusText: 'Service Unavailable' 
+            } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            const result = await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 2, true)
+
+            expect(result).toBe(false)
+            // Verify that dead letter queue was called
+            expect(mockCreate).toHaveBeenCalled()
+        })
+
+        it('should handle retry with failed delivery not found', async () => {
+            const { retryFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            vi.mocked((prisma as any).failedDelivery.findUnique).mockResolvedValue(null)
+
+            await expect(retryFailedDelivery('non-existent-id')).rejects.toThrow('Delivery not found')
+        })
+
+        it('should handle retry when user is deleted', async () => {
+            const { retryFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'deleted-user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'FAILED',
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findUnique).mockResolvedValue(mockFailedDelivery)
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+
+            await expect(retryFailedDelivery('failed-1')).rejects.toThrow('User not found')
+        })
+
+        it('should handle empty pending deliveries in queue processing', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([])
+
+            // Should complete without errors
+            await expect(processDeadLetterQueue()).resolves.not.toThrow()
+        })
+
+        it('should handle error during queue processing gracefully', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockRejectedValue(new Error('Unexpected error'))
+
+            // Should handle error and continue processing
+            await expect(processDeadLetterQueue()).resolves.not.toThrow()
+
+            // Should have marked as PENDING for retry
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            expect(updateCalls.length).toBeGreaterThan(0)
+        })
+    })
+
+    describe('deliverToInboxes with retry', () => {
+        it('should use retry by default', async () => {
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const inboxUrls = ['https://remote.com/inbox']
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInboxes(mockActivity, inboxUrls, userWithId)
+
+            // Should be called (first attempt succeeds)
+            expect(ssrfProtection.safeFetch).toHaveBeenCalled()
+        })
+
+        it('should allow disabling retry', async () => {
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const inboxUrls = ['https://remote.com/inbox']
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false, status: 500 } as Response)
+
+            await deliverToInboxes(mockActivity, inboxUrls, userWithId, false)
+
+            // Without retry, should only be called once
+            expect(ssrfProtection.safeFetch).toHaveBeenCalledTimes(1)
+        })
+    })
+
+    describe('logFederationError', () => {
+        it('should log structured error information', async () => {
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ 
+                ok: false, 
+                status: 500, 
+                statusText: 'Internal Server Error' 
+            } as Response)
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', mockUser, false)
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('[Federation Error]'),
+                expect.objectContaining({
+                    inboxUrl: 'https://remote.com/inbox',
+                    activityId: mockActivity.id,
+                    activityType: mockActivity.type,
+                })
+            )
+
+            consoleSpy.mockRestore()
+        })
+    })
+
+    describe('calculateNextRetry', () => {
+        it('should handle no private key without recording failure', async () => {
+            const userWithoutKey = { ...mockUser, privateKey: null }
+            
+            const result = await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithoutKey, false)
+
+            expect(result).toBe(false)
+        })
+
+        it('should handle decryption failure without recording', async () => {
+            vi.mocked(encryption.decryptPrivateKey).mockReturnValue(null)
+            
+            const result = await deliverToInbox(mockActivity, 'https://remote.com/inbox', mockUser, false)
+
+            expect(result).toBe(false)
+        })
+    })
+
+    describe('Edge cases', () => {
+        it('should handle activity with statusCode error', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({
+                ok: false,
+                status: 429,
+                statusText: 'Too Many Requests'
+            } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithId, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        lastErrorCode: '429',
+                    }),
+                })
+            )
+        })
+
+        it('should handle error without statusCode', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockRejectedValue({ message: 'Connection refused' })
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithId, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        lastErrorCode: 'NETWORK_ERROR',
+                    }),
+                })
+            )
+        })
+
+        it('should handle port in inbox URL correctly', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInbox(mockActivity, 'https://remote.com:8443/inbox', mockUser, false)
+
+            const fetchCall = vi.mocked(ssrfProtection.safeFetch).mock.calls[0]
+            const headers = fetchCall[1]?.headers as Record<string, string>
+            expect(headers.host).toBe('remote.com:8443')
+        })
+
+        it('should handle default ports correctly', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInbox(mockActivity, 'https://remote.com:443/inbox', mockUser, false)
+
+            const fetchCall = vi.mocked(ssrfProtection.safeFetch).mock.calls[0]
+            const headers = fetchCall[1]?.headers as Record<string, string>
+            expect(headers.host).toBe('remote.com')
+        })
+
+        it('should handle HTTP on port 80 correctly', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInbox(mockActivity, 'http://remote.com:80/inbox', mockUser, false)
+
+            const fetchCall = vi.mocked(ssrfProtection.safeFetch).mock.calls[0]
+            const headers = fetchCall[1]?.headers as Record<string, string>
+            expect(headers.host).toBe('remote.com')
+        })
+    })
+
+    describe('Additional coverage tests', () => {
+        it('should handle calculateNextRetry with large attempt counts', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 10,
+                maxAttempts: 20,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false } as Response)
+
+            await processDeadLetterQueue()
+
+            // Should handle high attempt counts with max delay
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            expect(updateCalls.length).toBeGreaterThan(0)
+        })
+
+        it('should record failure with error code from statusCode', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ 
+                ok: false, 
+                status: 404,
+                statusText: 'Not Found'
+            } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithId, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        lastError: 'HTTP 404: Not Found',
+                        lastErrorCode: '404',
+                    }),
+                })
+            )
+        })
+
+        it('should handle activity without id in dead letter queue', async () => {
+            const activityWithoutId = {
+                type: 'Create',
+                actor: 'https://example.com/users/testuser',
+                object: {
+                    type: 'Event',
+                    id: 'https://example.com/events/123',
+                },
+            }
+
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false, status: 500 } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverWithRetry(activityWithoutId as any, 'https://remote.com/inbox', userWithId, 2, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        activityId: undefined,
+                    }),
+                })
+            )
+        })
+
+        it('should handle status field in addToDeadLetterQueue for high attempt counts', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false, status: 500 } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverWithRetry(mockActivity, 'https://remote.com/inbox', userWithId, 5, true)
+
+            // When attemptCount >= 3, status should be 'FAILED'
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        status: 'FAILED',
+                        attemptCount: 5,
+                    }),
+                })
+            )
         })
     })
 })
