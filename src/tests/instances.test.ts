@@ -325,4 +325,128 @@ describe('Instance Discovery', () => {
             expect(extractBaseUrl('https://example.com:443/users/alice')).toBe('https://example.com')
         })
     })
+
+    describe('fetchInstanceMetadata', () => {
+        it('should fetch and parse NodeInfo metadata', async () => {
+            const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+            const wellKnownResponse = {
+                ok: true,
+                json: async () => ({
+                    links: [
+                        {
+                            rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
+                            href: 'https://mastodon.social/nodeinfo/2.0',
+                        },
+                    ],
+                }),
+            }
+
+            const nodeInfoResponse = {
+                ok: true,
+                json: async () => ({
+                    software: { name: 'mastodon', version: '4.0.0' },
+                    usage: {
+                        users: { total: 10000 },
+                        localPosts: 50000,
+                        localComments: 5000,
+                    },
+                    metadata: {
+                        nodeName: 'Mastodon Social',
+                        nodeDescription: 'A public instance',
+                        nodeIcon: 'https://mastodon.social/icon.png',
+                        contact: 'admin@mastodon.social',
+                    },
+                }),
+            }
+
+            vi.mocked(safeFetch)
+                .mockResolvedValueOnce(wellKnownResponse as any)
+                .mockResolvedValueOnce(nodeInfoResponse as any)
+
+            const metadata = await fetchInstanceMetadata('https://mastodon.social')
+
+            expect(metadata).toEqual({
+                software: 'mastodon',
+                version: '4.0.0',
+                userCount: 10000,
+                eventCount: 55000,
+                title: 'Mastodon Social',
+                description: 'A public instance',
+                iconUrl: 'https://mastodon.social/icon.png',
+                contact: 'admin@mastodon.social',
+            })
+        })
+
+        it('should handle NodeInfo 2.1 schema', async () => {
+            const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+            const wellKnownResponse = {
+                ok: true,
+                json: async () => ({
+                    links: [
+                        {
+                            rel: 'http://nodeinfo.diaspora.software/ns/schema/2.1',
+                            href: 'https://example.com/nodeinfo/2.1',
+                        },
+                    ],
+                }),
+            }
+
+            const nodeInfoResponse = {
+                ok: true,
+                json: async () => ({
+                    software: { name: 'example', version: '1.0.0' },
+                }),
+            }
+
+            vi.mocked(safeFetch)
+                .mockResolvedValueOnce(wellKnownResponse as any)
+                .mockResolvedValueOnce(nodeInfoResponse as any)
+
+            const metadata = await fetchInstanceMetadata('https://example.com')
+
+            expect(metadata?.software).toBe('example')
+        })
+
+        it('should return null if NodeInfo not available', async () => {
+            const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+            vi.mocked(safeFetch).mockResolvedValue({
+                ok: false,
+            } as any)
+
+            const metadata = await fetchInstanceMetadata('https://example.com')
+
+            expect(metadata).toBeNull()
+        })
+
+        it('should return null if no NodeInfo link found', async () => {
+            const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+            vi.mocked(safeFetch).mockResolvedValue({
+                ok: true,
+                json: async () => ({ links: [] }),
+            } as any)
+
+            const metadata = await fetchInstanceMetadata('https://example.com')
+
+            expect(metadata).toBeNull()
+        })
+
+        it('should handle fetch errors', async () => {
+            const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+            vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+
+            const metadata = await fetchInstanceMetadata('https://example.com')
+
+            expect(metadata).toBeNull()
+        })
+    })
 })
