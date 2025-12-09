@@ -50,6 +50,35 @@ export interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
 }
 
+// Alignment styles
+const alignStyles: Record<StackAlign, string> = {
+  start: 'items-start',
+  center: 'items-center',
+  end: 'items-end',
+  stretch: 'items-stretch',
+}
+
+// Justification styles
+const justifyStyles: Record<StackJustify, string> = {
+  start: 'justify-start',
+  center: 'justify-center',
+  end: 'justify-end',
+  between: 'justify-between',
+  around: 'justify-around',
+  evenly: 'justify-evenly',
+}
+
+// Gap styles using design tokens
+const gapStyles: Record<StackGap, string> = {
+  none: 'gap-0',
+  xs: 'gap-1',
+  sm: 'gap-2',
+  md: 'gap-4',
+  lg: 'gap-6',
+  xl: 'gap-8',
+  '2xl': 'gap-12',
+}
+
 /**
  * Stack component for vertical/horizontal spacing.
  * Provides consistent spacing between child elements.
@@ -82,35 +111,6 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       directionMd && (directionMd === 'row' ? 'md:flex-row' : 'md:flex-col'),
       directionLg && (directionLg === 'row' ? 'lg:flex-row' : 'lg:flex-col'),
     ].filter(Boolean)
-
-    // Alignment styles
-    const alignStyles = {
-      start: 'items-start',
-      center: 'items-center',
-      end: 'items-end',
-      stretch: 'items-stretch',
-    }
-
-    // Justification styles
-    const justifyStyles = {
-      start: 'justify-start',
-      center: 'justify-center',
-      end: 'justify-end',
-      between: 'justify-between',
-      around: 'justify-around',
-      evenly: 'justify-evenly',
-    }
-
-    // Gap styles using design tokens
-    const gapStyles = {
-      none: 'gap-0',
-      xs: 'gap-1',
-      sm: 'gap-2',
-      md: 'gap-4',
-      lg: 'gap-6',
-      xl: 'gap-8',
-      '2xl': 'gap-12',
-    }
 
     // Wrap styles
     const wrapStyles = wrap ? 'flex-wrap' : ''

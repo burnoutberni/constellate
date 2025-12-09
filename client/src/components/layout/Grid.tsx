@@ -42,33 +42,9 @@ export interface GridProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
 }
 
-/**
- * Grid component for responsive grid layouts.
- * Uses CSS Grid with responsive column configurations.
- * Fully responsive and uses design tokens for spacing.
- */
-export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
-  (
-    {
-      cols = 1,
-      colsSm,
-      colsMd,
-      colsLg,
-      colsXl,
-      gap = 'md',
-      equalHeight = false,
-      children,
-      className,
-      ...props
-    },
-    ref
-  ) => {
-    // Base grid styles
-    const baseStyles = ['grid', 'w-full']
-
-    // Column styles mapping - explicit class names for Tailwind JIT
-    // Nested structure: breakpoint -> column count -> class name
-    const colClassMap: Record<string, Record<GridCols, string>> = {
+// Column styles mapping - explicit class names for Tailwind JIT
+// Nested structure: breakpoint -> column count -> class name
+const colClassMap: Record<string, Record<GridCols, string>> = {
       '': {
         1: 'grid-cols-1',
         2: 'grid-cols-2',
@@ -116,6 +92,39 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       },
     }
 
+// Gap styles using design tokens
+const gapStyles: Record<GridGap, string> = {
+  none: 'gap-0',
+  sm: 'gap-2 sm:gap-3',
+  md: 'gap-4 sm:gap-6',
+  lg: 'gap-6 sm:gap-8',
+  xl: 'gap-8 sm:gap-12',
+}
+
+/**
+ * Grid component for responsive grid layouts.
+ * Uses CSS Grid with responsive column configurations.
+ * Fully responsive and uses design tokens for spacing.
+ */
+export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
+  (
+    {
+      cols = 1,
+      colsSm,
+      colsMd,
+      colsLg,
+      colsXl,
+      gap = 'md',
+      equalHeight = false,
+      children,
+      className,
+      ...props
+    },
+    ref
+  ) => {
+    // Base grid styles
+    const baseStyles = ['grid', 'w-full']
+
     // Column styles - responsive grid columns
     const colStyles = [
       colClassMap[''][cols],
@@ -124,15 +133,6 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       colsLg && colClassMap['lg:'][colsLg],
       colsXl && colClassMap['xl:'][colsXl],
     ].filter(Boolean)
-
-    // Gap styles using design tokens
-    const gapStyles = {
-      none: 'gap-0',
-      sm: 'gap-2 sm:gap-3',
-      md: 'gap-4 sm:gap-6',
-      lg: 'gap-6 sm:gap-8',
-      xl: 'gap-8 sm:gap-12',
-    }
 
     // Equal height styles
     const equalHeightStyles = equalHeight

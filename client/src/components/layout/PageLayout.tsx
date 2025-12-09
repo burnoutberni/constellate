@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '../../lib/utils'
-import { Container } from './Container'
+import { Container, type ContainerSize } from './Container'
 
 export interface PageLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -33,7 +33,7 @@ export interface PageLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
    * Container size when contained is true
    * @default 'lg'
    */
-  containerSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  containerSize?: ContainerSize
   /**
    * Additional class name for the main content area
    */

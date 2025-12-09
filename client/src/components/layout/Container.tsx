@@ -20,6 +20,15 @@ export interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
 }
 
+// Max width styles based on size
+const sizeStyles: Record<ContainerSize, string> = {
+  sm: 'max-w-screen-sm',
+  md: 'max-w-screen-md',
+  lg: 'max-w-screen-lg',
+  xl: 'max-w-screen-xl',
+  full: 'max-w-full',
+}
+
 /**
  * Container component for max-width constrained content.
  * Provides consistent content width across different screen sizes.
@@ -36,14 +45,6 @@ export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
     },
     ref
   ) => {
-    // Max width styles based on size
-    const sizeStyles = {
-      sm: 'max-w-screen-sm',
-      md: 'max-w-screen-md',
-      lg: 'max-w-screen-lg',
-      xl: 'max-w-screen-xl',
-      full: 'max-w-full',
-    }
 
     // Padding styles
     const paddingStyles = padding

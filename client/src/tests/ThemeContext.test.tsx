@@ -456,7 +456,7 @@ describe('ThemeContext', () => {
       // This should not throw
       expect(() => {
         // In SSR, getSystemTheme should return 'light' as default
-        const systemTheme = window === undefined ? 'light' : 
+        const systemTheme = typeof window === 'undefined' ? 'light' : 
           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         expect(systemTheme).toBe('light')
       }).not.toThrow()

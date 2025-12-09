@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '../../lib/utils'
-import { Container } from './Container'
+import { Container, type ContainerSize } from './Container'
 
 export type SectionPadding = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 export type SectionVariant = 'default' | 'muted' | 'accent'
@@ -30,11 +30,28 @@ export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
    * Container size when contained is true
    * @default 'lg'
    */
-  containerSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  containerSize?: ContainerSize
   /**
    * Section content
    */
   children: React.ReactNode
+}
+
+// Variant styles
+const variantStyles: Record<SectionVariant, string> = {
+  default: 'bg-background-primary',
+  muted: 'bg-background-secondary',
+  accent: 'bg-primary-50 dark:bg-primary-950/20',
+}
+
+// Padding styles using design tokens
+const paddingStyles: Record<SectionPadding, string> = {
+  none: 'py-0',
+  sm: 'py-4 sm:py-6',
+  md: 'py-6 sm:py-8',
+  lg: 'py-8 sm:py-12',
+  xl: 'py-12 sm:py-16',
+  '2xl': 'py-16 sm:py-24',
 }
 
 /**
@@ -60,23 +77,6 @@ export const Section = React.forwardRef<
   // Base styles
   const baseStyles = ['w-full']
 
-    // Variant styles
-    const variantStyles = {
-      default: 'bg-background-primary',
-      muted: 'bg-background-secondary',
-      accent: 'bg-primary-50 dark:bg-primary-950/20',
-    }
-
-    // Padding styles using design tokens
-    const paddingStyles = {
-      none: 'py-0',
-      sm: 'py-4 sm:py-6',
-      md: 'py-6 sm:py-8',
-      lg: 'py-8 sm:py-12',
-      xl: 'py-12 sm:py-16',
-      '2xl': 'py-16 sm:py-24',
-    }
-
     const sectionClasses = cn(
       baseStyles,
       variantStyles[variant],
@@ -93,16 +93,15 @@ export const Section = React.forwardRef<
       children
     )
 
-    // Type assertion needed because Component can be different HTML elements
-    // and TypeScript can't infer the specific element type at compile time.
-    // Casting through unknown allows us to assign the HTMLElement ref to any
-    // specific element type (div, section, etc.) since they all extend HTMLElement.
-    // We use a double assertion: HTMLElement -> unknown -> element-specific type
     return (
       <Component
-        ref={ref as unknown as React.LegacyRef<HTMLDivElement & HTMLElement>}
-        className={sectionClasses}
         {...restProps}
+        // Type assertion needed for polymorphic component where Component can be different HTML elements
+        // Since Component is determined at runtime, TypeScript cannot verify ref compatibility statically
+        // All possible element types (section, div, article, etc.) extend HTMLElement, so this cast is safe
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ref={ref as unknown as any}
+        className={sectionClasses}
       >
         {content}
       </Component>
