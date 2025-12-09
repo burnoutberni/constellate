@@ -622,10 +622,20 @@ app.get('/nearby', async (c) => {
         } else if (lonMin < -180) {
             // Crossing from west: range extends past -180° to the east
             // Normalize lonMin: lonMin + 360 converts negative longitude < -180 to equivalent positive longitude
-            // Example: lonMin = -185 → westernLonMin = 175, query [175, 180°] (eastern side) OR [-180°, lonMax] (western side)
-            const westernLonMin = lonMin + 360 // Converts to 0-180° range for the eastern side of the antimeridian
-            // Clamp to valid longitude range [-180, 180]
-            const clampedWesternLonMin = Math.max(-180, Math.min(180, westernLonMin))
+            // Example: lonMin = -185 → easternLonMin = 175, query [175, 180°] (eastern side) OR [-180°, lonMax] (western side)
+            const easternLonMin = lonMin + 360 // Converts to 0-180° range for the eastern side of the antimeridian
+            
+            // If the normalized value exceeds 180°, the search area is invalid
+            // This can happen if lonDelta calculation produced an invalid result
+            if (easternLonMin > 180) {
+                return c.json({ 
+                    error: 'Search radius is too large for this location. Please use a smaller radius.' 
+                }, 400)
+            }
+            
+            // easternLonMin should be in [0, 180] range after normalization
+            // Clamp to ensure it's within valid bounds (shouldn't be necessary, but defensive)
+            const clampedEasternLonMin = Math.max(0, Math.min(180, easternLonMin))
             boundingWhere = {
                 AND: [
                     { locationLatitude: { gte: latMin, lte: latMax } },
@@ -633,7 +643,7 @@ app.get('/nearby', async (c) => {
                         OR: [
                             {
                                 locationLongitude: {
-                                    gte: clampedWesternLonMin,
+                                    gte: clampedEasternLonMin,
                                     lte: 180,
                                 },
                             },

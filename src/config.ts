@@ -117,7 +117,22 @@ export const config = {
 
     // External service identifiers
     locationSearch: {
-        userAgent: '', // Will be initialized by initializeConfig()
+        get userAgent(): string {
+            // Compute User-Agent on first access to ensure baseUrl is properly set
+            const customUserAgent = process.env.LOCATION_SEARCH_USER_AGENT
+            if (customUserAgent) {
+                return customUserAgent
+            }
+            // Extract base URL without path if it includes one
+            try {
+                const url = new URL(config.baseUrl)
+                const baseUrlWithoutPath = `${url.protocol}//${url.host}`
+                return `ConstellateLocation/1.0 (+${baseUrlWithoutPath})`
+            } catch {
+                // If baseUrl is not a valid URL, fall back to using it as-is
+                return `ConstellateLocation/1.0 (+${config.baseUrl})`
+            }
+        },
         nominatimEndpoint: getEnv('NOMINATIM_ENDPOINT', 'https://nominatim.openstreetmap.org/search'),
     },
 
@@ -137,34 +152,15 @@ export const config = {
 
 /**
  * Initializes configuration values that depend on other config values or environment setup.
- * This should be called explicitly after environment variables are fully loaded.
+ * This function is kept for backward compatibility, but most initialization is now done lazily.
  * 
- * Currently initializes:
- * - User-Agent for location search (uses baseUrl or custom env var)
+ * Currently, locationSearch.userAgent is computed on first access via a getter,
+ * ensuring config.baseUrl is always properly set when accessed.
  */
 export function initializeConfig() {
-    // Set default User-Agent for location search using baseUrl
-    // This ensures a valid contact method is included per OpenStreetMap's usage policy
-    const customUserAgent = process.env.LOCATION_SEARCH_USER_AGENT
-    if (customUserAgent) {
-        config.locationSearch.userAgent = customUserAgent
-    } else {
-        // Extract base URL without path if it includes one
-        try {
-            const url = new URL(config.baseUrl)
-            const baseUrlWithoutPath = `${url.protocol}//${url.host}`
-            config.locationSearch.userAgent = `ConstellateLocation/1.0 (+${baseUrlWithoutPath})`
-        } catch {
-            // If baseUrl is not a valid URL, fall back to using it as-is
-            config.locationSearch.userAgent = `ConstellateLocation/1.0 (+${config.baseUrl})`
-        }
-    }
+    // No-op: userAgent is now computed on first access via getter
+    // This ensures baseUrl is always properly initialized when userAgent is accessed
 }
-
-// Initialize config immediately to ensure locationSearch.userAgent is set before any modules use it
-// This maintains backward compatibility with code that expects config to be fully initialized on import
-// In the future, this could be moved to an explicit initialization step during application startup
-initializeConfig()
 
 // Validate encryption key format
 if (config.encryptionKey.length !== 64) {

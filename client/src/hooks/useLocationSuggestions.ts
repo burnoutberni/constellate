@@ -73,13 +73,19 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
                 setSuggestions(Array.isArray(body.results) ? body.results : [])
             } catch (err) {
                 if ((err as Error).name === 'AbortError') {
+                    // Don't update loading state if request was aborted
+                    // A new request may be starting, so let it manage its own loading state
                     return
                 }
                 console.error('Location suggestion error:', err)
                 setError('Unable to fetch location suggestions')
                 setSuggestions([])
             } finally {
-                setLoading(false)
+                // Only set loading to false if the request wasn't aborted
+                // Check if controller is still the current one (not aborted)
+                if (abortRef.current === controller && !controller.signal.aborted) {
+                    setLoading(false)
+                }
             }
         }, DEBOUNCE_MS)
 

@@ -85,12 +85,20 @@ export function buildEventPayload(
 ): Record<string, unknown> {
     const payload: Record<string, unknown> = {
         title: formData.title,
-        summary: formData.summary,
-        location: formData.location,
-        url: formData.url,
         startTime: new Date(formData.startTime).toISOString(),
         endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
         visibility: formData.visibility,
+    }
+    
+    // Only include optional fields if they have non-empty values
+    if (formData.summary && formData.summary.trim()) {
+        payload.summary = formData.summary
+    }
+    if (formData.location && formData.location.trim()) {
+        payload.location = formData.location
+    }
+    if (formData.url && formData.url.trim()) {
+        payload.url = formData.url
     }
     if (locationLatitude !== undefined && locationLongitude !== undefined) {
         payload.locationLatitude = locationLatitude
