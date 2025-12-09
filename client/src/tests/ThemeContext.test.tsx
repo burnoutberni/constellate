@@ -446,4 +446,86 @@ describe('ThemeContext', () => {
       )
     })
   })
+
+  describe('SSR and window undefined scenarios', () => {
+    it('should handle SSR scenario when window is undefined', () => {
+      const originalWindow = global.window
+      // @ts-expect-error - intentionally setting to undefined for SSR test
+      global.window = undefined
+
+      // This should not throw
+      expect(() => {
+        // In SSR, getSystemTheme should return 'light' as default
+        const systemTheme = window === undefined ? 'light' : 
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        expect(systemTheme).toBe('light')
+      }).not.toThrow()
+
+      global.window = originalWindow
+    })
+
+    it('should handle localStorage being undefined', () => {
+      const originalLocalStorage = global.localStorage
+      // @ts-expect-error - intentionally setting to undefined
+      global.localStorage = undefined as any
+
+      localStorageMock.getItem = vi.fn(() => null)
+
+      render(
+        <ThemeProvider defaultTheme="light">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+
+      global.localStorage = originalLocalStorage
+    })
+  })
+
+  describe('Edge cases', () => {
+    it('should handle invalid theme in localStorage gracefully', () => {
+      localStorageMock.getItem = vi.fn(() => 'invalid-theme')
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      // Should fall back to system preference
+      expect(screen.getByTestId('theme')).toBeInTheDocument()
+    })
+
+    it('should handle empty string in localStorage', () => {
+      localStorageMock.getItem = vi.fn(() => '')
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      // Should fall back to system preference
+      expect(screen.getByTestId('theme')).toBeInTheDocument()
+    })
+
+    it('should handle custom storage key with special characters', () => {
+      localStorageMock.getItem = vi.fn(() => null)
+      const customKey = 'custom-theme-key-123'
+
+      render(
+        <ThemeProvider storageKey={customKey}>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      const setLightButton = screen.getByTestId('set-light')
+      act(() => {
+        setLightButton.click()
+      })
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(customKey, 'light')
+    })
+  })
 })

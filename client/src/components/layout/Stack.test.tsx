@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { Stack } from './Stack'
+import React from 'react'
+import { Stack, type StackGap } from './Stack'
 
 describe('Stack Component', () => {
   it('should render children content', () => {
@@ -171,5 +172,43 @@ describe('Stack Component', () => {
     const stack = screen.getByTestId('stack')
     expect(stack).toHaveAttribute('id', 'test-stack')
     expect(stack).toHaveAttribute('aria-label', 'Test stack')
+  })
+
+  it('should forward ref to stack element', () => {
+    const ref = React.createRef<HTMLDivElement>()
+    render(<Stack ref={ref}>Content</Stack>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLDivElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should have displayName', () => {
+    expect(Stack.displayName).toBe('Stack')
+  })
+
+  it('should handle partial responsive direction props', () => {
+    render(
+      <Stack 
+        direction="column" 
+        directionLg="row"
+        data-testid="stack"
+      >
+        Content
+      </Stack>
+    )
+    
+    const stack = screen.getByTestId('stack')
+    expect(stack).toHaveClass('flex-col', 'lg:flex-row')
+    expect(stack).not.toHaveClass('sm:flex-row', 'md:flex-col')
+  })
+
+  it('should handle all gap values', () => {
+    const gaps: Array<StackGap> = ['none', 'xs', 'sm', 'md', 'lg', 'xl', '2xl']
+    gaps.forEach(gap => {
+      const { unmount } = render(<Stack gap={gap} data-testid="stack">Content</Stack>)
+      const stack = screen.getByTestId('stack')
+      expect(stack).toBeInTheDocument()
+      unmount()
+    })
   })
 })

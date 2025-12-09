@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 import { Section } from './Section'
 
 describe('Section Component', () => {
@@ -152,5 +153,33 @@ describe('Section Component', () => {
     const section = screen.getByTestId('section')
     expect(section).toHaveAttribute('id', 'test-section')
     expect(section).toHaveAttribute('aria-label', 'Test section')
+  })
+
+  it('should forward ref to section element', () => {
+    const ref = React.createRef<HTMLElement>()
+    render(<Section ref={ref}>Content</Section>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should forward ref when contained is false', () => {
+    const ref = React.createRef<HTMLElement>()
+    render(<Section ref={ref} contained={false}>Content</Section>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should forward ref when using different as prop', () => {
+    const ref = React.createRef<HTMLElement>()
+    render(<Section ref={ref} as="article">Content</Section>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLElement)
+    expect(ref.current?.tagName).toBe('ARTICLE')
+  })
+
+  it('should have displayName', () => {
+    expect(Section.displayName).toBe('Section')
   })
 })

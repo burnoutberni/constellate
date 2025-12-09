@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 import { PageLayout } from './PageLayout'
 
 describe('PageLayout Component', () => {
@@ -215,5 +216,29 @@ describe('PageLayout Component', () => {
     expect(screen.getByText('Main content')).toBeInTheDocument()
     expect(screen.getByText('Sidebar')).toBeInTheDocument()
     expect(screen.getByText('Footer')).toBeInTheDocument()
+  })
+
+  it('should forward ref to layout element', () => {
+    const ref = React.createRef<HTMLDivElement>()
+    render(<PageLayout ref={ref}>Content</PageLayout>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLDivElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should forward ref when sidebar is present', () => {
+    const ref = React.createRef<HTMLDivElement>()
+    render(
+      <PageLayout ref={ref} sidebar={<aside>Sidebar</aside>}>
+        Content
+      </PageLayout>
+    )
+    
+    expect(ref.current).toBeInstanceOf(HTMLDivElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should have displayName', () => {
+    expect(PageLayout.displayName).toBe('PageLayout')
   })
 })

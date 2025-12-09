@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 import { Container } from './Container'
 
 describe('Container Component', () => {
@@ -83,5 +84,17 @@ describe('Container Component', () => {
     const container = screen.getByTestId('container')
     expect(container).toHaveAttribute('id', 'test-container')
     expect(container).toHaveAttribute('aria-label', 'Test container')
+  })
+
+  it('should forward ref to container element', () => {
+    const ref = React.createRef<HTMLDivElement>()
+    render(<Container ref={ref}>Content</Container>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLDivElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should have displayName', () => {
+    expect(Container.displayName).toBe('Container')
   })
 })

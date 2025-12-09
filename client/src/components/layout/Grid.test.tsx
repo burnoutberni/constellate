@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 import { Grid } from './Grid'
 
 describe('Grid Component', () => {
@@ -129,5 +130,41 @@ describe('Grid Component', () => {
     const grid = screen.getByTestId('grid')
     expect(grid).toHaveAttribute('id', 'test-grid')
     expect(grid).toHaveAttribute('aria-label', 'Test grid')
+  })
+
+  it('should forward ref to grid element', () => {
+    const ref = React.createRef<HTMLDivElement>()
+    render(<Grid ref={ref}>Content</Grid>)
+    
+    expect(ref.current).toBeInstanceOf(HTMLDivElement)
+    expect(ref.current).toHaveTextContent('Content')
+  })
+
+  it('should have displayName', () => {
+    expect(Grid.displayName).toBe('Grid')
+  })
+
+  it('should handle all column values individually', () => {
+    const { rerender } = render(<Grid cols={1} data-testid="grid">Content</Grid>)
+    expect(screen.getByTestId('grid')).toHaveClass('grid-cols-1')
+
+    rerender(<Grid cols={5} data-testid="grid">Content</Grid>)
+    expect(screen.getByTestId('grid')).toHaveClass('grid-cols-5')
+  })
+
+  it('should handle partial responsive props', () => {
+    render(
+      <Grid 
+        cols={1} 
+        colsMd={3}
+        data-testid="grid"
+      >
+        Content
+      </Grid>
+    )
+    
+    const grid = screen.getByTestId('grid')
+    expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-3')
+    expect(grid).not.toHaveClass('sm:grid-cols-2', 'lg:grid-cols-4', 'xl:grid-cols-6')
   })
 })
