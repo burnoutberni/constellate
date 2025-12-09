@@ -1854,6 +1854,13 @@ describe('Federation Handlers', () => {
                 })
 
                 expect(attendance).toBeNull()
+                expect(vi.mocked(realtime.broadcast)).toHaveBeenCalledWith({
+                    type: BroadcastEvents.ATTENDANCE_REMOVED,
+                    data: expect.objectContaining({
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                    }),
+                })
             })
 
             it('should ignore Undo for non-existent Like', async () => {
@@ -2243,9 +2250,9 @@ describe('Federation Handlers', () => {
             })
         })
 
-        describe('Follow with Auto-Accept Disabled', () => {
-            it('should handle Follow when auto-accept is disabled', async () => {
-                // Create user with auto-accept disabled
+        describe('Follow Activity Variations', () => {
+            it('should handle Follow with auto-accept enabled (default)', async () => {
+                // Create user with default auto-accept behavior
                 const targetUser = await prisma.user.create({
                     data: {
                         username: 'noacceptuser',
@@ -2255,9 +2262,7 @@ describe('Federation Handlers', () => {
                     },
                 })
 
-                // Update to disable auto-accept (note: this requires extending the schema or using raw query)
-                // For now, we'll use the fact that autoAcceptFollowers defaults to true
-                // We'll need to test the pending flow
+                // Test default auto-accept behavior (autoAcceptFollowers defaults to true)
                 
                 const remoteActor = {
                     id: 'https://example.com/users/charlie',
