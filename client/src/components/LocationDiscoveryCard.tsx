@@ -17,6 +17,7 @@ export function LocationDiscoveryCard() {
     const [radiusKm, setRadiusKm] = useState(25)
     const [geoLoading, setGeoLoading] = useState(false)
     const [geoError, setGeoError] = useState<string | null>(null)
+    const [showPermissionPrompt, setShowPermissionPrompt] = useState(false)
 
     const {
         suggestions,
@@ -46,15 +47,12 @@ export function LocationDiscoveryCard() {
             return
         }
         
-        // Explain to the user why location access is needed before requesting it
-        const confirmed = window.confirm(
-            'We need your location to show you events happening nearby. Your location will only be used to find nearby events and will not be stored or shared.'
-        )
-        
-        if (!confirmed) {
-            return
-        }
-        
+        // Show permission explanation before requesting location
+        setShowPermissionPrompt(true)
+    }
+
+    const handlePermissionConfirm = () => {
+        setShowPermissionPrompt(false)
         setGeoLoading(true)
         setGeoError(null)
         // Geolocation is necessary here to enable users to discover events near their current
@@ -77,6 +75,10 @@ export function LocationDiscoveryCard() {
             },
             { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
         )
+    }
+
+    const handlePermissionCancel = () => {
+        setShowPermissionPrompt(false)
     }
 
     const clearSelection = () => {
@@ -158,6 +160,33 @@ export function LocationDiscoveryCard() {
                 </button>
             </div>
             {geoError && <p className="text-xs text-red-500">{geoError}</p>}
+
+            {showPermissionPrompt && (
+                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
+                    <p className="text-sm text-blue-900 font-medium">
+                        Location permission needed
+                    </p>
+                    <p className="text-xs text-blue-700">
+                        We need your location to show you events happening nearby. Your location will only be used to find nearby events and will not be stored or shared.
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={handlePermissionConfirm}
+                            className="btn btn-primary text-sm"
+                        >
+                            Allow location
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handlePermissionCancel}
+                            className="btn btn-ghost text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {selectedLocation ? (
                 <div className="space-y-3">

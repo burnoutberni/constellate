@@ -161,8 +161,9 @@ export function initializeConfig() {
     }
 }
 
-// Initialize config immediately (for backward compatibility)
-// In the future, this could be moved to an explicit initialization step
+// Initialize config immediately to ensure locationSearch.userAgent is set before any modules use it
+// This maintains backward compatibility with code that expects config to be fully initialized on import
+// In the future, this could be moved to an explicit initialization step during application startup
 initializeConfig()
 
 // Validate encryption key format

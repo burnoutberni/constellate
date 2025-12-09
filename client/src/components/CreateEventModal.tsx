@@ -4,6 +4,7 @@ import type { EventVisibility } from '../types'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
+import { useUIStore } from '../stores'
 
 interface CreateEventModalProps {
     isOpen: boolean
@@ -44,6 +45,7 @@ interface EventTemplate {
 
 export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
     const { user } = useAuth()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
     const [error, setError] = useState<string | null>(null)
     const [formData, setFormData] = useState<{
         title: string
@@ -225,7 +227,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
     const handleUseCurrentLocation = () => {
         if (!navigator.geolocation) {
-            window.alert('Geolocation is not supported in this browser.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Geolocation is not supported in this browser.' })
             return
         }
         setGeoLoading(true)
@@ -243,7 +245,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             },
             (err) => {
                 console.error('Geolocation error:', err)
-                window.alert('Unable to access your current location.')
+                addErrorToast({ id: crypto.randomUUID(), message: 'Unable to access your current location.' })
                 setGeoLoading(false)
             },
             { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
@@ -375,7 +377,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 })
             } catch (err) {
                 console.error('Failed to save template', err)
-                window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
+                addErrorToast({ id: crypto.randomUUID(), message: 'Your event was created, but saving the template failed. You can try again later from the event details page.' })
             }
         }
         resetForm()

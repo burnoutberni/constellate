@@ -101,8 +101,10 @@ export const useUIStore = create<UIState>((set) => ({
     }),
     addMentionNotification: (notification) => set((state) => {
         const existing = state.mentionNotifications.filter((item) => item.id !== notification.id)
+        // Keep the most recent 5 notifications to balance visibility with memory usage
+        // New notifications are added at the beginning, so slice(0, 5) keeps the 5 most recent
         return {
-            mentionNotifications: [notification, ...existing].slice(0, 20),
+            mentionNotifications: [notification, ...existing].slice(0, 5),
         }
     }),
     dismissMentionNotification: (id) => set((state) => ({
@@ -117,8 +119,10 @@ export const useUIStore = create<UIState>((set) => ({
             ...toast,
             createdAt: toast.createdAt || new Date().toISOString(),
         }
+        // Keep the most recent 5 toasts to balance visibility with memory usage
+        // New toasts are added at the beginning, so slice(0, 5) keeps the 5 most recent
         return {
-            errorToasts: [toastWithTimestamp, ...existing].slice(0, 20),
+            errorToasts: [toastWithTimestamp, ...existing].slice(0, 5),
         }
     }),
     dismissErrorToast: (id) => set((state) => ({

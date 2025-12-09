@@ -52,21 +52,7 @@ export function useEventSearch(filters: EventSearchFilters, page = 1, limit = 20
             })
 
             if (!response.ok) {
-                const statusCode = response.status
-                let errorMessage = 'Failed to search events'
-                try {
-                    const errorBody = await response.json() as { error?: string }
-                    if (errorBody.error) {
-                        errorMessage = `${errorMessage}: ${errorBody.error}`
-                    }
-                } catch {
-                    // If response body isn't JSON, use status-based message
-                    if (statusCode >= 400 && statusCode < 500) {
-                        errorMessage = `${errorMessage} (${statusCode}): Invalid search parameters.`
-                    } else if (statusCode >= 500) {
-                        errorMessage = `${errorMessage} (${statusCode}): Server error. Please try again later.`
-                    }
-                }
+                const errorMessage = await buildErrorMessage('Failed to search events', response)
                 throw new Error(errorMessage)
             }
 

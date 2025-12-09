@@ -13,6 +13,8 @@ import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 
 // Geographic constants for nearby search
+// KM_PER_DEGREE is approximately 111 km per degree of latitude (constant globally)
+// For longitude, the distance per degree varies by latitude and is adjusted using cosine
 const KM_PER_DEGREE = 111 // Approximate kilometers per degree of latitude
 const MIN_COS_LAT_THRESHOLD = 0.01 // Minimum cosine threshold to prevent division by zero near poles
 

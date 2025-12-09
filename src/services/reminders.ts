@@ -56,7 +56,8 @@ export function computeRemindAt(startTime: Date, minutesBeforeStart: number): Da
     }
 
     // Calculate remindAt time
-    const remindAt = new Date(startTime.getTime() - minutesBeforeStart * 60 * 1000)
+    // Convert minutes to milliseconds: minutes * seconds_per_minute * milliseconds_per_second
+    const remindAt = new Date(startTime.getTime() - (minutesBeforeStart * 60 * 1000))
 
     // Validate that remindAt is in the future
     const now = new Date()

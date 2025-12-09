@@ -21,7 +21,7 @@ const DATE_RANGE_LABELS: Record<string, string> = {
 }
 
 // Backend date range presets - must match backend validation in src/search.ts
-const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
+export const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
 type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
 
 // Type guard to check if a string is a valid backend date range.
@@ -31,8 +31,6 @@ type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
 function isBackendDateRange(value: string): value is BackendDateRange {
     return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
 }
-
-export { BACKEND_DATE_RANGES }
 type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
 
 interface FormState {
