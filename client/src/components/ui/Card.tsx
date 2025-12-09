@@ -219,4 +219,3 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
 )
 
 CardFooter.displayName = 'CardFooter'
-
