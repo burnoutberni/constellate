@@ -571,21 +571,19 @@ describe('Search API - Nearby events', () => {
 
     it('rejects searches with radius too large for the location', async () => {
         // At high latitudes, a large radius can cause longitude delta > 180
-        // This should be rejected with a specific error message
-        // Using a high latitude (near pole) with a large radius to trigger the error
+        // However, with the schema max of 500km, we need to test the lonDelta > 180 case
+        // with a radius that passes schema validation but triggers the geometric check.
+        // At latitude 80°, cos(80°) ≈ 0.1736, so lonDelta = radius / (111 * 0.1736)
+        // For lonDelta > 180, we'd need radius > 3470km, which exceeds the schema max.
+        // So we test with a radius that exceeds the schema max to ensure proper validation.
         const response = await app.request('/api/search/nearby?latitude=80&longitude=0&radiusKm=20000')
         expect(response.status).toBe(400)
         const body = await response.json() as { error: string }
-        // The error might be about radius being too large or invalid parameters
+        // The radius exceeds the schema max (500km), so it should be rejected by validation
         expect(body.error).toBeDefined()
-        // If it's the radius error, it should mention "too large"
-        // Otherwise it might be a validation error
-        if (body.error.includes('too large')) {
-            expect(body.error).toContain('too large')
-        } else {
-            // Otherwise it's a validation error which is also acceptable
-            expect(body.error).toBeDefined()
-        }
+        // With current schema limits, this triggers a validation error rather than the
+        // "too large for location" error, since the radius is rejected before geometric checks
+        expect(body.error).toContain('Invalid nearby search parameters')
     })
 
     it('respects the limit parameter', async () => {

@@ -24,8 +24,10 @@ const DATE_RANGE_LABELS: Record<string, string> = {
 const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
 type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
 
-// Type guard to check if a string is a valid backend date range
-// This function uses the BACKEND_DATE_RANGES value at runtime
+// Type guard to check if a string is a valid backend date range.
+// This is needed because URL parameters come in as strings, but we need to ensure
+// they match one of the backend's accepted date range presets before sending them
+// to the API. Without this check, invalid date ranges could be sent to the backend.
 function isBackendDateRange(value: string): value is BackendDateRange {
     return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
 }

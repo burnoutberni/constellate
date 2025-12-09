@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useUIStore, ErrorToast } from '../stores'
 
 export function ErrorToasts() {
@@ -9,7 +10,7 @@ export function ErrorToasts() {
     }
 
     return (
-        <div className="fixed top-4 right-4 z-50 flex max-w-sm flex-col gap-3">
+        <div className="fixed top-4 right-4 z-50 flex max-w-sm flex-col gap-3" role="alert" aria-atomic="true">
             {toasts.map((toast) => (
                 <ErrorToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
             ))}
@@ -18,6 +19,16 @@ export function ErrorToasts() {
 }
 
 function ErrorToastItem({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (id: string) => void }) {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            onDismiss(toast.id)
+        }, 5000) // Auto-dismiss after 5 seconds
+
+        return () => {
+            clearTimeout(timer)
+        }
+    }, [toast.id, onDismiss])
+
     return (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl">
             <div className="flex items-center justify-between gap-3">
@@ -26,6 +37,7 @@ function ErrorToastItem({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (i
                     type="button"
                     onClick={() => onDismiss(toast.id)}
                     className="text-xs font-medium text-red-600 hover:text-red-800"
+                    aria-label="Dismiss error"
                 >
                     Dismiss
                 </button>

@@ -195,7 +195,8 @@ const BaseEventSchema = z.object({
 const EventSchema = BaseEventSchema.refine((data) => {
     const hasLat = data.locationLatitude !== undefined && data.locationLatitude !== null
     const hasLon = data.locationLongitude !== undefined && data.locationLongitude !== null
-    return hasLat === hasLon
+    // Either both must be provided or both must be omitted
+    return (hasLat && hasLon) || (!hasLat && !hasLon)
 }, {
     message: 'Latitude and longitude must both be provided',
     path: ['locationLatitude'],
@@ -327,15 +328,16 @@ const UpdateEventSchema = z.object({
     tags: z.array(z.string().min(1).max(50)).optional(),
     timezone: TimezoneSchema.optional(),
 }).refine((data) => {
-    // Only validate coordinate pairs if at least one coordinate is provided
+    // Check if coordinates are explicitly provided (including null to clear them)
     const hasLat = data.locationLatitude !== undefined
     const hasLon = data.locationLongitude !== undefined
-    // If neither is provided, that's fine (no change)
+    // If neither is provided, that's fine (no change to coordinates)
     if (!hasLat && !hasLon) {
         return true
     }
     // If one is provided, both must be provided (both can be null to clear)
-    return hasLat === hasLon
+    // This ensures coordinate pairs are always complete
+    return (hasLat && hasLon) || (!hasLat && !hasLon)
 }, {
     message: 'Latitude and longitude must both be provided or both omitted',
     path: ['locationLatitude'],
@@ -1463,11 +1465,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         const event = await prisma.$transaction(async (tx) => {
-            // Ensure updatedAt is always set when updating
-            // If updateData is empty (only tags being updated), explicitly set updatedAt
-            const finalUpdateData = Object.keys(updateData).length === 0
-                ? { updatedAt: new Date() }
-                : { ...updateData, updatedAt: new Date() }
+            // Always set updatedAt when updating, regardless of whether other fields are being updated
+            const finalUpdateData = { ...updateData, updatedAt: new Date() }
             
             await tx.event.update({
                 where: { id },

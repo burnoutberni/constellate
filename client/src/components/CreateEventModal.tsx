@@ -362,7 +362,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             try {
                 // Note: Tags are intentionally excluded from templates as they are event-specific
                 // and shouldn't be part of a reusable template. When loading from a template,
-                // existing tags are preserved (see applyTemplate function).
+                // the current form's tags are preserved (see applyTemplate function, line 278).
                 await saveTemplateFromEvent({
                     title: formData.title,
                     summary: formData.summary,
@@ -405,13 +405,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
 
         try {
             setSubmitting(true)
-
-            const recurrenceError = validateRecurrence(formData)
-            if (recurrenceError) {
-                setError(recurrenceError)
-                setSubmitting(false)
-                return
-            }
 
             const coordinateResult = parseCoordinates(formData)
             if (coordinateResult.error) {

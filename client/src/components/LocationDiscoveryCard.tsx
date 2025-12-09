@@ -45,6 +45,16 @@ export function LocationDiscoveryCard() {
             setGeoError('Geolocation is not supported in this browser.')
             return
         }
+        
+        // Explain to the user why location access is needed before requesting it
+        const confirmed = window.confirm(
+            'We need your location to show you events happening nearby. Your location will only be used to find nearby events and will not be stored or shared.'
+        )
+        
+        if (!confirmed) {
+            return
+        }
+        
         setGeoLoading(true)
         setGeoError(null)
         // Geolocation is necessary here to enable users to discover events near their current

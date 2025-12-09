@@ -198,49 +198,41 @@ export async function scheduleReminderForEvent(
  * Returns true if cancelled, false if already sent or doesn't exist
  */
 export async function cancelReminderForEvent(eventId: string, userId: string): Promise<boolean> {
+    // Find the reminder
+    const reminder = await prisma.eventReminder.findUnique({
+        where: {
+            eventId_userId: {
+                eventId,
+                userId,
+            },
+        },
+    })
+
+    if (!reminder) {
+        return false
+    }
+
+    // Don't cancel if already sent
+    if (reminder.status === ReminderStatus.SENT) {
+        return false
+    }
+
+    // Update status to CANCELLED
     try {
-        // Find the reminder
-        const reminder = await prisma.eventReminder.findUnique({
+        await prisma.eventReminder.update({
             where: {
                 eventId_userId: {
                     eventId,
                     userId,
                 },
             },
+            data: {
+                status: ReminderStatus.CANCELLED,
+            },
         })
-
-        if (!reminder) {
-            return false
-        }
-
-        // Don't cancel if already sent
-        if (reminder.status === ReminderStatus.SENT) {
-            return false
-        }
-
-        // Update status to CANCELLED
-        try {
-            await prisma.eventReminder.update({
-                where: {
-                    eventId_userId: {
-                        eventId,
-                        userId,
-                    },
-                },
-                data: {
-                    status: ReminderStatus.CANCELLED,
-                },
-            })
-            return true
-        } catch (error: unknown) {
-            // Handle P2025 (record not found) gracefully
-            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-                return false
-            }
-            throw error
-        }
+        return true
     } catch (error: unknown) {
-        // Re-throw non-P2025 errors
+        // Handle P2025 (record not found) gracefully - reminder may have been deleted concurrently
         if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
             return false
         }
