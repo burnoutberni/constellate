@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { Prisma, FailedDeliveryStatus } from '@prisma/client'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
 import { handleError } from './lib/errors.js'
@@ -560,12 +561,9 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
 
         const skip = (query.page - 1) * query.limit
 
-        const where: {
-            status?: string
-            inboxUrl?: { contains: string }
-        } = {}
+        const where: Prisma.FailedDeliveryWhereInput = {}
         if (query.status) {
-            where.status = query.status
+            where.status = query.status as FailedDeliveryStatus
         }
         if (query.inboxUrl) {
             where.inboxUrl = { contains: query.inboxUrl }

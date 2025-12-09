@@ -11,6 +11,7 @@ import type { Addressing } from '../lib/audience.js'
 import { ContentType } from '../constants/activitypub.js'
 import { decryptPrivateKey } from '../lib/encryption.js'
 import { prisma } from '../lib/prisma.js'
+import type { Prisma } from '@prisma/client'
 import type { Activity } from '../lib/activitypubSchemas.js'
 
 interface DeliveryError {
@@ -58,7 +59,7 @@ async function addToDeadLetterQueue(
             data: {
                 activityId: activity.id,
                 activityType: activity.type,
-                activity: activity as unknown as Record<string, unknown>,
+                activity: activity as Prisma.InputJsonValue,
                 inboxUrl,
                 userId,
                 lastError: error.message,
