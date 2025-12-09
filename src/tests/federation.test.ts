@@ -1593,7 +1593,7 @@ describe('Federation Handlers', () => {
             })
 
             it('should cascade delete event with related data', async () => {
-                const remoteUser = await prisma.user.create({
+                await prisma.user.create({
                     data: {
                         username: 'cascade@example.com',
                         email: 'cascade@example.com',
