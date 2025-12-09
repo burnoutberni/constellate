@@ -4,24 +4,42 @@ import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 import { Event } from '../types'
 import { eventsWithinRange } from '../lib/recurrence'
+import { CalendarView } from '../components/CalendarView'
 
 export function CalendarPage() {
     const [events, setEvents] = useState<Event[]>([])
     const [currentDate, setCurrentDate] = useState(new Date())
-    const [view] = useState<'month' | 'week' | 'day'>('month')
+    const [view, setView] = useState<'month' | 'week' | 'day'>('month')
     const [loading, setLoading] = useState(true)
     const [exportingEventId, setExportingEventId] = useState<string | null>(null)
 
-    const monthRange = useMemo(() => {
-        const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-        const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
+    const dateRange = useMemo(() => {
+        let start: Date, end: Date
+        
+        if (view === 'month') {
+            start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+            end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
+        } else if (view === 'week') {
+            start = new Date(currentDate)
+            start.setDate(currentDate.getDate() - currentDate.getDay())
+            start.setHours(0, 0, 0, 0)
+            end = new Date(start)
+            end.setDate(start.getDate() + 6)
+            end.setHours(23, 59, 59, 999)
+        } else {
+            start = new Date(currentDate)
+            start.setHours(0, 0, 0, 0)
+            end = new Date(currentDate)
+            end.setHours(23, 59, 59, 999)
+        }
+        
         return {
             start,
             end,
             startMs: start.getTime(),
             endMs: end.getTime(),
         }
-    }, [currentDate])
+    }, [currentDate, view])
 
     const { user, logout } = useAuth();
 
@@ -29,19 +47,19 @@ export function CalendarPage() {
     const isEventRelevant = useCallback(
         (event: Event) => {
             const eventStartMs = new Date(event.startTime).getTime()
-            if (!Number.isNaN(eventStartMs) && eventStartMs >= monthRange.startMs && eventStartMs <= monthRange.endMs) {
+            if (!Number.isNaN(eventStartMs) && eventStartMs >= dateRange.startMs && eventStartMs <= dateRange.endMs) {
                 return true
             }
             if (event.recurrencePattern && event.recurrenceEndDate) {
                 const recurrenceEndMs = new Date(event.recurrenceEndDate).getTime()
                 return !Number.isNaN(recurrenceEndMs) && 
                        !Number.isNaN(eventStartMs) &&
-                       eventStartMs <= monthRange.endMs && 
-                       recurrenceEndMs >= monthRange.startMs
+                       eventStartMs <= dateRange.endMs && 
+                       recurrenceEndMs >= dateRange.startMs
             }
             return false
         },
-        [monthRange.startMs, monthRange.endMs]
+        [dateRange.startMs, dateRange.endMs]
     )
 
     const handleRealtimeEvent = useCallback((eventMessage: RealtimeEvent) => {
@@ -85,8 +103,8 @@ export function CalendarPage() {
                 setLoading(true)
                 const params = new URLSearchParams({
                     limit: '500',
-                    rangeStart: monthRange.start.toISOString(),
-                    rangeEnd: monthRange.end.toISOString(),
+                    rangeStart: dateRange.start.toISOString(),
+                    rangeEnd: dateRange.end.toISOString(),
                 })
                 const response = await fetch(`/api/events?${params.toString()}`)
                 const data = await response.json()
@@ -99,55 +117,71 @@ export function CalendarPage() {
         }
 
         fetchEvents()
-    }, [monthRange.startMs, monthRange.endMs, view])
+    }, [dateRange.startMs, dateRange.endMs, view])
 
     // Calendar helpers
-    const monthEvents = useMemo(
-        () => eventsWithinRange(events, monthRange.start, monthRange.end),
-        [events, monthRange.startMs, monthRange.endMs]
+    const rangeEvents = useMemo(
+        () => eventsWithinRange(events, dateRange.start, dateRange.end),
+        [events, dateRange.startMs, dateRange.endMs]
     )
-
-    const getDaysInMonth = (date: Date) => {
-        const year = date.getFullYear()
-        const month = date.getMonth()
-        const firstDay = new Date(year, month, 1)
-        const lastDay = new Date(year, month + 1, 0)
-        const daysInMonth = lastDay.getDate()
-        const startingDayOfWeek = firstDay.getDay()
-
-        return { daysInMonth, startingDayOfWeek, year, month }
-    }
-
-    const getEventsForDay = (day: number) => {
-        const { year, month } = getDaysInMonth(currentDate)
-        const dayDate = new Date(year, month, day)
-        const dayStart = new Date(dayDate.setHours(0, 0, 0, 0))
-        const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999))
-
-        return monthEvents.filter((event) => {
-            const eventDate = new Date(event.startTime)
-            return eventDate >= dayStart && eventDate <= dayEnd
-        })
-    }
 
     const upcomingEvents = useMemo(() => {
         const now = new Date()
-        const withinRange = eventsWithinRange(events, now, monthRange.end)
+        const withinRange = eventsWithinRange(events, now, dateRange.end)
         return withinRange
             .filter((event) => new Date(event.startTime) >= now)
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    }, [events, monthRange.endMs])
+    }, [events, dateRange.endMs])
 
-    const previousMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
+    const navigatePrevious = () => {
+        if (view === 'month') {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
+        } else if (view === 'week') {
+            const newDate = new Date(currentDate)
+            newDate.setDate(currentDate.getDate() - 7)
+            setCurrentDate(newDate)
+        } else {
+            const newDate = new Date(currentDate)
+            newDate.setDate(currentDate.getDate() - 1)
+            setCurrentDate(newDate)
+        }
     }
 
-    const nextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
+    const navigateNext = () => {
+        if (view === 'month') {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
+        } else if (view === 'week') {
+            const newDate = new Date(currentDate)
+            newDate.setDate(currentDate.getDate() + 7)
+            setCurrentDate(newDate)
+        } else {
+            const newDate = new Date(currentDate)
+            newDate.setDate(currentDate.getDate() + 1)
+            setCurrentDate(newDate)
+        }
     }
 
-    const today = () => {
+    const goToToday = () => {
         setCurrentDate(new Date())
+    }
+
+    const getDisplayText = () => {
+        if (view === 'month') {
+            return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        } else if (view === 'week') {
+            const startOfWeek = new Date(currentDate)
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
+            const endOfWeek = new Date(startOfWeek)
+            endOfWeek.setDate(startOfWeek.getDate() + 6)
+            
+            if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+                return `${startOfWeek.toLocaleDateString('en-US', { month: 'long' })} ${startOfWeek.getDate()} - ${endOfWeek.getDate()}, ${startOfWeek.getFullYear()}`
+            } else {
+                return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`
+            }
+        } else {
+            return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        }
     }
 
     const handleAddToGoogleCalendar = useCallback(async (eventId: string) => {
@@ -171,37 +205,73 @@ export function CalendarPage() {
         }
     }, [])
 
-    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
-    const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-
     return (
         <div className="min-h-screen bg-gray-100">
             <Navbar isConnected={isConnected} user={user} onLogout={logout} />
             {/* Calendar Controls */}
-            <div className="max-w-6xl mx-auto px-4 py-4 flex justify-end gap-2">
-                <button
-                    onClick={today}
-                    className="btn btn-secondary text-sm"
-                >
-                    Today
-                </button>
-                <button
-                    onClick={previousMonth}
-                    className="btn btn-ghost p-2"
-                    aria-label="Previous month"
-                >
-                    ←
-                </button>
-                <span className="px-4 py-2 text-sm font-medium min-w-[200px] text-center">
-                    {monthName}
-                </span>
-                <button
-                    onClick={nextMonth}
-                    className="btn btn-ghost p-2"
-                    aria-label="Next month"
-                >
-                    →
-                </button>
+            <div className="max-w-6xl mx-auto px-4 py-4">
+                <div className="flex justify-between items-center gap-4">
+                    {/* View Switcher */}
+                    <div className="flex gap-1 bg-white rounded-lg p-1 border">
+                        <button
+                            onClick={() => setView('month')}
+                            className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                                view === 'month'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            Month
+                        </button>
+                        <button
+                            onClick={() => setView('week')}
+                            className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                                view === 'week'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            Week
+                        </button>
+                        <button
+                            onClick={() => setView('day')}
+                            className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                                view === 'day'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            Day
+                        </button>
+                    </div>
+
+                    {/* Navigation Controls */}
+                    <div className="flex gap-2 items-center">
+                        <button
+                            onClick={goToToday}
+                            className="btn btn-secondary text-sm"
+                        >
+                            Today
+                        </button>
+                        <button
+                            onClick={navigatePrevious}
+                            className="btn btn-ghost p-2"
+                            aria-label={`Previous ${view}`}
+                        >
+                            ←
+                        </button>
+                        <span className="px-4 py-2 text-sm font-medium min-w-[280px] text-center">
+                            {getDisplayText()}
+                        </span>
+                        <button
+                            onClick={navigateNext}
+                            className="btn btn-ghost p-2"
+                            aria-label={`Next ${view}`}
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Main Content */}
@@ -210,75 +280,12 @@ export function CalendarPage() {
                     {/* Calendar Card */}
                     <div className="lg:col-span-2">
                         <div className="card p-6">
-                            {/* Day headers */}
-                            <div className="grid grid-cols-7 gap-2 mb-4">
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                                    <div
-                                        key={day}
-                                        className="text-center text-sm font-semibold text-blue-600 py-2"
-                                    >
-                                        {day}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Calendar days */}
-                            {loading ? (
-                                <div className="flex items-center justify-center h-96">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-7 gap-2">
-                                    {/* Empty cells for days before month starts */}
-                                    {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                                        <div key={`empty-${i}`} className="aspect-square" />
-                                    ))}
-
-                                    {/* Days of the month */}
-                                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                                        const day = i + 1
-                                        const dayEvents = getEventsForDay(day)
-                                        const isToday =
-                                            new Date().toDateString() ===
-                                            new Date(
-                                                currentDate.getFullYear(),
-                                                currentDate.getMonth(),
-                                                day
-                                            ).toDateString()
-
-                                        return (
-                                            <div
-                                                key={day}
-                                                className={`aspect-square rounded-lg border bg-white p-2 relative overflow-hidden ${isToday ? 'ring-2 ring-blue-600' : ''}`}
-                                            >
-                                                <div className="flex flex-col h-full">
-                                                    <div
-                                                        className={`text-sm font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}`}
-                                                    >
-                                                        {day}
-                                                    </div>
-                                                    <div className="flex-1 overflow-y-auto space-y-1">
-                                                        {dayEvents.slice(0, 3).map((event) => (
-                                                            <div
-                                                                key={event.id}
-                                                                className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 truncate cursor-pointer hover:bg-blue-100 transition-colors"
-                                                                title={event.title}
-                                                            >
-                                                                {event.title}
-                                                            </div>
-                                                        ))}
-                                                        {dayEvents.length > 3 && (
-                                                            <div className="text-xs text-gray-400 px-2">
-                                                                +{dayEvents.length - 3} more
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
+                            <CalendarView
+                                view={view}
+                                currentDate={currentDate}
+                                events={rangeEvents}
+                                loading={loading}
+                            />
                         </div>
                     </div>
 
