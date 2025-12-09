@@ -25,7 +25,9 @@ export function extractDomain(actorUrl: string): string | null {
 export function extractBaseUrl(actorUrl: string): string | null {
     try {
         const url = new URL(actorUrl)
-        return `${url.protocol}//${url.hostname}`
+        // Include port if non-standard
+        const port = url.port && url.port !== '80' && url.port !== '443' ? `:${url.port}` : ''
+        return `${url.protocol}//${url.hostname}${port}`
     } catch {
         return null
     }
@@ -236,27 +238,42 @@ export async function getKnownInstances(options: {
     // Get connection stats for each instance
     const instancesWithStats = await Promise.all(
         instances.map(async (instance) => {
+            // Build URL patterns for matching - match protocol://domain or protocol://domain:port
+            const urlPatterns = [
+                `://${instance.domain}/`,
+                `://${instance.domain}:`,
+            ]
+            
             const [remoteUserCount, remoteEventCount, localFollowingCount] = await Promise.all([
+                // Count users whose externalActorUrl matches this instance
                 prisma.user.count({
                     where: {
                         isRemote: true,
-                        externalActorUrl: {
-                            contains: instance.domain,
-                        },
+                        OR: urlPatterns.map(pattern => ({
+                            externalActorUrl: {
+                                contains: pattern,
+                            },
+                        })),
                     },
                 }),
+                // Count events whose externalId matches this instance
                 prisma.event.count({
                     where: {
-                        externalId: {
-                            contains: instance.domain,
-                        },
+                        OR: urlPatterns.map(pattern => ({
+                            externalId: {
+                                contains: pattern,
+                            },
+                        })),
                     },
                 }),
+                // Count followings where actorUrl matches this instance
                 prisma.following.count({
                     where: {
-                        actorUrl: {
-                            contains: instance.domain,
-                        },
+                        OR: urlPatterns.map(pattern => ({
+                            actorUrl: {
+                                contains: pattern,
+                            },
+                        })),
                     },
                 }),
             ])

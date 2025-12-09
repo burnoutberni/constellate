@@ -88,35 +88,48 @@ app.get('/:domain', async (c) => {
             return c.json({ error: 'Instance not found' }, 404)
         }
 
-        // Get connection stats
+        // Get connection stats - use URL patterns to avoid subdomain false positives
+        const urlPatterns = [
+            `://${domain}/`,
+            `://${domain}:`,
+        ]
+        
         const [remoteUserCount, remoteEventCount, localFollowingCount, localFollowersCount] = await Promise.all([
             prisma.user.count({
                 where: {
                     isRemote: true,
-                    externalActorUrl: {
-                        contains: domain,
-                    },
+                    OR: urlPatterns.map(pattern => ({
+                        externalActorUrl: {
+                            contains: pattern,
+                        },
+                    })),
                 },
             }),
             prisma.event.count({
                 where: {
-                    externalId: {
-                        contains: domain,
-                    },
+                    OR: urlPatterns.map(pattern => ({
+                        externalId: {
+                            contains: pattern,
+                        },
+                    })),
                 },
             }),
             prisma.following.count({
                 where: {
-                    actorUrl: {
-                        contains: domain,
-                    },
+                    OR: urlPatterns.map(pattern => ({
+                        actorUrl: {
+                            contains: pattern,
+                        },
+                    })),
                 },
             }),
             prisma.follower.count({
                 where: {
-                    actorUrl: {
-                        contains: domain,
-                    },
+                    OR: urlPatterns.map(pattern => ({
+                        actorUrl: {
+                            contains: pattern,
+                        },
+                    })),
                 },
             }),
         ])
