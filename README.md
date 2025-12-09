@@ -271,3 +271,19 @@ Constellate now understands precise event coordinates and exposes a nearby searc
   - Address/venue text, decimal coordinate inputs with validation, and "Use my location" shortcuts.
   - Inline autocomplete so organizers can search for a place once and reuse it in templates.
 - The feed sidebar contains a **Find events nearby** card that lets anyone choose a saved location (or their current device location), pick a radius (10-100 km), and browse nearby events live.
+
+## Instance Discovery and Directory (WP-021)
+
+Constellate now helps users discover and explore federated instances:
+
+- **Automatic tracking:** When remote users follow local users or create events, their instances are automatically tracked in the database.
+- **Instance directory:** `GET /api/instances?limit=50&sortBy=activity` returns known federated instances with metadata including software, version, user count, and connection statistics.
+- **Instance search:** `GET /api/instances/search?q=mastodon` searches instances by domain, title, or description.
+- **Instance details:** `GET /api/instances/{domain}` provides detailed information about a specific instance including cached remote users, events, and follower counts.
+- **Admin panel:** The admin interface includes an "Instances" tab showing:
+  - All discovered instances with their metadata (software name, version, user count)
+  - Connection statistics (cached users, events, follows from each instance)
+  - Last activity timestamps to see which instances are most active
+  - Instance icons and descriptions when available
+- **Profile visibility:** User profiles for remote users display which instance they're from (e.g., "from mastodon.social")
+- **Metadata fetching:** Constellate attempts to fetch instance metadata via NodeInfo protocol to display instance names, descriptions, user counts, and software versions.

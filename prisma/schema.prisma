@@ -557,3 +557,37 @@ model EventReminder {
   @@index([eventId])
   @@index([status, remindAt])
 }
+
+// Federated instances tracking
+model Instance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Instance identification
+  domain      String  @unique // Domain name (e.g., mastodon.social)
+  baseUrl     String  @unique // Full base URL (e.g., https://mastodon.social)
+  software    String? // Software name (e.g., Mastodon, Constellate)
+  version     String? // Software version
+
+  // Instance metadata
+  title       String? // Instance name/title
+  description String? // Instance description
+  iconUrl     String? // Instance icon/logo URL
+  contact     String? // Contact information (email or URL)
+
+  // Statistics (cached from remote instance)
+  userCount       Int?      // Total users on instance
+  eventCount      Int?      // Total events on instance
+  lastActivityAt  DateTime? // Last time we saw activity from this instance
+
+  // Health tracking
+  isBlocked      Boolean @default(false) // Admin blocked this instance
+  lastFetchedAt  DateTime? // Last successful fetch of instance metadata
+  lastErrorAt    DateTime? // Last error when trying to reach instance
+  lastError      String?   // Last error message
+
+  @@index([domain])
+  @@index([isBlocked])
+  @@index([lastActivityAt])
+}

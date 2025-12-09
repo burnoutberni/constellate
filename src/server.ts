@@ -27,6 +27,7 @@ import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
 import recommendationsRoutes from './recommendations.js'
+import instancesRoutes from './instances.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -240,6 +241,7 @@ app.route('/api/user-search', userSearchRoutes)
 app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)
+app.route('/api/instances', instancesRoutes)
 
 // Serve static frontend files in production
 // This should be after all API routes to ensure they take precedence

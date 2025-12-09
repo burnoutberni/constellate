@@ -141,9 +141,22 @@ export function UserProfilePage() {
                                             <p className="text-gray-500 mb-2">
                                                 @{profileData.user.username}
                                                 {profileData.user.isRemote && (
-                                                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                                        Remote
-                                                    </span>
+                                                    <>
+                                                        <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                                            Remote
+                                                        </span>
+                                                        {profileData.user.externalActorUrl && (() => {
+                                                            try {
+                                                                return (
+                                                                    <span className="ml-2 text-xs text-gray-500">
+                                                                        from {new URL(profileData.user.externalActorUrl).hostname}
+                                                                    </span>
+                                                                )
+                                                            } catch {
+                                                                return null
+                                                            }
+                                                        })()}
+                                                    </>
                                                 )}
                                             </p>
                                         </div>
