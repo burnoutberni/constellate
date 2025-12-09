@@ -20,12 +20,9 @@ export function CalendarPage() {
             start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
             end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
         } else if (view === 'week') {
-            start = new Date(currentDate)
-            start.setDate(currentDate.getDate() - currentDate.getDay())
-            start.setHours(0, 0, 0, 0)
-            end = new Date(start)
-            end.setDate(start.getDate() + 6)
-            end.setHours(23, 59, 59, 999)
+            const weekStartDay = currentDate.getDate() - currentDate.getDay()
+            start = new Date(currentDate.getFullYear(), currentDate.getMonth(), weekStartDay, 0, 0, 0, 0)
+            end = new Date(currentDate.getFullYear(), currentDate.getMonth(), weekStartDay + 6, 23, 59, 59, 999)
         } else {
             start = new Date(currentDate)
             start.setHours(0, 0, 0, 0)
@@ -169,10 +166,8 @@ export function CalendarPage() {
         if (view === 'month') {
             return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
         } else if (view === 'week') {
-            const startOfWeek = new Date(currentDate)
-            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-            const endOfWeek = new Date(startOfWeek)
-            endOfWeek.setDate(startOfWeek.getDate() + 6)
+            const startOfWeek = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay())
+            const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6)
             
             if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
                 return `${startOfWeek.toLocaleDateString('en-US', { month: 'long' })} ${startOfWeek.getDate()} - ${endOfWeek.getDate()}, ${startOfWeek.getFullYear()}`

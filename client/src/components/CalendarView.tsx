@@ -37,9 +37,8 @@ function MonthView({ currentDate, events, loading }: ViewProps) {
 
     const getEventsForDay = (day: number) => {
         const { year, month } = getDaysInMonth(currentDate)
-        const dayDate = new Date(year, month, day)
-        const dayStart = new Date(dayDate.setHours(0, 0, 0, 0))
-        const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999))
+        const dayStart = new Date(year, month, day, 0, 0, 0, 0)
+        const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
 
         return events.filter((event) => {
             const eventDate = new Date(event.startTime)
@@ -142,10 +141,8 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
     const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
 
     const getEventsForDayAndHour = (day: Date, hour: number) => {
-        const hourStart = new Date(day)
-        hourStart.setHours(hour, 0, 0, 0)
-        const hourEnd = new Date(day)
-        hourEnd.setHours(hour, 59, 59, 999)
+        const hourStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0)
+        const hourEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 59, 59, 999)
 
         return events.filter((event) => {
             const eventDate = new Date(event.startTime)
@@ -225,10 +222,8 @@ function DayView({ currentDate, events, loading }: ViewProps) {
     const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
 
     const getEventsForHour = (hour: number) => {
-        const hourStart = new Date(currentDate)
-        hourStart.setHours(hour, 0, 0, 0)
-        const hourEnd = new Date(currentDate)
-        hourEnd.setHours(hour, 59, 59, 999)
+        const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
+        const hourEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 59, 59, 999)
 
         return events.filter((event) => {
             const eventDate = new Date(event.startTime)
