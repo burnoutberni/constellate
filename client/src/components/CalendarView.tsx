@@ -7,6 +7,13 @@ interface CalendarViewProps {
     loading: boolean
 }
 
+function formatHourLabel(hour: number): string {
+    if (hour === 0) return '12 AM'
+    if (hour < 12) return `${hour} AM`
+    if (hour === 12) return '12 PM'
+    return `${hour - 12} PM`
+}
+
 export function CalendarView({ view, currentDate, events, loading }: CalendarViewProps) {
     if (view === 'month') {
         return <MonthView currentDate={currentDate} events={events} loading={loading} />
@@ -186,7 +193,7 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
                     {hours.map((hour) => (
                         <div key={hour} className="grid grid-cols-8 gap-2 mb-1">
                             <div className="text-xs text-gray-500 py-2 text-right pr-2">
-                                {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                                {formatHourLabel(hour)}
                             </div>
                             {weekDays.map((day) => {
                                 const dayEvents = getEventsForDayAndHour(day, hour)
@@ -261,7 +268,7 @@ function DayView({ currentDate, events, loading }: ViewProps) {
                             return (
                                 <div key={hour} className="flex gap-4">
                                     <div className="w-20 text-sm text-gray-500 py-2 text-right flex-shrink-0">
-                                        {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                                        {formatHourLabel(hour)}
                                     </div>
                                     <div className="flex-1 min-h-[80px] border rounded bg-white p-3">
                                         {hourEvents.length === 0 ? (
