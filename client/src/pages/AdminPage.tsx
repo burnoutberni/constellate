@@ -38,11 +38,34 @@ interface ApiKey {
     lastUsedAt?: string
 }
 
+interface Instance {
+    id: string
+    domain: string
+    baseUrl: string
+    software?: string
+    version?: string
+    title?: string
+    description?: string
+    iconUrl?: string
+    userCount?: number
+    eventCount?: number
+    lastActivityAt?: string
+    isBlocked: boolean
+    lastFetchedAt?: string
+    lastErrorAt?: string
+    lastError?: string
+    stats?: {
+        remoteUsers: number
+        remoteEvents: number
+        localFollowing: number
+    }
+}
+
 export function AdminPage() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
-    const [activeTab, setActiveTab] = useState<'users' | 'api-keys'>('users')
+    const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances'>('users')
     const [showCreateUserModal, setShowCreateUserModal] = useState(false)
     const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
     const [, setSelectedUserId] = useState<string | null>(null)
@@ -102,6 +125,21 @@ export function AdminPage() {
             return response.json() as Promise<{ apiKeys: ApiKey[] }>
         },
         enabled: activeTab === 'api-keys' && !!userProfile?.isAdmin,
+    })
+
+    // Fetch instances
+    const { data: instancesData, isLoading: isLoadingInstances, refetch: refetchInstances } = useQuery({
+        queryKey: ['admin-instances'],
+        queryFn: async () => {
+            const response = await fetch('/api/instances?limit=100&sortBy=activity', {
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                throw new Error('Failed to fetch instances')
+            }
+            return response.json() as Promise<{ instances: Instance[]; total: number }>
+        },
+        enabled: activeTab === 'instances' && !!userProfile?.isAdmin,
     })
 
     // Create user mutation
@@ -234,6 +272,15 @@ export function AdminPage() {
                                 }`}
                         >
                             API Keys
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('instances')}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'instances'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                        >
+                            Instances
                         </button>
                     </nav>
                 </div>
@@ -438,6 +485,116 @@ export function AdminPage() {
                                     </tbody>
                                 </table>
                             </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Instances Tab */}
+                {activeTab === 'instances' && (
+                    <div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-900">Federated Instances</h2>
+                            <button
+                                onClick={() => refetchInstances()}
+                                className="btn btn-secondary"
+                                disabled={isLoadingInstances}
+                            >
+                                Refresh
+                            </button>
+                        </div>
+
+                        {isLoadingInstances ? (
+                            <div className="flex justify-center py-12">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-4 text-sm text-gray-600">
+                                    {instancesData?.total || 0} known instance(s) discovered through federation
+                                </div>
+                                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Instance
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Software
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Users
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Connections
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Last Activity
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {instancesData?.instances.map((instance) => (
+                                                <tr key={instance.id}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            {instance.iconUrl && (
+                                                                <img
+                                                                    src={instance.iconUrl}
+                                                                    alt={instance.domain}
+                                                                    className="h-8 w-8 rounded mr-3"
+                                                                />
+                                                            )}
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">
+                                                                    {instance.title || instance.domain}
+                                                                </div>
+                                                                <div className="text-sm text-gray-500">
+                                                                    {instance.domain}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm text-gray-900">
+                                                            {instance.software || 'Unknown'}
+                                                        </div>
+                                                        {instance.version && (
+                                                            <div className="text-sm text-gray-500">
+                                                                v{instance.version}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm text-gray-900">
+                                                            {instance.userCount?.toLocaleString() || 'N/A'}
+                                                        </div>
+                                                        {instance.eventCount !== undefined && (
+                                                            <div className="text-sm text-gray-500">
+                                                                {instance.eventCount.toLocaleString()} posts
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm text-gray-900">
+                                                            {instance.stats?.remoteUsers || 0} cached users
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">
+                                                            {instance.stats?.remoteEvents || 0} events,{' '}
+                                                            {instance.stats?.localFollowing || 0} following
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {instance.lastActivityAt
+                                                            ? new Date(instance.lastActivityAt).toLocaleDateString()
+                                                            : 'Never'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 )}

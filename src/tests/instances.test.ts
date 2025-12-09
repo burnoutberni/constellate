@@ -1,0 +1,260 @@
+/**
+ * Tests for Instance Discovery
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { 
+    extractDomain, 
+    extractBaseUrl, 
+    trackInstance,
+    getKnownInstances,
+    searchInstances
+} from '../lib/instanceHelpers.js'
+import { prisma } from '../lib/prisma.js'
+
+// Mock dependencies
+vi.mock('../lib/prisma.js', () => ({
+    prisma: {
+        instance: {
+            findUnique: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            findMany: vi.fn(),
+            count: vi.fn(),
+        },
+        user: {
+            count: vi.fn(),
+        },
+        event: {
+            count: vi.fn(),
+        },
+        following: {
+            count: vi.fn(),
+        },
+    },
+}))
+
+vi.mock('../lib/ssrfProtection.js', () => ({
+    safeFetch: vi.fn(),
+}))
+
+describe('Instance Discovery', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    describe('extractDomain', () => {
+        it('should extract domain from actor URL', () => {
+            const actorUrl = 'https://mastodon.social/users/alice'
+            const domain = extractDomain(actorUrl)
+            expect(domain).toBe('mastodon.social')
+        })
+
+        it('should handle different URL formats', () => {
+            expect(extractDomain('https://app1.local/@bob')).toBe('app1.local')
+            expect(extractDomain('http://localhost:3000/users/test')).toBe('localhost')
+        })
+
+        it('should return null for invalid URLs', () => {
+            expect(extractDomain('not-a-url')).toBeNull()
+            expect(extractDomain('')).toBeNull()
+        })
+    })
+
+    describe('extractBaseUrl', () => {
+        it('should extract base URL from actor URL', () => {
+            const actorUrl = 'https://mastodon.social/users/alice'
+            const baseUrl = extractBaseUrl(actorUrl)
+            expect(baseUrl).toBe('https://mastodon.social')
+        })
+
+        it('should handle HTTP URLs', () => {
+            const actorUrl = 'http://app1.local/@bob'
+            const baseUrl = extractBaseUrl(actorUrl)
+            expect(baseUrl).toBe('http://app1.local')
+        })
+
+        it('should return null for invalid URLs', () => {
+            expect(extractBaseUrl('invalid')).toBeNull()
+        })
+    })
+
+    describe('trackInstance', () => {
+        it('should create new instance if not exists', async () => {
+            const actorUrl = 'https://mastodon.social/users/alice'
+            
+            vi.mocked(prisma.instance.findUnique).mockResolvedValue(null)
+            vi.mocked(prisma.instance.create).mockResolvedValue({
+                id: 'instance-1',
+                domain: 'mastodon.social',
+                baseUrl: 'https://mastodon.social',
+                software: null,
+                version: null,
+                title: null,
+                description: null,
+                iconUrl: null,
+                contact: null,
+                userCount: null,
+                eventCount: null,
+                lastActivityAt: new Date(),
+                isBlocked: false,
+                lastFetchedAt: null,
+                lastErrorAt: null,
+                lastError: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            })
+
+            await trackInstance(actorUrl)
+
+            expect(prisma.instance.findUnique).toHaveBeenCalledWith({
+                where: { domain: 'mastodon.social' },
+            })
+            expect(prisma.instance.create).toHaveBeenCalled()
+        })
+
+        it('should update existing instance activity time', async () => {
+            const actorUrl = 'https://mastodon.social/users/alice'
+            const existingInstance = {
+                id: 'instance-1',
+                domain: 'mastodon.social',
+                baseUrl: 'https://mastodon.social',
+                lastActivityAt: new Date('2024-01-01'),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }
+
+            vi.mocked(prisma.instance.findUnique).mockResolvedValue(existingInstance as any)
+            vi.mocked(prisma.instance.update).mockResolvedValue(existingInstance as any)
+
+            await trackInstance(actorUrl)
+
+            expect(prisma.instance.update).toHaveBeenCalledWith({
+                where: { domain: 'mastodon.social' },
+                data: expect.objectContaining({
+                    lastActivityAt: expect.any(Date),
+                }),
+            })
+        })
+
+        it('should handle invalid actor URLs gracefully', async () => {
+            await trackInstance('invalid-url')
+            expect(prisma.instance.findUnique).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('getKnownInstances', () => {
+        it('should return list of instances with stats', async () => {
+            const mockInstances = [
+                {
+                    id: 'instance-1',
+                    domain: 'mastodon.social',
+                    baseUrl: 'https://mastodon.social',
+                    software: 'Mastodon',
+                    version: '4.0.0',
+                    title: 'Mastodon Social',
+                    description: 'A public instance',
+                    iconUrl: 'https://mastodon.social/icon.png',
+                    contact: 'admin@mastodon.social',
+                    userCount: 1000,
+                    eventCount: 5000,
+                    lastActivityAt: new Date(),
+                    isBlocked: false,
+                    lastFetchedAt: new Date(),
+                    lastErrorAt: null,
+                    lastError: null,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                },
+            ]
+
+            vi.mocked(prisma.instance.findMany).mockResolvedValue(mockInstances)
+            vi.mocked(prisma.instance.count).mockResolvedValue(1)
+            vi.mocked(prisma.user.count).mockResolvedValue(10)
+            vi.mocked(prisma.event.count).mockResolvedValue(5)
+            vi.mocked(prisma.following.count).mockResolvedValue(3)
+
+            const result = await getKnownInstances({ limit: 10, offset: 0 })
+
+            expect(result.instances).toHaveLength(1)
+            expect(result.instances[0].domain).toBe('mastodon.social')
+            expect(result.instances[0].stats).toEqual({
+                remoteUsers: 10,
+                remoteEvents: 5,
+                localFollowing: 3,
+            })
+            expect(result.total).toBe(1)
+        })
+
+        it('should filter blocked instances by default', async () => {
+            vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+            vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+            await getKnownInstances({ filterBlocked: true })
+
+            expect(prisma.instance.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { isBlocked: false },
+                })
+            )
+        })
+
+        it('should support different sort options', async () => {
+            vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+            vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+            await getKnownInstances({ sortBy: 'users' })
+
+            expect(prisma.instance.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    orderBy: { userCount: 'desc' },
+                })
+            )
+        })
+    })
+
+    describe('searchInstances', () => {
+        it('should search instances by query', async () => {
+            const mockInstances = [
+                {
+                    id: 'instance-1',
+                    domain: 'mastodon.social',
+                    baseUrl: 'https://mastodon.social',
+                    title: 'Mastodon Social',
+                    description: 'A public Mastodon instance',
+                    isBlocked: false,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                },
+            ]
+
+            vi.mocked(prisma.instance.findMany).mockResolvedValue(mockInstances as any)
+
+            const results = await searchInstances('mastodon')
+
+            expect(prisma.instance.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        AND: expect.arrayContaining([
+                            { isBlocked: false },
+                        ]),
+                    }),
+                })
+            )
+            expect(results).toHaveLength(1)
+            expect(results[0].domain).toBe('mastodon.social')
+        })
+
+        it('should respect limit parameter', async () => {
+            vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+
+            await searchInstances('test', 5)
+
+            expect(prisma.instance.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    take: 5,
+                })
+            )
+        })
+    })
+})

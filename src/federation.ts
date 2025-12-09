@@ -24,6 +24,7 @@ import {
     BroadcastEvents,
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import { trackInstance } from './lib/instanceHelpers.js'
 import type { Prisma } from '@prisma/client'
 import type {
     Activity,
@@ -146,6 +147,9 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
 
     const actorPerson = actor as unknown as Person
     const remoteUser = await cacheRemoteUser(actorPerson)
+
+    // Track instance
+    await trackInstance(actorUrl)
 
     // Check if user auto-accepts followers
     const shouldAutoAccept = (targetUser as unknown as { autoAcceptFollowers?: boolean }).autoAcceptFollowers ?? true
@@ -603,6 +607,9 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
 
     const actorPerson = actor as unknown as Person
     const remoteUser = await cacheRemoteUser(actorPerson)
+
+    // Track instance
+    await trackInstance(actorUrl)
 
     // Extract event properties
     const {
