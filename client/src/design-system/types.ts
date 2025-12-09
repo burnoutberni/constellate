@@ -13,6 +13,10 @@ import { tokens } from './tokens'
 
 /**
  * Color scale type (e.g., primary[50] through primary[950])
+ * 
+ * @public
+ * Part of the design system public API. Use this type when working with
+ * color scales programmatically.
  */
 export type ColorScale = Record<number | string, string>
 
@@ -23,6 +27,10 @@ export type ThemeColors = typeof tokens.colors.light
 
 /**
  * Typography style type
+ * 
+ * @public
+ * Part of the design system public API. Use this type when creating
+ * custom typography styles or extending the typography system.
  */
 export type TypographyStyle = {
   fontSize: string
@@ -53,6 +61,10 @@ export type BreakpointValue = keyof typeof tokens.breakpoints
 
 /**
  * Z-index value type
+ * 
+ * @public
+ * Part of the design system public API. Use this type for z-index
+ * values in component props or when working with layering.
  */
 export type ZIndexValue = keyof typeof tokens.zIndex
 
@@ -68,11 +80,19 @@ export type FontWeightValue = keyof typeof tokens.fontWeights
 
 /**
  * Line height value type
+ * 
+ * @public
+ * Part of the design system public API. Use this type for line height
+ * values in component props or typography configurations.
  */
 export type LineHeightValue = keyof typeof tokens.lineHeights
 
 /**
  * Letter spacing value type
+ * 
+ * @public
+ * Part of the design system public API. Use this type for letter spacing
+ * values in component props or typography configurations.
  */
 export type LetterSpacingValue = keyof typeof tokens.letterSpacing
 
@@ -82,6 +102,17 @@ export type LetterSpacingValue = keyof typeof tokens.letterSpacing
 
 /**
  * Props for components that accept theme
+ * 
+ * @public
+ * Part of the design system public API. Implement this interface in
+ * components that need to accept an optional theme prop.
+ * 
+ * @example
+ * ```tsx
+ * interface MyComponentProps extends Themeable {
+ *   // other props
+ * }
+ * ```
  */
 export interface Themeable {
   theme?: Theme
@@ -89,6 +120,17 @@ export interface Themeable {
 
 /**
  * Props for components that accept color variants
+ * 
+ * @public
+ * Part of the design system public API. Implement this interface in
+ * components that support multiple color variants.
+ * 
+ * @example
+ * ```tsx
+ * interface ButtonProps extends ColorVariant {
+ *   children: ReactNode
+ * }
+ * ```
  */
 export interface ColorVariant {
   variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
@@ -96,6 +138,17 @@ export interface ColorVariant {
 
 /**
  * Props for components that accept size variants
+ * 
+ * @public
+ * Part of the design system public API. Implement this interface in
+ * components that support multiple size variants.
+ * 
+ * @example
+ * ```tsx
+ * interface ButtonProps extends SizeVariant {
+ *   children: ReactNode
+ * }
+ * ```
  */
 export interface SizeVariant {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
@@ -107,7 +160,15 @@ export interface SizeVariant {
 
 /**
  * Get color value from theme and color path
- * Example: GetColorValue<'primary', 500> => '#0ea5e9'
+ * 
+ * @public
+ * Part of the design system public API. Utility type for extracting
+ * specific color values from the theme color system.
+ * 
+ * @example
+ * ```tsx
+ * type Primary500 = GetColorValue<'primary', 500> // => '#0ea5e9'
+ * ```
  */
 export type GetColorValue<
   TColor extends keyof ThemeColors,
@@ -123,6 +184,15 @@ export type ThemeColorKeys = keyof ThemeColors
 
 /**
  * Extract shade keys from a color scale
+ * 
+ * @public
+ * Part of the design system public API. Utility type for extracting
+ * available shade keys from a specific color in the theme.
+ * 
+ * @example
+ * ```tsx
+ * type PrimaryShades = ColorShadeKeys<'primary'> // => 50 | 100 | 200 | ...
+ * ```
  */
 export type ColorShadeKeys<TColor extends ThemeColorKeys> = keyof ThemeColors[TColor]
 
