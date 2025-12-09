@@ -13,27 +13,110 @@ import { decryptPrivateKey } from '../lib/encryption.js'
 import { prisma } from '../lib/prisma.js'
 import type { Activity } from '../lib/activitypubSchemas.js'
 
+interface DeliveryError {
+    message: string
+    code?: string
+    statusCode?: number
+}
+
+/**
+ * Logs a structured error for federation issues
+ */
+function logFederationError(
+    context: string,
+    inboxUrl: string,
+    activity: Activity,
+    error: DeliveryError
+): void {
+    console.error(`[Federation Error] ${context}`, {
+        timestamp: new Date().toISOString(),
+        inboxUrl,
+        activityId: activity.id,
+        activityType: activity.type,
+        error: {
+            message: error.message,
+            code: error.code,
+            statusCode: error.statusCode,
+        },
+    })
+}
+
+/**
+ * Adds a failed delivery to the dead letter queue
+ */
+async function addToDeadLetterQueue(
+    activity: Activity,
+    inboxUrl: string,
+    userId: string,
+    error: DeliveryError,
+    attemptCount: number = 0
+): Promise<void> {
+    try {
+        const nextRetryAt = calculateNextRetry(attemptCount)
+        
+        await prisma.failedDelivery.create({
+            data: {
+                activityId: activity.id,
+                activityType: activity.type,
+                activity: activity as any,
+                inboxUrl,
+                userId,
+                lastError: error.message,
+                lastErrorCode: error.code || error.statusCode?.toString(),
+                lastAttemptAt: new Date(),
+                attemptCount,
+                nextRetryAt,
+                status: attemptCount < 3 ? 'PENDING' : 'FAILED',
+            },
+        })
+        
+        console.log(`[Dead Letter Queue] Added failed delivery: ${activity.id} -> ${inboxUrl}`)
+    } catch (err) {
+        console.error('[Dead Letter Queue] Failed to add to queue:', err)
+    }
+}
+
+/**
+ * Calculates the next retry time using exponential backoff
+ */
+function calculateNextRetry(attemptCount: number): Date {
+    const baseDelay = 1000 // 1 second
+    const maxDelay = 3600000 // 1 hour
+    const delay = Math.min(baseDelay * Math.pow(2, attemptCount), maxDelay)
+    return new Date(Date.now() + delay)
+}
+
 /**
  * Delivers an activity to a single inbox
  * @param activity - ActivityPub activity
  * @param inboxUrl - Inbox URL
  * @param user - User sending the activity
+ * @param recordFailure - Whether to record failures in dead letter queue
  */
 export async function deliverToInbox(
     activity: Activity,
     inboxUrl: string,
-    user: { username: string; privateKey: string | null }
+    user: { id?: string; username: string; privateKey: string | null },
+    recordFailure: boolean = false
 ): Promise<boolean> {
     try {
         if (!user.privateKey) {
-            console.error('User has no private key for signing')
+            const error: DeliveryError = {
+                message: 'User has no private key for signing',
+                code: 'NO_PRIVATE_KEY',
+            }
+            logFederationError('Delivery failed', inboxUrl, activity, error)
             return false
         }
 
         // Decrypt private key before use
         const decryptedPrivateKey = decryptPrivateKey(user.privateKey)
         if (!decryptedPrivateKey) {
-            console.error('Failed to decrypt private key for signing')
+            const error: DeliveryError = {
+                message: 'Failed to decrypt private key for signing',
+                code: 'DECRYPTION_FAILED',
+            }
+            logFederationError('Delivery failed', inboxUrl, activity, error)
             return false
         }
 
@@ -79,36 +162,56 @@ export async function deliverToInbox(
         })
 
         if (!response.ok) {
-            console.error(
-                `Failed to deliver to ${inboxUrl}: ${response.status} ${response.statusText}`
-            )
+            const error: DeliveryError = {
+                message: `HTTP ${response.status}: ${response.statusText}`,
+                statusCode: response.status,
+            }
+            logFederationError('Delivery failed', inboxUrl, activity, error)
+            
+            if (recordFailure && user.id) {
+                await addToDeadLetterQueue(activity, inboxUrl, user.id, error, 0)
+            }
+            
             return false
         }
 
         return true
     } catch (error) {
-        console.error(`Error delivering to ${inboxUrl}:`, error)
+        const deliveryError: DeliveryError = {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            code: 'NETWORK_ERROR',
+        }
+        logFederationError('Delivery failed', inboxUrl, activity, deliveryError)
+        
+        if (recordFailure && user.id) {
+            await addToDeadLetterQueue(activity, inboxUrl, user.id, deliveryError, 0)
+        }
+        
         return false
     }
 }
 
 /**
- * Delivers an activity to multiple inboxes
+ * Delivers an activity to multiple inboxes with retry logic
  * @param activity - ActivityPub activity
  * @param inboxUrls - Array of inbox URLs
  * @param user - User sending the activity
+ * @param useRetry - Whether to use retry logic (default: true)
  */
 export async function deliverToInboxes(
     activity: Activity,
     inboxUrls: string[],
-    user: { username: string; privateKey: string | null }
+    user: { id?: string; username: string; privateKey: string | null },
+    useRetry: boolean = true
 ): Promise<void> {
     // Deduplicate inboxes
     const uniqueInboxes = Array.from(new Set(inboxUrls))
 
-    // Deliver to all inboxes in parallel
+    // Deliver to all inboxes in parallel with retry
     const promises = uniqueInboxes.map((inbox) =>
-        deliverToInbox(activity, inbox, user)
+        useRetry
+            ? deliverWithRetry(activity, inbox, user, 3, true)
+            : deliverToInbox(activity, inbox, user, false)
     )
 
     await Promise.allSettled(promises)
@@ -223,15 +326,17 @@ export async function deliverActivity(
  * @param inboxUrl - Inbox URL
  * @param user - User sending the activity
  * @param maxRetries - Maximum number of retries
+ * @param recordFailure - Whether to record final failure in dead letter queue
  */
 export async function deliverWithRetry(
     activity: Activity,
     inboxUrl: string,
-    user: { username: string; privateKey: string | null },
-    maxRetries: number = 3
+    user: { id?: string; username: string; privateKey: string | null },
+    maxRetries: number = 3,
+    recordFailure: boolean = true
 ): Promise<boolean> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const success = await deliverToInbox(activity, inboxUrl, user)
+        const success = await deliverToInbox(activity, inboxUrl, user, false)
         if (success) {
             return true
         }
@@ -243,5 +348,179 @@ export async function deliverWithRetry(
         }
     }
 
+    // After all retries failed, add to dead letter queue
+    if (recordFailure && user.id) {
+        await addToDeadLetterQueue(
+            activity,
+            inboxUrl,
+            user.id,
+            { message: 'All retry attempts failed', code: 'MAX_RETRIES_EXCEEDED' },
+            maxRetries
+        )
+    }
+
     return false
+}
+
+/**
+ * Processes pending deliveries in the dead letter queue
+ * Retries failed deliveries that are ready for retry
+ */
+export async function processDeadLetterQueue(): Promise<void> {
+    try {
+        const now = new Date()
+        
+        // Find deliveries ready for retry
+        const pendingDeliveries = await prisma.failedDelivery.findMany({
+            where: {
+                status: 'PENDING',
+                nextRetryAt: {
+                    lte: now,
+                },
+                attemptCount: {
+                    lt: prisma.failedDelivery.fields.maxAttempts,
+                },
+            },
+            take: 50, // Process in batches
+        })
+
+        if (pendingDeliveries.length === 0) {
+            return
+        }
+
+        console.log(`[Dead Letter Queue] Processing ${pendingDeliveries.length} pending deliveries`)
+
+        for (const delivery of pendingDeliveries) {
+            try {
+                // Update status to retrying
+                await prisma.failedDelivery.update({
+                    where: { id: delivery.id },
+                    data: { status: 'RETRYING' },
+                })
+
+                // Get user for delivery
+                const user = await prisma.user.findUnique({
+                    where: { id: delivery.userId },
+                    select: { id: true, username: true, privateKey: true },
+                })
+
+                if (!user) {
+                    await prisma.failedDelivery.update({
+                        where: { id: delivery.id },
+                        data: {
+                            status: 'FAILED',
+                            lastError: 'User not found',
+                            resolvedAt: new Date(),
+                        },
+                    })
+                    continue
+                }
+
+                // Attempt delivery
+                const success = await deliverToInbox(
+                    delivery.activity as Activity,
+                    delivery.inboxUrl,
+                    user,
+                    false
+                )
+
+                if (success) {
+                    // Mark as resolved
+                    await prisma.failedDelivery.update({
+                        where: { id: delivery.id },
+                        data: {
+                            status: 'FAILED',
+                            resolvedAt: new Date(),
+                        },
+                    })
+                    console.log(`[Dead Letter Queue] Successfully delivered: ${delivery.activityId} -> ${delivery.inboxUrl}`)
+                } else {
+                    // Increment attempt count and schedule next retry
+                    const newAttemptCount = delivery.attemptCount + 1
+                    const nextRetryAt = calculateNextRetry(newAttemptCount)
+                    const status = newAttemptCount >= delivery.maxAttempts ? 'FAILED' : 'PENDING'
+
+                    await prisma.failedDelivery.update({
+                        where: { id: delivery.id },
+                        data: {
+                            attemptCount: newAttemptCount,
+                            nextRetryAt: status === 'PENDING' ? nextRetryAt : null,
+                            status,
+                            lastAttemptAt: new Date(),
+                            resolvedAt: status === 'FAILED' ? new Date() : null,
+                        },
+                    })
+                }
+            } catch (error) {
+                console.error(`[Dead Letter Queue] Error processing delivery ${delivery.id}:`, error)
+                
+                // Mark as failed on error
+                await prisma.failedDelivery.update({
+                    where: { id: delivery.id },
+                    data: {
+                        status: 'PENDING', // Allow retry on next run
+                        lastError: error instanceof Error ? error.message : 'Unknown error',
+                        lastAttemptAt: new Date(),
+                    },
+                })
+            }
+        }
+    } catch (error) {
+        console.error('[Dead Letter Queue] Error processing queue:', error)
+    }
+}
+
+/**
+ * Manually retry a failed delivery
+ */
+export async function retryFailedDelivery(deliveryId: string): Promise<boolean> {
+    const delivery = await prisma.failedDelivery.findUnique({
+        where: { id: deliveryId },
+    })
+
+    if (!delivery) {
+        throw new Error('Delivery not found')
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: delivery.userId },
+        select: { id: true, username: true, privateKey: true },
+    })
+
+    if (!user) {
+        throw new Error('User not found')
+    }
+
+    const success = await deliverToInbox(
+        delivery.activity as Activity,
+        delivery.inboxUrl,
+        user,
+        false
+    )
+
+    if (success) {
+        await prisma.failedDelivery.update({
+            where: { id: deliveryId },
+            data: {
+                status: 'FAILED',
+                resolvedAt: new Date(),
+            },
+        })
+    }
+
+    return success
+}
+
+/**
+ * Discard a failed delivery (mark as discarded)
+ */
+export async function discardFailedDelivery(deliveryId: string, resolvedBy?: string): Promise<void> {
+    await prisma.failedDelivery.update({
+        where: { id: deliveryId },
+        data: {
+            status: 'DISCARDED',
+            resolvedAt: new Date(),
+            resolvedBy,
+        },
+    })
 }

@@ -362,6 +362,49 @@ model ProcessedActivity {
   @@index([expiresAt])
 }
 
+enum FailedDeliveryStatus {
+  PENDING
+  RETRYING
+  FAILED
+  DISCARDED
+}
+
+// Failed activity deliveries for retry and monitoring
+model FailedDelivery {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Activity details
+  activityId   String // The ActivityPub activity ID
+  activityType String // Type of activity (Create, Update, etc.)
+  activity     Json   // Full activity payload
+
+  // Delivery details
+  inboxUrl String // Target inbox URL
+  userId   String // User sending the activity
+
+  // Error tracking
+  lastError     String? // Last error message
+  lastErrorCode String? // HTTP status code or error type
+  lastAttemptAt DateTime? // Last delivery attempt
+
+  // Retry management
+  attemptCount Int                   @default(0)
+  maxAttempts  Int                   @default(3)
+  nextRetryAt  DateTime? // When to retry next (exponential backoff)
+  status       FailedDeliveryStatus  @default(PENDING)
+
+  // Resolution
+  resolvedAt   DateTime? // When the delivery succeeded or was discarded
+  resolvedBy   String?   // Admin user who resolved it (if manual)
+
+  @@index([status, nextRetryAt])
+  @@index([userId])
+  @@index([inboxUrl])
+  @@index([createdAt])
+}
+
 // User blocking
 model BlockedUser {
   id        String   @id @default(cuid())
