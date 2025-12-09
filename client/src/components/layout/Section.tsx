@@ -84,28 +84,29 @@ export const Section = React.forwardRef<
     className
   )
 
-    // Determine content - wrap in Container if contained
-    const content = contained ? (
-      <Container size={containerSize}>
-        {children}
-      </Container>
-    ) : (
-      children
-    )
+  // Determine content - wrap in Container if contained
+  const content = contained ? (
+    <Container size={containerSize}>
+      {children}
+    </Container>
+  ) : (
+    children
+  )
 
-    return (
-      <Component
-        {...restProps}
-        // Type assertion needed for polymorphic component where Component can be different HTML elements
-        // Since Component is determined at runtime, TypeScript cannot verify ref compatibility statically
-        // All possible element types (section, div, article, etc.) extend HTMLElement, so this cast is safe
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ref={ref as unknown as any}
-        className={sectionClasses}
-      >
-        {content}
-      </Component>
-    )
+  return (
+    <Component
+      {...restProps}
+      // Type assertion needed for polymorphic component: Component can be section, div, article, etc.
+      // Unlike CardTitle (where all headings share HTMLHeadingElement), Section's element types
+      // don't share a common specific type, so TypeScript can't verify ref compatibility statically.
+      // All possible element types extend HTMLElement, so this cast is safe at runtime.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref={ref as unknown as any}
+      className={sectionClasses}
+    >
+      {content}
+    </Component>
+  )
   }
 )
 

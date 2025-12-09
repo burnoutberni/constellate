@@ -27,6 +27,10 @@ export interface GridProps extends React.HTMLAttributes<HTMLDivElement> {
    */
   colsXl?: GridCols
   /**
+   * Number of columns on 2xl screens (1536px+)
+   */
+  cols2xl?: GridCols
+  /**
    * Gap between grid items
    * @default 'md'
    */
@@ -44,7 +48,7 @@ export interface GridProps extends React.HTMLAttributes<HTMLDivElement> {
 
 // Column styles mapping - explicit class names for Tailwind JIT
 // Nested structure: breakpoint -> column count -> class name
-type BreakpointKey = 'base' | 'sm' | 'md' | 'lg' | 'xl'
+type BreakpointKey = 'base' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 const colClassMap: Record<BreakpointKey, Record<GridCols, string>> = {
   base: {
     1: 'grid-cols-1',
@@ -91,6 +95,15 @@ const colClassMap: Record<BreakpointKey, Record<GridCols, string>> = {
     6: 'xl:grid-cols-6',
     12: 'xl:grid-cols-12',
   },
+  '2xl': {
+    1: '2xl:grid-cols-1',
+    2: '2xl:grid-cols-2',
+    3: '2xl:grid-cols-3',
+    4: '2xl:grid-cols-4',
+    5: '2xl:grid-cols-5',
+    6: '2xl:grid-cols-6',
+    12: '2xl:grid-cols-12',
+  },
 }
 
 // Gap styles using design tokens
@@ -115,6 +128,7 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       colsMd,
       colsLg,
       colsXl,
+      cols2xl,
       gap = 'md',
       equalHeight = false,
       children,
@@ -133,6 +147,7 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       colsMd && colClassMap.md[colsMd],
       colsLg && colClassMap.lg[colsLg],
       colsXl && colClassMap.xl[colsXl],
+      cols2xl && colClassMap['2xl'][cols2xl],
     ].filter(Boolean)
 
     // Equal height styles

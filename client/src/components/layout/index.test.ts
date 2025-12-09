@@ -80,68 +80,55 @@ describe('Layout Index Exports', () => {
     })
   })
 
-  describe('Type Completeness', () => {
-    it('should have all ContainerSize values', () => {
-      const sizes: ContainerSize[] = ['sm', 'md', 'lg', 'xl', 'full']
-      sizes.forEach(size => {
-        expect(typeof size).toBe('string')
-      })
+  describe('Type Exports Verification', () => {
+    it('should export Container types from index', () => {
+      // Verify types are actually exported from the index module
+      expect(Layout.Container).toBe(Container)
+      // Type check: ensure ContainerProps and ContainerSize are available
+      const _testProps: ContainerProps = { children: 'test' }
+      const _testSize: ContainerSize = 'lg'
+      expect(_testProps).toBeDefined()
+      expect(_testSize).toBeDefined()
     })
 
-    it('should have all GridCols values', () => {
-      const cols: GridCols[] = [1, 2, 3, 4, 5, 6, 12]
-      cols.forEach(col => {
-        expect(typeof col).toBe('number')
-      })
+    it('should export Grid types from index', () => {
+      expect(Layout.Grid).toBe(Grid)
+      const _testProps: GridProps = { children: 'test' }
+      const _testCols: GridCols = 2
+      const _testGap: GridGap = 'md'
+      expect(_testProps).toBeDefined()
+      expect(_testCols).toBeDefined()
+      expect(_testGap).toBeDefined()
     })
 
-    it('should have all GridGap values', () => {
-      const gaps: GridGap[] = ['none', 'sm', 'md', 'lg', 'xl']
-      gaps.forEach(gap => {
-        expect(typeof gap).toBe('string')
-      })
+    it('should export Stack types from index', () => {
+      expect(Layout.Stack).toBe(Stack)
+      const _testProps: StackProps = { children: 'test' }
+      const _testDirection: StackDirection = 'row'
+      const _testAlign: StackAlign = 'center'
+      const _testJustify: StackJustify = 'between'
+      const _testGap: StackGap = 'md'
+      expect(_testProps).toBeDefined()
+      expect(_testDirection).toBeDefined()
+      expect(_testAlign).toBeDefined()
+      expect(_testJustify).toBeDefined()
+      expect(_testGap).toBeDefined()
     })
 
-    it('should have all StackDirection values', () => {
-      const directions: StackDirection[] = ['row', 'column']
-      directions.forEach(direction => {
-        expect(typeof direction).toBe('string')
-      })
+    it('should export Section types from index', () => {
+      expect(Layout.Section).toBe(Section)
+      const _testProps: SectionProps = { children: 'test' }
+      const _testPadding: SectionPadding = 'lg'
+      const _testVariant: SectionVariant = 'default'
+      expect(_testProps).toBeDefined()
+      expect(_testPadding).toBeDefined()
+      expect(_testVariant).toBeDefined()
     })
 
-    it('should have all StackAlign values', () => {
-      const aligns: StackAlign[] = ['start', 'center', 'end', 'stretch']
-      aligns.forEach(align => {
-        expect(typeof align).toBe('string')
-      })
-    })
-
-    it('should have all StackJustify values', () => {
-      const justifies: StackJustify[] = ['start', 'center', 'end', 'between', 'around', 'evenly']
-      justifies.forEach(justify => {
-        expect(typeof justify).toBe('string')
-      })
-    })
-
-    it('should have all StackGap values', () => {
-      const gaps: StackGap[] = ['none', 'xs', 'sm', 'md', 'lg', 'xl', '2xl']
-      gaps.forEach(gap => {
-        expect(typeof gap).toBe('string')
-      })
-    })
-
-    it('should have all SectionPadding values', () => {
-      const paddings: SectionPadding[] = ['none', 'sm', 'md', 'lg', 'xl', '2xl']
-      paddings.forEach(padding => {
-        expect(typeof padding).toBe('string')
-      })
-    })
-
-    it('should have all SectionVariant values', () => {
-      const variants: SectionVariant[] = ['default', 'muted', 'accent']
-      variants.forEach(variant => {
-        expect(typeof variant).toBe('string')
-      })
+    it('should export PageLayout types from index', () => {
+      expect(Layout.PageLayout).toBe(PageLayout)
+      const _testProps: PageLayoutProps = { children: 'test' }
+      expect(_testProps).toBeDefined()
     })
   })
 })

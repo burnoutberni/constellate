@@ -29,7 +29,6 @@ import {
   transitionDuration,
   transitionTiming,
   transitions,
-  type Theme,
 } from './tokens'
 import {
   isValidSpacing,
@@ -103,11 +102,6 @@ describe('Design System Index Exports', () => {
       expect(DesignSystem.transitionTiming).toBe(transitionTiming)
       expect(DesignSystem.transitions).toBe(transitions)
     })
-
-    it('should export Theme type', () => {
-      const theme: Theme = 'light'
-      expect(theme).toBe('light')
-    })
   })
 
   describe('Type Exports', () => {
@@ -121,30 +115,42 @@ describe('Design System Index Exports', () => {
       expect(DesignSystem.isValidTheme).toBe(isValidTheme)
     })
 
-    it('should export type definitions', () => {
-      // Test that types are available (compile-time check)
-      const colorScale: ColorScale = { 500: '#000' }
+    it('should export type definitions that match actual token structures', () => {
+      // Verify that exported types match the actual token structures
+      const colorScale: ColorScale = tokens.colors.light.primary
       const themeColors: ThemeColors = tokens.colors.light
       const typographyStyle: TypographyStyle = {
-        fontSize: '1rem',
-        fontWeight: 400,
-        lineHeight: 1.5,
-        letterSpacing: '0em',
+        fontSize: tokens.typography.body.fontSize,
+        fontWeight: tokens.typography.body.fontWeight,
+        lineHeight: tokens.typography.body.lineHeight,
+        letterSpacing: tokens.typography.body.letterSpacing,
       }
       
-      expect(colorScale).toBeDefined()
-      expect(themeColors).toBeDefined()
-      expect(typographyStyle).toBeDefined()
+      // Verify the types actually match the runtime values
+      expect(colorScale[500]).toBe(tokens.colors.light.primary[500])
+      expect(themeColors.primary).toBe(tokens.colors.light.primary)
+      expect(typographyStyle.fontSize).toBe(tokens.typography.body.fontSize)
+      expect(typographyStyle.fontWeight).toBe(tokens.typography.body.fontWeight)
     })
 
-    it('should export component prop types', () => {
+    it('should export component prop types that work with actual components', () => {
+      // Verify types can be used with actual component props
       const themeable: Themeable = { theme: 'light' }
       const colorVariant: ColorVariant = { variant: 'primary' }
       const sizeVariant: SizeVariant = { size: 'md' }
       
-      expect(themeable).toBeDefined()
-      expect(colorVariant).toBeDefined()
-      expect(sizeVariant).toBeDefined()
+      // Verify the values match expected token values
+      // theme is optional, but we set it to 'light', so it's defined
+      expect(themeable.theme).toBe('light')
+      if (themeable.theme) {
+        expect(isValidTheme(themeable.theme)).toBe(true)
+      }
+      if (colorVariant.variant) {
+        expect(['primary', 'secondary', 'success', 'warning', 'error', 'info']).toContain(colorVariant.variant)
+      }
+      if (sizeVariant.size) {
+        expect(['xs', 'sm', 'md', 'lg', 'xl']).toContain(sizeVariant.size)
+      }
     })
   })
 

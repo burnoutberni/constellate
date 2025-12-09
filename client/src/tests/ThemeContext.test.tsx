@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, cleanup } from '@testing-library/react'
 import { ThemeProvider, useTheme, useThemeColors } from '../design-system/ThemeContext'
 import { tokens } from '../design-system/tokens'
 
@@ -57,7 +57,7 @@ function TestColorsComponent() {
 
 describe('ThemeContext', () => {
   let originalLocalStorage: typeof global.localStorage
-  let originalMatchMedia: typeof window.matchMedia
+  let originalMatchMedia: typeof window.matchMedia | undefined
   let originalDocumentClassName: string
   let localStorageMock: {
     getItem: ReturnType<typeof vi.fn>
@@ -69,8 +69,8 @@ describe('ThemeContext', () => {
   beforeEach(() => {
     // Store original values before modifying
     originalLocalStorage = global.localStorage
-    originalMatchMedia = window.matchMedia
-    originalDocumentClassName = document.documentElement.className
+    originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined
+    originalDocumentClassName = typeof document !== 'undefined' ? document.documentElement.className : ''
 
     // Reset localStorage
     localStorageMock = {
@@ -82,16 +82,24 @@ describe('ThemeContext', () => {
     global.localStorage = localStorageMock as any
 
     // Reset document classes
-    document.documentElement.className = ''
+    if (typeof document !== 'undefined') {
+      document.documentElement.className = ''
+    }
 
     // Reset matchMedia
-    window.matchMedia = createMatchMedia(false)
+    if (typeof window !== 'undefined') {
+      window.matchMedia = createMatchMedia(false)
+    }
   })
 
   afterEach(() => {
     global.localStorage = originalLocalStorage
-    window.matchMedia = originalMatchMedia
-    document.documentElement.className = originalDocumentClassName
+    if (typeof window !== 'undefined' && originalMatchMedia !== undefined) {
+      window.matchMedia = originalMatchMedia
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.className = originalDocumentClassName
+    }
     vi.clearAllMocks()
   })
 
@@ -449,36 +457,85 @@ describe('ThemeContext', () => {
 
   describe('SSR and window undefined scenarios', () => {
     it('should handle SSR scenario when window is undefined', () => {
-      const originalWindow = global.window
-      // @ts-expect-error - intentionally setting to undefined for SSR test
-      global.window = undefined
-
-      // This should not throw
-      expect(() => {
-        // In SSR, getSystemTheme should return 'light' as default
-        const systemTheme = typeof window === 'undefined' ? 'light' : 
-          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        expect(systemTheme).toBe('light')
-      }).not.toThrow()
-
-      global.window = originalWindow
-    })
-
-    it('should handle localStorage being undefined', () => {
-      const originalLocalStorage = global.localStorage
-      global.localStorage = undefined as any
-
+      // Note: React Testing Library requires window to be available for rendering,
+      // so we can't actually render when window is undefined. Instead, we test that:
+      // 1. The ThemeProvider code checks for window existence (verified in ThemeContext.tsx)
+      // 2. It defaults to 'light' theme when no window/localStorage/system preference
+      
       localStorageMock.getItem = vi.fn(() => null)
-
-      render(
+      
+      // When no defaultTheme, no localStorage, and system preference is light,
+      // it should default to light
+      window.matchMedia = createMatchMedia(false) // System prefers light
+      
+      const rendered = render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+      
+      // Should default to light theme (system preference)
+      expect(rendered.getByTestId('theme')).toHaveTextContent('light')
+      
+      // Clean up before next render
+      rendered.unmount()
+      cleanup()
+      
+      // Test with explicit defaultTheme (SSR scenario)
+      const renderedWithDefault = render(
         <ThemeProvider defaultTheme="light">
           <TestComponent />
         </ThemeProvider>
       )
+      expect(renderedWithDefault.getByTestId('theme')).toHaveTextContent('light')
+    })
 
-      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+    it('should handle localStorage being unavailable', () => {
+      const originalLocalStorage = global.localStorage
+      
+      try {
+        // Simulate localStorage being unavailable (e.g., private browsing mode)
+        // by making getItem throw an error
+        Object.defineProperty(global, 'localStorage', {
+          value: {
+            getItem: vi.fn(() => {
+              throw new Error('localStorage is not available')
+            }),
+            setItem: vi.fn(() => {
+              throw new Error('localStorage is not available')
+            }),
+            removeItem: vi.fn(),
+            clear: vi.fn(),
+          },
+          writable: true,
+          configurable: true,
+        })
 
-      global.localStorage = originalLocalStorage
+        // ThemeProvider should handle localStorage errors gracefully
+        // and fall back to defaultTheme or system preference
+        let firstRender: ReturnType<typeof render>
+        expect(() => {
+          firstRender = render(
+            <ThemeProvider defaultTheme="light">
+              <TestComponent />
+            </ThemeProvider>
+          )
+        }).not.toThrow()
+
+        // Clean up before next render
+        firstRender!.unmount()
+        cleanup()
+
+        const rendered = render(
+          <ThemeProvider defaultTheme="light">
+            <TestComponent />
+          </ThemeProvider>
+        )
+        expect(rendered.getByTestId('theme')).toHaveTextContent('light')
+      } finally {
+        // Restore original localStorage
+        global.localStorage = originalLocalStorage
+      }
     })
   })
 

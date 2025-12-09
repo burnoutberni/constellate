@@ -22,35 +22,38 @@ describe('PageLayout Component', () => {
 
   it('should render header when provided', () => {
     render(
-      <PageLayout header={<header>Header content</header>}>
+      <PageLayout header={<div>Header content</div>}>
         Main content
       </PageLayout>
     )
     
     expect(screen.getByText('Header content')).toBeInTheDocument()
     expect(screen.getByText('Main content')).toBeInTheDocument()
+    expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
   it('should render footer when provided', () => {
     render(
-      <PageLayout footer={<footer>Footer content</footer>}>
+      <PageLayout footer={<div>Footer content</div>}>
         Main content
       </PageLayout>
     )
     
     expect(screen.getByText('Footer content')).toBeInTheDocument()
     expect(screen.getByText('Main content')).toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument()
   })
 
   it('should render sidebar when provided', () => {
     render(
-      <PageLayout sidebar={<aside>Sidebar content</aside>}>
+      <PageLayout sidebar={<div>Sidebar content</div>}>
         Main content
       </PageLayout>
     )
     
     expect(screen.getByText('Sidebar content')).toBeInTheDocument()
     expect(screen.getByText('Main content')).toBeInTheDocument()
+    expect(screen.getByRole('complementary')).toBeInTheDocument()
   })
 
   it('should render sidebar on left by default', () => {
@@ -186,9 +189,9 @@ describe('PageLayout Component', () => {
   it('should render complete layout structure', () => {
     render(
       <PageLayout
-        header={<header>Header</header>}
-        footer={<footer>Footer</footer>}
-        sidebar={<aside>Sidebar</aside>}
+        header={<div>Header</div>}
+        footer={<div>Footer</div>}
+        sidebar={<div>Sidebar</div>}
       >
         Main content
       </PageLayout>
@@ -198,6 +201,9 @@ describe('PageLayout Component', () => {
     expect(screen.getByText('Main content')).toBeInTheDocument()
     expect(screen.getByText('Sidebar')).toBeInTheDocument()
     expect(screen.getByText('Footer')).toBeInTheDocument()
+    expect(screen.getByRole('banner')).toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument()
+    expect(screen.getByRole('complementary')).toBeInTheDocument()
   })
 
   it('should forward ref to layout element', () => {
@@ -211,7 +217,7 @@ describe('PageLayout Component', () => {
   it('should forward ref when sidebar is present', () => {
     const ref = React.createRef<HTMLDivElement>()
     render(
-      <PageLayout ref={ref} sidebar={<aside>Sidebar</aside>}>
+      <PageLayout ref={ref} sidebar={<div>Sidebar</div>}>
         Content
       </PageLayout>
     )

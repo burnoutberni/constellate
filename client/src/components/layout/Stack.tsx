@@ -25,6 +25,14 @@ export interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
    */
   directionLg?: StackDirection
   /**
+   * Direction on extra large screens (1280px+)
+   */
+  directionXl?: StackDirection
+  /**
+   * Direction on 2xl screens (1536px+)
+   */
+  direction2xl?: StackDirection
+  /**
    * Alignment of items along the cross axis
    * @default 'start'
    */
@@ -80,7 +88,7 @@ const gapStyles: Record<StackGap, string> = {
 }
 
 // Direction styles mapping - explicit class names for Tailwind JIT
-type DirectionBreakpointKey = 'base' | 'sm' | 'md' | 'lg'
+type DirectionBreakpointKey = 'base' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 const directionClassMap: Record<DirectionBreakpointKey, Record<StackDirection, string>> = {
   base: {
     row: 'flex-row',
@@ -98,6 +106,14 @@ const directionClassMap: Record<DirectionBreakpointKey, Record<StackDirection, s
     row: 'lg:flex-row',
     column: 'lg:flex-col',
   },
+  xl: {
+    row: 'xl:flex-row',
+    column: 'xl:flex-col',
+  },
+  '2xl': {
+    row: '2xl:flex-row',
+    column: '2xl:flex-col',
+  },
 }
 
 /**
@@ -112,6 +128,8 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       directionSm,
       directionMd,
       directionLg,
+      directionXl,
+      direction2xl,
       align = 'start',
       justify = 'start',
       gap = 'md',
@@ -131,6 +149,8 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       directionSm && directionClassMap.sm[directionSm],
       directionMd && directionClassMap.md[directionMd],
       directionLg && directionClassMap.lg[directionLg],
+      directionXl && directionClassMap.xl[directionXl],
+      direction2xl && directionClassMap['2xl'][direction2xl],
     ].filter(Boolean)
 
     // Wrap styles

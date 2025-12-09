@@ -70,6 +70,9 @@ export function ThemeProvider({
 
   // Apply theme class to document root
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
     const root = document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
