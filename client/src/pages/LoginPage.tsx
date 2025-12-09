@@ -46,7 +46,7 @@ export function LoginPage() {
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
+                    <div className="bg-error-50 text-error-600 p-3 rounded-lg mb-6 text-sm">
                         {error}
                     </div>
                 )}

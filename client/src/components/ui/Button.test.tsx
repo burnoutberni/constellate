@@ -37,7 +37,7 @@ describe('Button Component', () => {
     expect(screen.getByRole('button')).toHaveClass('bg-transparent', 'text-text-secondary')
 
     rerender(<Button variant="danger">Danger</Button>)
-    expect(screen.getByRole('button')).toHaveClass('bg-red-600', 'text-white')
+    expect(screen.getByRole('button')).toHaveClass('bg-error-600', 'text-white')
   })
 
   it('should render with different sizes', () => {

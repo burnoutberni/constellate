@@ -593,7 +593,7 @@ export function SearchPage() {
 
                     <div className="space-y-4">
                         {isError && (
-                            <div className="card p-6 text-red-600">
+                            <div className="card p-6 text-error-600">
                                 {(error as Error)?.message || 'Something went wrong while searching.'}
                             </div>
                         )}

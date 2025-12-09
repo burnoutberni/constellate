@@ -82,8 +82,8 @@ export function Navbar({ isConnected, user, onLogout }: {
               </Link>
             )}
             {isConnected && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full" />
+              <div className="flex items-center gap-2 text-sm text-success-600">
+                <div className="w-2 h-2 bg-success-600 rounded-full" />
                 <span className="hidden sm:inline">Live</span>
               </div>
             )}

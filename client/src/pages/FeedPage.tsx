@@ -162,7 +162,7 @@ export function FeedPage() {
 
         if (trendingError) {
             return (
-                <div className="card p-6 text-center text-red-600 space-y-3">
+                <div className="card p-6 text-center text-error-600 space-y-3">
                     <p>We couldn&apos;t load trending events.</p>
                     <button
                         type="button"

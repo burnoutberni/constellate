@@ -78,10 +78,10 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 
     // Status colors
     const statusColors = {
-      online: 'bg-green-500',
+      online: 'bg-success-500',
       offline: 'bg-neutral-400',
-      away: 'bg-yellow-500',
-      busy: 'bg-red-500',
+      away: 'bg-warning-500',
+      busy: 'bg-error-500',
     }
 
     const avatarClasses = cn(

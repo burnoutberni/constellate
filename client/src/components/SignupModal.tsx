@@ -75,7 +75,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm border border-red-200">
+                    <div className="bg-error-50 text-error-600 p-3 rounded-lg mb-4 text-sm border border-error-200">
                         {error}
                     </div>
                 )}

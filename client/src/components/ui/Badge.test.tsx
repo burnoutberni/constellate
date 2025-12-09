@@ -24,13 +24,13 @@ describe('Badge Component', () => {
     expect(screen.getByText('Secondary')).toHaveClass('bg-purple-100', 'text-purple-800')
 
     rerender(<Badge variant="success">Success</Badge>)
-    expect(screen.getByText('Success')).toHaveClass('bg-green-100', 'text-green-800')
+    expect(screen.getByText('Success')).toHaveClass('bg-success-100', 'text-success-800')
 
     rerender(<Badge variant="warning">Warning</Badge>)
-    expect(screen.getByText('Warning')).toHaveClass('bg-yellow-100', 'text-yellow-800')
+    expect(screen.getByText('Warning')).toHaveClass('bg-warning-100', 'text-warning-800')
 
     rerender(<Badge variant="error">Error</Badge>)
-    expect(screen.getByText('Error')).toHaveClass('bg-red-100', 'text-red-800')
+    expect(screen.getByText('Error')).toHaveClass('bg-error-100', 'text-error-800')
 
     rerender(<Badge variant="info">Info</Badge>)
     expect(screen.getByText('Info')).toHaveClass('bg-blue-100', 'text-blue-800')

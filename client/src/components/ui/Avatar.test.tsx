@@ -91,21 +91,21 @@ describe('Avatar Component', () => {
     
     const statusIndicator = screen.getByLabelText('Status: online')
     expect(statusIndicator).toBeInTheDocument()
-    expect(statusIndicator).toHaveClass('bg-green-500')
+    expect(statusIndicator).toHaveClass('bg-success-500')
   })
 
   it('should render different status colors', () => {
     const { rerender } = render(<Avatar fallback="ST" status="online" />)
-    expect(screen.getByLabelText('Status: online')).toHaveClass('bg-green-500')
+    expect(screen.getByLabelText('Status: online')).toHaveClass('bg-success-500')
 
     rerender(<Avatar fallback="ST" status="offline" />)
     expect(screen.getByLabelText('Status: offline')).toHaveClass('bg-neutral-400')
 
     rerender(<Avatar fallback="ST" status="away" />)
-    expect(screen.getByLabelText('Status: away')).toHaveClass('bg-yellow-500')
+    expect(screen.getByLabelText('Status: away')).toHaveClass('bg-warning-500')
 
     rerender(<Avatar fallback="ST" status="busy" />)
-    expect(screen.getByLabelText('Status: busy')).toHaveClass('bg-red-500')
+    expect(screen.getByLabelText('Status: busy')).toHaveClass('bg-error-500')
   })
 
   it('should use default fallback "?" when no fallback is provided', () => {

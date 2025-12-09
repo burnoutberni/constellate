@@ -137,7 +137,7 @@ export function OnboardingPage() {
                     </div>
 
                     {error && (
-                        <div className="text-red-500 text-sm text-center">
+                        <div className="text-error-500 text-sm text-center">
                             {error}
                         </div>
                     )}

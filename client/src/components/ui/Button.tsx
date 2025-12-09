@@ -94,11 +94,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'focus:ring-border-default',
       ],
       danger: [
-        'bg-red-600 text-white',
-        'hover:bg-red-700',
-        'active:bg-red-800',
-        'focus:ring-red-500',
-        'dark:bg-red-500 dark:hover:bg-red-600 dark:active:bg-red-700',
+        'bg-error-600 text-white',
+        'hover:bg-error-700',
+        'active:bg-error-800',
+        'focus:ring-error-500',
+        'dark:bg-error-500 dark:hover:bg-error-600 dark:active:bg-error-700',
       ],
     }
 
