@@ -69,7 +69,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       'transition-all duration-200',
       'focus:outline-none focus:ring-2 focus:ring-offset-2',
       'disabled:opacity-50 disabled:cursor-not-allowed',
-      'dark:focus:ring-offset-gray-900',
+      'focus:ring-offset-background-primary',
     ]
 
     // Variant styles
@@ -82,20 +82,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'dark:bg-primary-500 dark:hover:bg-primary-600 dark:active:bg-primary-700',
       ],
       secondary: [
-        'bg-neutral-200 text-neutral-900',
-        'hover:bg-neutral-300',
-        'active:bg-neutral-400',
-        'focus:ring-neutral-500',
-        'dark:bg-neutral-700 dark:text-neutral-100',
-        'dark:hover:bg-neutral-600 dark:active:bg-neutral-500',
+        'bg-background-tertiary text-text-primary',
+        'hover:bg-background-secondary',
+        'active:bg-background-secondary',
+        'focus:ring-border-default',
       ],
       ghost: [
-        'bg-transparent text-neutral-700',
-        'hover:bg-neutral-100',
-        'active:bg-neutral-200',
-        'focus:ring-neutral-500',
-        'dark:text-neutral-300',
-        'dark:hover:bg-neutral-800 dark:active:bg-neutral-700',
+        'bg-transparent text-text-secondary',
+        'hover:bg-background-secondary',
+        'active:bg-background-tertiary',
+        'focus:ring-border-default',
       ],
       danger: [
         'bg-red-600 text-white',
@@ -163,3 +159,4 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
+

@@ -58,7 +58,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
-    const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`
+    const generatedId = React.useId()
+    const textareaId = id || `textarea-${generatedId}`
     const errorId = error && errorMessage ? `${textareaId}-error` : undefined
     const helperId = helperText ? `${textareaId}-helper` : undefined
 
@@ -70,8 +71,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       'transition-all duration-200',
       'focus:outline-none focus:ring-2 focus:ring-offset-0',
       'disabled:opacity-50 disabled:cursor-not-allowed',
-      'dark:bg-neutral-900 dark:border-neutral-700',
-      'dark:focus:ring-offset-neutral-900',
+      'bg-background-primary',
+      'focus:ring-offset-background-primary',
     ]
 
     // Size styles
@@ -84,16 +85,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     // State styles
     const stateStyles = error
       ? [
-          'border-red-500 text-red-900',
-          'focus:border-red-500 focus:ring-red-500',
-          'dark:border-red-500 dark:text-red-100',
-          'dark:focus:border-red-500 dark:focus:ring-red-500',
+          'border-border-error text-error-700',
+          'focus:border-border-error focus:ring-border-error',
+          'dark:text-error-100',
         ]
       : [
-          'border-neutral-300 text-neutral-900',
-          'focus:border-primary-500 focus:ring-primary-500',
-          'dark:border-neutral-700 dark:text-neutral-100',
-          'dark:focus:border-primary-400 dark:focus:ring-primary-400',
+          'border-border-default text-text-primary',
+          'focus:border-border-focus focus:ring-border-focus',
         ]
 
     const textareaClasses = cn(baseStyles, sizeStyles[size], stateStyles, className)
@@ -107,9 +105,9 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             htmlFor={textareaId}
             className={cn(
               'block text-sm font-medium mb-1.5',
-              'text-neutral-700 dark:text-neutral-300',
-              error && 'text-red-600 dark:text-red-400',
-              required && "after:content-['*'] after:ml-0.5 after:text-red-500"
+              'text-text-secondary',
+              error && 'text-error-600 dark:text-error-400',
+              required && "after:content-['*'] after:ml-0.5 after:text-error-500"
             )}
           >
             {label}
@@ -130,7 +128,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {error && errorMessage && (
           <p
             id={errorId}
-            className="mt-1.5 text-sm text-red-600 dark:text-red-400"
+            className="mt-1.5 text-sm text-error-600 dark:text-error-400"
             role="alert"
           >
             {errorMessage}
@@ -139,7 +137,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {!error && helperText && (
           <p
             id={helperId}
-            className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400"
+            className="mt-1.5 text-sm text-text-tertiary"
           >
             {helperText}
           </p>
@@ -150,3 +148,4 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 )
 
 Textarea.displayName = 'Textarea'
+

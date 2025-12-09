@@ -51,8 +51,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
     // Variant styles
     const variantStyles = {
       default: [
-        'bg-neutral-100 text-neutral-800',
-        'dark:bg-neutral-800 dark:text-neutral-200',
+        'bg-background-secondary text-text-primary',
       ],
       primary: [
         'bg-primary-100 text-primary-800',
@@ -107,3 +106,4 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
 )
 
 Badge.displayName = 'Badge'
+

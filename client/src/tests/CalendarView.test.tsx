@@ -69,7 +69,6 @@ describe('CalendarView date calculations', () => {
             },
         ]
 
-        const currentDate = new Date(2025, 11, 15) // December 15, 2025
         const hour = 10
 
         const filtered = mockEvents.filter((event) => {

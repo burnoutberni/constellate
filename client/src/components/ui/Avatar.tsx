@@ -86,14 +86,14 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 
     const avatarClasses = cn(
       'relative inline-flex items-center justify-center',
-      'font-medium text-neutral-700',
-      'bg-neutral-100 dark:bg-neutral-800',
-      'text-neutral-600 dark:text-neutral-300',
+      'font-medium',
+      'bg-background-secondary',
+      'text-text-tertiary',
       'overflow-hidden',
       'flex-shrink-0',
       sizeStyles[size],
       rounded ? 'rounded-full' : 'rounded-lg',
-      bordered && 'ring-2 ring-neutral-200 dark:ring-neutral-700',
+      bordered && 'ring-2 ring-border-default',
       className
     )
 
@@ -130,7 +130,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
           <span
             className={cn(
               'absolute bottom-0 right-0',
-              'rounded-full border-2 border-white dark:border-neutral-900',
+              'rounded-full border-2 border-background-primary',
               statusSizeStyles[size],
               statusColors[status]
             )}
@@ -184,17 +184,17 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
             alt={avatar.alt}
             fallback={avatar.fallback}
             size={size}
-            className="ring-2 ring-white dark:ring-neutral-900"
+            className="ring-2 ring-background-primary"
           />
         ))}
         {remainingCount > 0 && (
           <div
             className={cn(
               'flex items-center justify-center',
-              'bg-neutral-100 dark:bg-neutral-800',
-              'text-neutral-600 dark:text-neutral-300',
+              'bg-background-secondary',
+              'text-text-tertiary',
               'font-medium rounded-full',
-              'ring-2 ring-white dark:ring-neutral-900',
+              'ring-2 ring-background-primary',
               size === 'xs' && 'w-6 h-6 text-xs',
               size === 'sm' && 'w-8 h-8 text-sm',
               size === 'md' && 'w-10 h-10 text-base',
@@ -212,3 +212,4 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
 )
 
 AvatarGroup.displayName = 'AvatarGroup'
+

@@ -10,6 +10,13 @@ const junitReporter: ['junit', { outputFile: string }] = [
 export default defineConfig({
   test: {
     setupFiles: ['./src/tests/setupVitest.ts'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'client/**',
+      'prisma/**',
+      'scripts/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json', 'json-summary', 'html'],

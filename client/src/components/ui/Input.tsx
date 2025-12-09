@@ -63,7 +63,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
+    const generatedId = React.useId()
+    const inputId = id || `input-${generatedId}`
     const errorId = error && errorMessage ? `${inputId}-error` : undefined
     const helperId = helperText ? `${inputId}-helper` : undefined
 
@@ -74,8 +75,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       'transition-all duration-200',
       'focus:outline-none focus:ring-2 focus:ring-offset-0',
       'disabled:opacity-50 disabled:cursor-not-allowed',
-      'dark:bg-neutral-900 dark:border-neutral-700',
-      'dark:focus:ring-offset-neutral-900',
+      'bg-background-primary',
+      'focus:ring-offset-background-primary',
     ]
 
     // Size styles
@@ -88,16 +89,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     // State styles
     const stateStyles = error
       ? [
-          'border-red-500 text-red-900',
-          'focus:border-red-500 focus:ring-red-500',
-          'dark:border-red-500 dark:text-red-100',
-          'dark:focus:border-red-500 dark:focus:ring-red-500',
+          'border-border-error text-error-700',
+          'focus:border-border-error focus:ring-border-error',
+          'dark:text-error-100',
         ]
       : [
-          'border-neutral-300 text-neutral-900',
-          'focus:border-primary-500 focus:ring-primary-500',
-          'dark:border-neutral-700 dark:text-neutral-100',
-          'dark:focus:border-primary-400 dark:focus:ring-primary-400',
+          'border-border-default text-text-primary',
+          'focus:border-border-focus focus:ring-border-focus',
         ]
 
     const inputClasses = cn(
@@ -118,9 +116,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             htmlFor={inputId}
             className={cn(
               'block text-sm font-medium mb-1.5',
-              'text-neutral-700 dark:text-neutral-300',
-              error && 'text-red-600 dark:text-red-400',
-              required && "after:content-['*'] after:ml-0.5 after:text-red-500"
+              'text-text-secondary',
+              error && 'text-error-600 dark:text-error-400',
+              required && "after:content-['*'] after:ml-0.5 after:text-error-500"
             )}
           >
             {label}
@@ -131,9 +129,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <div
               className={cn(
                 'absolute left-3 top-1/2 -translate-y-1/2',
-                'text-neutral-400 dark:text-neutral-500',
+                'text-text-disabled',
                 'pointer-events-none',
-                error && 'text-red-500 dark:text-red-400'
+                error && 'text-error-500 dark:text-error-400'
               )}
             >
               {leftIcon}
@@ -154,9 +152,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <div
               className={cn(
                 'absolute right-3 top-1/2 -translate-y-1/2',
-                'text-neutral-400 dark:text-neutral-500',
+                'text-text-disabled',
                 'pointer-events-none',
-                error && 'text-red-500 dark:text-red-400'
+                error && 'text-error-500 dark:text-error-400'
               )}
             >
               {rightIcon}
@@ -166,7 +164,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {error && errorMessage && (
           <p
             id={errorId}
-            className="mt-1.5 text-sm text-red-600 dark:text-red-400"
+            className="mt-1.5 text-sm text-error-600 dark:text-error-400"
             role="alert"
           >
             {errorMessage}
@@ -175,7 +173,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {!error && helperText && (
           <p
             id={helperId}
-            className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400"
+            className="mt-1.5 text-sm text-text-tertiary"
           >
             {helperText}
           </p>
@@ -186,3 +184,4 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 )
 
 Input.displayName = 'Input'
+
