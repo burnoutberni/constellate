@@ -1,0 +1,113 @@
+import type { Config } from 'tailwindcss'
+import {
+  primaryColors,
+  secondaryColors,
+  neutralColors,
+  semanticColors,
+  fontFamilies,
+  fontSizes,
+  fontWeights,
+  lineHeights,
+  letterSpacing,
+  spacing,
+  borderRadius,
+  shadows,
+  breakpoints,
+  zIndex,
+  transitionDuration,
+  transitionTiming,
+} from './src/design-system/tokens'
+
+/**
+ * Tailwind CSS configuration using design system tokens
+ */
+const config: Config = {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      // Colors from design tokens
+      colors: {
+        primary: primaryColors,
+        secondary: secondaryColors,
+        neutral: neutralColors,
+        success: semanticColors.success,
+        warning: semanticColors.warning,
+        error: semanticColors.error,
+        info: semanticColors.info,
+      },
+      
+      // Typography from design tokens
+      fontFamily: {
+        sans: fontFamilies.sans,
+        mono: fontFamilies.mono,
+      },
+      fontSize: fontSizes,
+      fontWeight: fontWeights,
+      lineHeight: lineHeights,
+      letterSpacing: letterSpacing,
+      
+      // Spacing from design tokens
+      spacing: spacing,
+      
+      // Border radius from design tokens
+      borderRadius: borderRadius,
+      
+      // Shadows from design tokens (light theme by default)
+      boxShadow: shadows,
+      
+      // Breakpoints from design tokens
+      screens: breakpoints,
+      
+      // Z-index from design tokens
+      zIndex: zIndex,
+      
+      // Transitions
+      transitionDuration: transitionDuration,
+      transitionTimingFunction: transitionTiming,
+      
+      // Existing animations (preserved)
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-down': 'slideDown 0.3s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'shimmer': 'shimmer 2s linear infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        slideDown: {
+          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-1000px 0' },
+          '100%': { backgroundPosition: '1000px 0' },
+        },
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      gridTemplateColumns: {
+        'calendar': 'repeat(7, minmax(0, 1fr))',
+      },
+    },
+  },
+  plugins: [],
+}
+
+export default config
