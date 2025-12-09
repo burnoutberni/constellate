@@ -766,6 +766,15 @@ async function handleCreateNote(activity: CreateActivity, note: ActivityPubNote 
 
 /**
  * Handle Update activity
+ * 
+ * Processes incoming Update activities from remote instances. Currently supports:
+ * - Event updates: Changes to event details (title, time, location, status, etc.)
+ * - Profile updates: Changes to user profile (name, bio, avatar, display color)
+ * 
+ * Updates are applied to locally cached copies of remote objects. Only the fields
+ * present in the update are modified; missing fields are set to null/undefined.
+ * 
+ * @param activity - The Update activity containing the updated object
  */
 async function handleUpdate(activity: UpdateActivity): Promise<void> {
     const object = activity.object
@@ -786,6 +795,15 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 
 /**
  * Handle Update Event
+ * 
+ * Updates a locally cached remote event with new data. Only events that already
+ * exist in the database are updated; Update activities do not create new events.
+ * 
+ * Fields are updated to match the incoming activity, with null/missing fields
+ * clearing the existing values. This ensures the local copy stays synchronized
+ * with the authoritative copy on the remote instance.
+ * 
+ * @param event - The updated event object from the Update activity
  */
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
     const eventObj = event as Record<string, unknown>
@@ -822,6 +840,17 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 
 /**
  * Handle Update Person (profile)
+ * 
+ * Updates a locally cached remote user profile with new data. This keeps the
+ * local copy of remote users synchronized when they change their profile details.
+ * 
+ * Typical profile updates include:
+ * - Display name changes
+ * - Bio/summary updates  
+ * - Avatar or header image changes
+ * - Display color preferences
+ * 
+ * @param person - The updated Person object from the Update activity
  */
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
     const personObj = person as Person
@@ -849,6 +878,19 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 
 /**
  * Handle Delete activity
+ * 
+ * Processes incoming Delete activities from remote instances. Removes the specified
+ * object from the local cache. Currently supports:
+ * - Event deletion: Removes cached remote events (cascades to likes, comments, attendance)
+ * - Comment deletion: Removes cached remote comments
+ * 
+ * Delete activities can use either a Tombstone object (with formerType indicating what
+ * was deleted) or a plain string/object ID. The object ID is used to find and delete
+ * the corresponding local cached copy.
+ * 
+ * Real-time broadcasts notify connected clients of the deletion so UIs can update.
+ * 
+ * @param activity - The Delete activity containing the object to be deleted
  */
 async function handleDelete(activity: DeleteActivity): Promise<void> {
     const object = activity.object
@@ -982,6 +1024,22 @@ async function handleLike(activity: LikeActivity): Promise<void> {
 
 /**
  * Handle Undo activity
+ * 
+ * Processes incoming Undo activities to reverse previous actions. The Undo activity
+ * wraps the original activity being undone. Currently supports:
+ * 
+ * - Undo Like: Removes a like from an event
+ * - Undo Follow: Removes a follower relationship
+ * - Undo Accept/TentativeAccept/Reject: Removes attendance status (used when user
+ *   changes RSVP or decides not to attend)
+ * 
+ * The wrapped activity object must include its type and enough information to
+ * identify what is being undone. String URLs are not supported; the full activity
+ * object must be provided.
+ * 
+ * Real-time broadcasts notify connected clients of the reversal so UIs can update.
+ * 
+ * @param activity - The Undo activity containing the original activity to be undone
  */
 async function handleUndo(activity: UndoActivity): Promise<void> {
     const object = activity.object
@@ -1022,6 +1080,13 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
 
 /**
  * Handle Undo Like
+ * 
+ * Removes a like that was previously added by a Like activity. The user who
+ * performed the original like is identified by the activity actor, and the
+ * event is identified by the object URL in the wrapped Like activity.
+ * 
+ * @param activity - The Undo activity
+ * @param likeActivity - The wrapped Like activity being undone
  */
 async function handleUndoLike(activity: UndoActivity, likeActivity: LikeActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
@@ -1070,6 +1135,16 @@ async function handleUndoLike(activity: UndoActivity, likeActivity: LikeActivity
 
 /**
  * Handle Undo Follow
+ * 
+ * Removes a follower relationship that was previously established by a Follow activity.
+ * The follower is identified by the activity actor, and the target user is identified
+ * by the object URL in the wrapped Follow activity.
+ * 
+ * Only processes unfollows targeting local users. Remote-to-remote unfollows are ignored.
+ * Broadcasts a FOLLOWER_REMOVED event to the target user's connected clients.
+ * 
+ * @param activity - The Undo activity
+ * @param followActivity - The wrapped Follow activity being undone
  */
 async function handleUndoFollow(activity: UndoActivity, followActivity: FollowActivity | Record<string, unknown>): Promise<void> {
     const actorUrl = activity.actor
@@ -1123,6 +1198,18 @@ async function handleUndoFollow(activity: UndoActivity, followActivity: FollowAc
 
 /**
  * Handle Undo Attendance
+ * 
+ * Removes an attendance record (RSVP) that was previously created by an Accept,
+ * TentativeAccept, or Reject activity. Used when users change their mind about
+ * attending an event or want to remove their RSVP entirely.
+ * 
+ * The attendee is identified by the activity actor, and the event is identified
+ * by the object URL in the wrapped attendance activity.
+ * 
+ * Broadcasts an ATTENDANCE_REMOVED event to update connected clients' attendance lists.
+ * 
+ * @param activity - The Undo activity
+ * @param attendanceActivity - The wrapped Accept/TentativeAccept/Reject activity being undone
  */
 async function handleUndoAttendance(activity: UndoActivity | Record<string, unknown>, attendanceActivity: AcceptActivity | Record<string, unknown>): Promise<void> {
     let actorUrl: string

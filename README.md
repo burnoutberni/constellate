@@ -169,6 +169,45 @@ Features:
 - **Activity feed**: See events, likes, RSVPs, and comments from people you follow
 - **Real-time updates**: Follow status changes are broadcast via SSE (`follow:pending`, `follow:accepted`, etc.)
 
+## ActivityPub Federation
+
+Constellate implements the ActivityPub protocol for decentralized federation with other compatible instances (Mastodon, Mobilizon, etc.). The following ActivityPub activity types are fully supported:
+
+### Outgoing Activities (Sent to Remote Instances)
+
+- **Create**: Share new events and comments with followers on remote instances
+- **Update**: Notify followers when event details or profile information changes
+- **Delete**: Inform followers when events or comments are deleted
+- **Follow**: Request to follow remote users
+- **Accept**: Accept follow requests and indicate event attendance
+- **Reject**: Reject follow requests and indicate non-attendance
+- **Like**: Like events created by remote users
+- **Announce**: Share/repost events from remote instances
+- **TentativeAccept**: Indicate "maybe" attendance status
+- **Undo**: Reverse previous actions (unlike, unfollow, change RSVP)
+
+### Incoming Activities (Received from Remote Instances)
+
+All outgoing activity types are also processed when received from remote instances. Constellate properly handles:
+
+- **Event synchronization**: Remote events are cached locally and kept up-to-date via Update activities
+- **Profile updates**: Remote user profiles are updated when they change
+- **Deletion handling**: Deleted content is removed from local caches (uses Tombstone objects)
+- **RSVP management**: Track attendance from remote users with Accept/TentativeAccept/Reject
+- **Activity reversal**: Undo activities properly reverse likes, follows, and attendance
+
+### Federation Features
+
+- **HTTP Signatures**: All outgoing activities are signed using RSA-based HTTP signatures for authentication
+- **Signature verification**: Incoming activities are verified to prevent spoofing
+- **WebFinger discovery**: Supports ActivityPub actor discovery via WebFinger
+- **Shared inboxes**: Efficient delivery using shared inbox endpoints when available
+- **Real-time updates**: Federation events trigger real-time broadcasts via SSE
+- **Activity deduplication**: Prevents processing the same activity multiple times
+- **Error handling**: Failed deliveries are logged (retry logic can be added in WP-019)
+
+For implementation details, see `src/activitypub.ts`, `src/federation.ts`, and `src/services/ActivityBuilder.ts`.
+
 ## Notifications API
 
 Constellate ships with a backend notification service that powers both the REST API and real-time delivery channel:
