@@ -8,6 +8,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import type { Theme } from './tokens'
 import { tokens } from './tokens'
+import { isValidTheme } from './types'
 
 interface ThemeContextType {
   theme: Theme
@@ -60,7 +61,7 @@ export function ThemeProvider({
     
     const stored = localStorage.getItem(storageKey)
     if (stored && isValidTheme(stored)) {
-      return stored
+      return stored as Theme
     }
     
     return getSystemTheme()
