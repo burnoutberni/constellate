@@ -42,22 +42,23 @@ export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
  * Provides consistent spacing and background variants.
  * Responsive and uses design tokens for spacing.
  */
-export const Section = React.forwardRef<HTMLElement, SectionProps>(
-  (
-    {
-      as: Component = 'section',
-      variant = 'default',
-      padding = 'lg',
-      contained = true,
-      containerSize = 'lg',
-      children,
-      className,
-      ...props
-    },
-    ref
-  ) => {
-    // Base styles
-    const baseStyles = ['w-full']
+export const Section = React.forwardRef<
+  HTMLElement,
+  SectionProps
+>((props, ref) => {
+  const {
+    as: Component = 'section',
+    variant = 'default',
+    padding = 'lg',
+    contained = true,
+    containerSize = 'lg',
+    children,
+    className,
+    ...restProps
+  } = props
+
+  // Base styles
+  const baseStyles = ['w-full']
 
     // Variant styles
     const variantStyles = {
@@ -92,11 +93,16 @@ export const Section = React.forwardRef<HTMLElement, SectionProps>(
       children
     )
 
+    // Type assertion needed because Component can be different HTML elements
+    // and TypeScript can't infer the specific element type at compile time.
+    // Casting through unknown allows us to assign the HTMLElement ref to any
+    // specific element type (div, section, etc.) since they all extend HTMLElement.
+    // We use a double assertion: HTMLElement -> unknown -> element-specific type
     return (
       <Component
-        ref={ref as React.LegacyRef<HTMLElement>}
+        ref={ref as unknown as React.LegacyRef<HTMLDivElement & HTMLElement>}
         className={sectionClasses}
-        {...props}
+        {...restProps}
       >
         {content}
       </Component>
