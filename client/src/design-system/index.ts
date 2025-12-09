@@ -6,7 +6,6 @@
 
 // Tokens
 export * from './tokens'
-export type { Theme } from './tokens'
 
 // Types
 export * from './types'

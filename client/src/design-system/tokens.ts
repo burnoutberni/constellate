@@ -407,7 +407,7 @@ export const shadows = {
 } as const
 
 /**
- * Dark mode shadows (lighter shadows for dark backgrounds)
+ * Dark mode shadows (higher opacity shadows for dark backgrounds)
  */
 export const darkShadows = {
   none: 'none',

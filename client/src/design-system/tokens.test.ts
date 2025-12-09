@@ -408,8 +408,11 @@ describe('Type Safety', () => {
     expect(darkTheme).toBe('dark')
   })
 
-  it('should have readonly token objects', () => {
-    // TypeScript should prevent mutations, but we can test runtime structure
-    expect(Object.isFrozen(tokens) || Object.isSealed(tokens)).toBe(false) // Not frozen in JS, but const prevents reassignment
+  it('should not freeze token objects at runtime', () => {
+    // TypeScript const prevents reassignment, but objects are not frozen at runtime
+    // This test documents that tokens are not frozen, which is intentional
+    // for performance and flexibility reasons
+    expect(Object.isFrozen(tokens)).toBe(false)
+    expect(Object.isSealed(tokens)).toBe(false)
   })
 })

@@ -11,7 +11,6 @@ import {
   letterSpacing,
   spacing,
   borderRadius,
-  shadows,
   breakpoints,
   zIndex,
   transitionDuration,
@@ -38,6 +37,29 @@ const config: Config = {
         warning: semanticColors.warning,
         error: semanticColors.error,
         info: semanticColors.info,
+        // Semantic theme colors using CSS variables
+        background: {
+          primary: 'var(--color-background-primary)',
+          secondary: 'var(--color-background-secondary)',
+          tertiary: 'var(--color-background-tertiary)',
+          inverse: 'var(--color-background-inverse)',
+        },
+        text: {
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          tertiary: 'var(--color-text-tertiary)',
+          inverse: 'var(--color-text-inverse)',
+          disabled: 'var(--color-text-disabled)',
+          link: 'var(--color-text-link)',
+          'link-hover': 'var(--color-text-link-hover)',
+        },
+        border: {
+          default: 'var(--color-border-default)',
+          hover: 'var(--color-border-hover)',
+          focus: 'var(--color-border-focus)',
+          error: 'var(--color-border-error)',
+          disabled: 'var(--color-border-disabled)',
+        },
       },
       
       // Typography from design tokens
@@ -51,7 +73,7 @@ const config: Config = {
       letterSpacing: letterSpacing,
       
       // Spacing from design tokens
-      spacing: spacing,
+      spacing,
       
       // Border radius from design tokens
       borderRadius: borderRadius,

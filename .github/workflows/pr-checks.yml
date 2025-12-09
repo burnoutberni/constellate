@@ -125,6 +125,32 @@ jobs:
           path: coverage/
           retention-days: 7
 
+  test-frontend:
+    name: Test (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Run frontend tests with coverage
+        run: npm run test:coverage --prefix client
+
+      - name: Upload frontend coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-frontend
+          path: client/coverage/
+          retention-days: 7
+
   coverage-base:
     name: Coverage (Base Branch)
     runs-on: ubuntu-latest
@@ -220,6 +246,67 @@ jobs:
           path: coverage/coverage-summary.json
           retention-days: 7
 
+  coverage-base-frontend:
+    name: Coverage (Base Branch - Frontend)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+        if: steps.base_cache.outputs.cache-hit != 'true'
+
+      - name: Restore cached base coverage
+        id: base_cache
+        uses: actions/cache@v4
+        with:
+          path: coverage-base-cache-frontend/coverage-summary.json
+          key: coverage-base-frontend-${{ github.event.pull_request.base.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+        if: steps.base_cache.outputs.cache-hit != 'true'
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+        if: steps.base_cache.outputs.cache-hit != 'true'
+
+      - name: Run frontend tests with coverage
+        run: npm run test:coverage --prefix client
+        if: steps.base_cache.outputs.cache-hit != 'true'
+
+      - name: Verify coverage summary exists
+        if: steps.base_cache.outputs.cache-hit != 'true'
+        run: |
+          if [ ! -f "client/coverage/coverage-summary.json" ]; then
+            echo "❌ Error: coverage-summary.json not found. The json-summary reporter should generate this file."
+            echo "This indicates a problem with the test coverage generation."
+            exit 1
+          fi
+
+      - name: Use cached coverage file
+        if: steps.base_cache.outputs.cache-hit == 'true'
+        run: |
+          mkdir -p client/coverage
+          cp coverage-base-cache-frontend/coverage-summary.json client/coverage/coverage-summary.json
+
+      - name: Store coverage in cache path
+        if: steps.base_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p coverage-base-cache-frontend
+          cp client/coverage/coverage-summary.json coverage-base-cache-frontend/coverage-summary.json
+
+      - name: Upload base coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-base-frontend
+          path: client/coverage/coverage-summary.json
+          retention-days: 7
+
   coverage-check:
     name: Coverage Check
     runs-on: ubuntu-latest
@@ -278,10 +365,68 @@ jobs:
           echo "⚠️  No base coverage found. This might be the first PR to main."
           echo "Coverage comparison skipped. Future PRs will be checked against this baseline."
 
+  coverage-check-frontend:
+    name: Coverage Check (Frontend)
+    runs-on: ubuntu-latest
+    needs: [test-frontend, coverage-base-frontend]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download PR coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-frontend
+          path: coverage-pr-frontend/
+
+      - name: Download base coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-base-frontend
+          path: coverage-base-frontend/
+
+      - name: Check if base coverage exists
+        id: check_base
+        run: |
+          if [ -f "coverage-base-frontend/coverage-summary.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify coverage files exist
+        if: steps.check_base.outputs.exists == 'true'
+        run: |
+          for dir in coverage-pr-frontend coverage-base-frontend; do
+            if [ ! -f "$dir/coverage-summary.json" ]; then
+              echo "❌ Error: $dir/coverage-summary.json not found. The json-summary reporter should generate this file."
+              echo "This indicates a problem with the test coverage generation."
+              exit 1
+            fi
+          done
+
+      - name: Compare frontend coverage
+        if: steps.check_base.outputs.exists == 'true'
+        run: |
+          node scripts/compare-coverage.js coverage-pr-frontend/coverage-summary.json coverage-base-frontend/coverage-summary.json
+        continue-on-error: false
+
+      - name: Skip frontend coverage comparison (first PR)
+        if: steps.check_base.outputs.exists != 'true'
+        run: |
+          echo "⚠️  No base frontend coverage found. This might be the first PR to main."
+          echo "Frontend coverage comparison skipped. Future PRs will be checked against this baseline."
+
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint, tree-shaking, test, coverage-check]
+    needs: [lint, tree-shaking, test, test-frontend, coverage-check, coverage-check-frontend]
     if: always()
     steps:
       - name: Check all jobs
@@ -296,15 +441,25 @@ jobs:
             exit 1
           fi
           if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "❌ Test check failed"
+            echo "❌ Backend test check failed"
+            exit 1
+          fi
+          if [ "${{ needs.test-frontend.result }}" != "success" ]; then
+            echo "❌ Frontend test check failed"
             exit 1
           fi
           
-          # Coverage check (required for PRs, but may be skipped for first PR)
+          # Coverage checks (required for PRs, but may be skipped for first PR)
           if [ "${{ github.event_name }}" == "pull_request" ] && \
              [ "${{ needs.coverage-check.result }}" != "success" ] && \
              [ "${{ needs.coverage-check.result }}" != "skipped" ]; then
-            echo "❌ Coverage check failed"
+            echo "❌ Backend coverage check failed"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" == "pull_request" ] && \
+             [ "${{ needs.coverage-check-frontend.result }}" != "success" ] && \
+             [ "${{ needs.coverage-check-frontend.result }}" != "skipped" ]; then
+            echo "❌ Frontend coverage check failed"
             exit 1
           fi
           

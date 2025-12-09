@@ -49,28 +49,27 @@ describe('CalendarView date calculations', () => {
     })
 
     it('filters events for specific hour correctly', () => {
-        // Note: This test assumes the system timezone matches UTC.
-        // In non-UTC timezones, the UTC timestamp will be converted to local time,
-        // which may place events in different hours than expected.
-        // For production use, consider using a timezone-aware date library.
+        // Use local timezone dates to avoid timezone conversion issues
         const mockEvents = [
             {
                 id: '1',
                 title: 'Morning Event',
-                startTime: new Date('2025-12-15T10:30:00Z').toISOString(),
+                // Create a date at 10:30 AM in local timezone
+                startTime: new Date(2025, 11, 15, 10, 30, 0).toISOString(),
                 timezone: 'UTC',
                 tags: [],
             },
             {
                 id: '2',
                 title: 'Afternoon Event',
-                startTime: new Date('2025-12-15T14:30:00Z').toISOString(),
+                // Create a date at 2:30 PM in local timezone
+                startTime: new Date(2025, 11, 15, 14, 30, 0).toISOString(),
                 timezone: 'UTC',
                 tags: [],
             },
         ]
 
-        const currentDate = new Date('2025-12-15')
+        const currentDate = new Date(2025, 11, 15) // December 15, 2025
         const hour = 10
 
         const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
@@ -78,7 +77,9 @@ describe('CalendarView date calculations', () => {
 
         const filtered = mockEvents.filter((event) => {
             const eventDate = new Date(event.startTime)
-            return eventDate >= hourStart && eventDate <= hourEnd
+            // Compare in local timezone
+            const eventLocalHour = eventDate.getHours()
+            return eventLocalHour === hour
         })
 
         expect(filtered.length).toBe(1)
