@@ -36,6 +36,8 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       padding = 'md',
       children,
       className,
+      onClick,
+      onKeyDown,
       ...props
     },
     ref
@@ -90,8 +92,30 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       className
     )
 
+    // Handle keyboard events for accessibility
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      // Call user's onKeyDown handler if provided
+      onKeyDown?.(event)
+
+      // If interactive and has onClick, handle Enter and Space keys
+      if (interactive && onClick) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onClick(event as unknown as React.MouseEvent<HTMLDivElement>)
+        }
+      }
+    }
+
     return (
-      <div ref={ref} className={classes} {...props}>
+      <div
+        ref={ref}
+        className={classes}
+        role={interactive ? 'button' : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+        {...props}
+      >
         {children}
       </div>
     )

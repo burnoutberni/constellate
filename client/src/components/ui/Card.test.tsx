@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import {
   Card,
   CardHeader,
@@ -78,6 +79,94 @@ describe('Card Component', () => {
     
     fireEvent.click(card!)
     expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should have role="button" and tabIndex="0" when interactive', () => {
+    const handleClick = vi.fn()
+    render(
+      <Card interactive onClick={handleClick}>
+        Interactive card
+      </Card>
+    )
+    
+    const card = screen.getByText('Interactive card').closest('div')
+    expect(card).toHaveAttribute('role', 'button')
+    expect(card).toHaveAttribute('tabIndex', '0')
+  })
+
+  it('should not have role or tabIndex when not interactive', () => {
+    render(<Card>Non-interactive</Card>)
+    
+    const card = screen.getByText('Non-interactive').closest('div')
+    expect(card).not.toHaveAttribute('role')
+    expect(card).not.toHaveAttribute('tabIndex')
+  })
+
+  it('should trigger onClick when Enter key is pressed', async () => {
+    const user = userEvent.setup()
+    const handleClick = vi.fn()
+    render(
+      <Card interactive onClick={handleClick}>
+        Interactive card
+      </Card>
+    )
+    
+    const card = screen.getByText('Interactive card').closest('div')
+    card?.focus()
+    await user.keyboard('{Enter}')
+    
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should trigger onClick when Space key is pressed', async () => {
+    const user = userEvent.setup()
+    const handleClick = vi.fn()
+    render(
+      <Card interactive onClick={handleClick}>
+        Interactive card
+      </Card>
+    )
+    
+    const card = screen.getByText('Interactive card').closest('div')
+    card?.focus()
+    await user.keyboard(' ')
+    
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should call custom onKeyDown handler and still handle Enter key', async () => {
+    const user = userEvent.setup()
+    const handleClick = vi.fn()
+    const handleKeyDown = vi.fn()
+    render(
+      <Card interactive onClick={handleClick} onKeyDown={handleKeyDown}>
+        Interactive card
+      </Card>
+    )
+    
+    const card = screen.getByText('Interactive card').closest('div')
+    card?.focus()
+    await user.keyboard('{Enter}')
+    
+    expect(handleKeyDown).toHaveBeenCalledTimes(1)
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should not trigger onClick for other keys', async () => {
+    const user = userEvent.setup()
+    const handleClick = vi.fn()
+    render(
+      <Card interactive onClick={handleClick}>
+        Interactive card
+      </Card>
+    )
+    
+    const card = screen.getByText('Interactive card').closest('div')
+    card?.focus()
+    await user.keyboard('{Tab}')
+    await user.keyboard('{Escape}')
+    
+    expect(handleClick).not.toHaveBeenCalled()
   })
 
   it('should not be interactive by default', () => {

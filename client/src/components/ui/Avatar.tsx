@@ -101,8 +101,8 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       setImageError(true)
     }
 
-    // Generate accessible label - prefer alt, then fallback, then generic
-    const accessibleLabel = alt || fallback || 'Avatar'
+    // Generate accessible label - prefer alt, then generic
+    const accessibleLabel = alt || 'Avatar'
 
     return (
       <div
