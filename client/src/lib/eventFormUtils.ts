@@ -46,8 +46,12 @@ export function validateRecurrence(formData: Pick<FormData, 'recurrencePattern' 
 
 /**
  * Parses and validates coordinate inputs
+ * @returns A discriminated union: either an error object, a success object with coordinates, or an empty object if no coordinates provided
  */
-export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | 'locationLongitude'>): { latitude?: number; longitude?: number; error?: string } {
+export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | 'locationLongitude'>): 
+    | { error: string }
+    | { latitude: number; longitude: number }
+    | Record<string, never> {
     const hasLatitude = formData.locationLatitude.trim() !== ''
     const hasLongitude = formData.locationLongitude.trim() !== ''
     if (hasLatitude !== hasLongitude) {

@@ -621,9 +621,11 @@ app.get('/nearby', async (c) => {
             }
         } else if (lonMin < -180) {
             // Crossing from west: range extends past -180° to the east
-            // Normalize lonMin: lonMin + 360 gives equivalent positive longitude
-            // Query: [lonMin+360, 180°] (western part) OR [-180°, lonMax] (eastern part)
-            const westernLonMin = lonMin + 360 // Normalize to 0-360, which maps to 0-180° in DB
+            // Normalize lonMin: lonMin + 360 converts negative longitude < -180 to equivalent positive longitude
+            // Example: lonMin = -185 → westernLonMin = 175, query [175, 180°] (eastern side) OR [-180°, lonMax] (western side)
+            const westernLonMin = lonMin + 360 // Converts to 0-180° range for the eastern side of the antimeridian
+            // Clamp to valid longitude range [-180, 180]
+            const clampedWesternLonMin = Math.max(-180, Math.min(180, westernLonMin))
             boundingWhere = {
                 AND: [
                     { locationLatitude: { gte: latMin, lte: latMax } },
@@ -631,7 +633,7 @@ app.get('/nearby', async (c) => {
                         OR: [
                             {
                                 locationLongitude: {
-                                    gte: Math.max(-180, Math.min(180, westernLonMin)),
+                                    gte: clampedWesternLonMin,
                                     lte: 180,
                                 },
                             },

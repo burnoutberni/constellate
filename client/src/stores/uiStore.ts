@@ -19,7 +19,9 @@ export interface MentionNotification {
 export interface ErrorToast {
     id: string
     message: string
-    createdAt?: string // Optional in input, but always set by addErrorToast
+    // createdAt is optional in input (ISO string format), but always set by addErrorToast
+    // If not provided, it will be automatically set to the current time as an ISO string
+    createdAt?: string
 }
 
 // Stored error toasts always have createdAt set
@@ -115,6 +117,7 @@ export const useUIStore = create<UIState>((set) => ({
         // If the same error occurs multiple times with different IDs (via crypto.randomUUID()),
         // both will be shown. Only exact ID matches are removed.
         const existing = state.errorToasts.filter((item) => item.id !== toast.id)
+        // Ensure createdAt is always set as an ISO string (never a number/timestamp)
         const toastWithTimestamp: StoredErrorToast = {
             ...toast,
             createdAt: toast.createdAt || new Date().toISOString(),

@@ -364,7 +364,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             try {
                 // Note: Tags are intentionally excluded from templates as they are event-specific
                 // and shouldn't be part of a reusable template. When loading from a template,
-                // the current form's tags are preserved (see applyTemplate function, line 278).
+                // the current form's tags are preserved (see applyTemplate function above).
                 await saveTemplateFromEvent({
                     title: formData.title,
                     summary: formData.summary,
@@ -409,13 +409,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             setSubmitting(true)
 
             const coordinateResult = parseCoordinates(formData)
-            if (coordinateResult.error) {
+            if ('error' in coordinateResult) {
                 setError(coordinateResult.error)
                 setSubmitting(false)
                 return
             }
 
-            const payload = buildEventPayloadUtil(formData, coordinateResult.latitude, coordinateResult.longitude)
+            const payload = buildEventPayloadUtil(
+                formData,
+                'latitude' in coordinateResult ? coordinateResult.latitude : undefined,
+                'longitude' in coordinateResult ? coordinateResult.longitude : undefined
+            )
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {
@@ -429,7 +433,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             })
 
             if (response.ok) {
-                await handleSuccessfulSubmission(coordinateResult.latitude, coordinateResult.longitude)
+                const hasCoordinates = 'latitude' in coordinateResult && 'longitude' in coordinateResult
+                await handleSuccessfulSubmission(
+                    hasCoordinates ? coordinateResult.latitude : undefined,
+                    hasCoordinates ? coordinateResult.longitude : undefined
+                )
             } else if (response.status === 401) {
                 setError('Authentication required. Please sign in.')
             } else {
