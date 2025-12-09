@@ -82,19 +82,10 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
     // Sidebar content (if present)
     const sidebarContent = sidebar ? (
       <div className="flex flex-1 min-h-0">
-        {sidebarPosition === 'left' && (
-          <aside className="flex-shrink-0">
-            {sidebar}
-          </aside>
-        )}
-        
+        <aside className={cn('flex-shrink-0', sidebarPosition === 'right' && 'order-last')}>
+          {sidebar}
+        </aside>
         {mainContent}
-        
-        {sidebarPosition === 'right' && (
-          <aside className="flex-shrink-0">
-            {sidebar}
-          </aside>
-        )}
       </div>
     ) : mainContent
 

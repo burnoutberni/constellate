@@ -79,6 +79,27 @@ const gapStyles: Record<StackGap, string> = {
   '2xl': 'gap-12',
 }
 
+// Direction styles mapping - explicit class names for Tailwind JIT
+type DirectionBreakpointKey = 'base' | 'sm' | 'md' | 'lg'
+const directionClassMap: Record<DirectionBreakpointKey, Record<StackDirection, string>> = {
+  base: {
+    row: 'flex-row',
+    column: 'flex-col',
+  },
+  sm: {
+    row: 'sm:flex-row',
+    column: 'sm:flex-col',
+  },
+  md: {
+    row: 'md:flex-row',
+    column: 'md:flex-col',
+  },
+  lg: {
+    row: 'lg:flex-row',
+    column: 'lg:flex-col',
+  },
+}
+
 /**
  * Stack component for vertical/horizontal spacing.
  * Provides consistent spacing between child elements.
@@ -106,10 +127,10 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
 
     // Direction styles - responsive flex direction
     const directionStyles = [
-      direction === 'row' ? 'flex-row' : 'flex-col',
-      directionSm && (directionSm === 'row' ? 'sm:flex-row' : 'sm:flex-col'),
-      directionMd && (directionMd === 'row' ? 'md:flex-row' : 'md:flex-col'),
-      directionLg && (directionLg === 'row' ? 'lg:flex-row' : 'lg:flex-col'),
+      directionClassMap.base[direction],
+      directionSm && directionClassMap.sm[directionSm],
+      directionMd && directionClassMap.md[directionMd],
+      directionLg && directionClassMap.lg[directionLg],
     ].filter(Boolean)
 
     // Wrap styles

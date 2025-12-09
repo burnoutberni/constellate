@@ -77,12 +77,12 @@ export const Section = React.forwardRef<
   // Base styles
   const baseStyles = ['w-full']
 
-    const sectionClasses = cn(
-      baseStyles,
-      variantStyles[variant],
-      paddingStyles[padding],
-      className
-    )
+  const sectionClasses = cn(
+    baseStyles,
+    variantStyles[variant],
+    paddingStyles[padding],
+    className
+  )
 
     // Determine content - wrap in Container if contained
     const content = contained ? (

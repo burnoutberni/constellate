@@ -64,20 +64,11 @@ describe('PageLayout Component', () => {
     )
     
     const sidebar = screen.getByTestId('sidebar')
-    const main = screen.getByRole('main')
-    
-    // Find the flex container that holds both sidebar and main
-    const flexContainer = main.parentElement
-    
-    // Check that sidebar comes before main in DOM order within the flex container
-    const flexChildren = Array.from(flexContainer!.children)
     const sidebarAside = sidebar.closest('aside')
-    const sidebarIndex = flexChildren.indexOf(sidebarAside!)
-    const mainIndex = flexChildren.indexOf(main)
     
-    expect(sidebarIndex).toBeGreaterThanOrEqual(0)
-    expect(mainIndex).toBeGreaterThanOrEqual(0)
-    expect(sidebarIndex).toBeLessThan(mainIndex)
+    // Check that sidebar does not have order-last class (defaults to left)
+    expect(sidebarAside).toBeInTheDocument()
+    expect(sidebarAside).not.toHaveClass('order-last')
   })
 
   it('should render sidebar on right when sidebarPosition is right', () => {
@@ -92,20 +83,11 @@ describe('PageLayout Component', () => {
     )
     
     const sidebar = screen.getByTestId('sidebar')
-    const main = screen.getByRole('main')
-    
-    // Find the flex container that holds both sidebar and main
-    const flexContainer = main.parentElement
-    
-    // Check that main comes before sidebar in DOM order within the flex container
-    const flexChildren = Array.from(flexContainer!.children)
-    const mainIndex = flexChildren.indexOf(main)
     const sidebarAside = sidebar.closest('aside')
-    const sidebarIndex = flexChildren.indexOf(sidebarAside!)
     
-    expect(mainIndex).toBeGreaterThanOrEqual(0)
-    expect(sidebarIndex).toBeGreaterThanOrEqual(0)
-    expect(mainIndex).toBeLessThan(sidebarIndex)
+    // Check that sidebar has order-last class when position is right
+    expect(sidebarAside).toBeInTheDocument()
+    expect(sidebarAside).toHaveClass('order-last')
   })
 
   it('should contain main content by default', () => {

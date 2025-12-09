@@ -45,7 +45,6 @@ export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
     },
     ref
   ) => {
-
     // Padding styles
     const paddingStyles = padding
       ? 'px-4 sm:px-6 lg:px-8'
