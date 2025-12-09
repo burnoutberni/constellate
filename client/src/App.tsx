@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './design-system'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
@@ -74,9 +75,11 @@ function AppContent() {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-                <AppContent />
-            </AuthProvider>
+            <ThemeProvider>
+                <AuthProvider>
+                    <AppContent />
+                </AuthProvider>
+            </ThemeProvider>
         </QueryClientProvider>
     )
 }

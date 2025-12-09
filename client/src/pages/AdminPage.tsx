@@ -386,7 +386,7 @@ export function AdminPage() {
                                                                 deleteUserMutation.mutate(user.id)
                                                             }
                                                         }}
-                                                        className="text-red-600 hover:text-red-900"
+                                                        className="text-error-600 hover:text-error-900"
                                                         disabled={deleteUserMutation.isPending}
                                                     >
                                                         Delete
@@ -474,7 +474,7 @@ export function AdminPage() {
                                                                 deleteApiKeyMutation.mutate(key.id)
                                                             }
                                                         }}
-                                                        className="text-red-600 hover:text-red-900"
+                                                        className="text-error-600 hover:text-error-900"
                                                         disabled={deleteApiKeyMutation.isPending}
                                                     >
                                                         Revoke
@@ -772,7 +772,7 @@ function CreateUserModal({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-semibold mb-4">Create User</h3>
-                {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+                {error && <div className="mb-4 text-sm text-error-600">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -890,7 +890,7 @@ function CreateApiKeyModal({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-semibold mb-4">Create API Key</h3>
-                {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+                {error && <div className="mb-4 text-sm text-error-600">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">

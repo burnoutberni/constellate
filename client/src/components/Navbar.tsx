@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
 import { NotificationBell } from './NotificationBell'
+import { ThemeToggle } from './ThemeToggle'
 import { queryKeys } from '../hooks/queries/keys'
 
 export function Navbar({ isConnected, user, onLogout }: {
@@ -51,6 +52,7 @@ export function Navbar({ isConnected, user, onLogout }: {
             <SearchBar />
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             {user ? (
               <>
                 {isAdmin && (
@@ -80,8 +82,8 @@ export function Navbar({ isConnected, user, onLogout }: {
               </Link>
             )}
             {isConnected && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full" />
+              <div className="flex items-center gap-2 text-sm text-success-600">
+                <div className="w-2 h-2 bg-success-600 rounded-full" />
                 <span className="hidden sm:inline">Live</span>
               </div>
             )}

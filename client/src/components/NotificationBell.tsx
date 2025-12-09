@@ -170,7 +170,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             >
                 <BellIcon hasUnread={unreadCount > 0} />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-error-500 px-1 text-xs font-semibold text-white">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}

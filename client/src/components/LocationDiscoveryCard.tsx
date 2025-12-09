@@ -114,7 +114,7 @@ export function LocationDiscoveryCard() {
                     value={locationQuery}
                     onChange={(event) => setLocationQuery(event.target.value)}
                 />
-                {suggestionError && <p className="text-xs text-red-500">{suggestionError}</p>}
+                {suggestionError && <p className="text-xs text-error-500">{suggestionError}</p>}
                 {locationQuery.trim().length >= MIN_QUERY_LENGTH && (
                     <div className="space-y-2">
                         {suggestionLoading && <p className="text-xs text-gray-500">Searching places…</p>}
@@ -159,7 +159,7 @@ export function LocationDiscoveryCard() {
                     Clear selection
                 </button>
             </div>
-            {geoError && <p className="text-xs text-red-500">{geoError}</p>}
+            {geoError && <p className="text-xs text-error-500">{geoError}</p>}
 
             {showPermissionPrompt && (
                 <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">

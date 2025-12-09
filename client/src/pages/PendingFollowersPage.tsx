@@ -81,7 +81,7 @@ export function PendingFollowersPage() {
                 )}
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                    <div className="bg-error-50 border border-error-200 rounded-lg p-4 text-error-700">
                         {error instanceof Error ? error.message : 'Failed to load pending followers'}
                     </div>
                 )}

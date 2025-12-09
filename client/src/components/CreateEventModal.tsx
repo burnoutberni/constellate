@@ -469,7 +469,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                         </button>
                     </div>
                     {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+                        <div className="bg-error-50 text-error-600 p-3 rounded-lg mb-4 text-sm">
                             {error}
                         </div>
                     )}
@@ -503,7 +503,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 ))}
                             </select>
                             {templateError && (
-                                <p className="text-xs text-red-500">{templateError}</p>
+                                <p className="text-xs text-error-500">{templateError}</p>
                             )}
                         </div>
                     )}
@@ -670,7 +670,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                         </button>
                                     ))}
                                     {locationSuggestionsError && (
-                                        <div className="text-xs text-red-500">{locationSuggestionsError}</div>
+                                        <div className="text-xs text-error-500">{locationSuggestionsError}</div>
                                     )}
                                 </div>
                             </div>
@@ -779,7 +779,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                                 addTag()
                                             }
                                         }}
-                                        className={`input flex-1 ${tagError ? 'border-red-500' : ''}`}
+                                        className={`input flex-1 ${tagError ? 'border-error-500' : ''}`}
                                         placeholder="Add a tag (press Enter)"
                                     />
                                     <button
@@ -791,7 +791,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                     </button>
                                 </div>
                                 {tagError && (
-                                    <p className="text-xs text-red-500">{tagError}</p>
+                                    <p className="text-xs text-error-500">{tagError}</p>
                                 )}
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
@@ -809,7 +809,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                                             tags: formData.tags.filter((t) => t !== tag),
                                                         })
                                                     }}
-                                                    className="ml-1 hover:text-red-600"
+                                                    className="ml-1 hover:text-error-600"
                                                 >
                                                     ×
                                                 </button>

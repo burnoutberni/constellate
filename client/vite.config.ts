@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -9,6 +10,30 @@ export default defineConfig({
     resolve: {
         alias: {
             'better-auth/react': path.resolve(__dirname, './node_modules/better-auth/dist/client/react/index.mjs'),
+        },
+    },
+    test: {
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: './src/tests/setup.ts',
+        css: true,
+        coverage: {
+            provider: 'v8',
+            reporter: ['text-summary', 'json', 'json-summary', 'html'],
+            exclude: [
+                'node_modules/',
+                'dist/',
+                '**/*.test.ts',
+                '**/*.test.tsx',
+                '**/*.spec.ts',
+                '**/*.spec.tsx',
+                '**/tests/**',
+                'src/tests/**',
+                '**/*.config.*',
+                'vite.config.ts',
+            ],
+            reportsDirectory: './coverage',
+            reportOnFailure: true,
         },
     },
     server: {

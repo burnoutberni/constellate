@@ -559,7 +559,7 @@ export function EventDetailPage() {
     const buildLikeButtonClass = () => {
         const baseClass = 'btn flex-1'
         if (userLiked) {
-            return `${baseClass} btn-primary ring-2 ring-red-600 ring-offset-2`
+            return `${baseClass} btn-primary ring-2 ring-error-600 ring-offset-2`
         }
         if (user) {
             return `${baseClass} btn-secondary`
@@ -706,7 +706,7 @@ export function EventDetailPage() {
                                     e.preventDefault()
                                     handleDeleteEvent()
                                 }}
-                                className="btn btn-secondary text-red-600 hover:text-red-700"
+                                className="btn btn-secondary text-error-600 hover:text-error-700"
                                 title="Delete event"
                             >
                                 🗑️ Delete
@@ -1004,7 +1004,7 @@ export function EventDetailPage() {
                                             {user && c.author.id === user.id && (
                                                 <button
                                                     onClick={() => handleDeleteComment(c.id)}
-                                                    className="text-red-500 hover:text-red-700 text-xs"
+                                                    className="text-error-500 hover:text-error-700 text-xs"
                                                     title="Delete comment"
                                                 >
                                                     🗑️
