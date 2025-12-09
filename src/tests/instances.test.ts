@@ -257,4 +257,72 @@ describe('Instance Discovery', () => {
             )
         })
     })
+
+    describe('refreshInstanceMetadata', () => {
+        it('should update instance metadata when fetch succeeds', async () => {
+            const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+            
+            const mockInstance = {
+                id: 'instance-1',
+                domain: 'mastodon.social',
+                baseUrl: 'https://mastodon.social',
+            }
+
+            vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance as any)
+            vi.mocked(safeFetch).mockResolvedValueOnce({
+                ok: false,
+            } as any)
+            vi.mocked(prisma.instance.update).mockResolvedValue(mockInstance as any)
+
+            await refreshInstanceMetadata('mastodon.social')
+
+            expect(prisma.instance.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { domain: 'mastodon.social' },
+                    data: expect.objectContaining({
+                        lastError: expect.any(String),
+                        lastErrorAt: expect.any(Date),
+                    }),
+                })
+            )
+        })
+
+        it('should record error when metadata fetch fails', async () => {
+            const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+            const { safeFetch } = await import('../lib/ssrfProtection.js')
+            
+            vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+                id: 'instance-1',
+                domain: 'mastodon.social',
+                baseUrl: 'https://mastodon.social',
+            } as any)
+            vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+            vi.mocked(prisma.instance.update).mockResolvedValue({} as any)
+
+            await refreshInstanceMetadata('mastodon.social')
+
+            expect(prisma.instance.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { domain: 'mastodon.social' },
+                    data: expect.objectContaining({
+                        lastError: expect.any(String),
+                        lastErrorAt: expect.any(Date),
+                    }),
+                })
+            )
+        })
+    })
+
+    describe('extractBaseUrl with ports', () => {
+        it('should include non-standard ports in baseUrl', () => {
+            expect(extractBaseUrl('http://localhost:3000/users/alice')).toBe('http://localhost:3000')
+            expect(extractBaseUrl('https://app1.local:8443/@bob')).toBe('https://app1.local:8443')
+        })
+
+        it('should not include standard ports', () => {
+            expect(extractBaseUrl('http://example.com:80/users/alice')).toBe('http://example.com')
+            expect(extractBaseUrl('https://example.com:443/users/alice')).toBe('https://example.com')
+        })
+    })
 })

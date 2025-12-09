@@ -63,9 +63,13 @@ export async function fetchInstanceMetadata(baseUrl: string): Promise<{
         }
 
         // Find NodeInfo 2.0 or 2.1 link
+        // Note: These are specification URLs as defined by the NodeInfo protocol, not actual HTTP requests
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols
+        const nodeInfoSchema20 = 'http://nodeinfo.diaspora.software/ns/schema/2.0'
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols
+        const nodeInfoSchema21 = 'http://nodeinfo.diaspora.software/ns/schema/2.1'
         const nodeInfoLink = wellKnownData.links?.find(
-            (link) => link.rel === 'http://nodeinfo.diaspora.software/ns/schema/2.0' ||
-                     link.rel === 'http://nodeinfo.diaspora.software/ns/schema/2.1'
+            (link) => link.rel === nodeInfoSchema20 || link.rel === nodeInfoSchema21
         )
 
         if (!nodeInfoLink) {
@@ -219,11 +223,14 @@ export async function getKnownInstances(options: {
 
     const where = filterBlocked ? { isBlocked: false } : {}
 
-    const orderBy = sortBy === 'activity'
-        ? { lastActivityAt: 'desc' as const }
-        : sortBy === 'users'
-        ? { userCount: 'desc' as const }
-        : { createdAt: 'desc' as const }
+    let orderBy
+    if (sortBy === 'activity') {
+        orderBy = { lastActivityAt: 'desc' as const }
+    } else if (sortBy === 'users') {
+        orderBy = { userCount: 'desc' as const }
+    } else {
+        orderBy = { createdAt: 'desc' as const }
+    }
 
     const [instances, total] = await Promise.all([
         prisma.instance.findMany({
