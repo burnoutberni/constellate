@@ -12,6 +12,20 @@ import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 
+// Geographic constants for nearby search
+// KM_PER_DEGREE is approximately 111 km per degree of latitude
+// Note: This is an approximation. The actual value varies slightly from equator to poles
+// due to Earth's oblate spheroid shape (~110.574 km at equator, ~111.694 km at poles).
+// For longitude, the distance per degree varies by latitude and is adjusted using cosine
+const KM_PER_DEGREE = 111 // Approximate kilometers per degree of latitude
+const MIN_COS_LAT_THRESHOLD = 0.01 // Minimum cosine threshold to prevent division by zero near poles
+
+// Search batching constants
+const SMALL_LIMIT_THRESHOLD = 10 // Threshold for small vs large limits
+const SMALL_LIMIT_MULTIPLIER = 3 // Multiplier for small limits (fetch more to account for filtering)
+const LARGE_LIMIT_MULTIPLIER = 1.5 // Multiplier for large limits
+const MAX_SEARCH_BATCH_SIZE = 500 // Maximum batch size for search queries
+
 const DATE_RANGE_PRESETS = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
 type DateRangePreset = typeof DATE_RANGE_PRESETS[number]
 
@@ -115,6 +129,34 @@ const SearchSchema = z.object({
     page: z.string().optional(),
     limit: z.string().optional(),
 })
+
+const NearbySearchSchema = z.object({
+    latitude: z.coerce.number().min(-90).max(90),
+    longitude: z.coerce.number().min(-180).max(180),
+    radiusKm: z.coerce.number().min(1).max(500).optional().default(25),
+    limit: z.coerce.number().min(1).max(100).optional().default(25),
+})
+
+const toRadians = (value: number) => (value * Math.PI) / 180
+
+const haversineDistanceKm = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+) => {
+    const R = 6371 // km
+    const dLat = toRadians(lat2 - lat1)
+    const dLon = toRadians(lon2 - lon1)
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+            Math.cos(toRadians(lat2)) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+}
 
 export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
     const where: Record<string, unknown> = {}
@@ -469,6 +511,205 @@ app.get('/popular', async (c) => {
         return c.json({ events: sorted })
     } catch (error) {
         console.error('Error getting popular events:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+app.get('/nearby', async (c) => {
+    try {
+        const params = NearbySearchSchema.parse({
+            latitude: c.req.query('latitude'),
+            longitude: c.req.query('longitude'),
+            radiusKm: c.req.query('radiusKm'),
+            limit: c.req.query('limit'),
+        })
+
+        const radiusKm = params.radiusKm
+        const requestedLimit = params.limit
+
+        // Reject searches at extreme latitudes where the calculation breaks down
+        // Beyond ±85°, longitude calculations become unreliable due to convergence of meridians near the poles
+        if (Math.abs(params.latitude) > 85) {
+            return c.json({ 
+                error: 'Searches beyond ±85° latitude are not supported near the poles. Please use a latitude between -85° and 85°.' 
+            }, 400)
+        }
+
+        const latDelta = radiusKm / KM_PER_DEGREE
+        const cosLat = Math.cos(toRadians(params.latitude))
+        // Clamp cosLat to prevent division by extremely small values near poles
+        const lonDelta = radiusKm / (KM_PER_DEGREE * Math.max(Math.abs(cosLat), MIN_COS_LAT_THRESHOLD))
+
+        const latMin = Math.max(-90, params.latitude - latDelta)
+        const latMax = Math.min(90, params.latitude + latDelta)
+        const lonMin = params.longitude - lonDelta
+        const lonMax = params.longitude + lonDelta
+
+        // If the radius spans more than 180° of longitude at this latitude, reject the search
+        if (lonDelta > 180) {
+            return c.json({ 
+                error: 'Search radius is too large for this location. Please use a smaller radius.' 
+            }, 400)
+        }
+
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        const baseInclude = {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                },
+            },
+            tags: true,
+            _count: {
+                select: {
+                    attendance: true,
+                    likes: true,
+                    comments: true,
+                },
+            },
+        }
+
+        // Fetch more events than requested to account for Haversine filtering
+        // Use a multiplier that scales better for smaller limits
+        const multiplier = requestedLimit <= SMALL_LIMIT_THRESHOLD ? SMALL_LIMIT_MULTIPLIER : LARGE_LIMIT_MULTIPLIER
+        const searchBatchSize = Math.min(Math.ceil(requestedLimit * multiplier), MAX_SEARCH_BATCH_SIZE)
+
+        // Handle longitude wrapping and antimeridian crossing
+        // If the bounding box crosses the antimeridian (±180°), split into two ranges using OR
+        // Example: center at 179° with radius 5° gives lonMax=184°, so we query [174°, 180°] OR [-180°, -176°]
+        let boundingWhere: Prisma.EventWhereInput
+        
+        if (lonMax > 180) {
+            // Crossing from east: range extends past 180° to the west
+            // Query: [lonMin, 180°] (eastern part) OR [-180°, lonMax-360°] (western part)
+            const westernLonMax = lonMax - 360 // Normalize to -180-180 range
+            boundingWhere = {
+                AND: [
+                    { locationLatitude: { gte: latMin, lte: latMax } },
+                    {
+                        OR: [
+                            {
+                                locationLongitude: {
+                                    gte: Math.max(-180, lonMin),
+                                    lte: 180,
+                                },
+                            },
+                            {
+                                locationLongitude: {
+                                    gte: -180,
+                                    lte: westernLonMax,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        } else if (lonMin < -180) {
+            // Range crosses antimeridian: convert lonMin to equivalent eastern longitude
+            // Example: lonMin = -185 → easternLonMin = 175
+            const easternLonMin = lonMin + 360
+            boundingWhere = {
+                AND: [
+                    { locationLatitude: { gte: latMin, lte: latMax } },
+                    {
+                        OR: [
+                            {
+                                locationLongitude: {
+                                    gte: easternLonMin,
+                                    lte: 180,
+                                },
+                            },
+                            {
+                                locationLongitude: {
+                                    gte: -180,
+                                    lte: Math.min(180, lonMax),
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        } else {
+            // Normal case: no antimeridian crossing, simple range query
+            boundingWhere = {
+                locationLatitude: {
+                    gte: latMin,
+                    lte: latMax,
+                },
+                locationLongitude: {
+                    gte: lonMin,
+                    lte: lonMax,
+                },
+            }
+        }
+
+        const combinedWhere: Prisma.EventWhereInput = {
+            AND: [
+                visibilityFilter,
+                { sharedEventId: null },
+                { startTime: { gte: new Date() } },
+                boundingWhere,
+            ],
+        }
+
+        const events = await prisma.event.findMany({
+            where: combinedWhere,
+            include: baseInclude,
+            orderBy: { startTime: 'asc' },
+            take: searchBatchSize,
+        })
+
+        const results = events
+            .map((event) => {
+                if (event.locationLatitude === null || event.locationLongitude === null) {
+                    return null
+                }
+                const distanceKm = haversineDistanceKm(
+                    params.latitude,
+                    params.longitude,
+                    event.locationLatitude,
+                    event.locationLongitude,
+                )
+                return distanceKm <= radiusKm
+                    ? {
+                        ...event,
+                        distanceKm,
+                    }
+                    : null
+            })
+            .filter((event): event is typeof events[0] & { distanceKm: number } => event !== null)
+            .sort((a, b) => a.distanceKm - b.distanceKm)
+            .slice(0, requestedLimit)
+
+        return c.json({
+            origin: {
+                latitude: params.latitude,
+                longitude: params.longitude,
+                radiusKm,
+            },
+            events: results,
+        })
+    } catch (error) {
+        if (error instanceof ZodError) {
+            return c.json({ error: 'Invalid nearby search parameters', details: error.issues }, 400 as const)
+        }
+        console.error('Error searching nearby events:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })

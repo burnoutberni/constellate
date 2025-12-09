@@ -72,8 +72,8 @@ describe('Location Search API', () => {
         })
     })
 
-    it('should validate query length (min 2 characters)', async () => {
-        const res = await app.request('/api/location/search?q=A')
+    it('should validate query length (min 3 characters)', async () => {
+        const res = await app.request('/api/location/search?q=AB')
         expect(res.status).toBe(400)
         const body = await res.json() as { error: string; details?: unknown }
         expect(body.error).toBeDefined()

@@ -21,7 +21,16 @@ const DATE_RANGE_LABELS: Record<string, string> = {
 }
 
 // Backend date range presets - must match backend validation in src/search.ts
-type BackendDateRange = 'today' | 'tomorrow' | 'this_weekend' | 'next_7_days' | 'next_30_days'
+export const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
+type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
+
+// Type guard to check if a string is a valid backend date range.
+// This is needed because URL parameters come in as strings, but we need to ensure
+// they match one of the backend's accepted date range presets before sending them
+// to the API. Without this check, invalid date ranges could be sent to the backend.
+function isBackendDateRange(value: string): value is BackendDateRange {
+    return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
+}
 type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
 
 interface FormState {
@@ -117,7 +126,7 @@ const buildFormStateFromParams = (params: URLSearchParams): FormState => {
     const dateRangeParam = params.get('dateRange') as DateRangeSelection | null
 
     let dateRange: DateRangeSelection = 'anytime'
-    if (dateRangeParam && (DATE_RANGE_LABELS[dateRangeParam] ?? false)) {
+    if (dateRangeParam && (isBackendDateRange(dateRangeParam) || dateRangeParam === 'anytime' || dateRangeParam === 'custom')) {
         dateRange = dateRangeParam
     } else if (startDateParam || endDateParam) {
         dateRange = 'custom'

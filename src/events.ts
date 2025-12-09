@@ -169,10 +169,13 @@ const VisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
 
 const TimezoneSchema = z.string().refine(isValidTimeZone, 'Invalid timezone')
 
-const EventSchema = z.object({
+// Base event schema without coordinate validation (used for both create and update)
+const BaseEventSchema = z.object({
     title: z.string().min(1).max(200),
     summary: z.string().optional(),
     location: z.string().optional(),
+    locationLatitude: z.number().min(-90).max(90).nullish(),
+    locationLongitude: z.number().min(-180).max(180).nullish(),
     headerImage: z.string().url().optional(),
     url: z.string().url().optional(),
     startTime: z.string().datetime(),
@@ -186,6 +189,17 @@ const EventSchema = z.object({
     recurrenceEndDate: z.string().datetime().optional().nullable(),
     tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
     timezone: TimezoneSchema.optional(),
+})
+
+// Event schema for creates - requires both coordinates if either is provided
+const EventSchema = BaseEventSchema.refine((data) => {
+    const hasLat = data.locationLatitude !== undefined && data.locationLatitude !== null
+    const hasLon = data.locationLongitude !== undefined && data.locationLongitude !== null
+    // Either both must be provided or both must be omitted
+    return (hasLat && hasLon) || (!hasLat && !hasLon)
+}, {
+    message: 'Latitude and longitude must both be provided',
+    path: ['locationLatitude'],
 })
 
 // Helper function to process and normalize tags for event creation
@@ -224,6 +238,8 @@ function buildEventCreationData(
         title: sanitizeText(validatedData.title),
         summary: validatedData.summary ? sanitizeText(validatedData.summary) : null,
         location: validatedData.location ? sanitizeText(validatedData.location) : null,
+        locationLatitude: validatedData.locationLatitude ?? null,
+        locationLongitude: validatedData.locationLongitude ?? null,
         headerImage: validatedData.headerImage || null,
         url: validatedData.url || null,
         startTime,
@@ -259,6 +275,8 @@ async function broadcastEventCreation(
             title: event.title,
             summary: event.summary,
             location: event.location,
+            locationLatitude: (event as { locationLatitude: number | null }).locationLatitude,
+            locationLongitude: (event as { locationLongitude: number | null }).locationLongitude,
             url: event.url,
             startTime: (event as { startTime: Date }).startTime.toISOString(),
             endTime: (event as { endTime: Date | null }).endTime?.toISOString(),
@@ -288,6 +306,42 @@ async function broadcastEventCreation(
         ...(broadcastTarget ? { targetUserId: broadcastTarget } : {}),
     })
 }
+
+// Event schema for updates - allows partial fields, validates coordinate pairs correctly
+const UpdateEventSchema = z.object({
+    title: z.string().min(1).max(200).optional(),
+    summary: z.string().optional(),
+    location: z.string().optional(),
+    locationLatitude: z.number().min(-90).max(90).nullish(),
+    locationLongitude: z.number().min(-180).max(180).nullish(),
+    headerImage: z.string().url().optional(),
+    url: z.string().url().optional(),
+    startTime: z.string().datetime().optional(),
+    endTime: z.string().datetime().optional(),
+    duration: z.string().optional(),
+    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
+    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional(),
+    maximumAttendeeCapacity: z.number().int().positive().optional(),
+    visibility: VisibilitySchema.optional(),
+    recurrencePattern: RecurrencePatternEnum.nullish(),
+    recurrenceEndDate: z.string().datetime().nullish(),
+    tags: z.array(z.string().min(1).max(50)).optional(),
+    timezone: TimezoneSchema.optional(),
+}).refine((data) => {
+    // Check if coordinates are explicitly provided (including null to clear them)
+    const hasLat = data.locationLatitude !== undefined
+    const hasLon = data.locationLongitude !== undefined
+    // If neither is provided, that's fine (no change to coordinates)
+    if (!hasLat && !hasLon) {
+        return true
+    }
+    // If one is provided, both must be provided (both can be null to clear)
+    // This ensures coordinate pairs are always complete
+    return (hasLat && hasLon) || (!hasLat && !hasLon)
+}, {
+    message: 'Latitude and longitude must both be provided or both omitted',
+    path: ['locationLatitude'],
+})
 
 // Create event
 app.post('/', moderateRateLimit, async (c) => {
@@ -1194,6 +1248,8 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
                 title: originalEvent.title,
                 summary: originalEvent.summary,
                 location: originalEvent.location,
+                locationLatitude: originalEvent.locationLatitude,
+                locationLongitude: originalEvent.locationLongitude,
                 headerImage: originalEvent.headerImage,
                 url: originalEvent.url,
                 startTime: originalEvent.startTime,
@@ -1248,6 +1304,8 @@ function buildEventUpdateData(
         ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
         ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
         ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
+        ...(validatedData.locationLatitude !== undefined && { locationLatitude: validatedData.locationLatitude ?? null }),
+        ...(validatedData.locationLongitude !== undefined && { locationLongitude: validatedData.locationLongitude ?? null }),
         ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
         ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
         ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
@@ -1301,20 +1359,22 @@ async function updateEventTags(
 }
 
 // Helper function to broadcast event update
-async function broadcastEventUpdate(event: Event & { user: unknown; tags: unknown[] }) {
+async function broadcastEventUpdate(
+    event: Prisma.EventGetPayload<{ include: { user: true; tags: true } }>
+) {
     const { broadcast, BroadcastEvents } = await import('./realtime.js')
-    const userId = (event as { userId: string | null }).userId
-    const visibility = (event as { visibility: string | null }).visibility
+    const userId = event.userId
+    const visibility = event.visibility
 
     if (!userId) return
 
     const broadcastTarget = getBroadcastTarget(visibility as EventVisibility | null, userId)
 
     // These fields should always exist on an event from the database
-    const startTime = (event as { startTime: Date | null }).startTime
-    const createdAt = (event as { createdAt: Date | null }).createdAt
-    const updatedAt = (event as { updatedAt: Date | null }).updatedAt
-    const endTime = (event as { endTime: Date | null }).endTime
+    const startTime = event.startTime
+    const createdAt = event.createdAt
+    const updatedAt = event.updatedAt
+    const endTime = event.endTime
 
     if (!startTime || !createdAt || !updatedAt) {
         throw new Error('Event missing required timestamp fields')
@@ -1342,7 +1402,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
         const userId = requireAuth(c)
 
         const body = await c.req.json()
-        const validatedData = EventSchema.partial().parse(body)
+        const validatedData = UpdateEventSchema.parse(body)
         const { visibility: requestedVisibility } = validatedData
 
         // Check ownership
@@ -1379,6 +1439,9 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         // Build update data
         const updateData = buildEventUpdateData(validatedData, requestedVisibility)
+        
+        // Set recurrence fields if they were provided in the validated data
+        // These will be included in the database update below
         if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }
@@ -1403,37 +1466,32 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         const event = await prisma.$transaction(async (tx) => {
-            // If updateData is empty (only tags being updated), explicitly update updatedAt
-            // to trigger the timestamp update
-            let finalUpdateData = updateData
-            if (Object.keys(updateData).length === 0) {
-                finalUpdateData = { updatedAt: new Date() }
-            }
+            // Always set updatedAt when updating, regardless of whether other fields are being updated
+            const finalUpdateData = { ...updateData, updatedAt: new Date() }
             
-            const updatedEvent = await tx.event.update({
+            await tx.event.update({
                 where: { id },
                 data: finalUpdateData,
+            })
+
+            if (normalizedTags !== undefined) {
+                await updateEventTags(tx, id, normalizedTags)
+            }
+            
+            // Always refresh to get the latest data with all fields and relations
+            const refreshedEvent = await tx.event.findUnique({
+                where: { id },
                 include: {
                     user: true,
                     tags: true,
                 },
             })
-
-            if (normalizedTags !== undefined) {
-                await updateEventTags(tx, id, normalizedTags)
-                
-                const refreshedEvent = await tx.event.findUnique({
-                    where: { id },
-                    include: {
-                        user: true,
-                        tags: true,
-                    },
-                })
-
-                return refreshedEvent ?? updatedEvent
+            
+            if (!refreshedEvent) {
+                throw new Error('Failed to retrieve updated event')
             }
-
-            return updatedEvent
+            
+            return refreshedEvent
         })
 
         if (!event) {
@@ -1455,10 +1513,25 @@ app.put('/:id', moderateRateLimit, async (c) => {
         return c.json(event)
     } catch (error) {
         if (error instanceof ZodError) {
-            return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+            // Check for coordinate validation errors
+            // Note: The coordinate validation refinement sets the error path to ['locationLatitude'],
+            // so we only need to check for latError
+            const latError = error.issues.find(issue => issue.path.includes('locationLatitude'))
+            // Prefer the refine error message if found, otherwise use any coordinate error, otherwise generic
+            const errorMessage = latError?.message || 'Validation failed'
+            return c.json({ error: errorMessage, details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        // Sanitize error message to prevent leaking internal details in production
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        return c.json({ 
+            error: 'Internal server error', 
+            ...(config.isDevelopment && { 
+                message: errorMessage,
+                stack: errorStack 
+            })
+        }, 500)
     }
 })
 

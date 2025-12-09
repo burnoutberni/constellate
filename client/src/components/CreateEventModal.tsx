@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import type { EventVisibility } from '../types'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
+import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
+import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
+import { useUIStore } from '../stores'
 
 interface CreateEventModalProps {
     isOpen: boolean
@@ -10,6 +13,14 @@ interface CreateEventModalProps {
 }
 
 const MAX_TAG_LENGTH = 50
+
+// Geolocation timeout in milliseconds (10 seconds)
+// This provides sufficient time for high-accuracy location while preventing indefinite waits
+const GEO_TIMEOUT_MS = 10000
+
+// Coordinate precision: 6 decimal places provides approximately 0.1 meter precision
+// This is sufficient for most event location needs while keeping coordinate strings manageable
+const COORDINATE_DECIMAL_PLACES = 6
 
 // Helper function to normalize tag input
 const normalizeTagInput = (input: string): string => {
@@ -24,6 +35,8 @@ interface EventTemplate {
         title?: string
         summary?: string
         location?: string
+        locationLatitude?: number
+        locationLongitude?: number
         url?: string
         startTime?: string
         endTime?: string
@@ -32,11 +45,14 @@ interface EventTemplate {
 
 export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
     const { user } = useAuth()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
     const [error, setError] = useState<string | null>(null)
     const [formData, setFormData] = useState<{
         title: string
         summary: string
         location: string
+        locationLatitude: string
+        locationLongitude: string
         url: string
         startTime: string
         endTime: string
@@ -48,6 +64,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         title: '',
         summary: '',
         location: '',
+        locationLatitude: '',
+        locationLongitude: '',
         url: '',
         startTime: '',
         endTime: '',
@@ -66,6 +84,14 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
     const [saveAsTemplate, setSaveAsTemplate] = useState(false)
     const [templateName, setTemplateName] = useState('')
     const [templateDescription, setTemplateDescription] = useState('')
+    const [locationSearch, setLocationSearch] = useState('')
+    const [geoLoading, setGeoLoading] = useState(false)
+
+    const {
+        suggestions: locationSuggestions,
+        loading: locationSuggestionsLoading,
+        error: locationSuggestionsError,
+    } = useLocationSuggestions(locationSearch, isOpen)
 
     const addTag = useCallback(() => {
         setTagError(null)
@@ -147,6 +173,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 title: '',
                 summary: '',
                 location: '',
+                locationLatitude: '',
+                locationLongitude: '',
                 url: '',
                 startTime: '',
                 endTime: '',
@@ -155,6 +183,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                 recurrenceEndDate: '',
                 tags: [],
             })
+            setLocationSearch('')
             setTagInput('')
             setTagError(null)
             setSelectedTemplateId('')
@@ -162,6 +191,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             setTemplateName('')
             setTemplateDescription('')
             setError(null)
+            setGeoLoading(false)
         }
     }, [isOpen])
 
@@ -177,6 +207,51 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         }
     }, [saveAsTemplate, formData.title])
 
+    const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
+        setFormData((prev) => ({
+            ...prev,
+            location: suggestion.label,
+            locationLatitude: suggestion.latitude.toFixed(COORDINATE_DECIMAL_PLACES),
+            locationLongitude: suggestion.longitude.toFixed(COORDINATE_DECIMAL_PLACES),
+        }))
+        setLocationSearch('')
+    }
+
+    const clearCoordinates = () => {
+        setFormData((prev) => ({
+            ...prev,
+            locationLatitude: '',
+            locationLongitude: '',
+        }))
+    }
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            addErrorToast({ id: crypto.randomUUID(), message: 'Geolocation is not supported in this browser.' })
+            return
+        }
+        setGeoLoading(true)
+        // Geolocation is necessary here to allow users to quickly set event coordinates
+        // for location-based features like map display and nearby event discovery.
+        // eslint-disable-next-line sonarjs/no-intrusive-permissions
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setFormData((prev) => ({
+                    ...prev,
+                    locationLatitude: position.coords.latitude.toFixed(COORDINATE_DECIMAL_PLACES),
+                    locationLongitude: position.coords.longitude.toFixed(COORDINATE_DECIMAL_PLACES),
+                }))
+                setGeoLoading(false)
+            },
+            (err) => {
+                console.error('Geolocation error:', err)
+                addErrorToast({ id: crypto.randomUUID(), message: 'Unable to access your current location.' })
+                setGeoLoading(false)
+            },
+            { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
+        )
+    }
+
     const applyTemplate = (templateId: string) => {
         setSelectedTemplateId(templateId)
         if (!templateId) {
@@ -190,6 +265,12 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             title: template.data.title || '',
             summary: template.data.summary || '',
             location: template.data.location || '',
+            locationLatitude: template.data.locationLatitude !== undefined
+                ? template.data.locationLatitude.toString()
+                : '',
+            locationLongitude: template.data.locationLongitude !== undefined
+                ? template.data.locationLongitude.toString()
+                : '',
             url: template.data.url || '',
             startTime: '',
             endTime: '',
@@ -219,6 +300,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         title: string
         summary?: string
         location?: string
+        locationLatitude?: number
+        locationLongitude?: number
         headerImage?: string
         url?: string
         startTime: string
@@ -251,56 +334,15 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setTemplates((current) => [created, ...current.filter((item) => item.id !== created.id)])
     }
 
-    const validateRecurrence = (): string | null => {
-        if (!formData.recurrencePattern) {
-            return null
-        }
-
-        if (!formData.recurrenceEndDate) {
-            return 'Please choose when the recurring event should stop.'
-        }
-
-        const startDate = new Date(formData.startTime)
-        const recurrenceEnd = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z')
-        
-        if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
-            return 'Please provide valid dates for recurring events.'
-        }
-
-        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-        const recurrenceEndDateOnly = new Date(recurrenceEnd.getFullYear(), recurrenceEnd.getMonth(), recurrenceEnd.getDate())
-        
-        if (recurrenceEndDateOnly <= startDateOnly) {
-            return 'Recurrence end date must be after the start date.'
-        }
-
-        return null
-    }
-
-    const buildEventPayload = (): Record<string, unknown> => {
-        const payload: Record<string, unknown> = {
-            title: formData.title,
-            summary: formData.summary,
-            location: formData.location,
-            url: formData.url,
-            startTime: new Date(formData.startTime).toISOString(),
-            endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
-            visibility: formData.visibility,
-        }
-
-        if (formData.recurrencePattern) {
-            payload.recurrencePattern = formData.recurrencePattern
-            payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
-        }
-
-        return payload
-    }
+    const locationQueryActive = locationSearch.trim().length >= MIN_QUERY_LENGTH
 
     const resetForm = () => {
         setFormData({
             title: '',
             summary: '',
             location: '',
+            locationLatitude: '',
+            locationLongitude: '',
             url: '',
             startTime: '',
             endTime: '',
@@ -314,22 +356,28 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         setTemplateName('')
         setTemplateDescription('')
         setTagInput('')
+        setLocationSearch('')
     }
 
-    const handleSuccessResponse = async () => {
+    const handleSuccessfulSubmission = async (locationLatitude?: number, locationLongitude?: number) => {
         if (saveAsTemplate) {
             try {
+                // Note: Tags are intentionally excluded from templates as they are event-specific
+                // and shouldn't be part of a reusable template. When loading from a template,
+                // the current form's tags are preserved (see applyTemplate function above).
                 await saveTemplateFromEvent({
                     title: formData.title,
                     summary: formData.summary,
                     location: formData.location,
+                    locationLatitude,
+                    locationLongitude,
                     url: formData.url,
                     startTime: new Date(formData.startTime).toISOString(),
                     endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
                 })
             } catch (err) {
                 console.error('Failed to save template', err)
-                window.alert('Your event was created, but saving the template failed. You can try again later from the event details page.')
+                addErrorToast({ id: crypto.randomUUID(), message: 'Your event was created, but saving the template failed. You can try again later from the event details page.' })
             }
         }
         resetForm()
@@ -346,7 +394,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             return
         }
 
-        const validationError = validateRecurrence()
+        const validationError = validateRecurrence({
+            recurrencePattern: formData.recurrencePattern,
+            recurrenceEndDate: formData.recurrenceEndDate,
+            startTime: formData.startTime,
+        })
         if (validationError) {
             setError(validationError)
             setSubmitting(false)
@@ -356,7 +408,18 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
         try {
             setSubmitting(true)
 
-            const payload = buildEventPayload()
+            const coordinateResult = parseCoordinates(formData)
+            if ('error' in coordinateResult) {
+                setError(coordinateResult.error)
+                setSubmitting(false)
+                return
+            }
+
+            const payload = buildEventPayloadUtil(
+                formData,
+                'latitude' in coordinateResult ? coordinateResult.latitude : undefined,
+                'longitude' in coordinateResult ? coordinateResult.longitude : undefined
+            )
             const response = await fetch('/api/events', {
                 method: 'POST',
                 headers: {
@@ -370,7 +433,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             })
 
             if (response.ok) {
-                await handleSuccessResponse()
+                const hasCoordinates = 'latitude' in coordinateResult && 'longitude' in coordinateResult
+                await handleSuccessfulSubmission(
+                    hasCoordinates ? coordinateResult.latitude : undefined,
+                    hasCoordinates ? coordinateResult.longitude : undefined
+                )
             } else if (response.status === 401) {
                 setError('Authentication required. Please sign in.')
             } else {
@@ -495,17 +562,118 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Location
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.location}
-                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                className="input"
-                                placeholder="Conference Room A"
-                            />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Location label
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="input"
+                                    placeholder="Conference Room A"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    This text is shown on cards and detail pages (e.g., venue or meeting link).
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Coordinates (for map & nearby search)
+                                </label>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <span className="text-xs uppercase text-gray-500">Latitude</span>
+                                        <input
+                                            type="number"
+                                            step="0.000001"
+                                            value={formData.locationLatitude}
+                                            onChange={(e) => setFormData({ ...formData, locationLatitude: e.target.value })}
+                                            className="input mt-1"
+                                            placeholder="40.7128"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-xs uppercase text-gray-500">Longitude</span>
+                                        <input
+                                            type="number"
+                                            step="0.000001"
+                                            value={formData.locationLongitude}
+                                            onChange={(e) => setFormData({ ...formData, locationLongitude: e.target.value })}
+                                            className="input mt-1"
+                                            placeholder="-74.0060"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-3 mt-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary text-sm"
+                                        onClick={handleUseCurrentLocation}
+                                        disabled={geoLoading}
+                                    >
+                                        {geoLoading ? 'Locating…' : 'Use my location'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost text-sm"
+                                        onClick={clearCoordinates}
+                                        disabled={!formData.locationLatitude && !formData.locationLongitude}
+                                    >
+                                        Clear coordinates
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Providing coordinates unlocks map displays and nearby discovery.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Search for a place
+                                </label>
+                                <input
+                                    type="text"
+                                    value={locationSearch}
+                                    onChange={(e) => setLocationSearch(e.target.value)}
+                                    className="input"
+                                    placeholder="Type a venue, city, or address"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Pick a suggestion to autofill the address and coordinates.
+                                </p>
+                                <div className="mt-2 space-y-2">
+                                    {locationQueryActive && locationSuggestionsLoading && (
+                                        <div className="text-xs text-gray-500">Searching for places…</div>
+                                    )}
+                                    {locationQueryActive && !locationSuggestionsLoading && locationSuggestions.length === 0 && (
+                                        <div className="text-xs text-gray-400">
+                                            No matching places yet. Keep typing for better results.
+                                        </div>
+                                    )}
+                                    {locationSuggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion.id}
+                                            type="button"
+                                            onClick={() => handleSuggestionSelect(suggestion)}
+                                            className="w-full text-left border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-colors"
+                                        >
+                                            <div className="font-medium text-gray-900">{suggestion.label}</div>
+                                            {suggestion.hint && (
+                                                <div className="text-xs text-gray-500">{suggestion.hint}</div>
+                                            )}
+                                            <div className="text-xs text-gray-400 mt-1">
+                                                {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {locationSuggestionsError && (
+                                        <div className="text-xs text-red-500">{locationSuggestionsError}</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         <div>

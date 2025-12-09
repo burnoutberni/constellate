@@ -9,6 +9,7 @@ import { requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
+import { handleError } from './lib/errors.js'
 
 const app = new Hono()
 
@@ -137,8 +138,7 @@ app.get('/users', async (c) => {
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
-        console.error('Error listing users:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -182,8 +182,7 @@ app.get('/users/:id', async (c) => {
 
         return c.json(user)
     } catch (error) {
-        console.error('Error getting user:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -293,8 +292,7 @@ app.post('/users', async (c) => {
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
-        console.error('Error creating user:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -368,8 +366,7 @@ app.put('/users/:id', async (c) => {
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
-        console.error('Error updating user:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -402,8 +399,7 @@ app.delete('/users/:id', async (c) => {
 
         return c.json({ success: true })
     } catch (error) {
-        console.error('Error deleting user:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -448,8 +444,7 @@ app.get('/api-keys', async (c) => {
 
         return c.json({ apiKeys: sanitizedKeys })
     } catch (error) {
-        console.error('Error listing API keys:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -511,8 +506,7 @@ app.post('/api-keys', async (c) => {
         if (error instanceof ZodError) {
             return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
         }
-        console.error('Error creating API key:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 
@@ -539,8 +533,7 @@ app.delete('/api-keys/:id', async (c) => {
 
         return c.json({ success: true })
     } catch (error) {
-        console.error('Error deleting API key:', error)
-        return c.json({ error: 'Internal server error' }, 500)
+        return handleError(error, c)
     }
 })
 

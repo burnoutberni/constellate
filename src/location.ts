@@ -1,15 +1,30 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import { lenientRateLimit } from './middleware/rateLimit.js'
+import { lenientRateLimit, rateLimit } from './middleware/rateLimit.js'
 import { config } from './config.js'
 
 const app = new Hono()
 
+// Apply lenient rate limit globally
 app.use('*', lenientRateLimit)
 
+// Apply stricter rate limit specifically for location search endpoint
+// This protects against abuse of external Nominatim API calls
+// More restrictive than lenient limit to prevent exhausting Nominatim rate limits
+app.use('/search', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 30, // 30 requests per 15 minutes (more restrictive than lenient 200)
+}))
+
+// Minimum query length for location search (keep aligned with frontend MIN_QUERY_LENGTH)
+const MIN_LOCATION_QUERY_LENGTH = 3
+
+// Default limit for location search results
+const DEFAULT_LOCATION_LIMIT = 5
+
 const LocationSearchSchema = z.object({
-    q: z.string().min(2).max(200),
-    limit: z.string().optional(),
+    q: z.string().min(MIN_LOCATION_QUERY_LENGTH).max(200),
+    limit: z.coerce.number().optional(),
 })
 
 const NominatimResultSchema = z.object({
@@ -23,7 +38,9 @@ const NominatimResultSchema = z.object({
     address: z.record(z.string(), z.string()).optional(),
 })
 
-const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search'
+// Nominatim endpoint is configurable via NOMINATIM_ENDPOINT environment variable
+// and accessed via config.locationSearch.nominatimEndpoint
+// Defaults to the public Nominatim instance
 
 const pickAddressLine = (address: Record<string, string> | undefined): string | undefined => {
     if (!address) {
@@ -46,9 +63,11 @@ app.get('/search', async (c) => {
             limit: c.req.query('limit'),
         })
 
-        const limit = Math.max(1, Math.min(parseInt(parsed.limit || '5', 10) || 5, 10))
+        // Clamp limit to valid range (1-10) instead of rejecting invalid values
+        const rawLimit = parsed.limit ?? DEFAULT_LOCATION_LIMIT
+        const limit = Math.max(1, Math.min(10, rawLimit))
 
-        const url = new URL(NOMINATIM_ENDPOINT)
+        const url = new URL(config.locationSearch.nominatimEndpoint)
         url.searchParams.set('q', parsed.q)
         url.searchParams.set('format', 'jsonv2')
         url.searchParams.set('addressdetails', '1')

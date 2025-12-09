@@ -35,6 +35,8 @@ export const EventInputSchema = z.object({
     title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
     summary: z.string().optional().openapi({ example: 'Weekly team sync' }),
     location: z.string().optional().openapi({ example: 'Conference Room A' }),
+    locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
+    locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
     headerImage: z.string().url().optional().openapi({ example: 'https://example.com/event.jpg' }),
     url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
     startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
@@ -54,6 +56,8 @@ export const EventSchema = z.object({
     title: z.string().openapi({ example: 'Team Meeting' }),
     summary: z.string().nullable(),
     location: z.string().nullable(),
+    locationLatitude: z.number().nullable().optional(),
+    locationLongitude: z.number().nullable().optional(),
     headerImage: z.string().nullable(),
     url: z.string().nullable(),
     startTime: z.string().datetime(),
@@ -77,6 +81,7 @@ export const EventSchema = z.object({
         likes: z.number(),
         comments: z.number(),
     }).optional(),
+    distanceKm: z.number().optional(),
 }).openapi('Event')
 
 export const EventListSchema = z.object({
@@ -93,6 +98,8 @@ export const EventTemplateDataSchema = z.object({
     title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
     summary: z.string().optional().openapi({ example: 'Weekly sync-up' }),
     location: z.string().optional().openapi({ example: 'Conference Room A' }),
+    locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
+    locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
     headerImage: z.string().url().optional().openapi({ example: 'https://example.com/event.jpg' }),
     url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
     startTime: z.string().datetime().optional().openapi({ example: '2024-12-01T10:00:00Z' }),

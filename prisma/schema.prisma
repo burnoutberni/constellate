@@ -64,6 +64,7 @@ model User {
   reportedIn             Report[]          @relation("ReportedUser")
   eventTemplates         EventTemplate[]
   reminders              EventReminder[]
+
   // Auth
   sessions Session[]
   accounts Account[]
@@ -115,6 +116,8 @@ model Event {
   title       String
   summary     String? // Description
   location    String?
+  locationLatitude Float? // Decimal degrees
+  locationLongitude Float? // Decimal degrees
   headerImage String? // Event banner image
   url         String? // External URL for more info
 
@@ -141,12 +144,12 @@ model Event {
   likes             EventLike[]
   comments          Comment[]
   tags              EventTag[]
+  reminders         EventReminder[]
   recurrencePattern RecurrencePattern?
   recurrenceEndDate DateTime?
   sharedEventId     String?
   sharedEvent       Event?             @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
   shares            Event[]            @relation("EventShares")
-  reminders         EventReminder[]
   // Note: Unique constraint on [userId, sharedEventId] removed because:
   // - When userId is null (remote events), multiple NULL values in composite unique constraints
   //   are not treated as violations in SQL databases, allowing duplicate shares
@@ -158,6 +161,7 @@ model Event {
   @@index([externalId])
   @@index([recurrenceEndDate])
   @@index([sharedEventId])
+  @@index([locationLatitude, locationLongitude])
 }
 
 enum EventVisibility {
@@ -481,6 +485,7 @@ enum ReminderStatus {
   CANCELLED
 }
 
+// Event reminders - scheduled notifications for users
 model EventReminder {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -492,13 +497,20 @@ model EventReminder {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  minutesBeforeStart Int
-  remindAt           DateTime
-  status             ReminderStatus @default(PENDING)
-  deliveredAt        DateTime?
-  lastAttemptAt      DateTime?
-  failureReason      String?
+  // Reminder configuration
+  minutesBeforeStart Int // Minutes before event start to send reminder
+  remindAt           DateTime // Calculated time when reminder should be sent
+
+  // Status tracking
+  status ReminderStatus @default(PENDING)
+
+  // Delivery tracking
+  deliveredAt   DateTime? // When reminder was successfully delivered
+  lastAttemptAt DateTime? // Last time we attempted to send
+  failureReason String?   // Error message if delivery failed
 
   @@unique([eventId, userId])
+  @@index([userId])
+  @@index([eventId])
   @@index([status, remindAt])
 }

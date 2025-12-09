@@ -115,6 +115,27 @@ export const config = {
     isDevelopment: process.env.NODE_ENV !== 'production',
     isProduction: process.env.NODE_ENV === 'production',
 
+    // External service identifiers
+    locationSearch: {
+        get userAgent(): string {
+            // Compute User-Agent on first access to ensure baseUrl is properly set
+            const customUserAgent = process.env.LOCATION_SEARCH_USER_AGENT
+            if (customUserAgent) {
+                return customUserAgent
+            }
+            // Extract base URL without path if it includes one
+            try {
+                const url = new URL(config.baseUrl)
+                const baseUrlWithoutPath = `${url.protocol}//${url.host}`
+                return `ConstellateLocation/1.0 (+${baseUrlWithoutPath})`
+            } catch {
+                // If baseUrl is not a valid URL, fall back to using it as-is
+                return `ConstellateLocation/1.0 (+${config.baseUrl})`
+            }
+        },
+        nominatimEndpoint: getEnv('NOMINATIM_ENDPOINT', 'https://nominatim.openstreetmap.org/search'),
+    },
+
     // SMTP Configuration
     smtp: {
         host: getEnv('SMTP_HOST', ''),
@@ -125,14 +146,10 @@ export const config = {
         from: getEnv('SMTP_FROM', 'noreply@example.com'),
     },
 
-    // Location Search Configuration
-    locationSearch: {
-        userAgent: getEnv('LOCATION_SEARCH_USER_AGENT', 'Constellate/1.0'),
-    },
-
     // Reminder Dispatcher Configuration
     enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
 }
+
 
 // Validate encryption key format
 if (config.encryptionKey.length !== 64) {

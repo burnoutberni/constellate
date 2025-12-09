@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIStore, type ErrorToast } from '../stores'
+import { useUIStore, ErrorToast } from '../stores'
 
 export function ErrorToasts() {
     const toasts = useUIStore((state) => state.errorToasts)
@@ -10,26 +10,29 @@ export function ErrorToasts() {
     }
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col gap-3">
+        <div className="fixed top-4 right-4 z-50 flex max-w-sm flex-col gap-3" role="alert" aria-atomic="true">
             {toasts.map((toast) => (
-                <ErrorToast key={toast.id} toast={toast} onDismiss={dismiss} />
+                <ErrorToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
             ))}
         </div>
     )
 }
 
-function ErrorToast({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (id: string) => void }) {
+function ErrorToastItem({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (id: string) => void }) {
     useEffect(() => {
         const timer = setTimeout(() => {
             onDismiss(toast.id)
-        }, 5000)
-        return () => clearTimeout(timer)
+        }, 5000) // Auto-dismiss after 5 seconds
+
+        return () => {
+            clearTimeout(timer)
+        }
     }, [toast.id, onDismiss])
 
     return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl" role="alert" aria-atomic="true">
-            <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-red-900">Error</span>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl" role="alert">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-red-900">{toast.message}</p>
                 <button
                     type="button"
                     onClick={() => onDismiss(toast.id)}
@@ -39,7 +42,6 @@ function ErrorToast({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (id: s
                     Dismiss
                 </button>
             </div>
-            <p className="text-sm text-red-800">{toast.message}</p>
         </div>
     )
 }
