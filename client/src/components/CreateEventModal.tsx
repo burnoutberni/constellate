@@ -392,7 +392,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             return
         }
 
-        const validationError = validateRecurrence()
+        const validationError = validateRecurrence({
+            recurrencePattern: formData.recurrencePattern,
+            recurrenceEndDate: formData.recurrenceEndDate,
+            startTime: formData.startTime,
+        })
         if (validationError) {
             setError(validationError)
             setSubmitting(false)

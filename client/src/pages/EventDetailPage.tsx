@@ -342,7 +342,7 @@ export function EventDetailPage() {
 
         if (!canManageReminder) {
             setSelectedReminder(activeReminderMinutes)
-            addErrorToast('RSVP as Going or Maybe to enable reminders.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'RSVP as Going or Maybe to enable reminders.' })
             return
         }
 
@@ -353,7 +353,7 @@ export function EventDetailPage() {
         } catch (error) {
             console.error('Failed to update reminder:', error)
             setSelectedReminder(previousValue !== undefined ? previousValue : null)
-            addErrorToast('Failed to update reminder. Please try again.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update reminder. Please try again.' })
         }
     }
 
@@ -385,7 +385,7 @@ export function EventDetailPage() {
             if (error instanceof Error) {
                 errorMessage = error.message
             }
-            addErrorToast(errorMessage)
+            addErrorToast({ id: crypto.randomUUID(), message: errorMessage })
         }
     }
 
@@ -467,7 +467,7 @@ export function EventDetailPage() {
             })
         } catch (error) {
             console.error('Delete comment failed:', error)
-            addErrorToast('Failed to delete comment. Please try again.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to delete comment. Please try again.' })
         }
     }
 
@@ -481,7 +481,7 @@ export function EventDetailPage() {
             navigate('/feed', { replace: true })
         } catch (error) {
             console.error('Delete event failed:', error)
-            addErrorToast('Failed to delete event. Please try again.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to delete event. Please try again.' })
         }
     }
 

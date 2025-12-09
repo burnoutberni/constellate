@@ -27,7 +27,6 @@ import activityRoutes from './activity.js'
 import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
 import recommendationsRoutes from './recommendations.js'
-import locationRoutes from './location.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -238,7 +237,6 @@ app.route('/api/recommendations', recommendationsRoutes)
 app.route('/api/location', locationRoutes)
 app.route('/api/moderation', moderationRoutes)
 app.route('/api/user-search', userSearchRoutes)
-app.route('/api/location', locationRoutes)
 app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)

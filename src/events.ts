@@ -1357,20 +1357,22 @@ async function updateEventTags(
 }
 
 // Helper function to broadcast event update
-async function broadcastEventUpdate(event: Event & { user: unknown; tags: unknown[] }) {
+async function broadcastEventUpdate(
+    event: Prisma.EventGetPayload<{ include: { user: true; tags: true } }>
+) {
     const { broadcast, BroadcastEvents } = await import('./realtime.js')
-    const userId = (event as { userId: string | null }).userId
-    const visibility = (event as { visibility: string | null }).visibility
+    const userId = event.userId
+    const visibility = event.visibility
 
     if (!userId) return
 
     const broadcastTarget = getBroadcastTarget(visibility as EventVisibility | null, userId)
 
     // These fields should always exist on an event from the database
-    const startTime = (event as { startTime: Date | null }).startTime
-    const createdAt = (event as { createdAt: Date | null }).createdAt
-    const updatedAt = (event as { updatedAt: Date | null }).updatedAt
-    const endTime = (event as { endTime: Date | null }).endTime
+    const startTime = event.startTime
+    const createdAt = event.createdAt
+    const updatedAt = event.updatedAt
+    const endTime = event.endTime
 
     if (!startTime || !createdAt || !updatedAt) {
         throw new Error('Event missing required timestamp fields')
@@ -1461,40 +1463,35 @@ app.put('/:id', moderateRateLimit, async (c) => {
         }
 
         const event = await prisma.$transaction(async (tx) => {
-            // If updateData is empty (only tags being updated), explicitly update updatedAt
-            // to trigger the timestamp update
-            let finalUpdateData = updateData
-            if (Object.keys(updateData).length === 0) {
-                finalUpdateData = { updatedAt: new Date() }
-            }
+            // Ensure updatedAt is always set when updating
+            // If updateData is empty (only tags being updated), explicitly set updatedAt
+            const finalUpdateData = Object.keys(updateData).length === 0
+                ? { updatedAt: new Date() }
+                : { ...updateData, updatedAt: new Date() }
             
-            const updatedEvent = await tx.event.update({
+            await tx.event.update({
                 where: { id },
                 data: finalUpdateData,
+            })
+
+            if (normalizedTags !== undefined) {
+                await updateEventTags(tx, id, normalizedTags)
+            }
+            
+            // Always refresh to get the latest data with all fields and relations
+            const refreshedEvent = await tx.event.findUnique({
+                where: { id },
                 include: {
                     user: true,
                     tags: true,
                 },
             })
-
-            if (normalizedTags !== undefined) {
-                await updateEventTags(tx, id, normalizedTags)
-                
-                // Refresh to get the latest tags after update
-                const refreshedEvent = await tx.event.findUnique({
-                    where: { id },
-                    include: {
-                        user: true,
-                        tags: true,
-                    },
-                })
-                
-                if (refreshedEvent) {
-                    return refreshedEvent
-                }
+            
+            if (!refreshedEvent) {
+                throw new Error('Failed to retrieve updated event')
             }
             
-            return updatedEvent
+            return refreshedEvent
         })
 
         if (!event) {

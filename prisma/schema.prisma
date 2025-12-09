@@ -150,7 +150,6 @@ model Event {
   sharedEventId     String?
   sharedEvent       Event?             @relation("EventShares", fields: [sharedEventId], references: [id], onDelete: Cascade)
   shares            Event[]            @relation("EventShares")
-  reminders         EventReminder[]
   // Note: Unique constraint on [userId, sharedEventId] removed because:
   // - When userId is null (remote events), multiple NULL values in composite unique constraints
   //   are not treated as violations in SQL databases, allowing duplicate shares
