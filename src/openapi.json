@@ -78,6 +78,10 @@
         {
             "name": "Setup",
             "description": "Initial instance setup and onboarding"
+        },
+        {
+            "name": "Instances",
+            "description": "Federated instance discovery and directory"
         }
     ],
     "components": {
@@ -4109,6 +4113,209 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/api/instances": {
+            "get": {
+                "tags": [
+                    "Instances"
+                ],
+                "summary": "List known federated instances",
+                "description": "Returns a list of federated instances discovered through ActivityPub activities, with statistics about connections and activity",
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum number of instances to return (max 100)",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Number of instances to skip for pagination",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "sortBy",
+                        "in": "query",
+                        "description": "Sort instances by activity, user count, or creation date",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["activity", "users", "created"],
+                            "default": "activity"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of federated instances",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "instances": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {"type": "string"},
+                                                    "domain": {"type": "string"},
+                                                    "baseUrl": {"type": "string"},
+                                                    "software": {"type": "string"},
+                                                    "version": {"type": "string"},
+                                                    "title": {"type": "string"},
+                                                    "description": {"type": "string"},
+                                                    "iconUrl": {"type": "string"},
+                                                    "userCount": {"type": "integer"},
+                                                    "eventCount": {"type": "integer"},
+                                                    "lastActivityAt": {"type": "string", "format": "date-time"},
+                                                    "isBlocked": {"type": "boolean"},
+                                                    "stats": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "remoteUsers": {"type": "integer"},
+                                                            "remoteEvents": {"type": "integer"},
+                                                            "localFollowing": {"type": "integer"}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "total": {"type": "integer"},
+                                        "limit": {"type": "integer"},
+                                        "offset": {"type": "integer"}
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/instances/search": {
+            "get": {
+                "tags": [
+                    "Instances"
+                ],
+                "summary": "Search for instances",
+                "description": "Search known instances by domain name, title, or description",
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "description": "Search query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum number of results (max 50)",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "instances": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid search query"
+                    }
+                }
+            }
+        },
+        "/api/instances/{domain}": {
+            "get": {
+                "tags": [
+                    "Instances"
+                ],
+                "summary": "Get instance details",
+                "description": "Get detailed information about a specific federated instance",
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "domain",
+                        "in": "path",
+                        "required": true,
+                        "description": "Instance domain name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Instance details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Instance not found"
                     }
                 }
             }
