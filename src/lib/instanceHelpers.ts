@@ -244,17 +244,38 @@ export async function getKnownInstances(options: {
 
     // Get connection stats for all instances in bulk to avoid N+1 queries
     // Fetch all related records that might match any instance
+    const domains = instances.map(i => i.domain)
+    const urlPatterns = domains.flatMap(domain => [
+        { contains: `://${domain}/` },
+        { contains: `://${domain}:` }
+    ])
     const [allUsers, allEvents, allFollowings] = await Promise.all([
         prisma.user.findMany({
             where: {
                 isRemote: true,
+                OR: domains.flatMap(domain => [
+                    { externalActorUrl: { contains: `://${domain}/` } },
+                    { externalActorUrl: { contains: `://${domain}:` } }
+                ])
             },
             select: { externalActorUrl: true }
         }),
         prisma.event.findMany({
+            where: {
+                OR: domains.flatMap(domain => [
+                    { externalId: { contains: `://${domain}/` } },
+                    { externalId: { contains: `://${domain}:` } }
+                ])
+            },
             select: { externalId: true }
         }),
         prisma.following.findMany({
+            where: {
+                OR: domains.flatMap(domain => [
+                    { actorUrl: { contains: `://${domain}/` } },
+                    { actorUrl: { contains: `://${domain}:` } }
+                ])
+            },
             select: { actorUrl: true }
         })
     ])
