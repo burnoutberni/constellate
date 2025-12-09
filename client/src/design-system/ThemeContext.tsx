@@ -8,6 +8,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import type { Theme } from './tokens'
 import { tokens } from './tokens'
+import { isValidTheme } from './types'
 
 interface ThemeContextType {
   theme: Theme
@@ -49,7 +50,7 @@ export function ThemeProvider({
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
   // Use lazy initializer to access storageKey
-  const [theme, setThemeState] = useState<Theme>(() => {
+  const [theme, setThemeState] = useState<Theme>((): Theme => {
     if (defaultTheme) {
       return defaultTheme
     }
@@ -65,7 +66,7 @@ export function ThemeProvider({
     
     return getSystemTheme()
   })
-  const [systemPreference, setSystemPreference] = useState<Theme>(getSystemTheme)
+  const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
 
   // Apply theme class to document root
   useEffect(() => {

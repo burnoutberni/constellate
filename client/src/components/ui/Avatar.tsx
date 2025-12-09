@@ -221,4 +221,3 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
 )
 
 AvatarGroup.displayName = 'AvatarGroup'
-
