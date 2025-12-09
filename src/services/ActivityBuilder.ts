@@ -94,6 +94,19 @@ export function buildCreateEventActivity(
 
 /**
  * Builds an Update activity for an event
+ * 
+ * Used when an event's details are modified (title, time, location, etc.).
+ * Recipients should update their cached copy of the event with the new data.
+ * 
+ * @param event - The updated event with user information
+ * @param _userId - The ID of the user performing the update (currently unused)
+ * @returns UpdateActivity - An ActivityPub Update activity containing the updated event
+ * 
+ * @example
+ * ```typescript
+ * const activity = buildUpdateEventActivity(updatedEvent, userId)
+ * // Sends to followers: "Alice updated the event 'Team Meeting'"
+ * ```
  */
 export function buildUpdateEventActivity(
     event: Event & { user: User | null },
@@ -146,6 +159,21 @@ export function buildUpdateEventActivity(
 
 /**
  * Builds a Delete activity for an event
+ * 
+ * Used when an event is permanently deleted. Recipients should remove the event
+ * from their cache and display. The object is a Tombstone indicating what was deleted.
+ * 
+ * @param eventId - The ID of the event being deleted
+ * @param user - The user performing the deletion (must be event creator)
+ * @param visibility - The visibility level of the original event (for addressing)
+ * @returns DeleteActivity - An ActivityPub Delete activity with a Tombstone object
+ * 
+ * @example
+ * ```typescript
+ * const activity = buildDeleteEventActivity('event-123', user, 'PUBLIC')
+ * // Sends to followers: "Alice deleted the event"
+ * // Recipients remove event-123 from their cache
+ * ```
  */
 export function buildDeleteEventActivity(
     eventId: string,
@@ -280,6 +308,26 @@ export function buildLikeActivity(
 
 /**
  * Builds an Undo activity
+ * 
+ * Used to reverse a previous activity. Common use cases:
+ * - Undo Like: User unlikes an event they previously liked
+ * - Undo Follow: User unfollows someone they were following
+ * - Undo Accept/TentativeAccept/Reject: User changes their RSVP status
+ * - Undo Announce: User unshares an event they previously shared
+ * 
+ * Recipients should reverse the effects of the original activity.
+ * 
+ * @param user - The user performing the undo (must be same as original actor)
+ * @param originalActivity - The activity being undone (embedded in the Undo)
+ * @returns UndoActivity - An ActivityPub Undo activity wrapping the original
+ * 
+ * @example
+ * ```typescript
+ * const likeActivity = buildLikeActivity(user, eventUrl, ...)
+ * // Later, user unlikes:
+ * const undoActivity = buildUndoActivity(user, likeActivity)
+ * // Sends to followers: "Alice undid their like of the event"
+ * ```
  */
 export function buildUndoActivity(
     user: User,
