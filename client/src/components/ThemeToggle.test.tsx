@@ -48,7 +48,7 @@ describe('ThemeToggle Component', () => {
     })
 
     it('should have correct aria-label for dark theme', () => {
-      const theme: Theme = 'dark'
+      const theme = 'dark' as Theme
       const ariaLabel = `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`
       
       expect(ariaLabel).toBe('Switch to light mode')
@@ -82,7 +82,7 @@ describe('ThemeToggle Component', () => {
     })
 
     it('should toggle from dark to light', () => {
-      const currentTheme: Theme = 'dark'
+      const currentTheme = 'dark' as Theme
       const toggledTheme: Theme = currentTheme === 'light' ? 'dark' : 'light'
       
       expect(toggledTheme).toBe('light')
@@ -150,7 +150,7 @@ describe('ThemeToggle Component', () => {
     })
 
     it('should show sun icon for dark theme', () => {
-      const theme: Theme = 'dark'
+      const theme = 'dark' as Theme
       const icon = theme === 'light' ? '🌙' : '☀️'
       
       expect(icon).toBe('☀️')
@@ -171,7 +171,7 @@ describe('ThemeToggle Component', () => {
     })
 
     it('should show "Light" label for dark theme', () => {
-      const theme: Theme = 'dark'
+      const theme = 'dark' as Theme
       const label = theme === 'light' ? 'Dark' : 'Light'
       
       expect(label).toBe('Light')

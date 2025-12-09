@@ -72,9 +72,6 @@ describe('CalendarView date calculations', () => {
         const currentDate = new Date(2025, 11, 15) // December 15, 2025
         const hour = 10
 
-        const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
-        const hourEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 59, 59, 999)
-
         const filtered = mockEvents.filter((event) => {
             const eventDate = new Date(event.startTime)
             // Compare in local timezone

@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { ThemeProvider, useTheme, useThemeColors } from '../design-system/ThemeContext'
 import type { Theme } from '../design-system/tokens'
 import { tokens } from '../design-system/tokens'
 
@@ -25,11 +24,16 @@ function createMatchMedia(matches: boolean) {
 }
 
 describe('ThemeContext', () => {
-  const originalLocalStorage = global.localStorage
-  const originalMatchMedia = window.matchMedia
-  const originalDocument = document.documentElement
+  let originalLocalStorage: typeof global.localStorage
+  let originalMatchMedia: typeof window.matchMedia
+  let originalDocumentClassName: string
 
   beforeEach(() => {
+    // Store original values before modifying
+    originalLocalStorage = global.localStorage
+    originalMatchMedia = window.matchMedia
+    originalDocumentClassName = document.documentElement.className
+
     // Reset localStorage
     const localStorageMock = {
       getItem: vi.fn(),
@@ -49,7 +53,7 @@ describe('ThemeContext', () => {
   afterEach(() => {
     global.localStorage = originalLocalStorage
     window.matchMedia = originalMatchMedia
-    document.documentElement.className = originalDocument.className
+    document.documentElement.className = originalDocumentClassName
     vi.clearAllMocks()
   })
 
@@ -234,7 +238,7 @@ describe('ThemeContext', () => {
     })
 
     it('should toggle from dark to light', () => {
-      const currentTheme: Theme = 'dark'
+      const currentTheme = 'dark' as Theme
       const toggledTheme: Theme = currentTheme === 'light' ? 'dark' : 'light'
       expect(toggledTheme).toBe('light')
     })
