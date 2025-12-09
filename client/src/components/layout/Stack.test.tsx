@@ -37,6 +37,8 @@ describe('Stack Component', () => {
         directionSm="row" 
         directionMd="column" 
         directionLg="row"
+        directionXl="column"
+        direction2xl="row"
         data-testid="stack"
       >
         Content
@@ -48,7 +50,9 @@ describe('Stack Component', () => {
       'flex-col',
       'sm:flex-row',
       'md:flex-col',
-      'lg:flex-row'
+      'lg:flex-row',
+      'xl:flex-col',
+      '2xl:flex-row'
     )
   })
 

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, act, cleanup } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { ThemeProvider, useTheme, useThemeColors } from '../design-system/ThemeContext'
 import { tokens } from '../design-system/tokens'
 
@@ -479,7 +479,6 @@ describe('ThemeContext', () => {
       
       // Clean up before next render
       rendered.unmount()
-      cleanup()
       
       // Test with explicit defaultTheme (SSR scenario)
       const renderedWithDefault = render(
@@ -524,7 +523,6 @@ describe('ThemeContext', () => {
 
         // Clean up before next render
         firstRender!.unmount()
-        cleanup()
 
         const rendered = render(
           <ThemeProvider defaultTheme="light">
