@@ -12,6 +12,7 @@ import * as activitypubHelpers from '../lib/activitypubHelpers.js'
 import * as activityBuilder from '../services/ActivityBuilder.js'
 import * as activityDelivery from '../services/ActivityDelivery.js'
 import * as realtime from '../realtime.js'
+import { BroadcastEvents } from '../realtime.js'
 
 // Mock dependencies
 vi.mock('../lib/activitypubHelpers.js')
@@ -1292,6 +1293,669 @@ describe('Federation Handlers', () => {
 
 
 
+    })
+
+    describe('WP-020: Update, Delete, and Undo Activity Support', () => {
+        describe('Update Activities', () => {
+            it('should handle Update activity for an event with all fields', async () => {
+                const remoteEvent = await prisma.event.create({
+                    data: {
+                        title: 'Original Event',
+                        summary: 'Original summary',
+                        location: 'Original Location',
+                        startTime: new Date('2024-12-01T10:00:00Z'),
+                        endTime: new Date('2024-12-01T11:00:00Z'),
+                        externalId: 'https://example.com/events/update-test',
+                        attributedTo: 'https://example.com/users/bob',
+                        eventStatus: 'EventScheduled',
+                    },
+                })
+
+                const activity = {
+                    id: 'https://example.com/activities/update-event-full',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.EVENT,
+                        id: 'https://example.com/events/update-test',
+                        name: 'Updated Event Title',
+                        summary: 'Updated event summary',
+                        location: 'New Location',
+                        startTime: new Date('2024-12-02T14:00:00Z').toISOString(),
+                        endTime: new Date('2024-12-02T16:00:00Z').toISOString(),
+                        eventStatus: 'EventPostponed',
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const updatedEvent = await prisma.event.findUnique({
+                    where: { id: remoteEvent.id },
+                })
+
+                expect(updatedEvent).toBeDefined()
+                expect(updatedEvent?.title).toBe('Updated Event Title')
+                expect(updatedEvent?.summary).toBe('Updated event summary')
+                expect(updatedEvent?.location).toBe('New Location')
+                expect(updatedEvent?.eventStatus).toBe('EventPostponed')
+                expect(updatedEvent?.startTime.toISOString()).toBe('2024-12-02T14:00:00.000Z')
+                expect(updatedEvent?.endTime?.toISOString()).toBe('2024-12-02T16:00:00.000Z')
+            })
+
+            it('should handle Update activity for an event with partial fields', async () => {
+                const remoteEvent = await prisma.event.create({
+                    data: {
+                        title: 'Original Event',
+                        summary: 'Original summary',
+                        location: 'Original Location',
+                        startTime: new Date('2024-12-01T10:00:00Z'),
+                        externalId: 'https://example.com/events/partial-update',
+                        attributedTo: 'https://example.com/users/bob',
+                    },
+                })
+
+                const activity = {
+                    id: 'https://example.com/activities/update-event-partial',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.EVENT,
+                        id: 'https://example.com/events/partial-update',
+                        name: 'Updated Title Only',
+                        startTime: remoteEvent.startTime.toISOString(),
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const updatedEvent = await prisma.event.findUnique({
+                    where: { id: remoteEvent.id },
+                })
+
+                expect(updatedEvent).toBeDefined()
+                expect(updatedEvent?.title).toBe('Updated Title Only')
+                // Other fields should be updated to null/undefined as per activity
+                expect(updatedEvent?.summary).toBeNull()
+            })
+
+            it('should handle Update activity for a user profile with all fields', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'updatetest@example.com',
+                        email: 'updatetest@example.com',
+                        name: 'Original Name',
+                        bio: 'Original bio',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/updatetest',
+                        displayColor: '#000000',
+                    },
+                })
+
+                const activity = {
+                    id: 'https://example.com/activities/update-profile-full',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/updatetest',
+                    object: {
+                        type: ObjectType.PERSON,
+                        id: 'https://example.com/users/updatetest',
+                        preferredUsername: 'updatetest',
+                        name: 'Updated Name',
+                        summary: 'Updated bio text',
+                        displayColor: '#ff6600',
+                        icon: {
+                            type: ObjectType.IMAGE,
+                            url: 'https://example.com/avatar-updated.jpg',
+                        },
+                        image: {
+                            type: ObjectType.IMAGE,
+                            url: 'https://example.com/header-updated.jpg',
+                        },
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const updatedUser = await prisma.user.findUnique({
+                    where: { id: remoteUser.id },
+                })
+
+                expect(updatedUser).toBeDefined()
+                expect(updatedUser?.name).toBe('Updated Name')
+                expect(updatedUser?.bio).toBe('Updated bio text')
+                expect(updatedUser?.displayColor).toBe('#ff6600')
+                expect(updatedUser?.profileImage).toBe('https://example.com/avatar-updated.jpg')
+                expect(updatedUser?.headerImage).toBe('https://example.com/header-updated.jpg')
+            })
+
+            it('should ignore Update activity for non-existent event', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/update-nonexistent',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.EVENT,
+                        id: 'https://example.com/events/nonexistent',
+                        name: 'This Should Not Be Created',
+                        startTime: new Date().toISOString(),
+                    },
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+
+                // Event should not be created (Update doesn't create)
+                const event = await prisma.event.findFirst({
+                    where: {
+                        externalId: 'https://example.com/events/nonexistent',
+                    },
+                })
+
+                expect(event).toBeNull()
+            })
+        })
+
+        describe('Delete Activities', () => {
+            it('should handle Delete activity for an event with Tombstone object', async () => {
+                const remoteEvent = await prisma.event.create({
+                    data: {
+                        title: 'Event to Delete',
+                        startTime: new Date(),
+                        externalId: 'https://example.com/events/delete-tombstone',
+                        attributedTo: 'https://example.com/users/bob',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/delete-event-tombstone',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.TOMBSTONE,
+                        id: 'https://example.com/events/delete-tombstone',
+                        formerType: ObjectType.EVENT,
+                        deleted: new Date().toISOString(),
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const deletedEvent = await prisma.event.findFirst({
+                    where: {
+                        externalId: remoteEvent.externalId,
+                    },
+                })
+
+                expect(deletedEvent).toBeNull()
+                expect(vi.mocked(realtime.broadcast)).toHaveBeenCalledWith({
+                    type: BroadcastEvents.EVENT_DELETED,
+                    data: expect.objectContaining({
+                        eventId: remoteEvent.id,
+                    }),
+                })
+            })
+
+            it('should handle Delete activity for an event with string object', async () => {
+                const remoteEvent = await prisma.event.create({
+                    data: {
+                        title: 'Event to Delete',
+                        startTime: new Date(),
+                        externalId: 'https://example.com/events/delete-string',
+                        attributedTo: 'https://example.com/users/bob',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/delete-event-string',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/bob',
+                    object: 'https://example.com/events/delete-string',
+                }
+
+                await handleActivity(activity as any)
+
+                const deletedEvent = await prisma.event.findFirst({
+                    where: {
+                        externalId: remoteEvent.externalId,
+                    },
+                })
+
+                expect(deletedEvent).toBeNull()
+            })
+
+            it('should handle Delete activity for a comment with Tombstone', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'deletecomment@example.com',
+                        email: 'deletecomment@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/deletecomment',
+                    },
+                })
+
+                const comment = await prisma.comment.create({
+                    data: {
+                        content: 'Comment to delete',
+                        eventId: testEvent.id,
+                        authorId: remoteUser.id,
+                        externalId: 'https://example.com/comments/delete-test',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/delete-comment',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/deletecomment',
+                    object: {
+                        type: ObjectType.TOMBSTONE,
+                        id: 'https://example.com/comments/delete-test',
+                        formerType: ObjectType.NOTE,
+                        deleted: new Date().toISOString(),
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const deletedComment = await prisma.comment.findUnique({
+                    where: { id: comment.id },
+                })
+
+                expect(deletedComment).toBeNull()
+                expect(vi.mocked(realtime.broadcast)).toHaveBeenCalledWith({
+                    type: BroadcastEvents.COMMENT_DELETED,
+                    data: expect.objectContaining({
+                        eventId: testEvent.id,
+                        commentId: comment.id,
+                    }),
+                })
+            })
+
+            it('should handle Delete activity for non-existent resource gracefully', async () => {
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/delete-nonexistent',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/bob',
+                    object: 'https://example.com/events/nonexistent',
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+
+                // No broadcast should occur
+                expect(vi.mocked(realtime.broadcast)).not.toHaveBeenCalled()
+            })
+
+            it('should cascade delete event with related data', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'cascade@example.com',
+                        email: 'cascade@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/cascade',
+                    },
+                })
+
+                const remoteEvent = await prisma.event.create({
+                    data: {
+                        title: 'Event with Relations',
+                        startTime: new Date(),
+                        externalId: 'https://example.com/events/cascade-delete',
+                        attributedTo: 'https://example.com/users/cascade',
+                    },
+                })
+
+                // Add related data
+                await prisma.eventLike.create({
+                    data: {
+                        eventId: remoteEvent.id,
+                        userId: testUser.id,
+                    },
+                })
+
+                await prisma.comment.create({
+                    data: {
+                        content: 'Comment on event',
+                        eventId: remoteEvent.id,
+                        authorId: testUser.id,
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/delete-cascade',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/cascade',
+                    object: 'https://example.com/events/cascade-delete',
+                }
+
+                await handleActivity(activity as any)
+
+                // Event should be deleted
+                const deletedEvent = await prisma.event.findUnique({
+                    where: { id: remoteEvent.id },
+                })
+                expect(deletedEvent).toBeNull()
+
+                // Related data should also be deleted (cascade)
+                const likes = await prisma.eventLike.findMany({
+                    where: { eventId: remoteEvent.id },
+                })
+                expect(likes).toHaveLength(0)
+
+                const comments = await prisma.comment.findMany({
+                    where: { eventId: remoteEvent.id },
+                })
+                expect(comments).toHaveLength(0)
+            })
+        })
+
+        describe('Undo Activities', () => {
+            it('should handle Undo for Like activity', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'undolike@example.com',
+                        email: 'undolike@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/undolike',
+                    },
+                })
+
+                const like = await prisma.eventLike.create({
+                    data: {
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                        externalId: 'https://example.com/activities/like-123',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/undo-like',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/undolike',
+                    object: {
+                        type: ActivityType.LIKE,
+                        id: 'https://example.com/activities/like-123',
+                        actor: 'https://example.com/users/undolike',
+                        object: `${baseUrl}/events/${testEvent.id}`,
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const deletedLike = await prisma.eventLike.findUnique({
+                    where: { id: like.id },
+                })
+
+                expect(deletedLike).toBeNull()
+                expect(vi.mocked(realtime.broadcast)).toHaveBeenCalledWith({
+                    type: BroadcastEvents.LIKE_REMOVED,
+                    data: expect.objectContaining({
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                    }),
+                })
+            })
+
+            it('should handle Undo for Follow activity', async () => {
+                // Mock getBaseUrl to return the test base URL
+                vi.mocked(activitypubHelpers.getBaseUrl).mockReturnValue(baseUrl)
+
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'undofollow@example.com',
+                        email: 'undofollow@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/undofollow',
+                    },
+                })
+
+                const followerRecord = await prisma.follower.create({
+                    data: {
+                        userId: testUser.id,
+                        actorUrl: 'https://example.com/users/undofollow',
+                        username: remoteUser.username,
+                        inboxUrl: 'https://example.com/users/undofollow/inbox',
+                        accepted: true,
+                    },
+                })
+
+                // Verify follower was created
+                const beforeFollower = await prisma.follower.findUnique({
+                    where: { id: followerRecord.id },
+                })
+                expect(beforeFollower).not.toBeNull()
+
+                const activity = {
+                    id: 'https://example.com/activities/undo-follow',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/undofollow',
+                    object: {
+                        type: ActivityType.FOLLOW,
+                        id: 'https://example.com/activities/follow-123',
+                        actor: 'https://example.com/users/undofollow',
+                        object: `${baseUrl}/users/${testUser.username}`,
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const follower = await prisma.follower.findFirst({
+                    where: {
+                        userId: testUser.id,
+                        actorUrl: 'https://example.com/users/undofollow',
+                    },
+                })
+
+                expect(follower).toBeNull()
+            })
+
+            it('should handle Undo for Accept activity (attendance)', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'undoattend@example.com',
+                        email: 'undoattend@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/undoattend',
+                    },
+                })
+
+                await prisma.eventAttendance.create({
+                    data: {
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                        status: AttendanceStatus.ATTENDING,
+                        externalId: 'https://example.com/activities/accept-123',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/undo-accept',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/undoattend',
+                    object: {
+                        type: ActivityType.ACCEPT,
+                        id: 'https://example.com/activities/accept-123',
+                        actor: 'https://example.com/users/undoattend',
+                        object: `${baseUrl}/events/${testEvent.id}`,
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const attendance = await prisma.eventAttendance.findFirst({
+                    where: {
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                    },
+                })
+
+                expect(attendance).toBeNull()
+                expect(vi.mocked(realtime.broadcast)).toHaveBeenCalledWith({
+                    type: BroadcastEvents.ATTENDANCE_REMOVED,
+                    data: expect.objectContaining({
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                    }),
+                })
+            })
+
+            it('should handle Undo for TentativeAccept activity (maybe attendance)', async () => {
+                const remoteUser = await prisma.user.create({
+                    data: {
+                        username: 'undomaybe@example.com',
+                        email: 'undomaybe@example.com',
+                        isRemote: true,
+                        externalActorUrl: 'https://example.com/users/undomaybe',
+                    },
+                })
+
+                await prisma.eventAttendance.create({
+                    data: {
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                        status: AttendanceStatus.MAYBE,
+                        externalId: 'https://example.com/activities/tentative-123',
+                    },
+                })
+
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/undo-tentative',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/undomaybe',
+                    object: {
+                        type: ActivityType.TENTATIVE_ACCEPT,
+                        id: 'https://example.com/activities/tentative-123',
+                        actor: 'https://example.com/users/undomaybe',
+                        object: `${baseUrl}/events/${testEvent.id}`,
+                    },
+                }
+
+                await handleActivity(activity as any)
+
+                const attendance = await prisma.eventAttendance.findFirst({
+                    where: {
+                        eventId: testEvent.id,
+                        userId: remoteUser.id,
+                    },
+                })
+
+                expect(attendance).toBeNull()
+            })
+
+            it('should ignore Undo for non-existent Like', async () => {
+                vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+                const activity = {
+                    id: 'https://example.com/activities/undo-nonexistent-like',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ActivityType.LIKE,
+                        actor: 'https://example.com/users/bob',
+                        object: `${baseUrl}/events/${testEvent.id}`,
+                    },
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+            })
+
+            it('should ignore Undo with string object (not supported)', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/undo-string',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/bob',
+                    object: 'https://example.com/activities/like-123',
+                }
+
+                // Should not throw, but should be ignored
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+            })
+        })
+
+        describe('Edge Cases and Error Handling', () => {
+            it('should handle Update with missing required fields gracefully', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/update-missing-fields',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.EVENT,
+                        id: 'https://example.com/events/test',
+                        // Missing name and startTime
+                    },
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+            })
+
+            it('should handle Delete with malformed object', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/delete-malformed',
+                    type: ActivityType.DELETE,
+                    actor: 'https://example.com/users/bob',
+                    object: null, // Invalid
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+            })
+
+            it('should handle Undo with missing object type', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/undo-missing-type',
+                    type: ActivityType.UNDO,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        // Missing type field
+                        actor: 'https://example.com/users/bob',
+                        object: `${baseUrl}/events/${testEvent.id}`,
+                    },
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+            })
+
+            it('should mark activity as processed even if handling fails', async () => {
+                const activity = {
+                    id: 'https://example.com/activities/processing-error',
+                    type: ActivityType.UPDATE,
+                    actor: 'https://example.com/users/bob',
+                    object: {
+                        type: ObjectType.EVENT,
+                        id: 'https://example.com/events/error-test',
+                        name: 'Test',
+                        startTime: 'invalid-date', // Will cause error
+                    },
+                }
+
+                // Should not throw
+                await expect(handleActivity(activity as any)).resolves.not.toThrow()
+
+                // Should still be marked as processed
+                const processed = await prisma.processedActivity.findFirst({
+                    where: { activityId: activity.id },
+                })
+
+                expect(processed).toBeTruthy()
+            })
+        })
     })
 })
 
