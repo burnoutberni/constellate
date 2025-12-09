@@ -13,6 +13,7 @@ design-system/
 ├── tokens.ts          # Design tokens (colors, typography, spacing, etc.)
 ├── types.ts           # TypeScript types for tokens
 ├── ThemeContext.tsx   # Theme provider and hooks
+├── index.ts           # Public API (barrel export)
 └── README.md          # This file
 ```
 
@@ -32,7 +33,7 @@ Each color scale includes shades from 50 (lightest) to 950 (darkest).
 #### Usage
 
 ```typescript
-import { tokens } from './design-system/tokens'
+import { tokens } from './design-system'
 
 // Access colors
 const primaryColor = tokens.colors.light.primary[500]
@@ -76,7 +77,7 @@ The `typography` object provides ready-to-use text styles:
 #### Usage
 
 ```typescript
-import { tokens } from './design-system/tokens'
+import { tokens } from './design-system'
 
 // Access typography
 const headingStyle = tokens.typography.h1
@@ -112,7 +113,7 @@ The spacing scale uses a 4px base unit (rem-based):
 #### Usage
 
 ```typescript
-import { tokens } from './design-system/tokens'
+import { tokens } from './design-system'
 
 const padding = tokens.spacing[4] // '1rem'
 ```
@@ -217,7 +218,7 @@ The design system supports light and dark themes. The theme is managed through t
 Wrap your application with `ThemeProvider`:
 
 ```tsx
-import { ThemeProvider } from './design-system/ThemeContext'
+import { ThemeProvider } from './design-system'
 
 function App() {
   return (
@@ -231,7 +232,7 @@ function App() {
 ### Using the Theme Hook
 
 ```tsx
-import { useTheme } from './design-system/ThemeContext'
+import { useTheme } from './design-system'
 
 function MyComponent() {
   const { theme, setTheme, toggleTheme } = useTheme()
@@ -266,7 +267,7 @@ Colors automatically adapt to the current theme:
 For programmatic access:
 
 ```tsx
-import { useThemeColors } from './design-system/ThemeContext'
+import { useThemeColors } from './design-system'
 
 function MyComponent() {
   const colors = useThemeColors()
@@ -292,7 +293,7 @@ import type {
   BorderRadiusValue,
   ShadowValue,
   // ... and more
-} from './design-system/types'
+} from './design-system'
 ```
 
 ### Type Validation
@@ -305,7 +306,7 @@ import {
   isValidBorderRadius,
   isValidShadow,
   isValidTheme,
-} from './design-system/types'
+} from './design-system'
 
 if (isValidSpacing(value)) {
   // value is a valid spacing token
@@ -328,7 +329,7 @@ if (isValidSpacing(value)) {
 
 Or with tokens:
 ```tsx
-import { tokens } from './design-system/tokens'
+import { tokens } from './design-system'
 <div style={{ 
   padding: tokens.spacing[4], 
   color: tokens.colors.light.primary[500] 
@@ -396,7 +397,7 @@ All design tokens are automatically integrated with Tailwind CSS through `tailwi
 
 2. **Via token imports** (for dynamic values):
    ```tsx
-   import { tokens } from './design-system/tokens'
+   import { tokens } from './design-system'
    <div style={{ backgroundColor: tokens.colors.light.primary[500] }}>
    ```
 

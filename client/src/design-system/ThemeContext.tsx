@@ -31,22 +31,6 @@ function getSystemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-/**
- * Get initial theme from storage or system preference
- */
-function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') {
-    return 'light'
-  }
-  
-  const stored = localStorage.getItem(THEME_STORAGE_KEY)
-  if (stored === 'light' || stored === 'dark') {
-    return stored
-  }
-  
-  return getSystemTheme()
-}
-
 interface ThemeProviderProps {
   children: ReactNode
   defaultTheme?: Theme
@@ -64,7 +48,23 @@ export function ThemeProvider({
   defaultTheme,
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme || getInitialTheme)
+  // Use lazy initializer to access storageKey
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (defaultTheme) {
+      return defaultTheme
+    }
+    
+    if (typeof window === 'undefined') {
+      return 'light'
+    }
+    
+    const stored = localStorage.getItem(storageKey)
+    if (stored === 'light' || stored === 'dark') {
+      return stored
+    }
+    
+    return getSystemTheme()
+  })
   const [systemPreference, setSystemPreference] = useState<Theme>(getSystemTheme)
 
   // Apply theme class to document root
@@ -93,16 +93,8 @@ export function ThemeProvider({
       }
     }
 
-    // Modern browsers
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
-    }
-    // Fallback for older browsers
-    else if (mediaQuery.addListener) {
-      mediaQuery.addListener(handleChange)
-      return () => mediaQuery.removeListener(handleChange)
-    }
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
   }, [storageKey])
 
   const setTheme = (newTheme: Theme) => {

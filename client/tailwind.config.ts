@@ -56,8 +56,18 @@ const config: Config = {
       // Border radius from design tokens
       borderRadius: borderRadius,
       
-      // Shadows from design tokens (light theme by default)
-      boxShadow: shadows,
+      // Shadows using CSS variables for theme-aware shadows
+      boxShadow: {
+        none: 'var(--shadow-none)',
+        xs: 'var(--shadow-xs)',
+        sm: 'var(--shadow-sm)',
+        base: 'var(--shadow-base)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        xl: 'var(--shadow-xl)',
+        '2xl': 'var(--shadow-2xl)',
+        inner: 'var(--shadow-inner)',
+      },
       
       // Breakpoints from design tokens
       screens: breakpoints,

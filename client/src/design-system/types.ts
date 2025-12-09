@@ -34,7 +34,7 @@ export type TypographyStyle = {
 /**
  * Spacing value type
  */
-export type SpacingValue = keyof typeof tokens.spacing | string | string
+export type SpacingValue = keyof typeof tokens.spacing
 
 /**
  * Border radius value type
@@ -133,8 +133,9 @@ export type ColorShadeKeys<TColor extends ThemeColorKeys> = keyof ThemeColors[TC
 /**
  * Validates that a value is a valid spacing token
  */
-export function isValidSpacing(value: string): value is string & SpacingValue {
-  return value in tokens.spacing
+export function isValidSpacing(value: string | number): value is SpacingValue {
+  const key = String(value)
+  return key in tokens.spacing
 }
 
 /**
