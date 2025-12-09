@@ -560,7 +560,10 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
 
         const skip = (query.page - 1) * query.limit
 
-        const where: any = {}
+        const where: {
+            status?: string
+            inboxUrl?: { contains: string }
+        } = {}
         if (query.status) {
             where.status = query.status
         }

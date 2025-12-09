@@ -58,7 +58,7 @@ async function addToDeadLetterQueue(
             data: {
                 activityId: activity.id,
                 activityType: activity.type,
-                activity: activity as any,
+                activity: activity as unknown as Record<string, unknown>,
                 inboxUrl,
                 userId,
                 lastError: error.message,

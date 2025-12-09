@@ -989,5 +989,124 @@ describe('Activity Delivery Service', () => {
             expect(updateCalls.length).toBeGreaterThan(0)
         })
     })
+
+    describe('deliverToInboxes with retry', () => {
+        it('should use retry by default', async () => {
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const inboxUrls = ['https://remote.com/inbox']
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInboxes(mockActivity, inboxUrls, userWithId)
+
+            // Should be called (first attempt succeeds)
+            expect(ssrfProtection.safeFetch).toHaveBeenCalled()
+        })
+
+        it('should allow disabling retry', async () => {
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const inboxUrls = ['https://remote.com/inbox']
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: false, status: 500 } as Response)
+
+            await deliverToInboxes(mockActivity, inboxUrls, userWithId, false)
+
+            // Without retry, should only be called once
+            expect(ssrfProtection.safeFetch).toHaveBeenCalledTimes(1)
+        })
+    })
+
+    describe('logFederationError', () => {
+        it('should log structured error information', async () => {
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+            
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ 
+                ok: false, 
+                status: 500, 
+                statusText: 'Internal Server Error' 
+            } as Response)
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', mockUser, false)
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('[Federation Error]'),
+                expect.objectContaining({
+                    inboxUrl: 'https://remote.com/inbox',
+                    activityId: mockActivity.id,
+                    activityType: mockActivity.type,
+                })
+            )
+
+            consoleSpy.mockRestore()
+        })
+    })
+
+    describe('calculateNextRetry', () => {
+        it('should handle no private key without recording failure', async () => {
+            const userWithoutKey = { ...mockUser, privateKey: null }
+            
+            const result = await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithoutKey, false)
+
+            expect(result).toBe(false)
+        })
+
+        it('should handle decryption failure without recording', async () => {
+            vi.mocked(encryption.decryptPrivateKey).mockReturnValue(null)
+            
+            const result = await deliverToInbox(mockActivity, 'https://remote.com/inbox', mockUser, false)
+
+            expect(result).toBe(false)
+        })
+    })
+
+    describe('Edge cases', () => {
+        it('should handle activity with statusCode error', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({
+                ok: false,
+                status: 429,
+                statusText: 'Too Many Requests'
+            } as Response)
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithId, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        lastErrorCode: '429',
+                    }),
+                })
+            )
+        })
+
+        it('should handle error without statusCode', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockRejectedValue({ message: 'Connection refused' })
+            const userWithId = { ...mockUser, id: 'user-123' }
+            const mockCreate = vi.fn()
+            ;(prisma as any).failedDelivery.create = mockCreate
+
+            await deliverToInbox(mockActivity, 'https://remote.com/inbox', userWithId, true)
+
+            expect(mockCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        lastErrorCode: 'NETWORK_ERROR',
+                    }),
+                })
+            )
+        })
+
+        it('should handle port in inbox URL correctly', async () => {
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await deliverToInbox(mockActivity, 'https://remote.com:8443/inbox', mockUser, false)
+
+            const fetchCall = vi.mocked(ssrfProtection.safeFetch).mock.calls[0]
+            const headers = fetchCall[1]?.headers as Record<string, string>
+            expect(headers.host).toBe('remote.com:8443')
+        })
+    })
 })
 
