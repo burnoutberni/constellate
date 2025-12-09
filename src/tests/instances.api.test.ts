@@ -334,7 +334,7 @@ describe('Instance Discovery API', () => {
             const res = await app.request('/api/instances?limit=invalid')
             
             // Zod coercion should handle this and use default or fail validation
-            expect(res.status).toBeLessThanOrEqual(400)
+            expect(res.status).toBe(400)
         })
 
         it('should handle negative offset gracefully', async () => {
@@ -349,7 +349,7 @@ describe('Instance Discovery API', () => {
             const res = await app.request('/api/instances?offset=-5')
             
             // Zod validation should reject negative values
-            expect(res.status).toBeLessThanOrEqual(400)
+            expect(res.status).toBe(400)
         })
 
         it('should enforce maximum limit', async () => {
