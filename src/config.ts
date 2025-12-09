@@ -150,17 +150,6 @@ export const config = {
     enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
 }
 
-/**
- * Initializes configuration values that depend on other config values or environment setup.
- * This function is kept for backward compatibility, but most initialization is now done lazily.
- * 
- * Currently, locationSearch.userAgent is computed on first access via a getter,
- * ensuring config.baseUrl is always properly set when accessed.
- */
-export function initializeConfig() {
-    // No-op: userAgent is now computed on first access via getter
-    // This ensures baseUrl is always properly initialized when userAgent is accessed
-}
 
 // Validate encryption key format
 if (config.encryptionKey.length !== 64) {
