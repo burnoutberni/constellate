@@ -242,6 +242,16 @@ export async function getKnownInstances(options: {
         prisma.instance.count({ where }),
     ])
 
+    // Skip bulk queries if no instances
+    if (instances.length === 0) {
+        return {
+            instances: [],
+            total,
+            limit,
+            offset,
+        }
+    }
+
     // Get connection stats for all instances in bulk to avoid N+1 queries
     // Fetch all related records that might match any instance
     const domains = instances.map(i => i.domain)
