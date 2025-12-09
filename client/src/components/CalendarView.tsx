@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Event } from '../types'
 
 interface CalendarViewProps {
@@ -82,48 +83,52 @@ function MonthView({ currentDate, events, loading }: ViewProps) {
                     ))}
 
                     {/* Days of the month */}
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                        const day = i + 1
-                        const dayEvents = getEventsForDay(day)
-                        const isToday =
-                            new Date().toDateString() ===
-                            new Date(
+                    {(() => {
+                        const today = new Date()
+                        const todayStr = today.toDateString()
+
+                        return Array.from({ length: daysInMonth }).map((_, i) => {
+                            const day = i + 1
+                            const dayEvents = getEventsForDay(day)
+                            const dayDate = new Date(
                                 currentDate.getFullYear(),
                                 currentDate.getMonth(),
                                 day
-                            ).toDateString()
+                            )
+                            const isToday = dayDate.toDateString() === todayStr
 
-                        return (
-                            <div
-                                key={day}
-                                className={`aspect-square rounded-lg border bg-white p-2 relative overflow-hidden ${isToday ? 'ring-2 ring-blue-600' : ''}`}
-                            >
-                                <div className="flex flex-col h-full">
-                                    <div
-                                        className={`text-sm font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}`}
-                                    >
-                                        {day}
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto space-y-1">
-                                        {dayEvents.slice(0, 3).map((event) => (
-                                            <div
-                                                key={event.id}
-                                                className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 truncate cursor-pointer hover:bg-blue-100 transition-colors"
-                                                title={event.title}
-                                            >
-                                                {event.title}
-                                            </div>
-                                        ))}
-                                        {dayEvents.length > 3 && (
-                                            <div className="text-xs text-gray-400 px-2">
-                                                +{dayEvents.length - 3} more
-                                            </div>
-                                        )}
+                            return (
+                                <div
+                                    key={day}
+                                    className={`aspect-square rounded-lg border bg-white p-2 relative overflow-hidden ${isToday ? 'ring-2 ring-blue-600' : ''}`}
+                                >
+                                    <div className="flex flex-col h-full">
+                                        <div
+                                            className={`text-sm font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}`}
+                                        >
+                                            {day}
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto space-y-1">
+                                            {dayEvents.slice(0, 3).map((event) => (
+                                                <div
+                                                    key={event.id}
+                                                    className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 truncate"
+                                                    title={event.title}
+                                                >
+                                                    {event.title}
+                                                </div>
+                                            ))}
+                                            {dayEvents.length > 3 && (
+                                                <div className="text-xs text-gray-400 px-2">
+                                                    +{dayEvents.length - 3} more
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })
+                    })()}
                 </div>
             )}
         </div>
@@ -131,7 +136,7 @@ function MonthView({ currentDate, events, loading }: ViewProps) {
 }
 
 function WeekView({ currentDate, events, loading }: ViewProps) {
-    const getWeekDays = () => {
+    const weekDays = useMemo(() => {
         const startOfWeek = new Date(currentDate)
         startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
         startOfWeek.setHours(0, 0, 0, 0)
@@ -143,21 +148,29 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
             days.push(day)
         }
         return days
-    }
+    }, [currentDate])
 
-    const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
+    const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
-    const getEventsForDayAndHour = (day: Date, hour: number) => {
-        const hourStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0)
-        const hourEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 59, 59, 999)
-
-        return events.filter((event) => {
-            const eventDate = new Date(event.startTime)
-            return eventDate >= hourStart && eventDate <= hourEnd
+    const eventsByDayAndHour = useMemo(() => {
+        const map = new Map<string, Event[]>()
+        
+        weekDays.forEach(day => {
+            hours.forEach(hour => {
+                const key = `${day.toISOString()}-${hour}`
+                const hourStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0)
+                const hourEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 59, 59, 999)
+                
+                const filtered = events.filter((event) => {
+                    const eventDate = new Date(event.startTime)
+                    return eventDate >= hourStart && eventDate <= hourEnd
+                })
+                map.set(key, filtered)
+            })
         })
-    }
+        return map
+    }, [events, weekDays, hours])
 
-    const weekDays = getWeekDays()
     const today = new Date()
 
     return (
@@ -196,7 +209,7 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
                                 {formatHourLabel(hour)}
                             </div>
                             {weekDays.map((day) => {
-                                const dayEvents = getEventsForDayAndHour(day, hour)
+                                const dayEvents = eventsByDayAndHour.get(`${day.toISOString()}-${hour}`) || []
                                 return (
                                     <div
                                         key={`${day.toISOString()}-${hour}`}
@@ -205,7 +218,7 @@ function WeekView({ currentDate, events, loading }: ViewProps) {
                                         {dayEvents.map((event) => (
                                             <div
                                                 key={event.id}
-                                                className="text-xs px-2 py-1 mb-1 rounded bg-blue-50 text-blue-700 truncate cursor-pointer hover:bg-blue-100 transition-colors"
+                                                className="text-xs px-2 py-1 mb-1 rounded bg-blue-50 text-blue-700 truncate"
                                                 title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
                                             >
                                                 <div className="font-medium">{event.title}</div>
@@ -278,7 +291,7 @@ function DayView({ currentDate, events, loading }: ViewProps) {
                                                 {hourEvents.map((event) => (
                                                     <div
                                                         key={event.id}
-                                                        className="p-3 rounded bg-blue-50 border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors"
+                                                        className="p-3 rounded bg-blue-50 border border-blue-100"
                                                     >
                                                         <div className="font-medium text-blue-900">{event.title}</div>
                                                         <div className="text-sm text-gray-600 mt-1">
