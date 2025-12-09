@@ -94,7 +94,7 @@ describe('Instance Discovery API', () => {
             const res = await app.request('/api/instances')
             
             expect(res.status).toBe(200)
-            const data = await res.json()
+            const data = await res.json() as { instances: unknown[]; total: number }
             expect(data.instances).toHaveLength(1)
             expect(data.total).toBe(1)
         })
@@ -159,7 +159,7 @@ describe('Instance Discovery API', () => {
             const res = await app.request('/api/instances/search?q=mastodon')
             
             expect(res.status).toBe(200)
-            const data = await res.json()
+            const data = await res.json() as { instances: unknown[] }
             expect(data.instances).toHaveLength(1)
         })
 
@@ -202,7 +202,7 @@ describe('Instance Discovery API', () => {
             const res = await app.request('/api/instances/mastodon.social')
             
             expect(res.status).toBe(200)
-            const data = await res.json()
+            const data = await res.json() as { domain: string; stats: { remoteUsers: number; remoteEvents: number; localFollowing: number; localFollowers: number } }
             expect(data.domain).toBe('mastodon.social')
             expect(data.stats).toEqual({
                 remoteUsers: 10,
