@@ -33,6 +33,7 @@ const NominatimResultSchema = z.object({
 })
 
 // Nominatim endpoint is configurable via NOMINATIM_ENDPOINT environment variable
+// and accessed via config.locationSearch.nominatimEndpoint
 // Defaults to the public Nominatim instance
 
 const pickAddressLine = (address: Record<string, string> | undefined): string | undefined => {

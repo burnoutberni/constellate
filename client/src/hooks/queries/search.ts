@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { Event } from '../../types'
+import { buildErrorMessage } from '../../lib/errorHandling'
 
 export interface EventSearchFilters extends Record<string, string | undefined> {
     q?: string
@@ -117,21 +118,7 @@ export function useNearbyEvents(
             })
 
             if (!response.ok) {
-                const statusCode = response.status
-                let errorMessage = 'Failed to load nearby events'
-                try {
-                    const errorBody = await response.json() as { error?: string }
-                    if (errorBody.error) {
-                        errorMessage = `${errorMessage}: ${errorBody.error}`
-                    }
-                } catch {
-                    // If response body isn't JSON, use status-based message
-                    if (statusCode >= 400 && statusCode < 500) {
-                        errorMessage = `${errorMessage} (${statusCode}): Invalid request parameters.`
-                    } else if (statusCode >= 500) {
-                        errorMessage = `${errorMessage} (${statusCode}): Server error. Please try again later.`
-                    }
-                }
+                const errorMessage = await buildErrorMessage('Failed to load nearby events', response)
                 throw new Error(errorMessage)
             }
 

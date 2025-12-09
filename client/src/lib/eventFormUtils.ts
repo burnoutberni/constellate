@@ -52,7 +52,7 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
     const hasLongitude = formData.locationLongitude.trim() !== ''
     if (hasLatitude !== hasLongitude) {
         const missingField = hasLatitude ? 'longitude' : 'latitude'
-        return { error: `Both latitude and longitude must be provided together, but ${missingField} is missing.` }
+        return { error: `Both latitude and longitude must be provided together, but ${missingField} is not provided.` }
     }
     if (!hasLatitude && !hasLongitude) {
         return {}

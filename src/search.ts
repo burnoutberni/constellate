@@ -538,19 +538,9 @@ app.get('/nearby', async (c) => {
 
         const latMin = Math.max(-90, params.latitude - latDelta)
         const latMax = Math.min(90, params.latitude + latDelta)
-        let lonMin = params.longitude - lonDelta
-        let lonMax = params.longitude + lonDelta
+        const lonMin = params.longitude - lonDelta
+        const lonMax = params.longitude + lonDelta
 
-        // Handle longitude wrapping and antimeridian crossing
-        // If the bounding box crosses the antimeridian, we need to split the query
-        // For now, we'll clamp and note that this may miss some events near ±180°
-        if (lonMin < -180) {
-            lonMin = -180
-        }
-        if (lonMax > 180) {
-            lonMax = 180
-        }
-        
         // If the bounding box would wrap around the globe (lonDelta > 180), 
         // the search area is too large and we should reject it
         if (lonDelta > 180) {
@@ -570,26 +560,6 @@ app.get('/nearby', async (c) => {
             visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
         } else {
             visibilityFilter = { visibility: 'PUBLIC' }
-        }
-
-        const boundingWhere: Prisma.EventWhereInput = {
-            locationLatitude: {
-                gte: latMin,
-                lte: latMax,
-            },
-            locationLongitude: {
-                gte: lonMin,
-                lte: lonMax,
-            },
-        }
-
-        const combinedWhere: Prisma.EventWhereInput = {
-            AND: [
-                visibilityFilter,
-                { sharedEventId: null },
-                { startTime: { gte: new Date() } },
-                boundingWhere,
-            ],
         }
 
         const baseInclude = {
@@ -616,6 +586,85 @@ app.get('/nearby', async (c) => {
         // Use a multiplier that scales better for smaller limits
         const multiplier = requestedLimit <= SMALL_LIMIT_THRESHOLD ? SMALL_LIMIT_MULTIPLIER : LARGE_LIMIT_MULTIPLIER
         const searchBatchSize = Math.min(Math.ceil(requestedLimit * multiplier), MAX_SEARCH_BATCH_SIZE)
+
+        // Handle longitude wrapping and antimeridian crossing
+        // If the bounding box crosses the antimeridian (±180°), split into two ranges using OR
+        // Example: center at 179° with radius 5° gives lonMax=184°, so we query [174°, 180°] OR [-180°, -176°]
+        let boundingWhere: Prisma.EventWhereInput
+        
+        if (lonMax > 180) {
+            // Crossing from east: range extends past 180° to the west
+            // Query: [lonMin, 180°] (eastern part) OR [-180°, lonMax-360°] (western part)
+            const westernLonMax = lonMax - 360 // Normalize to -180-180 range
+            boundingWhere = {
+                AND: [
+                    { locationLatitude: { gte: latMin, lte: latMax } },
+                    {
+                        OR: [
+                            {
+                                locationLongitude: {
+                                    gte: Math.max(-180, lonMin),
+                                    lte: 180,
+                                },
+                            },
+                            {
+                                locationLongitude: {
+                                    gte: -180,
+                                    lte: westernLonMax,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        } else if (lonMin < -180) {
+            // Crossing from west: range extends past -180° to the east
+            // Normalize lonMin: lonMin + 360 gives equivalent positive longitude
+            // Query: [lonMin+360, 180°] (western part) OR [-180°, lonMax] (eastern part)
+            const westernLonMin = lonMin + 360 // Normalize to 0-360, which maps to 0-180° in DB
+            boundingWhere = {
+                AND: [
+                    { locationLatitude: { gte: latMin, lte: latMax } },
+                    {
+                        OR: [
+                            {
+                                locationLongitude: {
+                                    gte: Math.max(-180, Math.min(180, westernLonMin)),
+                                    lte: 180,
+                                },
+                            },
+                            {
+                                locationLongitude: {
+                                    gte: -180,
+                                    lte: Math.min(180, lonMax),
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        } else {
+            // Normal case: no antimeridian crossing, simple range query
+            boundingWhere = {
+                locationLatitude: {
+                    gte: latMin,
+                    lte: latMax,
+                },
+                locationLongitude: {
+                    gte: lonMin,
+                    lte: lonMax,
+                },
+            }
+        }
+
+        const combinedWhere: Prisma.EventWhereInput = {
+            AND: [
+                visibilityFilter,
+                { sharedEventId: null },
+                { startTime: { gte: new Date() } },
+                boundingWhere,
+            ],
+        }
 
         const events = await prisma.event.findMany({
             where: combinedWhere,

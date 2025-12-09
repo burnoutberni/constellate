@@ -1440,7 +1440,8 @@ app.put('/:id', moderateRateLimit, async (c) => {
         // Build update data
         const updateData = buildEventUpdateData(validatedData, requestedVisibility)
         
-        // Override recurrence fields with validated values
+        // Set recurrence fields if they were provided in the validated data
+        // These will be included in the database update below
         if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }
@@ -1520,12 +1521,15 @@ app.put('/:id', moderateRateLimit, async (c) => {
             return c.json({ error: errorMessage, details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)
+        // Sanitize error message to prevent leaking internal details in production
         const errorMessage = error instanceof Error ? error.message : String(error)
         const errorStack = error instanceof Error ? error.stack : undefined
         return c.json({ 
             error: 'Internal server error', 
-            message: errorMessage,
-            ...(config.isDevelopment && { stack: errorStack })
+            ...(config.isDevelopment && { 
+                message: errorMessage,
+                stack: errorStack 
+            })
         }, 500)
     }
 })

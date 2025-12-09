@@ -570,12 +570,7 @@ describe('Search API - Nearby events', () => {
     })
 
     it('rejects searches with radius too large for the location', async () => {
-        // At high latitudes, a large radius can cause longitude delta > 180
-        // However, with the schema max of 500km, we need to test the lonDelta > 180 case
-        // with a radius that passes schema validation but triggers the geometric check.
-        // At latitude 80°, cos(80°) ≈ 0.1736, so lonDelta = radius / (111 * 0.1736)
-        // For lonDelta > 180, we'd need radius > 3470km, which exceeds the schema max.
-        // So we test with a radius that exceeds the schema max to ensure proper validation.
+        // Test that radius values exceeding the schema maximum (500km) are properly rejected
         const response = await app.request('/api/search/nearby?latitude=80&longitude=0&radiusKm=20000')
         expect(response.status).toBe(400)
         const body = await response.json() as { error: string }
@@ -722,5 +717,173 @@ describe('Search API - Nearby events', () => {
         expect(body.events[0].id).toBe(closeEvent.id)
         expect(body.events[1].id).toBe(farEvent.id)
         expect(body.events[0].distanceKm).toBeLessThan(body.events[1].distanceKm)
+    })
+
+    it('finds events on both sides of the antimeridian when crossing from east (lonMax > 180)', async () => {
+        const user = await prisma.user.create({
+            data: {
+                username: 'antimeridian_user',
+                email: 'antimeridian@test.com',
+                name: 'Antimeridian User',
+            },
+        })
+
+        // Create event on the eastern side of antimeridian (near 180°)
+        const easternEvent = await prisma.event.create({
+            data: {
+                title: 'Eastern Event',
+                startTime: new Date(Date.now() + 3600_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Eastern Pacific',
+                locationLatitude: 0, // Equator
+                locationLongitude: 179, // Just west of 180°
+            },
+        })
+
+        // Create event on the western side of antimeridian (near -180°)
+        const westernEvent = await prisma.event.create({
+            data: {
+                title: 'Western Event',
+                startTime: new Date(Date.now() + 7200_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Western Pacific',
+                locationLatitude: 0, // Equator
+                locationLongitude: -179, // Just east of -180°
+            },
+        })
+
+        // Create event far away that should not be included
+        await prisma.event.create({
+            data: {
+                title: 'Far Event',
+                startTime: new Date(Date.now() + 10800_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Far Away',
+                locationLatitude: 0,
+                locationLongitude: -170, // Too far west
+            },
+        })
+
+        // Search near 180° with a radius that crosses the antimeridian
+        // Center at 179° with ~250km radius should cross 180° and find both events
+        // (Distance from 179° to -179° is ~222km, so we need >222km radius)
+        const response = await app.request('/api/search/nearby?latitude=0&longitude=179&radiusKm=250')
+        expect(response.status).toBe(200)
+
+        const body = await response.json() as { events: Array<{ id: string }> }
+        const eventIds = body.events.map(e => e.id)
+        expect(eventIds).toContain(easternEvent.id)
+        expect(eventIds).toContain(westernEvent.id)
+        expect(eventIds.length).toBe(2)
+    })
+
+    it('finds events on both sides of the antimeridian when crossing from west (lonMin < -180)', async () => {
+        const user = await prisma.user.create({
+            data: {
+                username: 'antimeridian_user2',
+                email: 'antimeridian2@test.com',
+                name: 'Antimeridian User 2',
+            },
+        })
+
+        // Create event on the western side of antimeridian (near -180°)
+        const westernEvent = await prisma.event.create({
+            data: {
+                title: 'Western Event',
+                startTime: new Date(Date.now() + 3600_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Western Pacific',
+                locationLatitude: 0, // Equator
+                locationLongitude: -179, // Just east of -180°
+            },
+        })
+
+        // Create event on the eastern side of antimeridian (near 180°)
+        const easternEvent = await prisma.event.create({
+            data: {
+                title: 'Eastern Event',
+                startTime: new Date(Date.now() + 7200_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Eastern Pacific',
+                locationLatitude: 0, // Equator
+                locationLongitude: 179, // Just west of 180°
+            },
+        })
+
+        // Create event far away that should not be included
+        await prisma.event.create({
+            data: {
+                title: 'Far Event',
+                startTime: new Date(Date.now() + 10800_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Far Away',
+                locationLatitude: 0,
+                locationLongitude: 170, // Too far east
+            },
+        })
+
+        // Search near -180° with a radius that crosses the antimeridian
+        // Center at -179° with ~250km radius should cross -180° and find both events
+        // (Distance from -179° to 179° is ~222km, so we need >222km radius)
+        const response = await app.request('/api/search/nearby?latitude=0&longitude=-179&radiusKm=250')
+        expect(response.status).toBe(200)
+
+        const body = await response.json() as { events: Array<{ id: string }> }
+        const eventIds = body.events.map(e => e.id)
+        expect(eventIds).toContain(easternEvent.id)
+        expect(eventIds).toContain(westernEvent.id)
+        expect(eventIds.length).toBe(2)
+    })
+
+    it('correctly filters by Haversine distance when crossing antimeridian', async () => {
+        const user = await prisma.user.create({
+            data: {
+                username: 'haversine_user',
+                email: 'haversine@test.com',
+                name: 'Haversine User',
+            },
+        })
+
+        // Create event within radius on eastern side
+        const withinRadius = await prisma.event.create({
+            data: {
+                title: 'Within Radius',
+                startTime: new Date(Date.now() + 3600_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Close Eastern',
+                locationLatitude: 0,
+                locationLongitude: 179.5, // Within ~55km of 179°
+            },
+        })
+
+        // Create event outside radius on western side (too far)
+        await prisma.event.create({
+            data: {
+                title: 'Outside Radius',
+                startTime: new Date(Date.now() + 7200_000),
+                userId: user.id,
+                attributedTo: `${baseUrl}/users/${user.username}`,
+                location: 'Far Western',
+                locationLatitude: 0,
+                locationLongitude: -179.5, // Within bounding box but >100km away
+            },
+        })
+
+        // Search with radius that crosses antimeridian but Haversine should filter correctly
+        const response = await app.request('/api/search/nearby?latitude=0&longitude=179&radiusKm=100')
+        expect(response.status).toBe(200)
+
+        const body = await response.json() as { events: Array<{ id: string; distanceKm: number }> }
+        // Should only include the event within the actual Haversine distance
+        expect(body.events.length).toBe(1)
+        expect(body.events[0].id).toBe(withinRadius.id)
+        expect(body.events[0].distanceKm).toBeLessThan(100)
     })
 })
