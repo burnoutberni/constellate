@@ -6,9 +6,12 @@ import { describe, it, expect } from 'vitest'
 describe('CalendarView date calculations', () => {
     it('calculates correct week start date', () => {
         const currentDate = new Date('2025-12-15') // Monday
-        const startOfWeek = new Date(currentDate)
-        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-        startOfWeek.setHours(0, 0, 0, 0)
+        const startOfWeek = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            currentDate.getDate() - currentDate.getDay(),
+            0, 0, 0, 0
+        )
 
         expect(startOfWeek.getDay()).toBe(0) // Sunday
         expect(startOfWeek.getDate()).toBe(14) // December 14
@@ -16,15 +19,21 @@ describe('CalendarView date calculations', () => {
 
     it('calculates correct week days', () => {
         const currentDate = new Date('2025-12-15')
-        const startOfWeek = new Date(currentDate)
-        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-        startOfWeek.setHours(0, 0, 0, 0)
+        const startOfWeek = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            currentDate.getDate() - currentDate.getDay(),
+            0, 0, 0, 0
+        )
 
         const days = []
         for (let i = 0; i < 7; i++) {
-            const day = new Date(startOfWeek)
-            day.setDate(startOfWeek.getDate() + i)
-            days.push(day)
+            days.push(new Date(
+                startOfWeek.getFullYear(),
+                startOfWeek.getMonth(),
+                startOfWeek.getDate() + i,
+                0, 0, 0, 0
+            ))
         }
 
         expect(days.length).toBe(7)
