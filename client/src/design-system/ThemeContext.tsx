@@ -59,7 +59,7 @@ export function ThemeProvider({
     }
     
     const stored = localStorage.getItem(storageKey)
-    if (stored === 'light' || stored === 'dark') {
+    if (stored && isValidTheme(stored)) {
       return stored
     }
     
