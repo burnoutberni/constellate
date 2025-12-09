@@ -746,6 +746,138 @@ describe('Activity Delivery Service', () => {
             const finalUpdateCall = updateCalls[updateCalls.length - 1]
             expect(finalUpdateCall[0].data.status).toBe('FAILED')
         })
+
+        it('should delete successful delivery from queue', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            const mockDelete = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            ;(prisma as any).failedDelivery.delete = mockDelete
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            await processDeadLetterQueue()
+
+            // Should delete successful delivery
+            expect(mockDelete).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'failed-1' },
+                })
+            )
+        })
+
+        it('should handle missing user in queue processing', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 1,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+
+            await processDeadLetterQueue()
+
+            // Should mark as failed with error message
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const finalUpdateCall = updateCalls[updateCalls.length - 1]
+            expect(finalUpdateCall[0].data.lastError).toBe('User not found')
+        })
+
+        it('should skip deliveries that exceed max attempts', async () => {
+            const { processDeadLetterQueue } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 3,
+                maxAttempts: 3,
+                status: 'PENDING',
+                nextRetryAt: new Date(Date.now() - 1000),
+            }
+
+            vi.mocked((prisma as any).failedDelivery.findMany).mockResolvedValue([mockFailedDelivery])
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+
+            await processDeadLetterQueue()
+
+            // Should not attempt delivery (no RETRYING update)
+            const updateCalls = vi.mocked((prisma as any).failedDelivery.update).mock.calls
+            const retryingCalls = updateCalls.filter(call => call[0].data.status === 'RETRYING')
+            expect(retryingCalls).toHaveLength(0)
+        })
+
+        it('should handle manual retry', async () => {
+            const { retryFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            const mockFailedDelivery = {
+                id: 'failed-1',
+                activityId: mockActivity.id,
+                activityType: mockActivity.type,
+                activity: mockActivity,
+                inboxUrl: 'https://remote.com/inbox',
+                userId: 'user-123',
+                attemptCount: 2,
+                maxAttempts: 3,
+                status: 'FAILED',
+            }
+
+            const mockDelete = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            vi.mocked((prisma as any).failedDelivery.findUnique).mockResolvedValue(mockFailedDelivery)
+            ;(prisma as any).failedDelivery.delete = mockDelete
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+            vi.mocked(ssrfProtection.safeFetch).mockResolvedValue({ ok: true } as Response)
+
+            const result = await retryFailedDelivery('failed-1')
+
+            expect(result).toBe(true)
+            expect(mockDelete).toHaveBeenCalled()
+        })
+
+        it('should handle discard delivery', async () => {
+            const { discardFailedDelivery } = await import('../../services/ActivityDelivery.js')
+            
+            const mockUpdate = vi.fn().mockResolvedValue({ id: 'failed-1' })
+            ;(prisma as any).failedDelivery.update = mockUpdate
+
+            await discardFailedDelivery('failed-1', 'admin-user-id')
+
+            expect(mockUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'failed-1' },
+                    data: expect.objectContaining({
+                        status: 'DISCARDED',
+                        resolvedBy: 'admin-user-id',
+                    }),
+                })
+            )
+        })
     })
 })
 

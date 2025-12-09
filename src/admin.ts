@@ -574,9 +574,6 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
                 skip,
                 take: query.limit,
                 orderBy: { createdAt: 'desc' },
-                include: {
-                    _count: true,
-                },
             }),
             prisma.failedDelivery.count({ where }),
         ])
@@ -691,10 +688,10 @@ app.post('/failed-deliveries/:id/retry', requireAdmin, async (c) => {
 app.post('/failed-deliveries/:id/discard', requireAdmin, async (c) => {
     try {
         const { id } = c.req.param()
-        const session = c.get('user')
+        const userId = c.get('userId')
         const { discardFailedDelivery } = await import('./services/ActivityDelivery.js')
         
-        await discardFailedDelivery(id, session?.id)
+        await discardFailedDelivery(id, userId)
         
         return c.json({ success: true })
     } catch (error) {
