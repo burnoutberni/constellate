@@ -6,6 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import React from 'react'
+import { ThemeProvider, useTheme, useThemeColors } from '../design-system/ThemeContext'
 import type { Theme } from '../design-system/tokens'
 import { tokens } from '../design-system/tokens'
 
@@ -23,10 +26,47 @@ function createMatchMedia(matches: boolean) {
   }))
 }
 
+// Test component that uses useTheme hook
+function TestComponent() {
+  const { theme, setTheme, toggleTheme, systemPreference } = useTheme()
+  return (
+    <div>
+      <div data-testid="theme">{theme}</div>
+      <div data-testid="system-preference">{systemPreference}</div>
+      <button data-testid="toggle" onClick={toggleTheme}>
+        Toggle
+      </button>
+      <button data-testid="set-dark" onClick={() => setTheme('dark')}>
+        Set Dark
+      </button>
+      <button data-testid="set-light" onClick={() => setTheme('light')}>
+        Set Light
+      </button>
+    </div>
+  )
+}
+
+// Test component that uses useThemeColors hook
+function TestColorsComponent() {
+  const colors = useThemeColors()
+  return (
+    <div>
+      <div data-testid="bg-primary">{colors.background.primary}</div>
+      <div data-testid="text-primary">{colors.text.primary}</div>
+    </div>
+  )
+}
+
 describe('ThemeContext', () => {
   let originalLocalStorage: typeof global.localStorage
   let originalMatchMedia: typeof window.matchMedia
   let originalDocumentClassName: string
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>
+    setItem: ReturnType<typeof vi.fn>
+    removeItem: ReturnType<typeof vi.fn>
+    clear: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     // Store original values before modifying
@@ -35,7 +75,7 @@ describe('ThemeContext', () => {
     originalDocumentClassName = document.documentElement.className
 
     // Reset localStorage
-    const localStorageMock = {
+    localStorageMock = {
       getItem: vi.fn(),
       setItem: vi.fn(),
       removeItem: vi.fn(),
@@ -57,100 +97,97 @@ describe('ThemeContext', () => {
     vi.clearAllMocks()
   })
 
-  describe('getSystemTheme', () => {
-    it('should return light when system prefers light', () => {
-      window.matchMedia = createMatchMedia(false)
-      // This is tested indirectly through ThemeProvider initialization
-      expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(false)
-    })
-
-    it('should return dark when system prefers dark', () => {
-      window.matchMedia = createMatchMedia(true)
-      expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(true)
-    })
-  })
-
   describe('ThemeProvider initialization', () => {
     it('should use defaultTheme when provided', () => {
-      const defaultTheme: Theme = 'dark'
-      // This tests the initialization logic
-      expect(defaultTheme).toBe('dark')
+      localStorageMock.getItem = vi.fn(() => null)
+      
+      render(
+        <ThemeProvider defaultTheme="dark">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
     })
 
     it('should read from localStorage when available', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => 'dark'),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
+      localStorageMock.getItem = vi.fn((key) => {
+        if (key === 'constellate-theme') return 'dark'
+        return null
+      })
 
-      const stored = localStorage.getItem('constellate-theme')
-      expect(stored).toBe('dark')
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
     })
 
     it('should fall back to system preference when no localStorage value', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => null),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
+      localStorageMock.getItem = vi.fn(() => null)
+      window.matchMedia = createMatchMedia(true) // System prefers dark
 
-      window.matchMedia = createMatchMedia(true)
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      expect(systemPrefersDark).toBe(true)
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
     })
 
-    it('should return light theme in SSR environment', () => {
-      // In SSR, window is undefined
-      const originalWindow = global.window
-      // @ts-ignore
-      delete global.window
+    it('should use light theme when system prefers light and no localStorage value', () => {
+      localStorageMock.getItem = vi.fn(() => null)
+      window.matchMedia = createMatchMedia(false) // System prefers light
 
-      // ThemeProvider should handle this gracefully
-      // This is tested by checking the component doesn't crash
-      expect(true).toBe(true)
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
 
-      global.window = originalWindow
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+      expect(document.documentElement.classList.contains('light')).toBe(true)
     })
   })
 
   describe('Theme persistence', () => {
     it('should save theme to localStorage when setTheme is called', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => null),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
+      localStorageMock.getItem = vi.fn(() => null)
 
-      // Simulate setTheme behavior
-      const theme: Theme = 'dark'
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('constellate-theme', theme)
-      }
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      const setDarkButton = screen.getByTestId('set-dark')
+      act(() => {
+        setDarkButton.click()
+      })
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith('constellate-theme', 'dark')
     })
 
     it('should use custom storage key when provided', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => null),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
-
+      localStorageMock.getItem = vi.fn(() => null)
       const customKey = 'custom-theme-key'
-      const theme: Theme = 'light'
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(customKey, theme)
-      }
+
+      render(
+        <ThemeProvider storageKey={customKey}>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      const setLightButton = screen.getByTestId('set-light')
+      act(() => {
+        setLightButton.click()
+      })
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(customKey, 'light')
     })
@@ -158,30 +195,110 @@ describe('ThemeContext', () => {
 
   describe('Theme class application', () => {
     it('should apply theme class to document root', () => {
-      // Simulate theme application
-      const root = document.documentElement
-      root.classList.remove('light', 'dark')
-      root.classList.add('dark')
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(root.classList.contains('dark')).toBe(true)
-      expect(root.classList.contains('light')).toBe(false)
+      render(
+        <ThemeProvider defaultTheme="dark">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
+      expect(document.documentElement.classList.contains('light')).toBe(false)
     })
 
     it('should remove previous theme class when switching', () => {
-      const root = document.documentElement
-      root.classList.add('light')
-      root.classList.remove('light', 'dark')
-      root.classList.add('dark')
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(root.classList.contains('light')).toBe(false)
-      expect(root.classList.contains('dark')).toBe(true)
+      render(
+        <ThemeProvider defaultTheme="light">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(document.documentElement.classList.contains('light')).toBe(true)
+
+      const toggleButton = screen.getByTestId('toggle')
+      act(() => {
+        toggleButton.click()
+      })
+
+      expect(document.documentElement.classList.contains('light')).toBe(false)
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
     })
   })
 
   describe('System preference detection', () => {
-    it('should detect system preference changes', () => {
+    it('should detect system preference', () => {
+      localStorageMock.getItem = vi.fn(() => null)
+      window.matchMedia = createMatchMedia(true)
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('system-preference')).toHaveTextContent('dark')
+    })
+
+    it('should update theme when system preference changes and no explicit preference is stored', () => {
+      localStorageMock.getItem = vi.fn(() => null)
       const mockMediaQuery = {
         matches: false,
+        media: '(prefers-color-scheme: dark)',
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((event, handler) => {
+          // Store handler for later
+          if (event === 'change') {
+            mockMediaQuery.changeHandler = handler
+          }
+        }),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        changeHandler: null as ((e: MediaQueryListEvent) => void) | null,
+      }
+
+      window.matchMedia = vi.fn(() => mockMediaQuery as any)
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+
+      // Simulate system preference change
+      mockMediaQuery.matches = true
+      if (mockMediaQuery.changeHandler) {
+        act(() => {
+          mockMediaQuery.changeHandler!({
+            matches: true,
+            media: '(prefers-color-scheme: dark)',
+          } as MediaQueryListEvent)
+        })
+      }
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+    })
+
+    it('should not update theme when explicit preference is stored', () => {
+      localStorageMock.getItem = vi.fn(() => 'light')
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+
+      // System preference change should not affect theme when explicit preference exists
+      const mockMediaQuery = {
+        matches: true,
         media: '(prefers-color-scheme: dark)',
         onchange: null,
         addListener: vi.fn(),
@@ -190,146 +307,145 @@ describe('ThemeContext', () => {
         removeEventListener: vi.fn(),
         dispatchEvent: vi.fn(),
       }
-
       window.matchMedia = vi.fn(() => mockMediaQuery as any)
 
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      expect(mediaQuery.matches).toBe(false)
-
-      // Simulate preference change
-      mockMediaQuery.matches = true
-      expect(mediaQuery.matches).toBe(true)
-    })
-
-    it('should update theme when system preference changes and no explicit preference is stored', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => null), // No stored preference
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
-
-      // When no preference is stored, system preference should be used
-      const hasStoredPreference = localStorage.getItem('constellate-theme')
-      expect(hasStoredPreference).toBeNull()
-    })
-
-    it('should not update theme when explicit preference is stored', () => {
-      const localStorageMock = {
-        getItem: vi.fn(() => 'light'), // Explicit preference
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-        clear: vi.fn(),
-      }
-      global.localStorage = localStorageMock as any
-
-      const stored = localStorage.getItem('constellate-theme')
-      expect(stored).toBe('light')
       // Theme should remain 'light' even if system preference changes
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
     })
   })
 
   describe('toggleTheme', () => {
     it('should toggle from light to dark', () => {
-      const currentTheme: Theme = 'light'
-      const toggledTheme: Theme = currentTheme === 'light' ? 'dark' : 'light'
-      expect(toggledTheme).toBe('dark')
+      localStorageMock.getItem = vi.fn(() => null)
+
+      render(
+        <ThemeProvider defaultTheme="light">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+
+      const toggleButton = screen.getByTestId('toggle')
+      act(() => {
+        toggleButton.click()
+      })
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
     })
 
     it('should toggle from dark to light', () => {
-      const currentTheme = 'dark' as Theme
-      const toggledTheme: Theme = currentTheme === 'light' ? 'dark' : 'light'
-      expect(toggledTheme).toBe('light')
+      localStorageMock.getItem = vi.fn(() => null)
+
+      render(
+        <ThemeProvider defaultTheme="dark">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+
+      const toggleButton = screen.getByTestId('toggle')
+      act(() => {
+        toggleButton.click()
+      })
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
     })
   })
 
   describe('useTheme hook', () => {
     it('should throw error when used outside ThemeProvider', () => {
-      // This tests the error handling logic
-      const context = undefined
-      if (context === undefined) {
-        expect(() => {
-          throw new Error('useTheme must be used within a ThemeProvider')
-        }).toThrow('useTheme must be used within a ThemeProvider')
+      // Suppress console.error for this test
+      const consoleError = console.error
+      console.error = vi.fn()
+
+      const TestComponentWithoutProvider = () => {
+        useTheme()
+        return null
       }
+
+      expect(() => {
+        render(<TestComponentWithoutProvider />)
+      }).toThrow('useTheme must be used within a ThemeProvider')
+
+      console.error = consoleError
     })
 
     it('should return theme context when used within ThemeProvider', () => {
-      // This tests that the hook returns the expected structure
-      const mockContext = {
-        theme: 'light' as Theme,
-        setTheme: vi.fn(),
-        toggleTheme: vi.fn(),
-        systemPreference: 'light' as Theme,
-      }
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(mockContext.theme).toBe('light')
-      expect(typeof mockContext.setTheme).toBe('function')
-      expect(typeof mockContext.toggleTheme).toBe('function')
-      expect(mockContext.systemPreference).toBe('light')
+      render(
+        <ThemeProvider defaultTheme="light">
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      expect(screen.getByTestId('theme')).toHaveTextContent('light')
+      expect(screen.getByTestId('system-preference')).toBeInTheDocument()
+      expect(screen.getByTestId('toggle')).toBeInTheDocument()
+      expect(screen.getByTestId('set-dark')).toBeInTheDocument()
+      expect(screen.getByTestId('set-light')).toBeInTheDocument()
     })
   })
 
   describe('useThemeColors hook', () => {
     it('should return light theme colors when theme is light', () => {
-      const theme: Theme = 'light'
-      const colors = tokens.colors[theme]
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(colors).toBeDefined()
-      expect(colors.background.primary).toBe('#ffffff')
-      expect(colors.text.primary).toBe(tokens.colors.light.text.primary)
+      render(
+        <ThemeProvider defaultTheme="light">
+          <TestColorsComponent />
+        </ThemeProvider>
+      )
+
+      const bgPrimary = screen.getByTestId('bg-primary')
+      const textPrimary = screen.getByTestId('text-primary')
+
+      expect(bgPrimary).toHaveTextContent(tokens.colors.light.background.primary)
+      expect(textPrimary).toHaveTextContent(tokens.colors.light.text.primary)
     })
 
     it('should return dark theme colors when theme is dark', () => {
-      const theme: Theme = 'dark'
-      const colors = tokens.colors[theme]
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(colors).toBeDefined()
-      expect(colors.background.primary).toBe(tokens.colors.dark.background.primary)
-      expect(colors.text.primary).toBe(tokens.colors.dark.text.primary)
+      render(
+        <ThemeProvider defaultTheme="dark">
+          <TestColorsComponent />
+        </ThemeProvider>
+      )
+
+      const bgPrimary = screen.getByTestId('bg-primary')
+      const textPrimary = screen.getByTestId('text-primary')
+
+      expect(bgPrimary).toHaveTextContent(tokens.colors.dark.background.primary)
+      expect(textPrimary).toHaveTextContent(tokens.colors.dark.text.primary)
     })
 
-    it('should have all required color properties', () => {
-      const lightColors = tokens.colors.light
-      const darkColors = tokens.colors.dark
+    it('should update colors when theme changes', () => {
+      localStorageMock.getItem = vi.fn(() => null)
 
-      expect(lightColors.background).toBeDefined()
-      expect(lightColors.text).toBeDefined()
-      expect(lightColors.border).toBeDefined()
-      expect(lightColors.primary).toBeDefined()
-      expect(lightColors.secondary).toBeDefined()
-      expect(lightColors.neutral).toBeDefined()
+      render(
+        <ThemeProvider defaultTheme="light">
+          <div>
+            <TestComponent />
+            <TestColorsComponent />
+          </div>
+        </ThemeProvider>
+      )
 
-      expect(darkColors.background).toBeDefined()
-      expect(darkColors.text).toBeDefined()
-      expect(darkColors.border).toBeDefined()
-      expect(darkColors.primary).toBeDefined()
-      expect(darkColors.secondary).toBeDefined()
-      expect(darkColors.neutral).toBeDefined()
-    })
-  })
+      expect(screen.getByTestId('bg-primary')).toHaveTextContent(
+        tokens.colors.light.background.primary
+      )
 
-  describe('ThemeProvider props', () => {
-    it('should accept children prop', () => {
-      // ThemeProvider accepts ReactNode children
-      const children = 'test'
-      expect(children).toBeDefined()
-    })
+      const toggleButton = screen.getByTestId('toggle')
+      act(() => {
+        toggleButton.click()
+      })
 
-    it('should accept defaultTheme prop', () => {
-      const defaultTheme: Theme = 'dark'
-      expect(defaultTheme).toBe('dark')
-    })
-
-    it('should accept storageKey prop', () => {
-      const storageKey = 'custom-key'
-      expect(storageKey).toBe('custom-key')
-    })
-
-    it('should use default storage key when not provided', () => {
-      const defaultKey = 'constellate-theme'
-      expect(defaultKey).toBe('constellate-theme')
+      expect(screen.getByTestId('bg-primary')).toHaveTextContent(
+        tokens.colors.dark.background.primary
+      )
     })
   })
 })

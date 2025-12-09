@@ -101,18 +101,27 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       setImageError(true)
     }
 
+    // Generate accessible label - prefer alt, then fallback, then generic
+    const accessibleLabel = alt || fallback || 'Avatar'
+
     return (
-      <div ref={ref} className={avatarClasses} {...props}>
+      <div
+        ref={ref}
+        className={avatarClasses}
+        role="img"
+        aria-label={accessibleLabel}
+        {...props}
+      >
         {showImage ? (
           <img
             src={src}
-            alt={alt || 'Avatar'}
+            alt=""
             className={cn(
               'w-full h-full object-cover',
               rounded ? 'rounded-full' : 'rounded-lg'
             )}
             onError={handleImageError}
-            aria-hidden={!alt}
+            aria-hidden="true"
           />
         ) : (
           <span
@@ -121,7 +130,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
               'font-semibold',
               rounded ? 'rounded-full' : 'rounded-lg'
             )}
-            aria-label={alt || 'Avatar'}
+            aria-hidden="true"
           >
             {fallback || '?'}
           </span>
