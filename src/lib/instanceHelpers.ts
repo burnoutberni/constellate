@@ -245,10 +245,6 @@ export async function getKnownInstances(options: {
     // Get connection stats for all instances in bulk to avoid N+1 queries
     // Fetch all related records that might match any instance
     const domains = instances.map(i => i.domain)
-    const urlPatterns = domains.flatMap(domain => [
-        { contains: `://${domain}/` },
-        { contains: `://${domain}:` }
-    ])
     const [allUsers, allEvents, allFollowings] = await Promise.all([
         prisma.user.findMany({
             where: {
