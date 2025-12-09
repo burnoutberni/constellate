@@ -40,6 +40,7 @@ vi.mock('../lib/instanceHelpers.js', () => ({
     getKnownInstances: vi.fn(),
     searchInstances: vi.fn(),
     refreshInstanceMetadata: vi.fn(),
+    getInstanceStats: vi.fn(),
 }))
 
 vi.mock('../lib/errors.js', () => ({
@@ -193,11 +194,15 @@ describe('Instance Discovery API', () => {
                 updatedAt: new Date(),
             }
 
+            const { getInstanceStats } = await import('../lib/instanceHelpers.js')
+            
             vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance)
-            vi.mocked(prisma.user.count).mockResolvedValue(10)
-            vi.mocked(prisma.event.count).mockResolvedValue(5)
-            vi.mocked(prisma.following.count).mockResolvedValue(3)
-            vi.mocked(prisma.follower.count).mockResolvedValue(2)
+            vi.mocked(getInstanceStats).mockResolvedValue({
+                remoteUsers: 10,
+                remoteEvents: 5,
+                localFollowing: 3,
+                localFollowers: 2,
+            })
 
             const res = await app.request('/api/instances/mastodon.social')
             
@@ -348,21 +353,27 @@ describe('Instance Discovery API', () => {
         })
 
         it('should enforce maximum limit', async () => {
+            const res = await app.request('/api/instances?limit=200')
+            
+            // Should reject values above maximum with 400
+            expect(res.status).toBe(400)
+        })
+
+        it('should accept valid limit within range', async () => {
             const { getKnownInstances } = await import('../lib/instanceHelpers.js')
             vi.mocked(getKnownInstances).mockResolvedValue({
                 instances: [],
                 total: 0,
-                limit: 100,
+                limit: 50,
                 offset: 0,
             })
 
-            const res = await app.request('/api/instances?limit=200')
+            const res = await app.request('/api/instances?limit=50')
             
             expect(res.status).toBe(200)
-            // Should be capped at 100
             expect(getKnownInstances).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    limit: expect.any(Number),
+                    limit: 50,
                 })
             )
         })

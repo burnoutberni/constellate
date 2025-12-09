@@ -24,12 +24,15 @@ vi.mock('../lib/prisma.js', () => ({
         },
         user: {
             count: vi.fn(),
+            findMany: vi.fn(),
         },
         event: {
             count: vi.fn(),
+            findMany: vi.fn(),
         },
         following: {
             count: vi.fn(),
+            findMany: vi.fn(),
         },
     },
 }))
@@ -170,18 +173,27 @@ describe('Instance Discovery', () => {
 
             vi.mocked(prisma.instance.findMany).mockResolvedValue(mockInstances)
             vi.mocked(prisma.instance.count).mockResolvedValue(1)
-            vi.mocked(prisma.user.count).mockResolvedValue(10)
-            vi.mocked(prisma.event.count).mockResolvedValue(5)
-            vi.mocked(prisma.following.count).mockResolvedValue(3)
+            
+            // Mock bulk queries for stats
+            vi.mocked(prisma.user.findMany).mockResolvedValue([
+                { externalActorUrl: 'https://mastodon.social/users/alice' },
+                { externalActorUrl: 'https://mastodon.social/users/bob' },
+            ] as any)
+            vi.mocked(prisma.event.findMany).mockResolvedValue([
+                { externalId: 'https://mastodon.social/events/1' },
+            ] as any)
+            vi.mocked(prisma.following.findMany).mockResolvedValue([
+                { actorUrl: 'https://mastodon.social/users/charlie' },
+            ] as any)
 
             const result = await getKnownInstances({ limit: 10, offset: 0 })
 
             expect(result.instances).toHaveLength(1)
             expect(result.instances[0].domain).toBe('mastodon.social')
             expect(result.instances[0].stats).toEqual({
-                remoteUsers: 10,
-                remoteEvents: 5,
-                localFollowing: 3,
+                remoteUsers: 2,
+                remoteEvents: 1,
+                localFollowing: 1,
             })
             expect(result.total).toBe(1)
         })
@@ -189,6 +201,9 @@ describe('Instance Discovery', () => {
         it('should filter blocked instances by default', async () => {
             vi.mocked(prisma.instance.findMany).mockResolvedValue([])
             vi.mocked(prisma.instance.count).mockResolvedValue(0)
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.following.findMany).mockResolvedValue([])
 
             await getKnownInstances({ filterBlocked: true })
 
@@ -202,6 +217,9 @@ describe('Instance Discovery', () => {
         it('should support different sort options', async () => {
             vi.mocked(prisma.instance.findMany).mockResolvedValue([])
             vi.mocked(prisma.instance.count).mockResolvedValue(0)
+            vi.mocked(prisma.user.findMany).mockResolvedValue([])
+            vi.mocked(prisma.event.findMany).mockResolvedValue([])
+            vi.mocked(prisma.following.findMany).mockResolvedValue([])
 
             await getKnownInstances({ sortBy: 'users' })
 

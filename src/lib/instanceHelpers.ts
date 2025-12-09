@@ -248,16 +248,13 @@ export async function getKnownInstances(options: {
         prisma.user.findMany({
             where: {
                 isRemote: true,
-                externalActorUrl: { not: null }
             },
             select: { externalActorUrl: true }
         }),
         prisma.event.findMany({
-            where: { externalId: { not: null } },
             select: { externalId: true }
         }),
         prisma.following.findMany({
-            where: { actorUrl: { not: null } },
             select: { actorUrl: true }
         })
     ])
