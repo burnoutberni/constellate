@@ -242,59 +242,48 @@ export async function getKnownInstances(options: {
         prisma.instance.count({ where }),
     ])
 
-    // Get connection stats for each instance
-    const instancesWithStats = await Promise.all(
-        instances.map(async (instance) => {
-            // Build URL patterns for matching - match protocol://domain or protocol://domain:port
-            const urlPatterns = [
-                `://${instance.domain}/`,
-                `://${instance.domain}:`,
-            ]
-            
-            const [remoteUserCount, remoteEventCount, localFollowingCount] = await Promise.all([
-                // Count users whose externalActorUrl matches this instance
-                prisma.user.count({
-                    where: {
-                        isRemote: true,
-                        OR: urlPatterns.map(pattern => ({
-                            externalActorUrl: {
-                                contains: pattern,
-                            },
-                        })),
-                    },
-                }),
-                // Count events whose externalId matches this instance
-                prisma.event.count({
-                    where: {
-                        OR: urlPatterns.map(pattern => ({
-                            externalId: {
-                                contains: pattern,
-                            },
-                        })),
-                    },
-                }),
-                // Count followings where actorUrl matches this instance
-                prisma.following.count({
-                    where: {
-                        OR: urlPatterns.map(pattern => ({
-                            actorUrl: {
-                                contains: pattern,
-                            },
-                        })),
-                    },
-                }),
-            ])
-
-            return {
-                ...instance,
-                stats: {
-                    remoteUsers: remoteUserCount,
-                    remoteEvents: remoteEventCount,
-                    localFollowing: localFollowingCount,
-                },
-            }
+    // Get connection stats for all instances in bulk to avoid N+1 queries
+    // Fetch all related records that might match any instance
+    const [allUsers, allEvents, allFollowings] = await Promise.all([
+        prisma.user.findMany({
+            where: {
+                isRemote: true,
+                externalActorUrl: { not: null }
+            },
+            select: { externalActorUrl: true }
+        }),
+        prisma.event.findMany({
+            where: { externalId: { not: null } },
+            select: { externalId: true }
+        }),
+        prisma.following.findMany({
+            where: { actorUrl: { not: null } },
+            select: { actorUrl: true }
         })
-    )
+    ])
+
+    // Count matches in memory for each instance
+    const instancesWithStats = instances.map(instance => {
+        const urlPatterns = [
+            `://${instance.domain}/`,
+            `://${instance.domain}:`,
+        ]
+        
+        return {
+            ...instance,
+            stats: {
+                remoteUsers: allUsers.filter(u => 
+                    urlPatterns.some(p => u.externalActorUrl?.includes(p))
+                ).length,
+                remoteEvents: allEvents.filter(e => 
+                    urlPatterns.some(p => e.externalId?.includes(p))
+                ).length,
+                localFollowing: allFollowings.filter(f => 
+                    urlPatterns.some(p => f.actorUrl?.includes(p))
+                ).length,
+            }
+        }
+    })
 
     return {
         instances: instancesWithStats,
@@ -326,4 +315,61 @@ export async function searchInstances(query: string, limit = 20) {
     })
 
     return instances
+}
+
+/**
+ * Get connection statistics for a specific instance
+ */
+export async function getInstanceStats(domain: string) {
+    const urlPatterns = [
+        `://${domain}/`,
+        `://${domain}:`,
+    ]
+    
+    const [remoteUserCount, remoteEventCount, localFollowingCount, localFollowersCount] = await Promise.all([
+        prisma.user.count({
+            where: {
+                isRemote: true,
+                OR: urlPatterns.map(pattern => ({
+                    externalActorUrl: {
+                        contains: pattern,
+                    },
+                })),
+            },
+        }),
+        prisma.event.count({
+            where: {
+                OR: urlPatterns.map(pattern => ({
+                    externalId: {
+                        contains: pattern,
+                    },
+                })),
+            },
+        }),
+        prisma.following.count({
+            where: {
+                OR: urlPatterns.map(pattern => ({
+                    actorUrl: {
+                        contains: pattern,
+                    },
+                })),
+            },
+        }),
+        prisma.follower.count({
+            where: {
+                OR: urlPatterns.map(pattern => ({
+                    actorUrl: {
+                        contains: pattern,
+                    },
+                })),
+            },
+        }),
+    ])
+
+    return {
+        remoteUsers: remoteUserCount,
+        remoteEvents: remoteEventCount,
+        localFollowing: localFollowingCount,
+        localFollowers: localFollowersCount,
+    }
 }

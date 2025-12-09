@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
-import { getKnownInstances, searchInstances, refreshInstanceMetadata } from './lib/instanceHelpers.js'
+import { getKnownInstances, searchInstances, refreshInstanceMetadata, getInstanceStats } from './lib/instanceHelpers.js'
 import { prisma } from './lib/prisma.js'
 import { handleError } from './lib/errors.js'
 
@@ -14,15 +14,15 @@ const app = new Hono()
 
 // Query schema for listing instances
 const ListInstancesQuerySchema = z.object({
-    limit: z.string().optional().transform((val) => Math.min(parseInt(val || '50'), 100)),
-    offset: z.string().optional().transform((val) => parseInt(val || '0')),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+    offset: z.coerce.number().int().min(0).optional().default(0),
     sortBy: z.enum(['activity', 'users', 'created']).optional().default('activity'),
 })
 
 // Query schema for searching instances
 const SearchInstancesQuerySchema = z.object({
     q: z.string().min(1),
-    limit: z.string().optional().transform((val) => Math.min(parseInt(val || '20'), 50)),
+    limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 })
 
 // Get list of known instances
@@ -88,60 +88,12 @@ app.get('/:domain', async (c) => {
             return c.json({ error: 'Instance not found' }, 404)
         }
 
-        // Get connection stats - use URL patterns to avoid subdomain false positives
-        const urlPatterns = [
-            `://${domain}/`,
-            `://${domain}:`,
-        ]
-        
-        const [remoteUserCount, remoteEventCount, localFollowingCount, localFollowersCount] = await Promise.all([
-            prisma.user.count({
-                where: {
-                    isRemote: true,
-                    OR: urlPatterns.map(pattern => ({
-                        externalActorUrl: {
-                            contains: pattern,
-                        },
-                    })),
-                },
-            }),
-            prisma.event.count({
-                where: {
-                    OR: urlPatterns.map(pattern => ({
-                        externalId: {
-                            contains: pattern,
-                        },
-                    })),
-                },
-            }),
-            prisma.following.count({
-                where: {
-                    OR: urlPatterns.map(pattern => ({
-                        actorUrl: {
-                            contains: pattern,
-                        },
-                    })),
-                },
-            }),
-            prisma.follower.count({
-                where: {
-                    OR: urlPatterns.map(pattern => ({
-                        actorUrl: {
-                            contains: pattern,
-                        },
-                    })),
-                },
-            }),
-        ])
+        // Get connection stats
+        const stats = await getInstanceStats(domain)
 
         return c.json({
             ...instance,
-            stats: {
-                remoteUsers: remoteUserCount,
-                remoteEvents: remoteEventCount,
-                localFollowing: localFollowingCount,
-                localFollowers: localFollowersCount,
-            },
+            stats,
         })
     } catch (error) {
         return handleError(error, c)

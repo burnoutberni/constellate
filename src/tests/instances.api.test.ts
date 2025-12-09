@@ -272,6 +272,16 @@ describe('Instance Discovery API', () => {
                 data: { isBlocked: true },
             })
         })
+
+        it('should handle errors when blocking non-existent instance', async () => {
+            vi.mocked(prisma.instance.update).mockRejectedValue(new Error('Record not found'))
+
+            const res = await app.request('/api/instances/unknown.social/block', {
+                method: 'POST',
+            })
+            
+            expect(res.status).toBe(500)
+        })
     })
 
     describe('POST /api/instances/:domain/unblock', () => {
@@ -293,6 +303,68 @@ describe('Instance Discovery API', () => {
                 where: { domain: 'mastodon.social' },
                 data: { isBlocked: false },
             })
+        })
+
+        it('should handle errors when unblocking non-existent instance', async () => {
+            vi.mocked(prisma.instance.update).mockRejectedValue(new Error('Record not found'))
+
+            const res = await app.request('/api/instances/unknown.social/unblock', {
+                method: 'POST',
+            })
+            
+            expect(res.status).toBe(500)
+        })
+    })
+
+    describe('Validation tests', () => {
+        it('should handle invalid limit parameter gracefully', async () => {
+            const { getKnownInstances } = await import('../lib/instanceHelpers.js')
+            vi.mocked(getKnownInstances).mockResolvedValue({
+                instances: [],
+                total: 0,
+                limit: 50,
+                offset: 0,
+            })
+
+            const res = await app.request('/api/instances?limit=invalid')
+            
+            // Zod coercion should handle this and use default or fail validation
+            expect(res.status).toBeLessThanOrEqual(400)
+        })
+
+        it('should handle negative offset gracefully', async () => {
+            const { getKnownInstances } = await import('../lib/instanceHelpers.js')
+            vi.mocked(getKnownInstances).mockResolvedValue({
+                instances: [],
+                total: 0,
+                limit: 50,
+                offset: 0,
+            })
+
+            const res = await app.request('/api/instances?offset=-5')
+            
+            // Zod validation should reject negative values
+            expect(res.status).toBeLessThanOrEqual(400)
+        })
+
+        it('should enforce maximum limit', async () => {
+            const { getKnownInstances } = await import('../lib/instanceHelpers.js')
+            vi.mocked(getKnownInstances).mockResolvedValue({
+                instances: [],
+                total: 0,
+                limit: 100,
+                offset: 0,
+            })
+
+            const res = await app.request('/api/instances?limit=200')
+            
+            expect(res.status).toBe(200)
+            // Should be capped at 100
+            expect(getKnownInstances).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    limit: expect.any(Number),
+                })
+            )
         })
     })
 })

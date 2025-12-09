@@ -543,6 +543,7 @@ export function AdminPage() {
                                                                     src={instance.iconUrl}
                                                                     alt={instance.domain}
                                                                     className="h-8 w-8 rounded mr-3"
+                                                                    onError={(e) => e.currentTarget.style.display = 'none'}
                                                                 />
                                                             )}
                                                             <div>

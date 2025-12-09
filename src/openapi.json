@@ -4263,7 +4263,17 @@
                                         "instances": {
                                             "type": "array",
                                             "items": {
-                                                "type": "object"
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {"type": "string"},
+                                                    "domain": {"type": "string"},
+                                                    "baseUrl": {"type": "string"},
+                                                    "title": {"type": "string", "nullable": true},
+                                                    "description": {"type": "string", "nullable": true},
+                                                    "software": {"type": "string", "nullable": true},
+                                                    "version": {"type": "string", "nullable": true},
+                                                    "isBlocked": {"type": "boolean"}
+                                                }
                                             }
                                         }
                                     }
@@ -4309,7 +4319,34 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "domain": {"type": "string"},
+                                        "baseUrl": {"type": "string"},
+                                        "software": {"type": "string", "nullable": true},
+                                        "version": {"type": "string", "nullable": true},
+                                        "title": {"type": "string", "nullable": true},
+                                        "description": {"type": "string", "nullable": true},
+                                        "iconUrl": {"type": "string", "nullable": true},
+                                        "contact": {"type": "string", "nullable": true},
+                                        "userCount": {"type": "integer", "nullable": true},
+                                        "eventCount": {"type": "integer", "nullable": true},
+                                        "lastActivityAt": {"type": "string", "format": "date-time", "nullable": true},
+                                        "isBlocked": {"type": "boolean"},
+                                        "lastFetchedAt": {"type": "string", "format": "date-time", "nullable": true},
+                                        "lastErrorAt": {"type": "string", "format": "date-time", "nullable": true},
+                                        "lastError": {"type": "string", "nullable": true},
+                                        "stats": {
+                                            "type": "object",
+                                            "properties": {
+                                                "remoteUsers": {"type": "integer"},
+                                                "remoteEvents": {"type": "integer"},
+                                                "localFollowing": {"type": "integer"},
+                                                "localFollowers": {"type": "integer"}
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
