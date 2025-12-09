@@ -14,7 +14,9 @@ describe('Avatar Component', () => {
   it('should render with image when src is provided', () => {
     render(<Avatar src="https://example.com/avatar.jpg" alt="User avatar" />)
     
-    const image = screen.getByAltText('User avatar')
+    const avatar = screen.getByLabelText('User avatar')
+    expect(avatar).toBeInTheDocument()
+    const image = avatar.querySelector('img')
     expect(image).toBeInTheDocument()
     expect(image).toHaveAttribute('src', 'https://example.com/avatar.jpg')
   })
@@ -28,11 +30,13 @@ describe('Avatar Component', () => {
       />
     )
     
-    const image = screen.getByAltText('User')
+    const avatar = screen.getByLabelText('User')
+    expect(avatar).toBeInTheDocument()
+    const image = avatar.querySelector('img')
     expect(image).toBeInTheDocument()
     
     // Simulate image error by triggering onError handler
-    fireEvent.error(image)
+    fireEvent.error(image!)
     
     // After error, fallback should be shown
     expect(screen.getByLabelText('User')).toHaveTextContent('FB')
@@ -127,8 +131,8 @@ describe('AvatarGroup Component', () => {
     
     render(<AvatarGroup avatars={avatars} max={3} />)
     
-    expect(screen.getByAltText('User 1')).toBeInTheDocument()
-    expect(screen.getByAltText('User 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('User 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('User 2')).toBeInTheDocument()
   })
 
   it('should limit avatars to max and show remaining count', () => {
@@ -143,9 +147,9 @@ describe('AvatarGroup Component', () => {
     render(<AvatarGroup avatars={avatars} max={3} />)
     
     // Should show first 3 avatars
-    expect(screen.getByAltText('User 1')).toBeInTheDocument()
-    expect(screen.getByAltText('User 2')).toBeInTheDocument()
-    expect(screen.getByAltText('User 3')).toBeInTheDocument()
+    expect(screen.getByLabelText('User 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('User 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('User 3')).toBeInTheDocument()
     
     // Should show remaining count
     const remainingBadge = screen.getByLabelText('2 more avatars')

@@ -7,9 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import React from 'react'
 import { ThemeProvider, useTheme, useThemeColors } from '../design-system/ThemeContext'
-import type { Theme } from '../design-system/tokens'
 import { tokens } from '../design-system/tokens'
 
 // Mock window.matchMedia
