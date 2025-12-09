@@ -50,7 +50,7 @@ export function ThemeProvider({
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
   // Use lazy initializer to access storageKey
-  const [theme, setThemeState] = useState<Theme>(() => {
+  const [theme, setThemeState] = useState<Theme>((): Theme => {
     if (defaultTheme) {
       return defaultTheme
     }
@@ -61,12 +61,12 @@ export function ThemeProvider({
     
     const stored = localStorage.getItem(storageKey)
     if (stored && isValidTheme(stored)) {
-      return stored as Theme
+      return stored
     }
     
     return getSystemTheme()
   })
-  const [systemPreference, setSystemPreference] = useState<Theme>(getSystemTheme)
+  const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
 
   // Apply theme class to document root
   useEffect(() => {
