@@ -28,7 +28,6 @@ import {
   type Themeable,
   type ColorVariant,
   type SizeVariant,
-  type GetColorValue,
   type ThemeColorKeys,
   type ColorShadeKeys,
 } from './types'

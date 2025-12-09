@@ -466,7 +466,6 @@ describe('ThemeContext', () => {
 
     it('should handle localStorage being undefined', () => {
       const originalLocalStorage = global.localStorage
-      // @ts-expect-error - intentionally setting to undefined
       global.localStorage = undefined as any
 
       localStorageMock.getItem = vi.fn(() => null)
