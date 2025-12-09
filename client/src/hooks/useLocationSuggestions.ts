@@ -12,6 +12,7 @@ interface SuggestionResponse {
     results: LocationSuggestion[]
 }
 
+// Keep aligned with backend MIN_LOCATION_QUERY_LENGTH
 export const MIN_QUERY_LENGTH = 3
 const DEBOUNCE_MS = 300
 

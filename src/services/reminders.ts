@@ -55,8 +55,7 @@ export function computeRemindAt(startTime: Date, minutesBeforeStart: number): Da
         )
     }
 
-    // Calculate remindAt time
-    // Convert minutes to milliseconds: minutes * seconds_per_minute * milliseconds_per_second
+    // Calculate remindAt time (convert minutes to milliseconds)
     const millisecondsOffset = minutesBeforeStart * 60 * 1000
     
     // Validate that the calculation doesn't overflow and produces a valid timestamp

@@ -16,10 +16,7 @@ app.use('/search', rateLimit({
     maxRequests: 30, // 30 requests per 15 minutes (more restrictive than lenient 200)
 }))
 
-// Minimum query length for location search
-// 3 characters provides better geocoding results by reducing ambiguous queries
-// Note: This value is intentionally aligned with the frontend MIN_QUERY_LENGTH constant
-// in client/src/hooks/useLocationSuggestions.ts. Both should be kept in sync.
+// Minimum query length for location search (keep aligned with frontend MIN_QUERY_LENGTH)
 const MIN_LOCATION_QUERY_LENGTH = 3
 
 // Default limit for location search results

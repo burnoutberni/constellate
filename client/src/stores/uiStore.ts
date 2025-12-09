@@ -103,10 +103,9 @@ export const useUIStore = create<UIState>((set) => ({
     }),
     addMentionNotification: (notification) => set((state) => {
         const existing = state.mentionNotifications.filter((item) => item.id !== notification.id)
-        // Keep the most recent 5 notifications to balance visibility with memory usage
-        // New notifications are added at the beginning, so slice(0, 5) keeps the 5 most recent
+        // Keep the most recent 20 notifications
         return {
-            mentionNotifications: [notification, ...existing].slice(0, 5),
+            mentionNotifications: [notification, ...existing].slice(0, 20),
         }
     }),
     dismissMentionNotification: (id) => set((state) => ({

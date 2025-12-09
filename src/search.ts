@@ -545,8 +545,7 @@ app.get('/nearby', async (c) => {
         const lonMin = params.longitude - lonDelta
         const lonMax = params.longitude + lonDelta
 
-        // If the bounding box would wrap around the globe (lonDelta > 180), 
-        // the search area is too large and we should reject it
+        // If the radius spans more than 180° of longitude at this latitude, reject the search
         if (lonDelta > 180) {
             return c.json({ 
                 error: 'Search radius is too large for this location. Please use a smaller radius.' 
@@ -622,13 +621,9 @@ app.get('/nearby', async (c) => {
                 ],
             }
         } else if (lonMin < -180) {
-            // Crossing from west: range extends past -180° to the east
-            // Normalize lonMin: lonMin + 360 converts negative longitude < -180 to equivalent positive longitude
-            // Example: lonMin = -185 → easternLonMin = 175, query [175, 180°] (eastern side) OR [-180°, lonMax] (western side)
-            // Note: Since lonMin < -180, easternLonMin = lonMin + 360 will always be < 180, so no validation needed
-            // easternLonMin may be negative if lonMin is very negative (e.g., lonMin = -400 → easternLonMin = -40),
-            // but that's handled by the query logic below
-            const easternLonMin = lonMin + 360 // Converts to equivalent longitude for the eastern side of the antimeridian
+            // Range crosses antimeridian: convert lonMin to equivalent eastern longitude
+            // Example: lonMin = -185 → easternLonMin = 175
+            const easternLonMin = lonMin + 360
             boundingWhere = {
                 AND: [
                     { locationLatitude: { gte: latMin, lte: latMax } },

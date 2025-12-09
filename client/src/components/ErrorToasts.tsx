@@ -30,7 +30,7 @@ function ErrorToastItem({ toast, onDismiss }: { toast: ErrorToast; onDismiss: (i
     }, [toast.id, onDismiss])
 
     return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-xl" role="alert">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-red-900">{toast.message}</p>
                 <button
