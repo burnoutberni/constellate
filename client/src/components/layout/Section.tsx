@@ -83,30 +83,22 @@ export const Section = React.forwardRef<HTMLElement, SectionProps>(
       className
     )
 
-    // If contained, wrap children in Container
-    if (contained) {
-      return (
-        <Component
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ref={ref as any}
-          className={sectionClasses}
-          {...props}
-        >
-          <Container size={containerSize}>
-            {children}
-          </Container>
-        </Component>
-      )
-    }
+    // Determine content - wrap in Container if contained
+    const content = contained ? (
+      <Container size={containerSize}>
+        {children}
+      </Container>
+    ) : (
+      children
+    )
 
     return (
       <Component
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ref={ref as any}
+        ref={ref}
         className={sectionClasses}
         {...props}
       >
-        {children}
+        {content}
       </Component>
     )
   }

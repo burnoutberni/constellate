@@ -79,46 +79,25 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
       </main>
     )
 
-    // Layout with sidebar
-    if (sidebar) {
-      return (
-        <div
-          ref={ref}
-          className={cn('flex flex-col min-h-screen', className)}
-          {...props}
-        >
-          {header && (
-            <header className="flex-shrink-0">
-              {header}
-            </header>
-          )}
-          
-          <div className="flex flex-1 min-h-0">
-            {sidebarPosition === 'left' && (
-              <aside className="flex-shrink-0">
-                {sidebar}
-              </aside>
-            )}
-            
-            {mainContent}
-            
-            {sidebarPosition === 'right' && (
-              <aside className="flex-shrink-0">
-                {sidebar}
-              </aside>
-            )}
-          </div>
-          
-          {footer && (
-            <footer className="flex-shrink-0">
-              {footer}
-            </footer>
-          )}
-        </div>
-      )
-    }
+    // Sidebar content (if present)
+    const sidebarContent = sidebar ? (
+      <div className="flex flex-1 min-h-0">
+        {sidebarPosition === 'left' && (
+          <aside className="flex-shrink-0">
+            {sidebar}
+          </aside>
+        )}
+        
+        {mainContent}
+        
+        {sidebarPosition === 'right' && (
+          <aside className="flex-shrink-0">
+            {sidebar}
+          </aside>
+        )}
+      </div>
+    ) : mainContent
 
-    // Layout without sidebar
     return (
       <div
         ref={ref}
@@ -131,7 +110,7 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
           </header>
         )}
         
-        {mainContent}
+        {sidebarContent}
         
         {footer && (
           <footer className="flex-shrink-0">

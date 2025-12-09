@@ -67,63 +67,62 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
     const baseStyles = ['grid', 'w-full']
 
     // Column styles mapping - explicit class names for Tailwind JIT
-    const colClassMap: Record<GridCols, string> = {
-      1: 'grid-cols-1',
-      2: 'grid-cols-2',
-      3: 'grid-cols-3',
-      4: 'grid-cols-4',
-      5: 'grid-cols-5',
-      6: 'grid-cols-6',
-      12: 'grid-cols-12',
-    }
-
-    const smColClassMap: Record<GridCols, string> = {
-      1: 'sm:grid-cols-1',
-      2: 'sm:grid-cols-2',
-      3: 'sm:grid-cols-3',
-      4: 'sm:grid-cols-4',
-      5: 'sm:grid-cols-5',
-      6: 'sm:grid-cols-6',
-      12: 'sm:grid-cols-12',
-    }
-
-    const mdColClassMap: Record<GridCols, string> = {
-      1: 'md:grid-cols-1',
-      2: 'md:grid-cols-2',
-      3: 'md:grid-cols-3',
-      4: 'md:grid-cols-4',
-      5: 'md:grid-cols-5',
-      6: 'md:grid-cols-6',
-      12: 'md:grid-cols-12',
-    }
-
-    const lgColClassMap: Record<GridCols, string> = {
-      1: 'lg:grid-cols-1',
-      2: 'lg:grid-cols-2',
-      3: 'lg:grid-cols-3',
-      4: 'lg:grid-cols-4',
-      5: 'lg:grid-cols-5',
-      6: 'lg:grid-cols-6',
-      12: 'lg:grid-cols-12',
-    }
-
-    const xlColClassMap: Record<GridCols, string> = {
-      1: 'xl:grid-cols-1',
-      2: 'xl:grid-cols-2',
-      3: 'xl:grid-cols-3',
-      4: 'xl:grid-cols-4',
-      5: 'xl:grid-cols-5',
-      6: 'xl:grid-cols-6',
-      12: 'xl:grid-cols-12',
+    // Nested structure: breakpoint -> column count -> class name
+    const colClassMap: Record<string, Record<GridCols, string>> = {
+      '': {
+        1: 'grid-cols-1',
+        2: 'grid-cols-2',
+        3: 'grid-cols-3',
+        4: 'grid-cols-4',
+        5: 'grid-cols-5',
+        6: 'grid-cols-6',
+        12: 'grid-cols-12',
+      },
+      'sm:': {
+        1: 'sm:grid-cols-1',
+        2: 'sm:grid-cols-2',
+        3: 'sm:grid-cols-3',
+        4: 'sm:grid-cols-4',
+        5: 'sm:grid-cols-5',
+        6: 'sm:grid-cols-6',
+        12: 'sm:grid-cols-12',
+      },
+      'md:': {
+        1: 'md:grid-cols-1',
+        2: 'md:grid-cols-2',
+        3: 'md:grid-cols-3',
+        4: 'md:grid-cols-4',
+        5: 'md:grid-cols-5',
+        6: 'md:grid-cols-6',
+        12: 'md:grid-cols-12',
+      },
+      'lg:': {
+        1: 'lg:grid-cols-1',
+        2: 'lg:grid-cols-2',
+        3: 'lg:grid-cols-3',
+        4: 'lg:grid-cols-4',
+        5: 'lg:grid-cols-5',
+        6: 'lg:grid-cols-6',
+        12: 'lg:grid-cols-12',
+      },
+      'xl:': {
+        1: 'xl:grid-cols-1',
+        2: 'xl:grid-cols-2',
+        3: 'xl:grid-cols-3',
+        4: 'xl:grid-cols-4',
+        5: 'xl:grid-cols-5',
+        6: 'xl:grid-cols-6',
+        12: 'xl:grid-cols-12',
+      },
     }
 
     // Column styles - responsive grid columns
     const colStyles = [
-      colClassMap[cols],
-      colsSm && smColClassMap[colsSm],
-      colsMd && mdColClassMap[colsMd],
-      colsLg && lgColClassMap[colsLg],
-      colsXl && xlColClassMap[colsXl],
+      colClassMap[''][cols],
+      colsSm && colClassMap['sm:'][colsSm],
+      colsMd && colClassMap['md:'][colsMd],
+      colsLg && colClassMap['lg:'][colsLg],
+      colsXl && colClassMap['xl:'][colsXl],
     ].filter(Boolean)
 
     // Gap styles using design tokens
