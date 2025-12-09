@@ -57,7 +57,35 @@ export function computeRemindAt(startTime: Date, minutesBeforeStart: number): Da
 
     // Calculate remindAt time
     // Convert minutes to milliseconds: minutes * seconds_per_minute * milliseconds_per_second
-    const remindAt = new Date(startTime.getTime() - (minutesBeforeStart * 60 * 1000))
+    const millisecondsOffset = minutesBeforeStart * 60 * 1000
+    
+    // Validate that the calculation doesn't overflow and produces a valid timestamp
+    // Check that the result is within reasonable bounds (not before Unix epoch or after year 9999)
+    const startTimeMs = startTime.getTime()
+    const remindAtMs = startTimeMs - millisecondsOffset
+    
+    // Validate the computed timestamp is within reasonable range
+    // Unix epoch: 0, Year 9999: 253402300799000 (approximately)
+    const MIN_VALID_TIMESTAMP = 0
+    const MAX_VALID_TIMESTAMP = 253402300799000 // Year 9999
+    if (remindAtMs < MIN_VALID_TIMESTAMP || remindAtMs > MAX_VALID_TIMESTAMP) {
+        throw new AppError(
+            'REMINDER_INVALID_OFFSET',
+            'Reminder offset results in an invalid timestamp',
+            400
+        )
+    }
+    
+    const remindAt = new Date(remindAtMs)
+    
+    // Validate that remindAt is a valid date
+    if (isNaN(remindAt.getTime())) {
+        throw new AppError(
+            'REMINDER_INVALID_OFFSET',
+            'Reminder offset results in an invalid date',
+            400
+        )
+    }
 
     // Validate that remindAt is in the future
     const now = new Date()

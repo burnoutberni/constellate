@@ -77,11 +77,14 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
 
 /**
  * Builds the event payload for API submission
+ * @param isUpdate - If true, allows explicit empty strings/null to clear optional fields during updates.
+ *                    If false (default), only includes fields with non-empty values (for creates).
  */
 export function buildEventPayload(
     formData: Pick<FormData, 'title' | 'summary' | 'location' | 'url' | 'startTime' | 'endTime' | 'visibility' | 'recurrencePattern' | 'recurrenceEndDate'>,
     locationLatitude?: number,
-    locationLongitude?: number
+    locationLongitude?: number,
+    isUpdate: boolean = false
 ): Record<string, unknown> {
     const payload: Record<string, unknown> = {
         title: formData.title,
@@ -90,16 +93,34 @@ export function buildEventPayload(
         visibility: formData.visibility,
     }
     
-    // Only include optional fields if they have non-empty values
-    if (formData.summary && formData.summary.trim()) {
-        payload.summary = formData.summary
+    // For updates, include fields even if empty (to allow clearing them)
+    // For creates, only include fields with non-empty values
+    if (isUpdate) {
+        // Include summary if provided (even if empty, to clear it)
+        if (formData.summary !== undefined) {
+            payload.summary = formData.summary.trim() || null
+        }
+        // Include location if provided (even if empty, to clear it)
+        if (formData.location !== undefined) {
+            payload.location = formData.location.trim() || null
+        }
+        // Include url if provided (even if empty, to clear it)
+        if (formData.url !== undefined) {
+            payload.url = formData.url.trim() || null
+        }
+    } else {
+        // Only include optional fields if they have non-empty values (for creates)
+        if (formData.summary && formData.summary.trim()) {
+            payload.summary = formData.summary
+        }
+        if (formData.location && formData.location.trim()) {
+            payload.location = formData.location
+        }
+        if (formData.url && formData.url.trim()) {
+            payload.url = formData.url
+        }
     }
-    if (formData.location && formData.location.trim()) {
-        payload.location = formData.location
-    }
-    if (formData.url && formData.url.trim()) {
-        payload.url = formData.url
-    }
+    
     if (locationLatitude !== undefined && locationLongitude !== undefined) {
         payload.locationLatitude = locationLatitude
         payload.locationLongitude = locationLongitude

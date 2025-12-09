@@ -13,7 +13,9 @@ import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 
 // Geographic constants for nearby search
-// KM_PER_DEGREE is approximately 111 km per degree of latitude (constant globally)
+// KM_PER_DEGREE is approximately 111 km per degree of latitude
+// Note: This is an approximation. The actual value varies slightly from equator to poles
+// due to Earth's oblate spheroid shape (~110.574 km at equator, ~111.694 km at poles).
 // For longitude, the distance per degree varies by latitude and is adjusted using cosine
 const KM_PER_DEGREE = 111 // Approximate kilometers per degree of latitude
 const MIN_COS_LAT_THRESHOLD = 0.01 // Minimum cosine threshold to prevent division by zero near poles
@@ -633,9 +635,9 @@ app.get('/nearby', async (c) => {
                 }, 400)
             }
             
-            // easternLonMin should be in [0, 180] range after normalization
-            // Clamp to ensure it's within valid bounds (shouldn't be necessary, but defensive)
-            const clampedEasternLonMin = Math.max(0, Math.min(180, easternLonMin))
+            // easternLonMin should already be in [0, 180] range after normalization
+            // (since lonMin < -180, adding 360 gives a value in [0, 180])
+            // No clamping needed - the calculation on line 626 already produces valid results
             boundingWhere = {
                 AND: [
                     { locationLatitude: { gte: latMin, lte: latMax } },
@@ -643,7 +645,7 @@ app.get('/nearby', async (c) => {
                         OR: [
                             {
                                 locationLongitude: {
-                                    gte: clampedEasternLonMin,
+                                    gte: easternLonMin,
                                     lte: 180,
                                 },
                             },

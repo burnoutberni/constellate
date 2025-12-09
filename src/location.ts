@@ -1,11 +1,20 @@
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import { lenientRateLimit } from './middleware/rateLimit.js'
+import { lenientRateLimit, rateLimit } from './middleware/rateLimit.js'
 import { config } from './config.js'
 
 const app = new Hono()
 
+// Apply lenient rate limit globally
 app.use('*', lenientRateLimit)
+
+// Apply stricter rate limit specifically for location search endpoint
+// This protects against abuse of external Nominatim API calls
+// More restrictive than lenient limit to prevent exhausting Nominatim rate limits
+app.use('/search', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 30, // 30 requests per 15 minutes (more restrictive than lenient 200)
+}))
 
 // Minimum query length for location search
 // 3 characters provides better geocoding results by reducing ambiguous queries
