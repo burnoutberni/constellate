@@ -48,7 +48,7 @@ export function EventHeader({
         <Avatar
           src={organizer.profileImage || undefined}
           alt={organizer.name || organizer.username}
-          fallback={organizer.name?.[0] || organizer.username[0]}
+          fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
           size="lg"
         />
         <div>

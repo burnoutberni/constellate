@@ -49,7 +49,7 @@ export function EventInfo({
 
   const formatDate = useMemo(() => {
     return (dateString: string) => {
-      return new Intl.DateTimeFormat('en-US', {
+      return new Intl.DateTimeFormat(navigator.language || 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -61,7 +61,7 @@ export function EventInfo({
 
   const formatTime = useMemo(() => {
     return (dateString: string) => {
-      return new Intl.DateTimeFormat('en-US', {
+      return new Intl.DateTimeFormat(navigator.language || 'en-US', {
         hour: 'numeric',
         minute: '2-digit',
         timeZone: viewerTimezone,

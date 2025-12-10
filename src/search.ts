@@ -128,6 +128,7 @@ const SearchSchema = z.object({
     categories: z.string().optional(), // Alias for tags
     page: z.string().optional(),
     limit: z.string().optional(),
+    sort: z.enum(['date', 'popularity', 'trending']).optional().default('date'), // Sort option
 })
 
 const NearbySearchSchema = z.object({
@@ -241,11 +242,13 @@ app.get('/', async (c) => {
             categories: c.req.query('categories'),
             page: c.req.query('page'),
             limit: c.req.query('limit'),
+            sort: c.req.query('sort'),
         })
 
         const page = parseInt(params.page || '1')
         const limit = Math.min(parseInt(params.limit || '20'), 100)
         const skip = (page - 1) * limit
+        const sortOption = params.sort || 'date'
 
         let where: Prisma.EventWhereInput
         try {
@@ -283,6 +286,109 @@ app.get('/', async (c) => {
         const hasFilters = Object.keys(where).length > 0
         const combinedWhere = hasFilters ? { AND: [where, visibilityFilter] } : visibilityFilter
 
+        // Determine orderBy based on sort option
+        let orderBy: Prisma.EventOrderByWithRelationInput
+        if (sortOption === 'popularity') {
+            // For popularity, we need to fetch events and sort by computed popularity
+            // Since Prisma doesn't support ordering by computed fields, we'll fetch more events
+            // and sort in memory, then paginate
+            const fetchLimit = Math.min(limit * 10, 500) // Fetch more to account for sorting
+            const allEvents = await prisma.event.findMany({
+                where: combinedWhere,
+                take: fetchLimit,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            displayColor: true,
+                            profileImage: true,
+                        },
+                    },
+                    tags: true,
+                    _count: {
+                        select: {
+                            attendance: true,
+                            likes: true,
+                            comments: true,
+                        },
+                    },
+                },
+            })
+
+            // Get accurate counts
+            const eventIds = allEvents.map(e => e.id)
+            const [attendanceCounts, likesCounts] = await Promise.all([
+                prisma.eventAttendance.groupBy({
+                    by: ['eventId'],
+                    where: { eventId: { in: eventIds } },
+                    _count: { eventId: true },
+                }),
+                prisma.eventLike.groupBy({
+                    by: ['eventId'],
+                    where: { eventId: { in: eventIds } },
+                    _count: { eventId: true },
+                }),
+            ])
+
+            const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
+            const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
+
+            // Sort by popularity (attendance * 2 + likes)
+            const sortedEvents = allEvents
+                .map((event) => {
+                    const attendance = attendanceMap.get(event.id) ?? (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
+                    const likes = likesMap.get(event.id) ?? (typeof event._count?.likes === 'number' ? event._count.likes : 0)
+                    return {
+                        ...event,
+                        _count: {
+                            attendance,
+                            likes,
+                            comments: typeof event._count?.comments === 'number' ? event._count.comments : 0,
+                        },
+                        popularity: attendance * 2 + likes,
+                    }
+                })
+                .sort((a, b) => b.popularity - a.popularity)
+                .slice(skip, skip + limit)
+                .map(({ popularity: _popularity, ...event }) => event)
+
+            const total = await prisma.event.count({ where: combinedWhere })
+            const events = sortedEvents
+
+            return c.json({
+                events,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit),
+                },
+                filters: {
+                    q: params.q,
+                    location: params.location,
+                    startDate: params.startDate,
+                    endDate: params.endDate,
+                    dateRange: params.dateRange,
+                    status: params.status,
+                    mode: params.mode,
+                    username: params.username,
+                    tags: params.tags,
+                    categories: params.categories,
+                    sort: sortOption,
+                },
+            })
+        } else if (sortOption === 'trending') {
+            // For trending, we'll use date sorting as a fallback since trending requires
+            // complex calculation that's better handled by the /trending endpoint
+            // For now, fall back to date sorting
+            orderBy = { startTime: 'asc' }
+        } else {
+            // Default: sort by date
+            orderBy = { startTime: 'asc' }
+        }
+
         const [events, total] = await Promise.all([
             prisma.event.findMany({
                 where: combinedWhere,
@@ -305,7 +411,7 @@ app.get('/', async (c) => {
                         },
                     },
                 },
-                orderBy: { startTime: 'asc' },
+                orderBy,
                 skip,
                 take: limit,
             }),
@@ -331,6 +437,7 @@ app.get('/', async (c) => {
                 username: params.username,
                 tags: params.tags,
                 categories: params.categories,
+                sort: sortOption,
             },
         })
     } catch (error) {

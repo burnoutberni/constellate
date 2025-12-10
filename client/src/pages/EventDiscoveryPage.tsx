@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { EventCard } from '../components/EventCard'
-import { EventFilters, type FilterFormState, type DateRangeSelection, DATE_RANGE_LABELS } from '../components/EventFilters'
+import { EventFilters, type FilterFormState, type DateRangeSelection } from '../components/EventFilters'
+import { DATE_RANGE_LABELS } from '../lib/searchConstants'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -49,6 +50,7 @@ const buildRequestFilters = (params: URLSearchParams): EventSearchFilters => {
         'username',
         'tags',
         'categories',
+        'sort',
     ]
 
     keys.forEach((key) => {
@@ -90,7 +92,7 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
 }
 
 const createEventDateTimeFormatter = (timezone: string) => {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(navigator.language || 'en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -113,7 +115,7 @@ export function EventDiscoveryPage() {
     const { sseConnected } = useUIStore()
     const [searchParams, setSearchParams] = useSearchParams()
     const [viewMode, setViewMode] = useState<ViewMode>('grid')
-    const [sortOption, setSortOption] = useState<SortOption>('date')
+    const [sortOption, setSortOption] = useState<SortOption>((searchParams.get('sort') as SortOption) || 'date')
 
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FilterFormState>(initialFormState)
@@ -141,33 +143,27 @@ export function EventDiscoveryPage() {
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
+        // Update sort option from URL params
+        const sortParam = searchParams.get('sort') as SortOption | null
+        if (sortParam && ['date', 'popularity', 'trending'].includes(sortParam)) {
+            setSortOption(sortParam)
+        }
     }, [searchParams])
 
     const currentPage = Math.max(1, Number(searchParams.get('page') || '1'))
-    const requestFilters = useMemo(() => buildRequestFilters(searchParams), [searchParams])
+    const requestFilters = useMemo(() => {
+        const filters = buildRequestFilters(searchParams)
+        // Add sort to filters if it's set
+        if (sortOption) {
+            filters.sort = sortOption
+        }
+        return filters
+    }, [searchParams, sortOption])
 
     const { data, isLoading, isError, error, isFetching } = useEventSearch(requestFilters, currentPage, limit)
 
-    // Sort events based on selected option
-    const sortedEvents = useMemo(() => {
-        if (!data?.events) return []
-        
-        const events = [...data.events]
-        
-        switch (sortOption) {
-            case 'trending':
-                return events.sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
-            case 'popularity':
-                return events.sort((a, b) => {
-                    const aScore = (a._count?.likes || 0) + (a._count?.attendance || 0) * 2
-                    const bScore = (b._count?.likes || 0) + (b._count?.attendance || 0) * 2
-                    return bScore - aScore
-                })
-            case 'date':
-            default:
-                return events.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-        }
-    }, [data?.events, sortOption])
+    // Events are now sorted on the server, so use them directly
+    const sortedEvents = data?.events || []
 
     const appliedFilters = useMemo<ActiveFilterChip[]>(() => {
         const chips: ActiveFilterChip[] = []
@@ -300,7 +296,7 @@ export function EventDiscoveryPage() {
     const totalResults = data?.pagination.total ?? 0
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-background-secondary">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
             
             <Container className="py-6">
@@ -341,7 +337,15 @@ export function EventDiscoveryPage() {
                                         {/* Sort Selector */}
                                         <select
                                             value={sortOption}
-                                            onChange={(e) => setSortOption(e.target.value as SortOption)}
+                                            onChange={(e) => {
+                                                const newSort = e.target.value as SortOption
+                                                setSortOption(newSort)
+                                                // Update URL params to reflect sort change
+                                                const next = new URLSearchParams(searchParams)
+                                                next.set('sort', newSort)
+                                                next.set('page', '1') // Reset to first page when sorting changes
+                                                setSearchParams(next, { replace: true })
+                                            }}
                                             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             aria-label="Sort events"
                                         >

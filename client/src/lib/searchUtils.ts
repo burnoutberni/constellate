@@ -3,7 +3,7 @@
  * Shared utilities for event search, discovery, and filtering
  */
 
-import { BACKEND_DATE_RANGES, type BackendDateRange } from '../components/EventFilters'
+import { BACKEND_DATE_RANGES, type BackendDateRange } from './searchConstants'
 
 /**
  * Parse a comma-separated string into an array of trimmed non-empty items

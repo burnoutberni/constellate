@@ -11,7 +11,7 @@ interface UserEventListProps {
  */
 export function UserEventList({ events, onEventClick }: UserEventListProps) {
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        return new Date(dateString).toLocaleDateString(navigator.language || 'en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -19,7 +19,7 @@ export function UserEventList({ events, onEventClick }: UserEventListProps) {
     }
 
     const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
+        return new Date(dateString).toLocaleTimeString(navigator.language || 'en-US', {
             hour: 'numeric',
             minute: '2-digit',
         })

@@ -42,7 +42,7 @@ export function UserProfileHeader({
     headerImageUrl,
 }: UserProfileHeaderProps) {
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        return new Date(dateString).toLocaleDateString(navigator.language || 'en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

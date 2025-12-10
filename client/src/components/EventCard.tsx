@@ -57,14 +57,17 @@ export function EventCard(props: EventCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diff = date.getTime() - now.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    
+    // Compare dates at start of day (midnight) to get calendar day difference
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const nowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const days = Math.floor((dateStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24))
 
     if (days === 0) return 'Today'
     if (days === 1) return 'Tomorrow'
     if (days > 1 && days < 7) return `In ${days} days`
 
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(navigator.language || 'en-US', {
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
@@ -72,7 +75,7 @@ export function EventCard(props: EventCardProps) {
   }
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
+    return new Date(dateString).toLocaleTimeString(navigator.language || 'en-US', {
       hour: 'numeric',
       minute: '2-digit',
     })

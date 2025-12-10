@@ -4,20 +4,10 @@ import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
 import { normalizeCategory } from '../lib/searchUtils'
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
-export const DATE_RANGE_LABELS: Record<string, string> = {
-    anytime: 'Any time',
-    custom: 'Custom range',
-    today: 'Today',
-    tomorrow: 'Tomorrow',
-    this_weekend: 'This weekend',
-    next_7_days: 'Next 7 days',
-    next_30_days: 'Next 30 days',
-}
-
-export const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
-export type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
-export type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
+export { DATE_RANGE_LABELS, type DateRangeSelection }
+export type { BackendDateRange } from '../lib/searchConstants'
 
 export interface FilterFormState {
     q: string
