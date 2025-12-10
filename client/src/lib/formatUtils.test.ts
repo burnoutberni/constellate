@@ -107,4 +107,130 @@ describe('formatUtils', () => {
             expect(formatted).not.toContain('In')
         })
     })
+
+    describe('formatRelativeDate - timezone edge cases', () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it('handles UTC dates correctly when local timezone is behind UTC', () => {
+            // Simulate Dec 31, 2024 11:00 PM EST (UTC-5) = Jan 1, 2025 04:00:00Z UTC
+            // Event at Jan 1, 2025 02:00:00Z UTC should be "Tomorrow" (not "Today")
+            vi.setSystemTime(new Date('2025-01-01T04:00:00Z'))
+            
+            const eventDate = '2025-01-01T02:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            // Should be "Today" because both are Jan 1 in UTC
+            expect(result).toBe('Today')
+        })
+
+        it('handles event at midnight UTC correctly', () => {
+            // Current time: Dec 31, 2024 11:00 PM EST (UTC-5) = Jan 1, 2025 04:00:00Z UTC
+            vi.setSystemTime(new Date('2025-01-01T04:00:00Z'))
+            
+            // Event at Jan 1, 2025 00:00:00Z UTC
+            const eventDate = '2025-01-01T00:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            expect(result).toBe('Today')
+        })
+
+        it('handles event early in UTC day when local timezone is ahead', () => {
+            // Current time: Jan 1, 2025 01:00 AM JST (UTC+9) = Dec 31, 2024 16:00:00Z UTC
+            vi.setSystemTime(new Date('2024-12-31T16:00:00Z'))
+            
+            // Event at Jan 1, 2025 02:00:00Z UTC
+            const eventDate = '2025-01-01T02:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            // Should be "Tomorrow" because it's Jan 1 in UTC (tomorrow from Dec 31 UTC)
+            expect(result).toBe('Tomorrow')
+        })
+
+        it('handles event late in UTC day when local timezone is behind', () => {
+            // Current time: Jan 1, 2025 01:00 AM EST (UTC-5) = Jan 1, 2025 06:00:00Z UTC
+            vi.setSystemTime(new Date('2025-01-01T06:00:00Z'))
+            
+            // Event at Jan 1, 2025 23:00:00Z UTC (same UTC day)
+            const eventDate = '2025-01-01T23:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            expect(result).toBe('Today')
+        })
+
+        it('handles event crossing UTC day boundary correctly', () => {
+            // Current time: Dec 31, 2024 23:30:00Z UTC
+            vi.setSystemTime(new Date('2024-12-31T23:30:00Z'))
+            
+            // Event at Jan 1, 2025 00:30:00Z UTC (next UTC day)
+            const eventDate = '2025-01-01T00:30:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            expect(result).toBe('Tomorrow')
+        })
+
+        it('handles event in same UTC day but different local day', () => {
+            // Current time: Jan 1, 2025 01:00 AM EST (UTC-5) = Jan 1, 2025 06:00:00Z UTC
+            vi.setSystemTime(new Date('2025-01-01T06:00:00Z'))
+            
+            // Event at Jan 1, 2025 01:00:00Z UTC (same UTC day, but Dec 31 in EST)
+            const eventDate = '2025-01-01T01:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            // Should be "Today" because both are Jan 1 in UTC
+            expect(result).toBe('Today')
+        })
+
+        it('handles year boundary correctly in UTC', () => {
+            // Current time: Dec 31, 2024 23:00:00Z UTC
+            vi.setSystemTime(new Date('2024-12-31T23:00:00Z'))
+            
+            // Event at Jan 1, 2025 01:00:00Z UTC
+            const eventDate = '2025-01-01T01:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            expect(result).toBe('Tomorrow')
+        })
+
+        it('handles dates multiple days away correctly across timezones', () => {
+            // Current time: Dec 31, 2024 20:00:00Z UTC
+            vi.setSystemTime(new Date('2024-12-31T20:00:00Z'))
+            
+            // Event at Jan 3, 2025 02:00:00Z UTC (3 days later in UTC)
+            const eventDate = '2025-01-03T02:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            expect(result).toBe('In 3 days')
+        })
+
+        it('handles edge case from user example: event at 02:00 UTC on Jan 1 when current time is Dec 31 EST', () => {
+            // Current time: Dec 31, 2024 11:00 PM EST (UTC-5) = Jan 1, 2025 04:00:00Z UTC
+            vi.setSystemTime(new Date('2025-01-01T04:00:00Z'))
+            
+            // Event at Jan 1, 2025 02:00:00Z UTC
+            // In EST, this would be Dec 31, 2024 9:00 PM, but in UTC it's Jan 1
+            const eventDate = '2025-01-01T02:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            // Should be "Today" because both dates are Jan 1 in UTC
+            expect(result).toBe('Today')
+        })
+
+        it('handles reverse case: event at 02:00 UTC on Jan 1 when current time is Dec 31 UTC', () => {
+            // Current time: Dec 31, 2024 23:00:00Z UTC
+            vi.setSystemTime(new Date('2024-12-31T23:00:00Z'))
+            
+            // Event at Jan 1, 2025 02:00:00Z UTC
+            const eventDate = '2025-01-01T02:00:00Z'
+            const result = formatRelativeDate(eventDate)
+            
+            // Should be "Tomorrow" because event is Jan 1 UTC, current is Dec 31 UTC
+            expect(result).toBe('Tomorrow')
+        })
+    })
 })

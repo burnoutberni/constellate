@@ -54,9 +54,18 @@ export function formatRelativeDate(dateString: string): string {
     const date = new Date(dateString)
     const now = new Date()
 
-    // Compare dates at start of day (midnight) to get calendar day difference
-    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    const nowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    // Compare dates at start of day (midnight) in UTC to get calendar day difference
+    // This ensures consistency regardless of the user's local timezone
+    const dateStart = new Date(Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate()
+    ))
+    const nowStart = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate()
+    ))
     const days = Math.floor((dateStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24))
 
     if (days === 0) return 'Today'
@@ -66,6 +75,6 @@ export function formatRelativeDate(dateString: string): string {
     return date.toLocaleDateString(navigator.language || 'en-US', {
         month: 'short',
         day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+        year: date.getUTCFullYear() !== now.getUTCFullYear() ? 'numeric' : undefined,
     })
 }
