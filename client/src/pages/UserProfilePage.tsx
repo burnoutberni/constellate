@@ -117,6 +117,7 @@ export function UserProfilePage() {
                                 action="follow this user and see more"
                                 className="mb-6"
                             />
+                        )}
 
                         {/* Events Section */}
                         <div>
