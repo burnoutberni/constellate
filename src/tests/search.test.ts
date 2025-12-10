@@ -764,4 +764,245 @@ describe('Search API - Advanced Filters', () => {
             }
         })
     })
+
+    describe('Sort functionality', () => {
+        it('should sort events by date (default)', async () => {
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event3 = await prisma.event.create({
+                data: {
+                    title: 'Event 3',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=date')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThanOrEqual(3)
+
+            // Events should be sorted by startTime ascending
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+            const event3Index = eventIds.indexOf(event3.id)
+
+            // Event 2 (1 day) should come before Event 3 (2 days) and Event 1 (3 days)
+            expect(event2Index).toBeLessThan(event3Index)
+            expect(event3Index).toBeLessThan(event1Index)
+        })
+
+        it('should sort events by popularity (attendance * 2 + likes)', async () => {
+            const lessPopular = await prisma.event.create({
+                data: {
+                    title: 'Less Popular Event',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [{ userId: testUser.id, status: 'attending' }],
+                    },
+                },
+            })
+
+            const morePopular = await prisma.event.create({
+                data: {
+                    title: 'More Popular Event',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    attendance: {
+                        create: [
+                            { userId: testUser.id, status: 'attending' },
+                        ],
+                    },
+                    likes: {
+                        create: [{ userId: testUser.id }],
+                    },
+                },
+            })
+
+            // Create another user to add more attendance
+            const otherUser = await prisma.user.create({
+                data: {
+                    username: `other_${Date.now()}`,
+                    email: `other_${Date.now()}@test.com`,
+                    name: 'Other User',
+                    isRemote: false,
+                },
+            })
+
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: morePopular.id,
+                    userId: otherUser.id,
+                    status: 'attending',
+                },
+            })
+
+            const res = await app.request('/api/search?sort=popularity')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThan(0)
+
+            // More popular event should appear before less popular event
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const morePopularIndex = eventIds.indexOf(morePopular.id)
+            const lessPopularIndex = eventIds.indexOf(lessPopular.id)
+
+            expect(morePopularIndex).toBeGreaterThanOrEqual(0)
+            expect(lessPopularIndex).toBeGreaterThanOrEqual(0)
+            // More popular (2 attendance + 1 like = score 5) should come before less popular (1 attendance = score 2)
+            expect(morePopularIndex).toBeLessThan(lessPopularIndex)
+        })
+
+        it('should handle popularity sort with pagination', async () => {
+            // Create multiple events with varying popularity
+            const events = []
+            for (let i = 0; i < 5; i++) {
+                const event = await prisma.event.create({
+                    data: {
+                        title: `Event ${i}`,
+                        startTime: new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000),
+                        userId: testUser.id,
+                        attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    },
+                })
+                events.push(event)
+
+                // Add attendance to make them popular
+                for (let j = 0; j < i; j++) {
+                    const attendee = await prisma.user.create({
+                        data: {
+                            username: `attendee_${Date.now()}_${i}_${j}`,
+                            email: `attendee_${Date.now()}_${i}_${j}@test.com`,
+                            name: `Attendee ${i}-${j}`,
+                            isRemote: false,
+                        },
+                    })
+                    await prisma.eventAttendance.create({
+                        data: {
+                            eventId: event.id,
+                            userId: attendee.id,
+                            status: 'attending',
+                        },
+                    })
+                }
+            }
+
+            const res = await app.request('/api/search?sort=popularity&page=1&limit=2')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeLessThanOrEqual(2)
+            expect(body.pagination).toBeDefined()
+            expect(body.pagination.page).toBe(1)
+            expect(body.pagination.limit).toBe(2)
+        })
+
+        it('should sort by trending (falls back to date)', async () => {
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=trending')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThanOrEqual(2)
+
+            // Trending currently falls back to date sorting
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+
+            // Event 2 (earlier) should come before Event 1 (later)
+            expect(event2Index).toBeLessThan(event1Index)
+        })
+
+        it('should include sort option in filters response', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=popularity')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.filters).toBeDefined()
+            expect(body.filters.sort).toBe('popularity')
+        })
+
+        it('should default to date sort when sort parameter is not provided', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.filters).toBeDefined()
+            expect(body.filters.sort).toBe('date')
+        })
+
+        it('should handle invalid sort parameter gracefully', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Invalid sort should be rejected by schema validation
+            const res = await app.request('/api/search?sort=invalid')
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBeDefined()
+        })
+    })
 })
