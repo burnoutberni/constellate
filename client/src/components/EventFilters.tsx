@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
+import { Select } from './ui/Select'
 import { normalizeCategory } from '../lib/searchUtils'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
@@ -105,11 +106,9 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                 </div>
 
                 <div>
-                    <label htmlFor="date-range-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Date range
-                    </label>
-                    <select
+                    <Select
                         id="date-range-filter"
+                        label="Date range"
                         value={formState.dateRange}
                         onChange={(event) =>
                             onFormStateChange({
@@ -117,14 +116,13 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                                 dateRange: event.target.value as DateRangeSelection,
                             })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         {dateRangeOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                                 {option.label}
                             </option>
                         ))}
-                    </select>
+                    </Select>
                 </div>
 
                 {formState.dateRange === 'custom' && (
@@ -159,41 +157,35 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                 )}
 
                 <div>
-                    <label htmlFor="mode-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Attendance mode
-                    </label>
-                    <select
+                    <Select
                         id="mode-filter"
+                        label="Attendance mode"
                         value={formState.mode}
                         onChange={(event) =>
                             onFormStateChange({ ...formState, mode: event.target.value })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="">Any</option>
                         <option value="OfflineEventAttendanceMode">In person</option>
                         <option value="OnlineEventAttendanceMode">Online</option>
                         <option value="MixedEventAttendanceMode">Hybrid</option>
-                    </select>
+                    </Select>
                 </div>
 
                 <div>
-                    <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                    </label>
-                    <select
+                    <Select
                         id="status-filter"
+                        label="Status"
                         value={formState.status}
                         onChange={(event) =>
                             onFormStateChange({ ...formState, status: event.target.value })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="">Any</option>
                         <option value="EventScheduled">Scheduled</option>
                         <option value="EventPostponed">Postponed</option>
                         <option value="EventCancelled">Cancelled</option>
-                    </select>
+                    </Select>
                 </div>
 
                 <div className="space-y-2">

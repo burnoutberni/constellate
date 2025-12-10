@@ -63,7 +63,7 @@ export function formatRelativeDate(dateString: string): string {
     if (days === 1) return 'Tomorrow'
     if (days > 1 && days < 7) return `In ${days} days`
 
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(navigator.language || 'en-US', {
         month: 'short',
         day: 'numeric',
         year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,

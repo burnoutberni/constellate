@@ -390,7 +390,7 @@ export function EventDiscoveryPage() {
                                         ))}
                                         <button
                                             onClick={handleClearAllFilters}
-                                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                                         >
                                             Clear all
                                         </button>
