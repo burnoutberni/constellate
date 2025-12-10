@@ -25,5 +25,8 @@ export const queryKeys = {
         all: () => ['notifications'] as const,
         list: (limit: number) => ['notifications', 'list', limit] as const,
     },
+    reminders: {
+        list: () => ['reminders', 'list'] as const,
+    },
 } as const
 

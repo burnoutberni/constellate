@@ -17,8 +17,13 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { SearchPage } from './pages/SearchPage'
 import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
+<<<<<<< HEAD
 import { EditEventPage } from './pages/EditEventPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { RemindersPage } from './pages/RemindersPage'
+=======
+import { RemindersPage } from './pages/RemindersPage'
+>>>>>>> dd55cb8 (Initial plan)
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { MentionNotifications } from './components/MentionNotifications'
@@ -68,6 +73,7 @@ function AppContent() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/followers/pending" element={<PendingFollowersPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/reminders" element={<RemindersPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/edit/*" element={<EditEventPage />} />
                 <Route path="/*" element={<ProfileOrEventPage />} />

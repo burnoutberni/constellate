@@ -114,7 +114,7 @@ export function UserProfilePage() {
                         {!isAuthenticated && !isOwnProfile && (
                             <SignUpPrompt
                                 variant="card"
-                                action="follow this user and see more"
+                                action="follow"
                                 className="mb-6"
                             />
                         )}
