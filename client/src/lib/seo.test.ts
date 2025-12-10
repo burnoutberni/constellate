@@ -104,6 +104,55 @@ describe('seo', () => {
       expect(ogTitleTags.length).toBe(1)
       expect((ogTitleTags[0] as HTMLMetaElement).content).toBe('Second Title')
     })
+
+    it('removes meta tags when values are no longer provided', () => {
+      // Set initial metadata
+      setSEOMetadata({
+        title: 'Test Event',
+        description: 'Test description',
+        ogImage: 'https://example.com/image.jpg',
+        canonicalUrl: 'https://example.com/event',
+      })
+
+      // Verify tags exist
+      expect(document.querySelector('meta[name="description"]')).toBeTruthy()
+      expect(document.querySelector('meta[property="og:title"]')).toBeTruthy()
+      expect(document.querySelector('meta[property="og:description"]')).toBeTruthy()
+      expect(document.querySelector('meta[property="og:image"]')).toBeTruthy()
+      expect(document.querySelector('meta[name="twitter:image"]')).toBeTruthy()
+      expect(document.querySelector('link[rel="canonical"]')).toBeTruthy()
+
+      // Remove values
+      setSEOMetadata({
+        title: 'New Title',
+        // description, ogImage, canonicalUrl not provided
+      })
+
+      // Verify removed tags are gone
+      expect(document.querySelector('meta[name="description"]')).toBeNull()
+      expect(document.querySelector('meta[property="og:description"]')).toBeNull()
+      expect(document.querySelector('meta[property="og:image"]')).toBeNull()
+      expect(document.querySelector('meta[name="twitter:image"]')).toBeNull()
+      expect(document.querySelector('link[rel="canonical"]')).toBeNull()
+
+      // Verify remaining tags still exist
+      expect(document.querySelector('meta[property="og:title"]')).toBeTruthy()
+      expect((document.querySelector('meta[property="og:title"]') as HTMLMetaElement).content).toBe('New Title')
+    })
+
+    it('removes Twitter card image when ogImage is removed', () => {
+      setSEOMetadata({
+        ogImage: 'https://example.com/image.jpg',
+      })
+
+      expect(document.querySelector('meta[name="twitter:image"]')).toBeTruthy()
+      expect((document.querySelector('meta[name="twitter:card"]') as HTMLMetaElement).content).toBe('summary_large_image')
+
+      setSEOMetadata({})
+
+      expect(document.querySelector('meta[name="twitter:image"]')).toBeNull()
+      expect((document.querySelector('meta[name="twitter:card"]') as HTMLMetaElement).content).toBe('summary')
+    })
   })
 
   describe('resetSEOMetadata', () => {

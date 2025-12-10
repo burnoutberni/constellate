@@ -5,6 +5,7 @@ import { Button } from './ui/Button'
 import { Avatar } from './ui/Avatar'
 import { useAuth } from '../contexts/AuthContext'
 import { getVisibilityMeta } from '../lib/visibility'
+import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 import type { Event } from '../types'
 
 interface EventCardPropsBase {
@@ -53,33 +54,7 @@ export function EventCard(props: EventCardProps) {
     return props.formatter.format(date)
   }
 
-  // New date formatting
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    
-    // Compare dates at start of day (midnight) to get calendar day difference
-    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    const nowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const days = Math.floor((dateStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24))
-
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    if (days > 1 && days < 7) return `In ${days} days`
-
-    return date.toLocaleDateString(navigator.language || 'en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-    })
-  }
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString(navigator.language || 'en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
-  }
+  // formatDate and formatTime are now imported from formatUtils
 
   // Legacy API: List view
   if (isLegacyAPI && viewMode === 'list') {
@@ -244,7 +219,7 @@ export function EventCard(props: EventCardProps) {
 
             <div className="flex items-center gap-2 text-sm text-text-secondary">
               <span>📅</span>
-              <span>{formatDate(event.startTime)}</span>
+              <span>{formatRelativeDate(event.startTime)}</span>
               <span>•</span>
               <span>{formatTime(event.startTime)}</span>
             </div>
@@ -317,7 +292,7 @@ export function EventCard(props: EventCardProps) {
           {/* Date and Time */}
           <div className="flex items-center gap-2 text-sm text-text-secondary">
             <span>📅</span>
-            <span className="font-medium">{formatDate(event.startTime)}</span>
+            <span className="font-medium">{formatRelativeDate(event.startTime)}</span>
             <span>•</span>
             <span>{formatTime(event.startTime)}</span>
           </div>

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEvents, useRecommendedEvents, useTrendingEvents } from '../hooks/queries/events'
+import { useEvents, useRecommendedEvents, useTrendingEvents, usePlatformStats } from '../hooks/queries/events'
 import { useUIStore } from '../stores'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../contexts/AuthContext'
@@ -10,6 +10,7 @@ import { Container } from '../components/layout/Container'
 import { Section } from '../components/layout/Section'
 import { Button } from '../components/ui/Button'
 import { primaryColors } from '../design-system/tokens'
+import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 
 export function HomePage() {
     const { user, logout } = useAuth()
@@ -22,6 +23,7 @@ export function HomePage() {
         data: trendingData,
         isLoading: trendingLoading,
     } = useTrendingEvents(6, 7)
+    const { data: statsData, isLoading: statsLoading } = usePlatformStats()
     const { calendarCurrentDate, setCalendarDate, sseConnected } = useUIStore()
     const navigate = useNavigate()
 
@@ -79,29 +81,7 @@ export function HomePage() {
         }
     }
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-        })
-    }
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diff = date.getTime() - now.getTime()
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-        if (days === 0) return 'Today'
-        if (days === 1) return 'Tomorrow'
-        if (days > 1 && days < 7) return `In ${days} days`
-
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-        })
-    }
+    // formatTime and formatRelativeDate are now imported from formatUtils
 
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -110,9 +90,11 @@ export function HomePage() {
     const trendingEvents = trendingData?.events || []
     const recommendations = recommendationsData?.recommendations || []
 
-    // Calculate statistics
-    const totalEvents = events.length
-    const upcomingEvents = events.filter((e) => new Date(e.startTime) > new Date()).length
+    // Use platform statistics from backend (accurate counts)
+    // Fall back to client-side calculation if stats are not available
+    const totalEvents = statsData?.totalEvents ?? events.length
+    const upcomingEvents = statsData?.upcomingEvents ?? events.filter((e) => new Date(e.startTime) > new Date()).length
+    const todayEventsCount = statsData?.todayEvents ?? todayEvents.length
 
     return (
         <div className="min-h-screen bg-background-primary">
@@ -324,8 +306,8 @@ export function HomePage() {
                             <EventStats
                                 totalEvents={totalEvents}
                                 upcomingEvents={upcomingEvents}
-                                todayEvents={todayEvents.length}
-                                isLoading={isLoading}
+                                todayEvents={todayEventsCount}
+                                isLoading={isLoading || statsLoading}
                             />
                             {/* Today's Events */}
                             <div className="card p-6">
@@ -419,7 +401,7 @@ export function HomePage() {
                                                         {event.title}
                                                     </div>
                                                     <div className="text-xs text-text-secondary">
-                                                        {formatDate(event.startTime)}
+                                                        {formatRelativeDate(event.startTime)}
                                                     </div>
                                                 </div>
                                             </div>

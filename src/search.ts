@@ -289,13 +289,13 @@ app.get('/', async (c) => {
         // Determine orderBy based on sort option
         let orderBy: Prisma.EventOrderByWithRelationInput
         if (sortOption === 'popularity') {
-            // For popularity, we need to fetch events and sort by computed popularity
-            // Since Prisma doesn't support ordering by computed fields, we'll fetch more events
-            // and sort in memory, then paginate
-            const fetchLimit = Math.min(limit * 10, 500) // Fetch more to account for sorting
+            // For popularity sorting, fetch all matching events and sort by computed popularity
+            // Popularity formula: attendance * 2 + likes
+            // We fetch all matching events to ensure correct sorting across the entire dataset
+            
+            // Fetch all matching events with their counts
             const allEvents = await prisma.event.findMany({
                 where: combinedWhere,
-                take: fetchLimit,
                 include: {
                     user: {
                         select: {
@@ -317,7 +317,7 @@ app.get('/', async (c) => {
                 },
             })
 
-            // Get accurate counts
+            // Get accurate counts using groupBy for better performance
             const eventIds = allEvents.map(e => e.id)
             const [attendanceCounts, likesCounts] = await Promise.all([
                 prisma.eventAttendance.groupBy({
@@ -335,7 +335,7 @@ app.get('/', async (c) => {
             const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
             const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
 
-            // Sort by popularity (attendance * 2 + likes)
+            // Sort by popularity (attendance * 2 + likes) and paginate
             const sortedEvents = allEvents
                 .map((event) => {
                     const attendance = attendanceMap.get(event.id) ?? (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
@@ -354,11 +354,10 @@ app.get('/', async (c) => {
                 .slice(skip, skip + limit)
                 .map(({ popularity: _popularity, ...event }) => event)
 
-            const total = await prisma.event.count({ where: combinedWhere })
-            const events = sortedEvents
+            const total = allEvents.length
 
             return c.json({
-                events,
+                events: sortedEvents,
                 pagination: {
                     page,
                     limit,
@@ -817,6 +816,71 @@ app.get('/nearby', async (c) => {
             return c.json({ error: 'Invalid nearby search parameters', details: error.issues }, 400 as const)
         }
         console.error('Error searching nearby events:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+// Get platform statistics
+app.get('/stats', async (c) => {
+    try {
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        const now = new Date()
+
+        // Get total events count (respecting visibility)
+        const totalEvents = await prisma.event.count({
+            where: visibilityFilter,
+        })
+
+        // Get upcoming events count (events with startTime in the future)
+        const upcomingEvents = await prisma.event.count({
+            where: {
+                AND: [
+                    visibilityFilter,
+                    {
+                        startTime: {
+                            gte: now,
+                        },
+                    },
+                ],
+            },
+        })
+
+        // Get today's events count
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+        const todayEvents = await prisma.event.count({
+            where: {
+                AND: [
+                    visibilityFilter,
+                    {
+                        startTime: {
+                            gte: todayStart,
+                            lte: todayEnd,
+                        },
+                    },
+                ],
+            },
+        })
+
+        return c.json({
+            totalEvents,
+            upcomingEvents,
+            todayEvents,
+        })
+    } catch (error) {
+        console.error('Error getting platform statistics:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })

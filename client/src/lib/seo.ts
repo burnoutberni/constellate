@@ -28,6 +28,7 @@ export interface SEOMetadata {
 /**
  * Sets SEO metadata for the current page.
  * Updates document title and meta tags.
+ * Removes meta tags when values are no longer provided.
  */
 export function setSEOMetadata({
   title,
@@ -43,39 +44,54 @@ export function setSEOMetadata({
     document.title = 'Constellate'
   }
 
-  // Set or update meta description
+  // Set or update meta description, or remove if not provided
   if (description) {
     setOrUpdateMetaTag('name', 'description', description)
+  } else {
+    removeMetaTag('name', 'description')
   }
 
-  // Set Open Graph meta tags
+  // Set Open Graph meta tags, or remove if not provided
   if (title) {
     setOrUpdateMetaTag('property', 'og:title', title)
+  } else {
+    removeMetaTag('property', 'og:title')
   }
   if (description) {
     setOrUpdateMetaTag('property', 'og:description', description)
+  } else {
+    removeMetaTag('property', 'og:description')
   }
   if (ogImage) {
     setOrUpdateMetaTag('property', 'og:image', ogImage)
+  } else {
+    removeMetaTag('property', 'og:image')
   }
   setOrUpdateMetaTag('property', 'og:type', ogType)
 
-  // Set canonical URL
+  // Set canonical URL, or remove if not provided
   if (canonicalUrl) {
     setOrUpdateLink('canonical', canonicalUrl)
+  } else {
+    removeLink('canonical')
   }
 
-  // Set Twitter Card meta tags
+  // Set Twitter Card meta tags, or remove if not provided
   if (title) {
     setOrUpdateMetaTag('name', 'twitter:title', title)
+  } else {
+    removeMetaTag('name', 'twitter:title')
   }
   if (description) {
     setOrUpdateMetaTag('name', 'twitter:description', description)
+  } else {
+    removeMetaTag('name', 'twitter:description')
   }
   if (ogImage) {
     setOrUpdateMetaTag('name', 'twitter:image', ogImage)
     setOrUpdateMetaTag('name', 'twitter:card', 'summary_large_image')
   } else {
+    removeMetaTag('name', 'twitter:image')
     setOrUpdateMetaTag('name', 'twitter:card', 'summary')
   }
 }
@@ -103,6 +119,22 @@ function setOrUpdateMetaTag(
 }
 
 /**
+ * Helper function to remove a meta tag
+ */
+function removeMetaTag(
+  attributeName: 'name' | 'property',
+  attributeValue: string
+): void {
+  const element = document.querySelector(
+    `meta[${attributeName}="${attributeValue}"]`
+  ) as HTMLMetaElement | null
+
+  if (element) {
+    element.remove()
+  }
+}
+
+/**
  * Helper function to set or update a link tag
  */
 function setOrUpdateLink(rel: string, href: string): void {
@@ -117,6 +149,19 @@ function setOrUpdateLink(rel: string, href: string): void {
     element.rel = rel
     element.href = href
     document.head.appendChild(element)
+  }
+}
+
+/**
+ * Helper function to remove a link tag
+ */
+function removeLink(rel: string): void {
+  const element = document.querySelector(
+    `link[rel="${rel}"]`
+  ) as HTMLLinkElement | null
+
+  if (element) {
+    element.remove()
   }
 }
 

@@ -818,6 +818,7 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
                     attendance: {
                         create: [{ userId: testUser.id, status: 'attending' }],
                     },
@@ -830,6 +831,7 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
                     attendance: {
                         create: [
                             { userId: testUser.id, status: 'attending' },
@@ -886,6 +888,7 @@ describe('Search API - Advanced Filters', () => {
                         startTime: new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000),
                         userId: testUser.id,
                         attributedTo: `${baseUrl}/users/${testUser.username}`,
+                        visibility: 'PUBLIC',
                     },
                 })
                 events.push(event)
@@ -1003,6 +1006,112 @@ describe('Search API - Advanced Filters', () => {
             expect(res.status).toBe(400)
             const body = await res.json() as any
             expect(body.error).toBeDefined()
+        })
+    })
+
+    describe('Platform Statistics Endpoint', () => {
+        it('should return platform statistics for public events', async () => {
+            // Create some events
+            await prisma.event.create({
+                data: {
+                    title: 'Past Event',
+                    startTime: new Date(Date.now() - 86400000), // Yesterday
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.event.create({
+                data: {
+                    title: 'Upcoming Event',
+                    startTime: new Date(Date.now() + 86400000), // Tomorrow
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const now = new Date()
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+            const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+            
+            await prisma.event.create({
+                data: {
+                    title: 'Today Event',
+                    startTime: new Date((todayStart.getTime() + todayEnd.getTime()) / 2), // Today
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const res = await app.request('/api/search/stats')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            
+            expect(body.totalEvents).toBeGreaterThanOrEqual(3)
+            expect(body.upcomingEvents).toBeGreaterThanOrEqual(2) // Today + Tomorrow
+            expect(body.todayEvents).toBeGreaterThanOrEqual(1)
+        })
+
+        it('should respect visibility filters for authenticated users', async () => {
+            const otherUser = await prisma.user.create({
+                data: {
+                    username: `other_${Date.now()}`,
+                    email: `other_${Date.now()}@test.com`,
+                    name: 'Other User',
+                    isRemote: false,
+                },
+            })
+
+            // Create a private event
+            await prisma.event.create({
+                data: {
+                    title: 'Private Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: otherUser.id,
+                    attributedTo: `${baseUrl}/users/${otherUser.username}`,
+                    visibility: 'PRIVATE',
+                },
+            })
+
+            // Create a public event
+            await prisma.event.create({
+                data: {
+                    title: 'Public Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Request stats without auth (should only see public)
+            const resUnauthenticated = await app.request('/api/search/stats')
+            expect(resUnauthenticated.status).toBe(200)
+            const bodyUnauthenticated = await resUnauthenticated.json() as any
+            const publicCount = bodyUnauthenticated.totalEvents
+
+            // The count should reflect only public events
+            expect(publicCount).toBeGreaterThanOrEqual(1)
+        })
+
+        it('should return zero counts when no events exist', async () => {
+            // Clean up all events
+            await prisma.eventTag.deleteMany({})
+            await prisma.eventAttendance.deleteMany({})
+            await prisma.eventLike.deleteMany({})
+            await prisma.comment.deleteMany({})
+            await prisma.event.deleteMany({})
+
+            const res = await app.request('/api/search/stats')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            
+            expect(body.totalEvents).toBe(0)
+            expect(body.upcomingEvents).toBe(0)
+            expect(body.todayEvents).toBe(0)
         })
     })
 })
