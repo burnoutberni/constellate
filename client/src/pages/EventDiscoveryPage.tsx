@@ -91,7 +91,6 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
     }
 }
 
-
 interface ActiveFilterChip {
     key: string
     label: string
