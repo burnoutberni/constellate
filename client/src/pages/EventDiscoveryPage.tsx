@@ -413,7 +413,7 @@ export function EventDiscoveryPage() {
                                     <EventCard
                                         key={event.id}
                                         event={event}
-                                        variant="full"
+                                        variant="compact"
                                         isAuthenticated={!!user}
                                     />
                                 ))}
