@@ -15,6 +15,7 @@ const baseParams = () => ({
     categories: undefined,
     page: undefined,
     limit: undefined,
+    sort: 'date' as const,
 })
 
 describe('buildSearchWhereClause', () => {

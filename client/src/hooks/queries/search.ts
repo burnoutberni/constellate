@@ -14,6 +14,7 @@ export interface EventSearchFilters extends Record<string, string | undefined> {
     username?: string
     tags?: string
     categories?: string
+    sort?: string
 }
 
 export interface EventSearchResponse {

@@ -649,13 +649,14 @@ describe('Search API - Advanced Filters', () => {
     })
 
     describe('Popular events endpoint', () => {
-        it('should return events sorted by popularity (attendance + likes)', async () => {
+        it('should return events sorted by popularity (attendance * 2 + likes)', async () => {
             const lessPopular = await prisma.event.create({
                 data: {
                     title: 'Less Popular',
                     startTime: new Date(Date.now() + 86400000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 2, // 1 attendance * 2 = 2
                     attendance: {
                         create: [{ userId: testUser.id, status: 'attending' }],
                     },
@@ -668,6 +669,7 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 172800000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 3, // 1 attendance * 2 + 1 like = 3
                     attendance: {
                         create: [
                             { userId: testUser.id, status: 'attending' },
@@ -686,7 +688,7 @@ describe('Search API - Advanced Filters', () => {
             expect(Array.isArray(body.events)).toBe(true)
             expect(body.events.length).toBeGreaterThan(0)
             
-            // More popular event should appear first
+            // More popular event should appear first (sorted by popularityScore DESC)
             const morePopularIndex = body.events.findIndex((e: { id: string }) => e.id === morePopular.id)
             const lessPopularIndex = body.events.findIndex((e: { id: string }) => e.id === lessPopular.id)
             expect(morePopularIndex).toBeGreaterThanOrEqual(0)
@@ -748,20 +750,446 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 86400000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 5,
                 },
             })
 
             const res = await app.request('/api/search/popular')
             expect(res.status).toBe(200)
             const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(Array.isArray(body.events)).toBe(true)
+            
             const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
-            if (foundEvent) {
-                expect(foundEvent.user).toBeDefined()
-                expect(foundEvent._count).toBeDefined()
-                expect(typeof foundEvent._count.attendance).toBe('number')
-                expect(typeof foundEvent._count.likes).toBe('number')
-                expect(typeof foundEvent._count.comments).toBe('number')
+            expect(foundEvent).toBeDefined()
+            expect(foundEvent.user).toBeDefined()
+            expect(foundEvent._count).toBeDefined()
+            expect(typeof foundEvent._count.attendance).toBe('number')
+            expect(typeof foundEvent._count.likes).toBe('number')
+            expect(typeof foundEvent._count.comments).toBe('number')
+        })
+
+        it('should use popularityScore for sorting (not in-memory calculation)', async () => {
+            // Create events with different popularityScore values
+            // This verifies the database-level sorting is working
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 10, // Highest
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 172800000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 5, // Medium
+                },
+            })
+
+            const event3 = await prisma.event.create({
+                data: {
+                    title: 'Event 3',
+                    startTime: new Date(Date.now() + 259200000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 1, // Lowest
+                },
+            })
+
+            const res = await app.request('/api/search/popular')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            
+            // Verify events are sorted by popularityScore descending
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+            const event3Index = eventIds.indexOf(event3.id)
+            
+            expect(event1Index).toBeGreaterThanOrEqual(0)
+            expect(event2Index).toBeGreaterThanOrEqual(0)
+            expect(event3Index).toBeGreaterThanOrEqual(0)
+            
+            // Event 1 (score 10) should come before Event 2 (score 5)
+            expect(event1Index).toBeLessThan(event2Index)
+            // Event 2 (score 5) should come before Event 3 (score 1)
+            expect(event2Index).toBeLessThan(event3Index)
+        })
+    })
+
+    describe('Sort functionality', () => {
+        it('should sort events by date (default)', async () => {
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event3 = await prisma.event.create({
+                data: {
+                    title: 'Event 3',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=date')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThanOrEqual(3)
+
+            // Events should be sorted by startTime ascending
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+            const event3Index = eventIds.indexOf(event3.id)
+
+            // Event 2 (1 day) should come before Event 3 (2 days) and Event 1 (3 days)
+            expect(event2Index).toBeLessThan(event3Index)
+            expect(event3Index).toBeLessThan(event1Index)
+        })
+
+        it('should sort events by popularity using popularityScore field', async () => {
+            // Create events with explicit popularityScore values
+            // Less popular: 1 attendance * 2 = 2
+            const lessPopular = await prisma.event.create({
+                data: {
+                    title: 'Less Popular Event',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                    popularityScore: 2, // 1 attendance * 2
+                    attendance: {
+                        create: [{ userId: testUser.id, status: 'attending' }],
+                    },
+                },
+            })
+
+            // More popular: 2 attendance * 2 + 1 like = 5
+            const morePopular = await prisma.event.create({
+                data: {
+                    title: 'More Popular Event',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                    popularityScore: 5, // 2 attendance * 2 + 1 like = 5
+                    attendance: {
+                        create: [
+                            { userId: testUser.id, status: 'attending' },
+                        ],
+                    },
+                    likes: {
+                        create: [{ userId: testUser.id }],
+                    },
+                },
+            })
+
+            // Create another user to add more attendance
+            const otherUser = await prisma.user.create({
+                data: {
+                    username: `other_${Date.now()}`,
+                    email: `other_${Date.now()}@test.com`,
+                    name: 'Other User',
+                    isRemote: false,
+                },
+            })
+
+            await prisma.eventAttendance.create({
+                data: {
+                    eventId: morePopular.id,
+                    userId: otherUser.id,
+                    status: 'attending',
+                },
+            })
+
+            // Update popularity score to reflect the new attendance
+            await prisma.event.update({
+                where: { id: morePopular.id },
+                data: { popularityScore: 5 }, // Still 5: 2 attendance * 2 + 1 like
+            })
+
+            const res = await app.request('/api/search?sort=popularity')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThan(0)
+
+            // More popular event should appear before less popular event
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const morePopularIndex = eventIds.indexOf(morePopular.id)
+            const lessPopularIndex = eventIds.indexOf(lessPopular.id)
+
+            expect(morePopularIndex).toBeGreaterThanOrEqual(0)
+            expect(lessPopularIndex).toBeGreaterThanOrEqual(0)
+            // More popular (score 5) should come before less popular (score 2)
+            expect(morePopularIndex).toBeLessThan(lessPopularIndex)
+        })
+
+        it('should handle popularity sort with pagination', async () => {
+            // Create multiple events with varying popularity scores
+            const events = []
+            for (let i = 0; i < 5; i++) {
+                // Set popularityScore: i attendance * 2 = i * 2
+                const event = await prisma.event.create({
+                    data: {
+                        title: `Event ${i}`,
+                        startTime: new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000),
+                        userId: testUser.id,
+                        attributedTo: `${baseUrl}/users/${testUser.username}`,
+                        visibility: 'PUBLIC',
+                        popularityScore: i * 2, // Higher i = more popular
+                    },
+                })
+                events.push(event)
+
+                // Add attendance to match the popularity score
+                for (let j = 0; j < i; j++) {
+                    const attendee = await prisma.user.create({
+                        data: {
+                            username: `attendee_${Date.now()}_${i}_${j}`,
+                            email: `attendee_${Date.now()}_${i}_${j}@test.com`,
+                            name: `Attendee ${i}-${j}`,
+                            isRemote: false,
+                        },
+                    })
+                    await prisma.eventAttendance.create({
+                        data: {
+                            eventId: event.id,
+                            userId: attendee.id,
+                            status: 'attending',
+                        },
+                    })
+                }
             }
+
+            const res = await app.request('/api/search?sort=popularity&page=1&limit=2')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeLessThanOrEqual(2)
+            expect(body.pagination).toBeDefined()
+            expect(body.pagination.page).toBe(1)
+            expect(body.pagination.limit).toBe(2)
+            
+            // Events should be sorted by popularityScore descending
+            // Event 4 (score 8) should come before Event 3 (score 6)
+            if (body.events.length >= 2) {
+                const scores = body.events.map((e: any) => e.popularityScore ?? 0)
+                expect(scores[0]).toBeGreaterThanOrEqual(scores[1])
+            }
+        })
+
+        it('should sort by trending (falls back to date)', async () => {
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=trending')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(body.events.length).toBeGreaterThanOrEqual(2)
+
+            // Trending currently falls back to date sorting
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+
+            // Event 2 (earlier) should come before Event 1 (later)
+            expect(event2Index).toBeLessThan(event1Index)
+        })
+
+        it('should include sort option in filters response', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search?sort=popularity')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.filters).toBeDefined()
+            expect(body.filters.sort).toBe('popularity')
+        })
+
+        it('should default to date sort when sort parameter is not provided', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            const res = await app.request('/api/search')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            expect(body.filters).toBeDefined()
+            expect(body.filters.sort).toBe('date')
+        })
+
+        it('should handle invalid sort parameter gracefully', async () => {
+            await prisma.event.create({
+                data: {
+                    title: 'Test Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                },
+            })
+
+            // Invalid sort should be rejected by schema validation
+            const res = await app.request('/api/search?sort=invalid')
+            expect(res.status).toBe(400)
+            const body = await res.json() as any
+            expect(body.error).toBeDefined()
+        })
+    })
+
+    describe('Platform Statistics Endpoint', () => {
+        it('should return platform statistics for public events', async () => {
+            // Create some events
+            await prisma.event.create({
+                data: {
+                    title: 'Past Event',
+                    startTime: new Date(Date.now() - 86400000), // Yesterday
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            await prisma.event.create({
+                data: {
+                    title: 'Upcoming Event',
+                    startTime: new Date(Date.now() + 86400000), // Tomorrow
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const now = new Date()
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+            const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+            
+            await prisma.event.create({
+                data: {
+                    title: 'Today Event',
+                    startTime: new Date((todayStart.getTime() + todayEnd.getTime()) / 2), // Today
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            const res = await app.request('/api/search/stats')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            
+            expect(body.totalEvents).toBeGreaterThanOrEqual(3)
+            expect(body.upcomingEvents).toBeGreaterThanOrEqual(2) // Today + Tomorrow
+            expect(body.todayEvents).toBeGreaterThanOrEqual(1)
+        })
+
+        it('should respect visibility filters for authenticated users', async () => {
+            const otherUser = await prisma.user.create({
+                data: {
+                    username: `other_${Date.now()}`,
+                    email: `other_${Date.now()}@test.com`,
+                    name: 'Other User',
+                    isRemote: false,
+                },
+            })
+
+            // Create a private event
+            await prisma.event.create({
+                data: {
+                    title: 'Private Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: otherUser.id,
+                    attributedTo: `${baseUrl}/users/${otherUser.username}`,
+                    visibility: 'PRIVATE',
+                },
+            })
+
+            // Create a public event
+            await prisma.event.create({
+                data: {
+                    title: 'Public Event',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    visibility: 'PUBLIC',
+                },
+            })
+
+            // Request stats without auth (should only see public)
+            const resUnauthenticated = await app.request('/api/search/stats')
+            expect(resUnauthenticated.status).toBe(200)
+            const bodyUnauthenticated = await resUnauthenticated.json() as any
+            const publicCount = bodyUnauthenticated.totalEvents
+
+            // The count should reflect only public events
+            expect(publicCount).toBeGreaterThanOrEqual(1)
+        })
+
+        it('should return zero counts when no events exist', async () => {
+            // Clean up all events
+            await prisma.eventTag.deleteMany({})
+            await prisma.eventAttendance.deleteMany({})
+            await prisma.eventLike.deleteMany({})
+            await prisma.comment.deleteMany({})
+            await prisma.event.deleteMany({})
+
+            const res = await app.request('/api/search/stats')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            
+            expect(body.totalEvents).toBe(0)
+            expect(body.upcomingEvents).toBe(0)
+            expect(body.todayEvents).toBe(0)
         })
     })
 })

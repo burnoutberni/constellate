@@ -1,0 +1,75 @@
+import { Link } from 'react-router-dom'
+import { Avatar } from './ui/Avatar'
+import { Button } from './ui/Button'
+
+export interface EventHeaderProps {
+  /**
+   * Event organizer/owner information
+   */
+  organizer: {
+    id: string
+    username: string
+    name?: string | null
+    profileImage?: string | null
+    displayColor?: string | null
+  }
+  /**
+   * Whether the current user is the event owner
+   */
+  isOwner?: boolean
+  /**
+   * Callback for delete event action
+   */
+  onDelete?: () => void
+  /**
+   * Whether the delete action is in progress
+   */
+  isDeleting?: boolean
+}
+
+/**
+ * EventHeader component displays the event organizer information
+ * and provides event management actions for the owner.
+ * 
+ * Used on the event detail page to show who created the event.
+ */
+export function EventHeader({
+  organizer,
+  isOwner = false,
+  onDelete,
+  isDeleting = false,
+}: EventHeaderProps) {
+  return (
+    <div className="flex items-start justify-between">
+      <Link
+        to={`/@${organizer.username}`}
+        className="flex items-start gap-4 hover:opacity-80 transition-opacity"
+      >
+        <Avatar
+          src={organizer.profileImage || undefined}
+          alt={organizer.name || organizer.username}
+          fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
+          size="lg"
+        />
+        <div>
+          <div className="font-semibold text-lg text-text-primary">
+            {organizer.name || organizer.username}
+          </div>
+          <div className="text-text-secondary">@{organizer.username}</div>
+        </div>
+      </Link>
+      {isOwner && onDelete && (
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={onDelete}
+          disabled={isDeleting}
+          loading={isDeleting}
+          leftIcon={<span>🗑️</span>}
+        >
+          Delete
+        </Button>
+      )}
+    </div>
+  )
+}

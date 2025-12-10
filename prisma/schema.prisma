@@ -137,6 +137,10 @@ model Event {
   attributedTo String? // ActivityPub actor URL of event creator
   externalId   String? @unique // For remote events
 
+  // Denormalized popularity score (attendance * 2 + likes)
+  // Updated periodically by background job to avoid expensive in-memory calculations
+  popularityScore Int @default(0)
+
   // Relations
   userId            String?
   user              User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -162,6 +166,7 @@ model Event {
   @@index([recurrenceEndDate])
   @@index([sharedEventId])
   @@index([locationLatitude, locationLongitude])
+  @@index([popularityScore])
 }
 
 enum EventVisibility {

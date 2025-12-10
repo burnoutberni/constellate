@@ -24,6 +24,12 @@ interface TrendingEventsResponse {
     generatedAt: string
 }
 
+interface PlatformStatsResponse {
+    totalEvents: number
+    upcomingEvents: number
+    todayEvents: number
+}
+
 interface UseTrendingEventsOptions {
     enabled?: boolean
 }
@@ -481,6 +487,22 @@ export function useEventReminder(eventId: string, username: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
         },
+    })
+}
+
+export function usePlatformStats() {
+    return useQuery<PlatformStatsResponse>({
+        queryKey: ['platform', 'stats'],
+        queryFn: async () => {
+            const response = await fetch('/api/search/stats', {
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                throw new Error('Failed to fetch platform statistics')
+            }
+            return response.json()
+        },
+        staleTime: 60_000, // Cache for 1 minute
     })
 }
 

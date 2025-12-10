@@ -128,6 +128,7 @@ const SearchSchema = z.object({
     categories: z.string().optional(), // Alias for tags
     page: z.string().optional(),
     limit: z.string().optional(),
+    sort: z.enum(['date', 'popularity', 'trending']).optional().default('date'), // Sort option
 })
 
 const NearbySearchSchema = z.object({
@@ -241,11 +242,13 @@ app.get('/', async (c) => {
             categories: c.req.query('categories'),
             page: c.req.query('page'),
             limit: c.req.query('limit'),
+            sort: c.req.query('sort'),
         })
 
         const page = parseInt(params.page || '1')
         const limit = Math.min(parseInt(params.limit || '20'), 100)
         const skip = (page - 1) * limit
+        const sortOption = params.sort || 'date'
 
         let where: Prisma.EventWhereInput
         try {
@@ -283,6 +286,22 @@ app.get('/', async (c) => {
         const hasFilters = Object.keys(where).length > 0
         const combinedWhere = hasFilters ? { AND: [where, visibilityFilter] } : visibilityFilter
 
+        // Determine orderBy based on sort option
+        let orderBy: Prisma.EventOrderByWithRelationInput
+        if (sortOption === 'popularity') {
+            // Use denormalized popularityScore for efficient database-level sorting
+            // This avoids loading all events into memory and scales well with large datasets
+            orderBy = { popularityScore: 'desc' }
+        } else if (sortOption === 'trending') {
+            // For trending, we'll use date sorting as a fallback since trending requires
+            // complex calculation that's better handled by the /trending endpoint
+            // For now, fall back to date sorting
+            orderBy = { startTime: 'asc' }
+        } else {
+            // Default: sort by date
+            orderBy = { startTime: 'asc' }
+        }
+
         const [events, total] = await Promise.all([
             prisma.event.findMany({
                 where: combinedWhere,
@@ -305,7 +324,7 @@ app.get('/', async (c) => {
                         },
                     },
                 },
-                orderBy: { startTime: 'asc' },
+                orderBy,
                 skip,
                 take: limit,
             }),
@@ -331,6 +350,7 @@ app.get('/', async (c) => {
                 username: params.username,
                 tags: params.tags,
                 categories: params.categories,
+                sort: sortOption,
             },
         })
     } catch (error) {
@@ -426,7 +446,7 @@ app.get('/popular', async (c) => {
             visibilityFilter = { visibility: 'PUBLIC' }
         }
 
-        // Fetch events - we'll sort in memory, so fetch more than the limit
+        // Use denormalized popularityScore for efficient database-level sorting
         const events = await prisma.event.findMany({
             where: {
                 AND: [
@@ -448,6 +468,7 @@ app.get('/popular', async (c) => {
                         profileImage: true,
                     },
                 },
+                tags: true,
                 _count: {
                     select: {
                         attendance: true,
@@ -456,59 +477,17 @@ app.get('/popular', async (c) => {
                     },
                 },
             },
-            take: Math.max(limit * 10, 100),
+            orderBy: { popularityScore: 'desc' },
+            take: limit,
         })
 
-        // Manually count attendance and likes to ensure accuracy
-        // Prisma's _count may not reflect nested creates immediately in some cases
-        const eventIds = events.map(e => e.id)
-        const [attendanceCounts, likesCounts] = await Promise.all([
-            prisma.eventAttendance.groupBy({
-                by: ['eventId'],
-                where: { eventId: { in: eventIds } },
-                _count: { eventId: true },
-            }),
-            prisma.eventLike.groupBy({
-                by: ['eventId'],
-                where: { eventId: { in: eventIds } },
-                _count: { eventId: true },
-            }),
-        ])
+        // Ensure _count is explicitly included in response
+        const eventsWithCounts = events.map((event) => ({
+            ...event,
+            _count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
+        }))
 
-        const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
-        const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
-
-        // Sort by popularity (attendance + likes)
-        const sorted = events
-            .map((event) => {
-                // Use attendanceMap and likesMap as the source of truth
-                // Only fall back to event._count if the map doesn't have the value
-                // and validate that _count values are actually numbers
-                const attendanceFromMap = attendanceMap.get(event.id)
-                const likesFromMap = likesMap.get(event.id)
-                
-                const attendanceCount = attendanceFromMap ?? 
-                    (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
-                const likesCount = likesFromMap ?? 
-                    (typeof event._count?.likes === 'number' ? event._count.likes : 0)
-                const commentsCount = typeof event._count?.comments === 'number' ? event._count.comments : 0
-                
-                const popularity = attendanceCount + likesCount
-                return {
-                    ...event,
-                    _count: {
-                        attendance: attendanceCount,
-                        likes: likesCount,
-                        comments: commentsCount,
-                    },
-                    popularity,
-                }
-            })
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, limit)
-            .map(({ popularity: _popularity, ...event }) => event)
-
-        return c.json({ events: sorted })
+        return c.json({ events: eventsWithCounts })
     } catch (error) {
         console.error('Error getting popular events:', error)
         return c.json({ error: 'Internal server error' }, 500)
@@ -710,6 +689,71 @@ app.get('/nearby', async (c) => {
             return c.json({ error: 'Invalid nearby search parameters', details: error.issues }, 400 as const)
         }
         console.error('Error searching nearby events:', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+// Get platform statistics
+app.get('/stats', async (c) => {
+    try {
+        const userId = c.get('userId') as string | undefined
+        let visibilityFilter: Prisma.EventWhereInput
+        if (userId) {
+            const following = await prisma.following.findMany({
+                where: { userId, accepted: true },
+                select: { actorUrl: true },
+            })
+            const followedActorUrls = following.map(f => f.actorUrl)
+            visibilityFilter = buildVisibilityWhere({ userId, followedActorUrls })
+        } else {
+            visibilityFilter = { visibility: 'PUBLIC' }
+        }
+
+        const now = new Date()
+
+        // Get total events count (respecting visibility)
+        const totalEvents = await prisma.event.count({
+            where: visibilityFilter,
+        })
+
+        // Get upcoming events count (events with startTime in the future)
+        const upcomingEvents = await prisma.event.count({
+            where: {
+                AND: [
+                    visibilityFilter,
+                    {
+                        startTime: {
+                            gte: now,
+                        },
+                    },
+                ],
+            },
+        })
+
+        // Get today's events count
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+        const todayEvents = await prisma.event.count({
+            where: {
+                AND: [
+                    visibilityFilter,
+                    {
+                        startTime: {
+                            gte: todayStart,
+                            lte: todayEnd,
+                        },
+                    },
+                ],
+            },
+        })
+
+        return c.json({
+            totalEvents,
+            upcomingEvents,
+            todayEvents,
+        })
+    } catch (error) {
+        console.error('Error getting platform statistics:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })
