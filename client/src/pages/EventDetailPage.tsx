@@ -13,9 +13,15 @@ import {
 } from '../hooks/queries/events'
 import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
-import { getVisibilityMeta } from '../lib/visibility'
-import type { EventVisibility } from '../types'
-import { getRecurrenceLabel } from '../lib/recurrence'
+import { EventHeader } from '../components/EventHeader'
+import { EventInfo } from '../components/EventInfo'
+import { SignUpPrompt } from '../components/SignUpPrompt'
+import { Button } from '../components/ui/Button'
+import { Card, CardContent } from '../components/ui/Card'
+import { Badge } from '../components/ui/Badge'
+import { Avatar } from '../components/ui/Avatar'
+import { Container } from '../components/layout/Container'
+import { setSEOMetadata } from '../lib/seo'
 import type { CommentMention } from '../types'
 import { getDefaultTimezone } from '../lib/timezones'
 import { useUIStore } from '../stores'
@@ -488,45 +494,43 @@ export function EventDetailPage() {
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
     const viewerTimezone = viewerProfile?.timezone || defaultTimezone
 
-    const formatDate = useMemo(() => {
-        return (dateString: string) => {
-            return new Intl.DateTimeFormat('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                timeZone: viewerTimezone,
-            }).format(new Date(dateString))
+    // Set SEO metadata when event data is available
+    useEffect(() => {
+        if (event) {
+            const displayedEvent = event.sharedEvent ?? event
+            const eventDate = new Date(displayedEvent.startTime).toLocaleDateString()
+            const description = displayedEvent.summary 
+                ? `${displayedEvent.summary.slice(0, 150)}${displayedEvent.summary.length > 150 ? '...' : ''}`
+                : `Event on ${eventDate}${displayedEvent.location ? ` at ${displayedEvent.location}` : ''}`
+            
+            setSEOMetadata({
+                title: displayedEvent.title,
+                description,
+                ogType: 'event',
+                canonicalUrl: window.location.href,
+            })
         }
-    }, [viewerTimezone])
-
-    const formatTime = useMemo(() => {
-        return (dateString: string) => {
-            return new Intl.DateTimeFormat('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                timeZone: viewerTimezone,
-            }).format(new Date(dateString))
-        }
-    }, [viewerTimezone])
+    }, [event])
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+            <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
             </div>
         )
     }
 
     if (!event) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="card p-8 text-center">
-                    <h2 className="text-2xl font-bold mb-4">Event not found</h2>
-                    <Link to="/feed" className="btn btn-primary">
-                        Back to Feed
-                    </Link>
-                </div>
+            <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+                <Card padding="lg" className="text-center">
+                    <CardContent>
+                        <h2 className="text-2xl font-bold mb-4 text-text-primary">Event not found</h2>
+                        <Link to="/feed">
+                            <Button variant="primary">Back to Feed</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
             </div>
         )
     }
@@ -536,49 +540,10 @@ export function EventDetailPage() {
     const originalOwner = useMemo(() => event.sharedEvent?.user, [event])
     const attending = useMemo(() => event.attendance?.filter((a) => a.status === 'attending').length || 0, [event])
     const maybe = useMemo(() => event.attendance?.filter((a) => a.status === 'maybe').length || 0, [event])
-    const visibilityMeta = useMemo(() => getVisibilityMeta(displayedEvent.visibility as EventVisibility | undefined), [displayedEvent])
     const eventStartDate = useMemo(() => new Date(displayedEvent.startTime), [displayedEvent])
     const eventHasStarted = useMemo(() => eventStartDate.getTime() <= Date.now(), [eventStartDate])
     const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
 
-    const buildRsvpButtonClass = (status: 'attending' | 'maybe') => {
-        const baseClass = 'btn flex-1 flex items-center justify-center gap-2'
-        const selectedClass = 'btn-primary ring-2 ring-blue-600 ring-offset-2'
-        const authedClass = 'btn-secondary'
-        const guestClass = 'btn-secondary hover:bg-blue-50 border-blue-300'
-
-        if (userAttendance === status) {
-            return `${baseClass} ${selectedClass}`
-        }
-        if (user) {
-            return `${baseClass} ${authedClass}`
-        }
-        return `${baseClass} ${guestClass}`
-    }
-
-    const buildLikeButtonClass = () => {
-        const baseClass = 'btn flex-1'
-        if (userLiked) {
-            return `${baseClass} btn-primary ring-2 ring-error-600 ring-offset-2`
-        }
-        if (user) {
-            return `${baseClass} btn-secondary`
-        }
-        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
-    }
-
-    const buildShareButtonClass = () => {
-        const baseClass = 'btn flex-1'
-        if (hasShared || userHasShared) {
-            return `${baseClass} btn-primary ring-2 ring-indigo-600 ring-offset-2`
-        }
-        if (user) {
-            return `${baseClass} btn-secondary`
-        }
-        return `${baseClass} btn-secondary hover:bg-blue-50 border-blue-300`
-    }
-
-    const guestTooltip = (message: string) => (!user ? message : undefined)
     const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
         if (!rsvpMutation.isPending) {
             return false
@@ -587,40 +552,6 @@ export function EventDetailPage() {
             return userAttendance === 'attending' || !userAttendance
         }
         return userAttendance === 'maybe'
-    }
-
-    const renderSpinner = (label: string) => (
-        <>
-            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>{label}</span>
-        </>
-    )
-
-    const renderRsvpButtonContent = (status: 'attending' | 'maybe') => {
-        if (shouldShowRsvpSpinner(status)) {
-            return renderSpinner('Updating...')
-        }
-
-        if (status === 'attending') {
-            return <>👍 Going ({attending})</>
-        }
-
-        return <>🤔 Maybe ({maybe})</>
-    }
-
-    const renderShareButtonContent = () => {
-        if (shareMutation.isPending) {
-            return renderSpinner('Sharing...')
-        }
-
-        if (hasShared || userHasShared) {
-            return '✅ Shared'
-        }
-
-        return '🔁 Share'
     }
 
     const getReminderHelperText = () => {
@@ -634,396 +565,314 @@ export function EventDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-background-secondary">
             {/* Navigation */}
-            <nav className="bg-white border-b border-gray-200">
-                <div className="max-w-4xl mx-auto px-4">
+            <nav className="bg-background-primary border-b border-border-default">
+                <Container size="lg">
                     <div className="flex items-center justify-between h-16">
-                        <button onClick={() => navigate(-1)} className="btn btn-ghost">
+                        <Button variant="ghost" onClick={() => navigate(-1)}>
                             ← Back
-                        </button>
-                        <Link to="/" className="text-xl font-bold text-blue-600">
+                        </Button>
+                        <Link to="/" className="text-xl font-bold text-primary-600">
                             Constellate
                         </Link>
                         <div className="w-20" />
                     </div>
 
                     {event.sharedEvent && originalOwner && (
-                        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                            <div className="flex items-center gap-2 font-semibold">
-                                <span>🔁</span>
-                                Shared from
-                                <Link
-                                    to={`/@${originalOwner.username}`}
-                                    className="text-blue-700 hover:underline"
-                                >
-                                    @{originalOwner.username}
-                                </Link>
-                            </div>
-                            {event.user && (
-                                <p className="mt-1 text-xs text-blue-800">
-                                    {event.user.name || event.user.username} reshared this event.
-                                </p>
-                            )}
-                        </div>
+                        <Card variant="flat" padding="md" className="mb-4 bg-primary-50 border-primary-200">
+                            <CardContent>
+                                <div className="flex items-center gap-2 font-semibold text-primary-900">
+                                    <span>🔁</span>
+                                    Shared from
+                                    <Link
+                                        to={`/@${originalOwner.username}`}
+                                        className="text-primary-700 hover:underline"
+                                    >
+                                        @{originalOwner.username}
+                                    </Link>
+                                </div>
+                                {event.user && (
+                                    <p className="mt-1 text-xs text-primary-800">
+                                        {event.user.name || event.user.username} reshared this event.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
                     )}
-                </div>
+                </Container>
             </nav>
 
             {/* Event Content */}
-            <div className="max-w-4xl mx-auto px-4 py-6">
-                <div className="card p-8 mb-6">
-                    {/* Event Header */}
-                    <div className="flex items-start justify-between mb-6">
-                        <Link
-                            to={`/@${event.user!.username}`}
-                            className="flex items-start gap-4 hover:opacity-80 transition-opacity"
-                        >
-                            {event.user!.profileImage ? (
-                                <img
-                                    src={event.user!.profileImage}
-                                    alt={event.user!.name || event.user!.username}
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                                />
-                            ) : (
-                                <div
-                                    className="avatar w-16 h-16"
-                                    style={{ backgroundColor: event.user!.displayColor || '#3b82f6' }}
-                                >
-                                    {event.user!.name?.[0] || event.user!.username[0].toUpperCase()}
-                                </div>
-                            )}
-                            <div>
-                                <div className="font-semibold text-lg">
-                                    {event.user!.name || event.user!.username}
-                                </div>
-                                <div className="text-gray-500">@{event.user!.username}</div>
-                            </div>
-                        </Link>
-                        {user && event.user!.id === user.id && (
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    handleDeleteEvent()
+            <Container size="lg" className="py-6">
+                <Card variant="elevated" padding="lg" className="mb-6">
+                    <CardContent>
+                        {/* Event Header */}
+                        <EventHeader
+                            organizer={{
+                                id: event.user!.id,
+                                username: event.user!.username,
+                                name: event.user!.name,
+                                profileImage: event.user!.profileImage,
+                                displayColor: event.user!.displayColor,
+                            }}
+                            isOwner={user?.id === event.user!.id}
+                            onDelete={handleDeleteEvent}
+                            isDeleting={deleteEventMutation.isPending}
+                        />
+
+                        <div className="mt-6">
+                            <EventInfo
+                                event={{
+                                    title: displayedEvent.title,
+                                    summary: displayedEvent.summary,
+                                    startTime: displayedEvent.startTime,
+                                    endTime: displayedEvent.endTime,
+                                    location: displayedEvent.location,
+                                    url: displayedEvent.url,
+                                    visibility: displayedEvent.visibility,
+                                    timezone: displayedEvent.timezone,
+                                    recurrencePattern: event.recurrencePattern,
+                                    recurrenceEndDate: event.recurrenceEndDate,
+                                    tags: event.tags,
                                 }}
-                                className="btn btn-secondary text-error-600 hover:text-error-700"
-                                title="Delete event"
+                                viewerTimezone={viewerTimezone}
+                                eventTimezone={eventTimezone}
+                            />
+                        </div>
+
+                        {/* RSVP Buttons */}
+                        <div className="flex flex-wrap gap-3 mb-6 pb-6 border-b border-border-default mt-6">
+                            <Button
+                                variant={userAttendance === 'attending' ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={() => handleRSVP('attending')}
+                                disabled={rsvpMutation.isPending}
+                                loading={shouldShowRsvpSpinner('attending')}
+                                className="flex-1 min-w-[120px]"
                             >
-                                🗑️ Delete
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Event Title */}
-                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <h1 className="text-3xl font-bold">{displayedEvent.title}</h1>
-                        <span className={`badge ${visibilityMeta.badgeClass}`}>
-                            {visibilityMeta.icon} {visibilityMeta.label}
-                        </span>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-4">{visibilityMeta.helper}</p>
-
-                    {/* Event Details */}
-                    <div className="space-y-3 mb-6">
-                        <div className="flex items-center gap-3 text-gray-700">
-                            <span className="text-xl">📅</span>
-                            <span>{formatDate(displayedEvent.startTime)}</span>
+                                {shouldShowRsvpSpinner('attending') ? 'Updating...' : `👍 Going (${attending})`}
+                            </Button>
+                            <Button
+                                variant={userAttendance === 'maybe' ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={() => handleRSVP('maybe')}
+                                disabled={rsvpMutation.isPending}
+                                loading={shouldShowRsvpSpinner('maybe')}
+                                className="flex-1 min-w-[120px]"
+                            >
+                                {shouldShowRsvpSpinner('maybe') ? 'Updating...' : `🤔 Maybe (${maybe})`}
+                            </Button>
+                            <Button
+                                variant={userLiked ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={handleLike}
+                                disabled={likeMutation.isPending}
+                                loading={likeMutation.isPending}
+                                className="flex-1 min-w-[100px]"
+                            >
+                                ❤️ {event.likes?.length || 0}
+                            </Button>
+                            <Button
+                                variant={(hasShared || userHasShared) ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={handleShare}
+                                disabled={shareMutation.isPending || hasShared || userHasShared}
+                                loading={shareMutation.isPending}
+                                className="flex-1 min-w-[100px]"
+                            >
+                                {shareMutation.isPending ? 'Sharing...' : (hasShared || userHasShared) ? '✅ Shared' : '🔁 Share'}
+                            </Button>
                         </div>
-                        <div className="flex items-center gap-3 text-gray-700">
-                            <span className="text-xl">🕐</span>
-                            <span>
-                                {formatTime(displayedEvent.startTime)}
-                                {displayedEvent.endTime && ` - ${formatTime(displayedEvent.endTime)}`}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-gray-500 text-sm">
-                            <span className="text-xl">🌐</span>
-                            <span>
-                                Times shown in {viewerTimezone}
-                                {viewerTimezone !== eventTimezone && ` (event scheduled in ${eventTimezone})`}
-                            </span>
-                        </div>
-                        {displayedEvent.location && (
-                            <div className="flex items-center gap-3 text-gray-700">
-                                <span className="text-xl">📍</span>
-                                <span>{displayedEvent.location}</span>
+                        {!user && (
+                            <div className="mb-6 pb-4 border-b border-border-default">
+                                <SignUpPrompt variant="inline" />
                             </div>
                         )}
-                        {displayedEvent.url && (
-                            <div className="flex items-center gap-3 text-gray-700">
-                                <span className="text-xl">🔗</span>
-                                <a
-                                    href={displayedEvent.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
-                                >
-                                    {displayedEvent.url}
-                                </a>
+                        {!eventHasStarted && (
+                            <div className="mb-6 pb-4 border-b border-border-default">
+                                <label className="block text-sm font-semibold text-text-primary mb-2">
+                                    Reminder
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        className="flex-1 px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        value={selectedReminder !== null ? String(selectedReminder) : ''}
+                                        onChange={handleReminderChange}
+                                        disabled={!user || !canManageReminder || reminderMutation.isPending}
+                                        aria-label="Reminder notification timing"
+                                    >
+                                        {REMINDER_OPTIONS.map((option) => (
+                                            <option
+                                                key={option.label}
+                                                value={option.value !== null ? option.value : ''}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {reminderMutation.isPending && (
+                                        <span className="text-sm text-text-secondary">Saving...</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-text-secondary mt-2">
+                                    {getReminderHelperText()}
+                                </p>
                             </div>
                         )}
-                        {event.recurrencePattern && (
-                            <div className="flex items-center gap-3 text-gray-700">
-                                <span className="text-xl">🔁</span>
-                                <span>
-                                    Repeats {getRecurrenceLabel(event.recurrencePattern)}
-                                    {event.recurrenceEndDate && ` until ${formatDate(event.recurrenceEndDate)}`}
-                                </span>
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Event Description */}
-                    {displayedEvent.summary && (
-                        <div className="mb-6">
-                            <p className="text-gray-700 text-lg">{displayedEvent.summary}</p>
-                        </div>
-                    )}
-
-                    {/* Tags */}
-                    {event.tags && event.tags.length > 0 && (
-                        <div className="mb-6 flex flex-wrap gap-2">
-                            {event.tags.map((tag) => (
-                                <span
-                                    key={tag.id}
-                                    className="badge badge-primary"
-                                >
-                                    #{tag.tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* RSVP Buttons */}
-                    <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
-                        <button
-                            onClick={() => handleRSVP('attending')}
-                            disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('attending')}
-                            title={!user ? 'Sign up to RSVP' : ''}
-                        >
-                            {renderRsvpButtonContent('attending')}
-                        </button>
-                        <button
-                            onClick={() => handleRSVP('maybe')}
-                            disabled={rsvpMutation.isPending}
-                            className={buildRsvpButtonClass('maybe')}
-                            title={!user ? 'Sign up to RSVP' : ''}
-                        >
-                            {renderRsvpButtonContent('maybe')}
-                        </button>
-                        <button
-                            onClick={handleLike}
-                            disabled={likeMutation.isPending}
-                            className={buildLikeButtonClass()}
-                            title={!user ? 'Sign up to like this event' : ''}
-                        >
-                            ❤️ {event.likes?.length || 0}
-                        </button>
-                        <button
-                            onClick={handleShare}
-                            disabled={shareMutation.isPending || hasShared || userHasShared}
-                            className={buildShareButtonClass()}
-                            title={guestTooltip('Sign up to share this event')}
-                        >
-                            {renderShareButtonContent()}
-                        </button>
-                    </div>
-                    {!user && (
-                        <div className="mb-6 pb-4 border-b border-gray-200">
-                            <p className="text-sm text-gray-500 text-center">
-                                💡 <Link to="/login" className="text-blue-600 hover:underline font-medium">Sign up</Link> to RSVP, like, and comment on events
-                            </p>
-                        </div>
-                    )}
-                    {!eventHasStarted && (
-                        <div className="mb-6 pb-4 border-b border-gray-200">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Reminder
-                            </label>
-                            <div className="flex items-center gap-3">
-                                <select
-                                    className="select flex-1"
-                                    value={selectedReminder !== null ? String(selectedReminder) : ''}
-                                    onChange={handleReminderChange}
-                                    disabled={!user || !canManageReminder || reminderMutation.isPending}
-                                    aria-label="Reminder notification timing"
-                                >
-                                    {REMINDER_OPTIONS.map((option) => (
-                                        <option
-                                            key={option.label}
-                                            value={option.value !== null ? option.value : ''}
-                                        >
-                                            {option.label}
-                                        </option>
+                        {/* Attendees */}
+                        {event.attendance && event.attendance.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="font-bold mb-3 text-text-primary">Attendees</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {event.attendance.slice(0, 10).map((a, i) => (
+                                        <Badge key={i} variant="primary" size="md">
+                                            {a.user.name || a.user.username}
+                                            {a.status === 'maybe' && ' (Maybe)'}
+                                        </Badge>
                                     ))}
-                                </select>
-                                {reminderMutation.isPending && (
-                                    <span className="text-sm text-gray-500">Saving...</span>
-                                )}
+                                    {event.attendance.length > 10 && (
+                                        <Badge variant="secondary" size="md">
+                                            +{event.attendance.length - 10} more
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                                {getReminderHelperText()}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Attendees */}
-                    {event.attendance && event.attendance.length > 0 && (
-                        <div className="mb-6">
-                            <h3 className="font-bold mb-3">Attendees</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {event.attendance.slice(0, 10).map((a, i) => (
-                                    <div key={i} className="badge badge-primary">
-                                        {a.user.name || a.user.username}
-                                        {a.status === 'maybe' && ' (Maybe)'}
-                                    </div>
-                                ))}
-                                {event.attendance.length > 10 && (
-                                    <div className="badge">+{event.attendance.length - 10} more</div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Comments Section */}
-                <div className="card p-6">
-                    <h2 className="text-xl font-bold mb-4">
-                        Comments ({event.comments?.length || 0})
-                    </h2>
+                <Card variant="elevated" padding="lg">
+                    <CardContent>
+                        <h2 className="text-xl font-bold mb-4 text-text-primary">
+                            Comments ({event.comments?.length || 0})
+                        </h2>
 
-                    {/* Comment Form */}
-                    {!user ? (
-                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-sm text-gray-700 mb-3">
-                                Sign up to join the conversation and leave a comment
-                            </p>
-                            <button
-                                onClick={() => {
-                                    setPendingAction('comment')
-                                    setSignupModalOpen(true)
-                                }}
-                                className="btn btn-primary w-full"
-                            >
-                                Sign Up to Comment
-                            </button>
-                        </div>
-                    ) : (
-                        <form onSubmit={handleCommentSubmit} className="mb-6">
-                            <div className="relative mb-3">
-                                <textarea
-                                    ref={textareaRef}
-                                    value={comment}
-                                    onChange={handleCommentChange}
-                                    onKeyDown={handleCommentKeyDown}
-                                    onSelect={() => {
-                                        if (textareaRef.current) {
-                                            updateMentionState(
-                                                textareaRef.current.value,
-                                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
-                                            )
-                                        }
+                        {/* Comment Form */}
+                        {!user ? (
+                            <div className="mb-6">
+                                <SignUpPrompt
+                                    action="comment"
+                                    variant="card"
+                                    onSignUp={() => {
+                                        setPendingAction('comment')
+                                        setSignupModalOpen(true)
                                     }}
-                                    onClick={() => {
-                                        if (textareaRef.current) {
-                                            updateMentionState(
-                                                textareaRef.current.value,
-                                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
-                                            )
-                                        }
-                                    }}
-                                    placeholder="Add a comment..."
-                                    className="textarea"
-                                    rows={3}
                                 />
-                                {showMentionSuggestions && mentionSuggestions.length > 0 && (
-                                    <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg">
-                                        {mentionSuggestions.map((suggestion, index) => {
-                                            const isActive = index === activeMentionIndex
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    key={suggestion.id}
-                                                    className={`flex w-full items-center gap-3 p-2 text-left transition-colors ${isActive ? 'bg-blue-50' : 'bg-white'}`}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault()
-                                                        applyMentionSuggestion(suggestion)
-                                                    }}
-                                                >
-                                                    {suggestion.profileImage ? (
-                                                        <img
-                                                            src={suggestion.profileImage}
+                            </div>
+                        ) : (
+                            <form onSubmit={handleCommentSubmit} className="mb-6">
+                                <div className="relative mb-3">
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={comment}
+                                        onChange={handleCommentChange}
+                                        onKeyDown={handleCommentKeyDown}
+                                        onSelect={() => {
+                                            if (textareaRef.current) {
+                                                updateMentionState(
+                                                    textareaRef.current.value,
+                                                    textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                                )
+                                            }
+                                        }}
+                                        onClick={() => {
+                                            if (textareaRef.current) {
+                                                updateMentionState(
+                                                    textareaRef.current.value,
+                                                    textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                                )
+                                            }
+                                        }}
+                                        placeholder="Add a comment..."
+                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 resize-y min-h-[80px]"
+                                        rows={3}
+                                    />
+                                    {showMentionSuggestions && mentionSuggestions.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border-default bg-background-primary shadow-lg">
+                                            {mentionSuggestions.map((suggestion, index) => {
+                                                const isActive = index === activeMentionIndex
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={suggestion.id}
+                                                        className={`flex w-full items-center gap-3 p-2 text-left transition-colors ${isActive ? 'bg-primary-50' : 'bg-background-primary'}`}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault()
+                                                            applyMentionSuggestion(suggestion)
+                                                        }}
+                                                    >
+                                                        <Avatar
+                                                            src={suggestion.profileImage || undefined}
                                                             alt={suggestion.name || suggestion.username}
-                                                            className="h-8 w-8 rounded-full object-cover"
+                                                            fallback={suggestion.name?.[0] || suggestion.username[0]}
+                                                            size="sm"
                                                         />
-                                                    ) : (
-                                                        <div
-                                                            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold"
-                                                            style={{ backgroundColor: suggestion.displayColor || '#3b82f6' }}
-                                                        >
-                                                            {suggestion.name?.[0] || suggestion.username[0]?.toUpperCase()}
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-sm text-text-primary">{suggestion.name || suggestion.username}</span>
+                                                            <span className="text-xs text-text-secondary">@{suggestion.username}</span>
                                                         </div>
-                                                    )}
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-sm">{suggestion.name || suggestion.username}</span>
-                                                        <span className="text-xs text-gray-500">@{suggestion.username}</span>
-                                                    </div>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={addCommentMutation.isPending || !comment.trim()}
-                                className="btn btn-primary"
-                            >
-                                {addCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
-                            </button>
-                        </form>
-                    )}
-
-                    {/* Comments List */}
-                    <div className="space-y-4">
-                        {event.comments?.map((c) => (
-                            <div key={c.id} className="flex gap-3">
-                                <div
-                                    className="avatar w-10 h-10 flex-shrink-0"
-                                    style={{ backgroundColor: c.author.displayColor || '#3b82f6' }}
-                                >
-                                    {c.author.name?.[0] || c.author.username[0].toUpperCase()}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="bg-gray-50 rounded-lg p-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <div className="font-semibold text-sm">
-                                                {c.author.name || c.author.username}
-                                            </div>
-                                            {user && c.author.id === user.id && (
-                                                <button
-                                                    onClick={() => handleDeleteComment(c.id)}
-                                                    className="text-error-500 hover:text-error-700 text-xs"
-                                                    title="Delete comment"
-                                                >
-                                                    🗑️
-                                                </button>
-                                            )}
+                                                    </button>
+                                                )
+                                            })}
                                         </div>
-                                        <p className="text-gray-700 break-words">
-                                            {renderCommentContent(c.id, c.content, c.mentions)}
-                                        </p>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {new Date(c.createdAt).toLocaleString()}
+                                    )}
+                                </div>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    disabled={addCommentMutation.isPending || !comment.trim()}
+                                    loading={addCommentMutation.isPending}
+                                >
+                                    {addCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
+                                </Button>
+                            </form>
+                        )}
+
+                        {/* Comments List */}
+                        <div className="space-y-4">
+                            {event.comments?.map((c) => (
+                                <div key={c.id} className="flex gap-3">
+                                    <Avatar
+                                        src={c.author.profileImage || undefined}
+                                        alt={c.author.name || c.author.username}
+                                        fallback={c.author.name?.[0] || c.author.username[0]}
+                                        size="sm"
+                                        className="flex-shrink-0"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="bg-background-secondary rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="font-semibold text-sm text-text-primary">
+                                                    {c.author.name || c.author.username}
+                                                </div>
+                                                {user && c.author.id === user.id && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteComment(c.id)}
+                                                        className="text-error-500 hover:text-error-700 text-xs"
+                                                    >
+                                                        🗑️
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <p className="text-text-primary break-words">
+                                                {renderCommentContent(c.id, c.content, c.mentions)}
+                                            </p>
+                                        </div>
+                                        <div className="text-xs text-text-secondary mt-1">
+                                            {new Date(c.createdAt).toLocaleString()}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </Container>
 
             {/* Signup Modal */}
             <SignupModal
