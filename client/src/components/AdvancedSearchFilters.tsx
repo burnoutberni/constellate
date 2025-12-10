@@ -113,9 +113,11 @@ export function AdvancedSearchFilters({
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Advanced Filters</h2>
               <p className="text-sm text-gray-500 mt-1">
-                {activeFiltersCount > 0 
-                  ? `${activeFiltersCount} filter${activeFiltersCount !== 1 ? 's' : ''} applied`
-                  : 'Refine your search'}
+                {(() => {
+                  if (activeFiltersCount === 0) return 'Refine your search'
+                  const filterWord = activeFiltersCount === 1 ? 'filter' : 'filters'
+                  return `${activeFiltersCount} ${filterWord} applied`
+                })()}
               </p>
             </div>
           </div>
