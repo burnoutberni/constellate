@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Navbar } from '../components/Navbar'
 import { InstanceList } from '../components/InstanceList'
 import { Container } from '../components/layout/Container'
@@ -8,7 +8,6 @@ import { Card } from '../components/ui/Card'
 import { useAuth } from '../contexts/AuthContext'
 import { useInstances, useInstanceSearch, useBlockInstance, useUnblockInstance, useRefreshInstance } from '../hooks/queries'
 import { setSEOMetadata } from '../lib/seo'
-import { useEffect } from 'react'
 
 type SortOption = 'activity' | 'users' | 'created'
 
