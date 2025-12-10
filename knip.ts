@@ -25,17 +25,15 @@ const config: KnipConfig = {
                 '**/*.d.ts',
                 // Design system public API - exported for external use as design system is built
                 'src/design-system/**/*.ts',
-                // UI component types - exported as public API for TypeScript consumers
-                'src/components/ui/**/*.tsx',
-                // UI component barrel export - public API entry point
-                'src/components/ui/index.ts',
-                // Layout components - exported as public API for layout primitives
-                'src/components/layout/**/*.tsx',
-                'src/components/layout/**/*.ts',
                 // Type definitions that are part of public API
                 'src/types/**/*.ts',
-                'src/hooks/queries/search.ts',
+                // UI component barrel export - public API entry point
+                'src/components/ui/index.ts',
+                // Layout component barrel export - public API entry point
+                'src/components/layout/index.ts',
             ],
+            // Reinclude barrel files in treeshaking analysis
+            includeEntryExports: true,
             ignoreDependencies: [
                 // ESLint plugins are used by root ESLint config
                 '@typescript-eslint/eslint-plugin',

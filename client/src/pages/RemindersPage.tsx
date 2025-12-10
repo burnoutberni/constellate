@@ -1,21 +1,16 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useUserReminders } from '../hooks/queries/reminders'
-import { queryKeys } from '../hooks/queries/keys'
 import { ReminderList } from '../components/ReminderList'
 import { Container } from '../components/layout/Container'
 import { PageLayout } from '../components/layout/PageLayout'
 import { Button } from '../components/ui/Button'
-import { useUIStore } from '../stores'
 
 export function RemindersPage() {
     const navigate = useNavigate()
-    const queryClient = useQueryClient()
     const { user, loading: authLoading } = useAuth()
     const { data, isLoading, error } = useUserReminders()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -23,28 +18,6 @@ export function RemindersPage() {
             navigate('/login')
         }
     }, [user, authLoading, navigate])
-
-    const handleDelete = async (reminderId: string, eventId: string) => {
-        try {
-            const response = await fetch(`/api/events/${eventId}/reminders/${reminderId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to delete reminder')
-            }
-
-            // Invalidate the reminders query to refetch
-            queryClient.invalidateQueries({ queryKey: queryKeys.reminders.list() })
-        } catch (error) {
-            console.error('Failed to delete reminder:', error)
-            addErrorToast({
-                id: crypto.randomUUID(),
-                message: 'Failed to delete reminder. Please try again.',
-            })
-        }
-    }
 
     if (authLoading || isLoading) {
         return (
@@ -92,7 +65,7 @@ export function RemindersPage() {
                         </p>
                     </div>
 
-                    <ReminderList reminders={data?.reminders || []} onDelete={handleDelete} />
+                    <ReminderList reminders={data?.reminders || []} />
                 </div>
             </Container>
         </PageLayout>

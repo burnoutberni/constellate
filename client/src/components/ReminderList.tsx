@@ -1,26 +1,16 @@
-import { useState } from 'react'
 import { ReminderItem } from './ReminderItem'
+import { ReminderItemWithDelete } from './ReminderItemWithDelete'
 import type { ReminderWithEvent } from '../types'
 
 interface ReminderListProps {
     reminders: ReminderWithEvent[]
-    onDelete: (reminderId: string, eventId: string) => void
+    onDelete?: (reminderId: string, eventId: string) => void
 }
 
 export function ReminderList({ reminders, onDelete }: ReminderListProps) {
-    const [deletingId, setDeletingId] = useState<string | null>(null)
-
-    const handleDelete = async (reminderId: string) => {
-        const reminder = reminders.find((r) => r.id === reminderId)
-        if (!reminder) return
-
-        setDeletingId(reminderId)
-        try {
-            await onDelete(reminderId, reminder.event.id)
-        } finally {
-            setDeletingId(null)
-        }
-    }
+    // If onDelete is provided, use the old pattern for backwards compatibility
+    // Otherwise, use ReminderItemWithDelete which handles deletion with hooks
+    const useHookBasedDeletion = !onDelete
 
     if (reminders.length === 0) {
         return (
@@ -50,14 +40,20 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                         Upcoming Reminders ({pendingReminders.length})
                     </h3>
                     <div className="space-y-3">
-                        {pendingReminders.map((reminder) => (
-                            <ReminderItem
-                                key={reminder.id}
-                                reminder={reminder}
-                                onDelete={handleDelete}
-                                isDeleting={deletingId === reminder.id}
-                            />
-                        ))}
+                        {pendingReminders.map((reminder) =>
+                            useHookBasedDeletion ? (
+                                <ReminderItemWithDelete key={reminder.id} reminder={reminder} />
+                            ) : (
+                                <ReminderItem
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    onDelete={(id) => {
+                                        const r = reminders.find((rem) => rem.id === id)
+                                        if (r) onDelete(id, r.event.id)
+                                    }}
+                                />
+                            )
+                        )}
                     </div>
                 </div>
             )}
@@ -68,14 +64,20 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                         Failed Reminders ({failedReminders.length})
                     </h3>
                     <div className="space-y-3">
-                        {failedReminders.map((reminder) => (
-                            <ReminderItem
-                                key={reminder.id}
-                                reminder={reminder}
-                                onDelete={handleDelete}
-                                isDeleting={deletingId === reminder.id}
-                            />
-                        ))}
+                        {failedReminders.map((reminder) =>
+                            useHookBasedDeletion ? (
+                                <ReminderItemWithDelete key={reminder.id} reminder={reminder} />
+                            ) : (
+                                <ReminderItem
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    onDelete={(id) => {
+                                        const r = reminders.find((rem) => rem.id === id)
+                                        if (r) onDelete(id, r.event.id)
+                                    }}
+                                />
+                            )
+                        )}
                     </div>
                 </div>
             )}
@@ -86,14 +88,20 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                         Sent Reminders ({sentReminders.length})
                     </h3>
                     <div className="space-y-3">
-                        {sentReminders.map((reminder) => (
-                            <ReminderItem
-                                key={reminder.id}
-                                reminder={reminder}
-                                onDelete={handleDelete}
-                                isDeleting={deletingId === reminder.id}
-                            />
-                        ))}
+                        {sentReminders.map((reminder) =>
+                            useHookBasedDeletion ? (
+                                <ReminderItemWithDelete key={reminder.id} reminder={reminder} />
+                            ) : (
+                                <ReminderItem
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    onDelete={(id) => {
+                                        const r = reminders.find((rem) => rem.id === id)
+                                        if (r) onDelete(id, r.event.id)
+                                    }}
+                                />
+                            )
+                        )}
                     </div>
                 </div>
             )}
@@ -104,14 +112,20 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                         Other ({otherReminders.length})
                     </h3>
                     <div className="space-y-3">
-                        {otherReminders.map((reminder) => (
-                            <ReminderItem
-                                key={reminder.id}
-                                reminder={reminder}
-                                onDelete={handleDelete}
-                                isDeleting={deletingId === reminder.id}
-                            />
-                        ))}
+                        {otherReminders.map((reminder) =>
+                            useHookBasedDeletion ? (
+                                <ReminderItemWithDelete key={reminder.id} reminder={reminder} />
+                            ) : (
+                                <ReminderItem
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    onDelete={(id) => {
+                                        const r = reminders.find((rem) => rem.id === id)
+                                        if (r) onDelete(id, r.event.id)
+                                    }}
+                                />
+                            )
+                        )}
                     </div>
                 </div>
             )}

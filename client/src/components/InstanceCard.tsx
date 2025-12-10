@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
@@ -13,6 +14,7 @@ interface InstanceCardProps {
 }
 
 export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: InstanceCardProps) {
+    const navigate = useNavigate()
     const { user } = useAuth()
     const isAdmin = user?.isAdmin
 
@@ -56,7 +58,10 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+                            <h3 
+                                className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
+                                onClick={() => navigate(`/instances/${encodeURIComponent(instance.domain)}`)}
+                            >
                                 {instance.title || instance.domain}
                             </h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
