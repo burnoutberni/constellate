@@ -1,14 +1,11 @@
 import { useMemo } from 'react'
-import { Event } from '../types/event'
+import { Event } from '../types'
 
 interface CalendarViewProps {
     view: 'month' | 'week' | 'day'
     currentDate: Date
     events: Event[]
     loading: boolean
-    userAttendingEventIds?: Set<string>
-    onEventClick?: (event: Event, position: { x: number; y: number }) => void
-    onEventHover?: (event: Event | null) => void
 }
 
 function formatHourLabel(hour: number): string {
@@ -18,42 +15,13 @@ function formatHourLabel(hour: number): string {
     return `${hour - 12} PM`
 }
 
-export function CalendarView({ 
-    view, 
-    currentDate, 
-    events, 
-    loading, 
-    userAttendingEventIds, 
-    onEventClick, 
-    onEventHover 
-}: CalendarViewProps) {
+export function CalendarView({ view, currentDate, events, loading }: CalendarViewProps) {
     if (view === 'month') {
-        return <MonthView 
-            currentDate={currentDate} 
-            events={events} 
-            loading={loading}
-            userAttendingEventIds={userAttendingEventIds}
-            onEventClick={onEventClick}
-            onEventHover={onEventHover}
-        />
+        return <MonthView currentDate={currentDate} events={events} loading={loading} />
     } else if (view === 'week') {
-        return <WeekView 
-            currentDate={currentDate} 
-            events={events} 
-            loading={loading}
-            userAttendingEventIds={userAttendingEventIds}
-            onEventClick={onEventClick}
-            onEventHover={onEventHover}
-        />
+        return <WeekView currentDate={currentDate} events={events} loading={loading} />
     } else {
-        return <DayView 
-            currentDate={currentDate} 
-            events={events} 
-            loading={loading}
-            userAttendingEventIds={userAttendingEventIds}
-            onEventClick={onEventClick}
-            onEventHover={onEventHover}
-        />
+        return <DayView currentDate={currentDate} events={events} loading={loading} />
     }
 }
 
@@ -61,12 +29,9 @@ interface ViewProps {
     currentDate: Date
     events: Event[]
     loading: boolean
-    userAttendingEventIds?: Set<string>
-    onEventClick?: (event: Event, position: { x: number; y: number }) => void
-    onEventHover?: (event: Event | null) => void
 }
 
-function MonthView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+function MonthView({ currentDate, events, loading }: ViewProps) {
     const monthMetadata = useMemo(() => {
         const year = currentDate.getFullYear()
         const month = currentDate.getMonth()
@@ -150,34 +115,15 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
                                             {day}
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-1">
-                                            {dayEvents.slice(0, 3).map((event) => {
-                                                const isAttending = userAttendingEventIds?.has(event.id)
-                                                return (
-                                                    <button
-                                                        key={event.id}
-                                                        className={`text-xs px-2 py-1 rounded truncate w-full text-left transition-colors ${
-                                                            isAttending 
-                                                                ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
-                                                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                                        }`}
-                                                        title={event.title}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            if (onEventClick) {
-                                                                const rect = e.currentTarget.getBoundingClientRect()
-                                                                onEventClick(event, { 
-                                                                    x: rect.left + rect.width / 2, 
-                                                                    y: rect.bottom + 5 
-                                                                })
-                                                            }
-                                                        }}
-                                                        onMouseEnter={() => onEventHover?.(event)}
-                                                        onMouseLeave={() => onEventHover?.(null)}
-                                                    >
-                                                        {event.title}
-                                                    </button>
-                                                )
-                                            })}
+                                            {dayEvents.slice(0, 3).map((event) => (
+                                                <div
+                                                    key={event.id}
+                                                    className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 truncate"
+                                                    title={event.title}
+                                                >
+                                                    {event.title}
+                                                </div>
+                                            ))}
                                             {dayEvents.length > 3 && (
                                                 <div className="text-xs text-gray-400 px-2">
                                                     +{dayEvents.length - 3} more
@@ -195,7 +141,7 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
     )
 }
 
-function WeekView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+function WeekView({ currentDate, events, loading }: ViewProps) {
     const weekDays = useMemo(() => {
         const dayOfWeek = currentDate.getDay()
         const startOfWeek = new Date(
@@ -283,37 +229,18 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
                                         key={`${day.toISOString()}-${hour}`}
                                         className="min-h-[60px] border rounded bg-white p-1"
                                     >
-                                        {dayEvents.map((event) => {
-                                            const isAttending = userAttendingEventIds?.has(event.id)
-                                            return (
-                                                <button
-                                                    key={event.id}
-                                                    className={`text-xs px-2 py-1 mb-1 rounded truncate w-full text-left transition-colors ${
-                                                        isAttending 
-                                                            ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
-                                                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                                    }`}
-                                                    title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        if (onEventClick) {
-                                                            const rect = e.currentTarget.getBoundingClientRect()
-                                                            onEventClick(event, { 
-                                                                x: rect.left + rect.width / 2, 
-                                                                y: rect.bottom + 5 
-                                                            })
-                                                        }
-                                                    }}
-                                                    onMouseEnter={() => onEventHover?.(event)}
-                                                    onMouseLeave={() => onEventHover?.(null)}
-                                                >
-                                                    <div className="font-medium">{event.title}</div>
-                                                    <div className="text-[10px] text-gray-600">
-                                                        {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                    </div>
-                                                </button>
-                                            )
-                                        })}
+                                        {dayEvents.map((event) => (
+                                            <div
+                                                key={event.id}
+                                                className="text-xs px-2 py-1 mb-1 rounded bg-blue-50 text-blue-700 truncate"
+                                                title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                                            >
+                                                <div className="font-medium">{event.title}</div>
+                                                <div className="text-[10px] text-gray-600">
+                                                    {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )
                             })}
@@ -325,7 +252,7 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
     )
 }
 
-function DayView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+function DayView({ currentDate, events, loading }: ViewProps) {
     const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
     const eventsByHour = useMemo(() => {
@@ -381,43 +308,24 @@ function DayView({ currentDate, events, loading, userAttendingEventIds, onEventC
                                             <div className="text-gray-300 text-sm">No events</div>
                                         ) : (
                                             <div className="space-y-2">
-                                                {hourEvents.map((event) => {
-                                                    const isAttending = userAttendingEventIds?.has(event.id)
-                                                    return (
-                                                        <button
-                                                            key={event.id}
-                                                            className={`p-3 rounded border w-full text-left transition-colors ${
-                                                                isAttending 
-                                                                    ? 'bg-primary-50 border-primary-300 hover:bg-primary-100' 
-                                                                    : 'bg-blue-50 border-blue-100 hover:bg-blue-100'
-                                                            }`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                if (onEventClick) {
-                                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                                    onEventClick(event, { 
-                                                                        x: rect.left + rect.width / 2, 
-                                                                        y: rect.bottom + 5 
-                                                                    })
-                                                                }
-                                                            }}
-                                                            onMouseEnter={() => onEventHover?.(event)}
-                                                            onMouseLeave={() => onEventHover?.(null)}
-                                                        >
-                                                            <div className="font-medium text-blue-900">{event.title}</div>
-                                                            <div className="text-sm text-gray-600 mt-1">
-                                                                {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                                {event.endTime && ` - ${new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                                                            </div>
-                                                            {event.location && (
-                                                                <div className="text-sm text-gray-500 mt-1">📍 {event.location}</div>
-                                                            )}
-                                                            {event.summary && (
-                                                                <div className="text-sm text-gray-600 mt-2">{event.summary}</div>
-                                                            )}
-                                                        </button>
-                                                    )
-                                                })}
+                                                {hourEvents.map((event) => (
+                                                    <div
+                                                        key={event.id}
+                                                        className="p-3 rounded bg-blue-50 border border-blue-100"
+                                                    >
+                                                        <div className="font-medium text-blue-900">{event.title}</div>
+                                                        <div className="text-sm text-gray-600 mt-1">
+                                                            {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                            {event.endTime && ` - ${new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                                                        </div>
+                                                        {event.location && (
+                                                            <div className="text-sm text-gray-500 mt-1">📍 {event.location}</div>
+                                                        )}
+                                                        {event.summary && (
+                                                            <div className="text-sm text-gray-600 mt-2">{event.summary}</div>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>

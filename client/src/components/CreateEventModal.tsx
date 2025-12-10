@@ -1,23 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import type { EventVisibility } from '../types'
+import { VISIBILITY_OPTIONS } from '../lib/visibility'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
 import { useUIStore } from '../stores'
-import { useEventDraft } from '../hooks/useEventDraft'
-import { Button } from './ui/Button'
-import { Input } from './ui/Input'
-import { Textarea } from './ui/Textarea'
-import { Card } from './ui/Card'
-import { RecurrenceSelector } from './RecurrenceSelector'
-import { VisibilitySelector } from './VisibilitySelector'
-import { TemplateSelector, type EventTemplate } from './TemplateSelector'
 
 interface CreateEventModalProps {
     isOpen: boolean
     onClose: () => void
     onSuccess: () => void
-    initialTemplateId?: string
 }
 
 const MAX_TAG_LENGTH = 50
@@ -35,14 +27,26 @@ const normalizeTagInput = (input: string): string => {
     return input.trim().replace(/^#+/, '').trim().toLowerCase()
 }
 
+interface EventTemplate {
+    id: string
+    name: string
+    description?: string | null
+    data: {
+        title?: string
+        summary?: string
+        location?: string
+        locationLatitude?: number
+        locationLongitude?: number
+        url?: string
+        startTime?: string
+        endTime?: string
+    }
+}
 
-
-export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId }: CreateEventModalProps) {
+export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
     const { user } = useAuth()
     const addErrorToast = useUIStore((state) => state.addErrorToast)
-    const { saveDraft, loadDraft, clearDraft, hasDraft } = useEventDraft()
     const [error, setError] = useState<string | null>(null)
-    const [showDraftPrompt, setShowDraftPrompt] = useState(false)
     const [formData, setFormData] = useState<{
         title: string
         summary: string
@@ -50,8 +54,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         locationLatitude: string
         locationLongitude: string
         url: string
-        headerImage: string
-        timezone: string
         startTime: string
         endTime: string
         visibility: EventVisibility
@@ -65,8 +67,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         locationLatitude: '',
         locationLongitude: '',
         url: '',
-        headerImage: '',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         startTime: '',
         endTime: '',
         visibility: 'PUBLIC',
@@ -166,27 +166,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         }
     }, [isOpen, user, loadTemplates])
 
-    // Load draft when modal opens
-    useEffect(() => {
-        if (isOpen && hasDraft()) {
-            setShowDraftPrompt(true)
-        }
-    }, [isOpen, hasDraft])
-
-    // Auto-save draft every few seconds when form has content
-    useEffect(() => {
-        if (!isOpen) return
-
-        const autoSaveInterval = setInterval(() => {
-            saveDraft(formData)
-        }, 3000) // Auto-save every 3 seconds
-
-        return () => clearInterval(autoSaveInterval)
-    }, [isOpen, formData, saveDraft])
-
     useEffect(() => {
         if (!isOpen) {
-            // Reset form when modal closes (but don't clear draft)
+            // Reset form when modal closes
             setFormData({
                 title: '',
                 summary: '',
@@ -194,8 +176,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 locationLatitude: '',
                 locationLongitude: '',
                 url: '',
-                headerImage: '',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
                 startTime: '',
                 endTime: '',
                 visibility: 'PUBLIC',
@@ -212,7 +192,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
             setTemplateDescription('')
             setError(null)
             setGeoLoading(false)
-            setShowDraftPrompt(false)
         }
     }, [isOpen])
 
@@ -227,29 +206,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
             setTemplateName((prev) => prev || formData.title)
         }
     }, [saveAsTemplate, formData.title])
-
-    const handleLoadDraft = () => {
-        const draft = loadDraft()
-        if (draft) {
-            setFormData(draft as typeof formData)
-            setShowDraftPrompt(false)
-        }
-    }
-
-    const handleDiscardDraft = () => {
-        clearDraft()
-        setShowDraftPrompt(false)
-    }
-
-    // Apply initial template if provided
-    useEffect(() => {
-        if (initialTemplateId && templates.length > 0 && isOpen) {
-            const template = templates.find((t) => t.id === initialTemplateId)
-            if (template && selectedTemplateId !== initialTemplateId) {
-                applyTemplate(initialTemplateId)
-            }
-        }
-    }, [initialTemplateId, templates, isOpen, selectedTemplateId])
 
     const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
         setFormData((prev) => ({
@@ -316,8 +272,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 ? template.data.locationLongitude.toString()
                 : '',
             url: template.data.url || '',
-            headerImage: '',
-            timezone: formData.timezone,
             startTime: '',
             endTime: '',
             visibility: formData.visibility,
@@ -390,8 +344,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
             locationLatitude: '',
             locationLongitude: '',
             url: '',
-            headerImage: '',
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             startTime: '',
             endTime: '',
             visibility: 'PUBLIC',
@@ -428,7 +380,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 addErrorToast({ id: crypto.randomUUID(), message: 'Your event was created, but saving the template failed. You can try again later from the event details page.' })
             }
         }
-        clearDraft() // Clear draft after successful creation
         resetForm()
         onSuccess()
         onClose()
@@ -478,8 +429,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 body: JSON.stringify({
                     ...payload,
                     tags: formData.tags.length > 0 ? formData.tags : undefined,
-                    headerImage: formData.headerImage.trim() || undefined,
-                    timezone: formData.timezone,
                 }),
             })
 
@@ -507,307 +456,317 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Create Event</h2>
+                        <h2 className="text-2xl font-bold">Create Event</h2>
                         <button
                             onClick={onClose}
-                            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 text-2xl"
-                            aria-label="Close modal"
+                            className="text-gray-500 hover:text-gray-700 text-2xl"
                         >
                             ×
                         </button>
                     </div>
                     {error && (
-                        <div className="bg-error-50 dark:bg-error-900/20 text-error-600 dark:text-error-400 p-3 rounded-lg mb-4 text-sm">
+                        <div className="bg-error-50 text-error-600 p-3 rounded-lg mb-4 text-sm">
                             {error}
                         </div>
                     )}
-                    {showDraftPrompt && (
-                        <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4 rounded-lg mb-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-semibold text-primary-900 dark:text-primary-100 mb-1">
-                                        Resume draft?
-                                    </h3>
-                                    <p className="text-sm text-primary-700 dark:text-primary-300">
-                                        You have an unsaved draft from a previous session. Would you like to continue where you left off?
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="primary"
-                                        size="sm"
-                                        onClick={handleLoadDraft}
-                                    >
-                                        Resume
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleDiscardDraft}
-                                    >
-                                        Discard
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     {user && (
-                        <div className="mb-4">
-                            <TemplateSelector
-                                templates={templates}
-                                selectedId={selectedTemplateId}
-                                onSelect={applyTemplate}
-                                onRefresh={refreshTemplates}
-                                loading={templatesLoading}
-                                error={templateError}
-                            />
+                        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3 mb-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold">Start from template</p>
+                                    <p className="text-xs text-gray-500">Prefill fields with a saved configuration.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={refreshTemplates}
+                                    className="text-sm text-primary-600 hover:underline disabled:opacity-50"
+                                    disabled={templatesLoading}
+                                >
+                                    {templatesLoading ? 'Refreshing...' : 'Refresh'}
+                                </button>
+                            </div>
+                            <select
+                                value={selectedTemplateId}
+                                onChange={(event) => applyTemplate(event.target.value)}
+                                className="input"
+                                disabled={templatesLoading || templates.length === 0}
+                            >
+                                <option value="">{templates.length ? 'Select a template' : 'No templates yet'}</option>
+                                {templates.map((template) => (
+                                    <option key={template.id} value={template.id}>
+                                        {template.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {templateError && (
+                                <p className="text-xs text-error-500">{templateError}</p>
+                            )}
                         </div>
                     )}
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input
-                            type="text"
-                            label="Event Title"
-                            required
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            placeholder="Team Meeting"
-                            fullWidth
-                        />
-
-                        <Textarea
-                            label="Description"
-                            value={formData.summary}
-                            onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                            rows={4}
-                            placeholder="What's this event about?"
-                            fullWidth
-                        />
-
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <Input
-                                type="datetime-local"
-                                label="Start Date & Time"
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Event Title *
+                            </label>
+                            <input
+                                type="text"
                                 required
-                                value={formData.startTime}
-                                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                fullWidth
-                            />
-
-                            <Input
-                                type="datetime-local"
-                                label="End Date & Time"
-                                value={formData.endTime}
-                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                                fullWidth
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                className="input"
+                                placeholder="Team Meeting"
                             />
                         </div>
 
-                        <div className="space-y-4">
-                            <Input
-                                type="text"
-                                label="Location label"
-                                value={formData.location}
-                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                placeholder="Conference Room A"
-                                helperText="This text is shown on cards and detail pages (e.g., venue or meeting link)."
-                                fullWidth
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Description
+                            </label>
+                            <textarea
+                                value={formData.summary}
+                                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                                className="textarea"
+                                rows={4}
+                                placeholder="What's this event about?"
                             />
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Start Date & Time *
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    required
+                                    value={formData.startTime}
+                                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                    className="input"
+                                />
+                            </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                                <label className="block text-sm font-medium mb-2">
+                                    End Date & Time
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={formData.endTime}
+                                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                    className="input"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Location label
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="input"
+                                    placeholder="Conference Room A"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    This text is shown on cards and detail pages (e.g., venue or meeting link).
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
                                     Coordinates (for map & nearby search)
                                 </label>
                                 <div className="grid md:grid-cols-2 gap-4">
-                                    <Input
-                                        type="number"
-                                        label="Latitude"
-                                        step="0.000001"
-                                        value={formData.locationLatitude}
-                                        onChange={(e) => setFormData({ ...formData, locationLatitude: e.target.value })}
-                                        placeholder="40.7128"
-                                        fullWidth
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="Longitude"
-                                        step="0.000001"
-                                        value={formData.locationLongitude}
-                                        onChange={(e) => setFormData({ ...formData, locationLongitude: e.target.value })}
-                                        placeholder="-74.0060"
-                                        fullWidth
-                                    />
+                                    <div>
+                                        <span className="text-xs uppercase text-gray-500">Latitude</span>
+                                        <input
+                                            type="number"
+                                            step="0.000001"
+                                            value={formData.locationLatitude}
+                                            onChange={(e) => setFormData({ ...formData, locationLatitude: e.target.value })}
+                                            className="input mt-1"
+                                            placeholder="40.7128"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-xs uppercase text-gray-500">Longitude</span>
+                                        <input
+                                            type="number"
+                                            step="0.000001"
+                                            value={formData.locationLongitude}
+                                            onChange={(e) => setFormData({ ...formData, locationLongitude: e.target.value })}
+                                            className="input mt-1"
+                                            placeholder="-74.0060"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex flex-wrap gap-3 mt-2">
-                                    <Button
+                                    <button
                                         type="button"
-                                        variant="secondary"
-                                        size="sm"
+                                        className="btn btn-secondary text-sm"
                                         onClick={handleUseCurrentLocation}
                                         disabled={geoLoading}
                                     >
                                         {geoLoading ? 'Locating…' : 'Use my location'}
-                                    </Button>
-                                    <Button
+                                    </button>
+                                    <button
                                         type="button"
-                                        variant="ghost"
-                                        size="sm"
+                                        className="btn btn-ghost text-sm"
                                         onClick={clearCoordinates}
                                         disabled={!formData.locationLatitude && !formData.locationLongitude}
                                     >
                                         Clear coordinates
-                                    </Button>
+                                    </button>
                                 </div>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                                <p className="text-xs text-gray-500 mt-1">
                                     Providing coordinates unlocks map displays and nearby discovery.
                                 </p>
                             </div>
 
-                            <Input
-                                type="text"
-                                label="Search for a place"
-                                value={locationSearch}
-                                onChange={(e) => setLocationSearch(e.target.value)}
-                                placeholder="Type a venue, city, or address"
-                                helperText="Pick a suggestion to autofill the address and coordinates."
-                                fullWidth
-                            />
-                            <div className="space-y-2 -mt-2">
-                                {locationQueryActive && locationSuggestionsLoading && (
-                                    <div className="text-xs text-neutral-500 dark:text-neutral-400">Searching for places…</div>
-                                )}
-                                {locationQueryActive && !locationSuggestionsLoading && locationSuggestions.length === 0 && (
-                                    <div className="text-xs text-neutral-400 dark:text-neutral-500">
-                                        No matching places yet. Keep typing for better results.
-                                    </div>
-                                )}
-                                {locationSuggestions.map((suggestion) => (
-                                    <button
-                                        key={suggestion.id}
-                                        type="button"
-                                        onClick={() => handleSuggestionSelect(suggestion)}
-                                        className="w-full text-left border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 hover:border-primary-400 dark:hover:border-primary-600 transition-colors"
-                                    >
-                                        <div className="font-medium text-neutral-900 dark:text-neutral-100">{suggestion.label}</div>
-                                        {suggestion.hint && (
-                                            <div className="text-xs text-neutral-500 dark:text-neutral-400">{suggestion.hint}</div>
-                                        )}
-                                        <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                                            {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Search for a place
+                                </label>
+                                <input
+                                    type="text"
+                                    value={locationSearch}
+                                    onChange={(e) => setLocationSearch(e.target.value)}
+                                    className="input"
+                                    placeholder="Type a venue, city, or address"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Pick a suggestion to autofill the address and coordinates.
+                                </p>
+                                <div className="mt-2 space-y-2">
+                                    {locationQueryActive && locationSuggestionsLoading && (
+                                        <div className="text-xs text-gray-500">Searching for places…</div>
+                                    )}
+                                    {locationQueryActive && !locationSuggestionsLoading && locationSuggestions.length === 0 && (
+                                        <div className="text-xs text-gray-400">
+                                            No matching places yet. Keep typing for better results.
                                         </div>
-                                    </button>
-                                ))}
-                                {locationSuggestionsError && (
-                                    <div className="text-xs text-error-500 dark:text-error-400">{locationSuggestionsError}</div>
-                                )}
+                                    )}
+                                    {locationSuggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion.id}
+                                            type="button"
+                                            onClick={() => handleSuggestionSelect(suggestion)}
+                                            className="w-full text-left border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-colors"
+                                        >
+                                            <div className="font-medium text-gray-900">{suggestion.label}</div>
+                                            {suggestion.hint && (
+                                                <div className="text-xs text-gray-500">{suggestion.hint}</div>
+                                            )}
+                                            <div className="text-xs text-gray-400 mt-1">
+                                                {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {locationSuggestionsError && (
+                                        <div className="text-xs text-error-500">{locationSuggestionsError}</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <Input
-                            type="url"
-                            label="Event URL"
-                            value={formData.url}
-                            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                            placeholder="https://..."
-                            helperText="Link to event website, video call, or registration page"
-                            fullWidth
-                        />
-
-                        <Input
-                            type="url"
-                            label="Header Image URL"
-                            value={formData.headerImage}
-                            onChange={(e) => setFormData({ ...formData, headerImage: e.target.value })}
-                            placeholder="https://example.com/image.jpg"
-                            helperText="Optional image to display at the top of the event page"
-                            fullWidth
-                        />
-
                         <div>
-                            <label htmlFor="timezone" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                                Timezone
+                            <label className="block text-sm font-medium mb-2">
+                                Event URL
                             </label>
-                            <select
-                                id="timezone"
-                                value={formData.timezone}
-                                onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                                className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            >
-                                {(() => {
-                                    // Try to use the modern API if available
-                                    const intl = Intl as typeof Intl & {
-                                        supportedValuesOf?: (type: 'timeZone') => string[]
-                                    }
-                                    if (typeof intl.supportedValuesOf === 'function') {
-                                        try {
-                                            return intl.supportedValuesOf('timeZone').map((tz: string) => (
-                                                <option key={tz} value={tz}>
-                                                    {tz}
-                                                </option>
-                                            ))
-                                        } catch (error) {
-                                            console.error('Failed to load timezones:', error)
-                                        }
-                                    }
-                                    // Fallback to common timezones
-                                    const commonTimezones = [
-                                        'UTC',
-                                        'America/New_York',
-                                        'America/Chicago',
-                                        'America/Denver',
-                                        'America/Los_Angeles',
-                                        'America/Toronto',
-                                        'Europe/London',
-                                        'Europe/Paris',
-                                        'Europe/Berlin',
-                                        'Asia/Tokyo',
-                                        'Asia/Shanghai',
-                                        'Australia/Sydney',
-                                    ]
-                                    return commonTimezones.map((tz) => (
-                                        <option key={tz} value={tz}>
-                                            {tz}
-                                        </option>
-                                    ))
-                                })()}
-                            </select>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                                The timezone for event start and end times
-                            </p>
-                        </div>
-
-                        <VisibilitySelector
-                            value={formData.visibility}
-                            onChange={(visibility) => setFormData({ ...formData, visibility })}
-                        />
-
-                        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
-                            <RecurrenceSelector
-                                value={{
-                                    pattern: formData.recurrencePattern as '' | 'DAILY' | 'WEEKLY' | 'MONTHLY',
-                                    endDate: formData.recurrenceEndDate,
-                                }}
-                                onChange={(recurrence) => setFormData({
-                                    ...formData,
-                                    recurrencePattern: recurrence.pattern,
-                                    recurrenceEndDate: recurrence.endDate,
-                                })}
-                                startTime={formData.startTime}
+                            <input
+                                type="url"
+                                value={formData.url}
+                                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                                className="input"
+                                placeholder="https://..."
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                            <label className="block text-sm font-medium mb-2">
+                                Visibility
+                            </label>
+                            <div className="grid gap-2">
+                                {VISIBILITY_OPTIONS.map((option) => {
+                                    const selected = formData.visibility === option.value
+                                    return (
+                                        <label
+                                            key={option.value}
+                                            className={`flex gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="visibility"
+                                                value={option.value}
+                                                checked={selected}
+                                                onChange={() => setFormData({ ...formData, visibility: option.value })}
+                                                className="sr-only"
+                                            />
+                                            <div>
+                                                <div className="font-medium text-gray-900">{option.label}</div>
+                                                <div className="text-sm text-gray-500">{option.description}</div>
+                                            </div>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Recurrence
+                            </label>
+                            <select
+                                className="input"
+                                value={formData.recurrencePattern}
+                                onChange={(e) => {
+                                    const value = e.target.value
+                                    setFormData({
+                                        ...formData,
+                                        recurrencePattern: value,
+                                        recurrenceEndDate: value ? formData.recurrenceEndDate : '',
+                                    })
+                                }}
+                            >
+                                <option value="">Does not repeat</option>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                                <option value="MONTHLY">Monthly</option>
+                            </select>
+                            {formData.recurrencePattern && (
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium mb-2">
+                                        Repeat until
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={formData.recurrenceEndDate}
+                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                        min={formData.startTime ? formData.startTime.split('T')[0] : undefined}
+                                        className="input"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recurring events show on the calendar up to this date.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
                                 Tags
                             </label>
                             <div className="space-y-2">
                                 <div className="flex gap-2">
-                                    <Input
+                                    <input
                                         type="text"
                                         value={tagInput}
                                         onChange={(e) => {
@@ -820,25 +779,26 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                                 addTag()
                                             }
                                         }}
-                                        error={!!tagError}
-                                        errorMessage={tagError || undefined}
+                                        className={`input flex-1 ${tagError ? 'border-error-500' : ''}`}
                                         placeholder="Add a tag (press Enter)"
-                                        fullWidth
                                     />
-                                    <Button
+                                    <button
                                         type="button"
-                                        variant="secondary"
                                         onClick={addTag}
+                                        className="btn btn-secondary"
                                     >
                                         Add
-                                    </Button>
+                                    </button>
                                 </div>
+                                {tagError && (
+                                    <p className="text-xs text-error-500">{tagError}</p>
+                                )}
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {formData.tags.map((tag) => (
                                             <span
                                                 key={tag}
-                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm"
+                                                className="badge badge-primary flex items-center gap-1"
                                             >
                                                 #{tag}
                                                 <button
@@ -849,8 +809,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                                             tags: formData.tags.filter((t) => t !== tag),
                                                         })
                                                     }}
-                                                    className="ml-1 hover:text-error-600 dark:hover:text-error-400"
-                                                    aria-label={`Remove ${tag} tag`}
+                                                    className="ml-1 hover:text-error-600"
                                                 >
                                                     ×
                                                 </button>
@@ -858,80 +817,31 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                         ))}
                                     </div>
                                 )}
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                <p className="text-xs text-gray-500">
                                     Add tags to help others discover your event
                                 </p>
                             </div>
                         </div>
 
-                        {user && (
-                            <div className="border-t border-gray-200 pt-4">
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={saveAsTemplate}
-                                        onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                                        className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                                    />
-                                    <div className="flex-1">
-                                        <span className="text-sm font-medium text-gray-900">Save as template</span>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Save this event configuration as a reusable template (excludes dates and tags)
-                                        </p>
-                                    </div>
-                                </label>
-                                {saveAsTemplate && (
-                                    <div className="mt-4 space-y-3 pl-7">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Template Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={templateName}
-                                                onChange={(e) => setTemplateName(e.target.value)}
-                                                className="input"
-                                                placeholder={formData.title || "My Event Template"}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Template Description (optional)
-                                            </label>
-                                            <textarea
-                                                value={templateDescription}
-                                                onChange={(e) => setTemplateDescription(e.target.value)}
-                                                className="textarea"
-                                                rows={2}
-                                                placeholder="Describe this template"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <div className="flex gap-3 pt-4">
-                            <Button
+                            <button
                                 type="submit"
-                                variant="primary"
                                 disabled={submitting}
-                                loading={submitting}
-                                fullWidth
+                                className="btn btn-primary flex-1"
                             >
                                 {submitting ? 'Creating...' : 'Create Event'}
-                            </Button>
-                            <Button
+                            </button>
+                            <button
                                 type="button"
-                                variant="secondary"
                                 onClick={onClose}
+                                className="btn btn-secondary"
                             >
                                 Cancel
-                            </Button>
+                            </button>
                         </div>
                     </form>
                 </div>
-            </Card>
+            </div>
         </div>
     )
 }

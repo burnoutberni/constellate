@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
@@ -9,10 +9,6 @@ import { queryKeys } from '../hooks/queries/keys'
 import { getVisibilityMeta } from '../lib/visibility'
 import { getDefaultTimezone } from '../lib/timezones'
 import type { Event } from '../types'
-import { AdvancedSearchFilters } from '../components/AdvancedSearchFilters'
-import { addRecentSearch } from '../components/SearchSuggestions'
-import { TrendingEvents } from '../components/TrendingEvents'
-import { RecommendedEvents } from '../components/RecommendedEvents'
 
 const DATE_RANGE_LABELS: Record<string, string> = {
     anytime: 'Any time',
@@ -148,6 +144,8 @@ const buildFormStateFromParams = (params: URLSearchParams): FormState => {
     }
 }
 
+const normalizeCategory = (value: string) => value.trim().replace(/^#+/, '').trim().toLowerCase()
+
 const formatDateLabel = (isoString: string) => {
     const date = new Date(isoString)
     if (Number.isNaN(date.getTime())) {
@@ -181,11 +179,22 @@ const formatEventDateTime = (isoString: string, formatter: Intl.DateTimeFormat) 
     return formatter.format(date)
 }
 
+const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
+    { value: 'anytime', label: DATE_RANGE_LABELS.anytime },
+    { value: 'today', label: DATE_RANGE_LABELS.today },
+    { value: 'tomorrow', label: DATE_RANGE_LABELS.tomorrow },
+    { value: 'this_weekend', label: DATE_RANGE_LABELS.this_weekend },
+    { value: 'next_7_days', label: DATE_RANGE_LABELS.next_7_days },
+    { value: 'next_30_days', label: DATE_RANGE_LABELS.next_30_days },
+    { value: 'custom', label: DATE_RANGE_LABELS.custom },
+]
+
 export function SearchPage() {
     const limit = 20
     const { user, logout } = useAuth()
     const { sseConnected } = useUIStore()
     const [searchParams, setSearchParams] = useSearchParams()
+    const [categoryInput, setCategoryInput] = useState('')
 
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FormState>(initialFormState)
@@ -276,14 +285,12 @@ export function SearchPage() {
         setSearchParams(nextParams, { replace: true })
     }
 
-    const handleSubmit = (event?: FormEvent) => {
-        event?.preventDefault()
+    const handleSubmit = (event: FormEvent) => {
+        event.preventDefault()
         const next = new URLSearchParams()
 
         if (formState.q.trim()) {
             next.set('q', formState.q.trim())
-            // Add to recent searches
-            addRecentSearch(formState.q.trim())
         }
 
         if (formState.location.trim()) {
@@ -321,6 +328,27 @@ export function SearchPage() {
         updateSearchParams(next)
     }
 
+    const handleCategoryKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== 'Enter' && event.key !== ',') {
+            return
+        }
+        event.preventDefault()
+        const normalized = normalizeCategory(categoryInput)
+        if (!normalized) {
+            return
+        }
+        setFormState((prev) => {
+            if (prev.categories.includes(normalized)) {
+                return prev
+            }
+            return {
+                ...prev,
+                categories: [...prev.categories, normalized],
+            }
+        })
+        setCategoryInput('')
+    }
+
     const handleRemoveFilter = (chip: ActiveFilterChip) => {
         const next = new URLSearchParams(searchParams)
         if ((chip.key === 'categories' || chip.key === 'tags') && chip.removableValue) {
@@ -339,7 +367,15 @@ export function SearchPage() {
 
     const handleClearAllFilters = () => {
         setFormState(DEFAULT_FORM_STATE)
+        setCategoryInput('')
         setSearchParams(new URLSearchParams(), { replace: true })
+    }
+
+    const handleRemoveCategory = (category: string) => {
+        setFormState((prev) => ({
+            ...prev,
+            categories: prev.categories.filter((item) => item !== category),
+        }))
     }
 
     const handlePageChange = (page: number) => {
@@ -379,24 +415,143 @@ export function SearchPage() {
         <div className="min-h-screen bg-gray-100">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
             <div className="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-12">
-                <div className="lg:col-span-4 space-y-4">
-                    <AdvancedSearchFilters
-                        filters={formState}
-                        onFiltersChange={setFormState}
-                        onApply={() => handleSubmit()}
-                        onClear={handleClearAllFilters}
-                    />
-                    
-                    {/* Trending Events Sidebar */}
-                    {!user && (
-                        <TrendingEvents limit={5} windowDays={7} />
-                    )}
-                    
-                    {/* Recommended Events Sidebar */}
-                    {user && (
-                        <RecommendedEvents limit={5} />
-                    )}
-                </div>
+                <form onSubmit={handleSubmit} className="lg:col-span-4 space-y-4">
+                    <div className="card p-5 space-y-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-gray-900">Advanced Filters</h2>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Combine multiple filters to pinpoint the exact events you want to explore.
+                            </p>
+                        </div>
+
+                        <label className="form-control w-full">
+                            <span className="label-text">Keyword</span>
+                            <input
+                                type="text"
+                                value={formState.q}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, q: event.target.value }))}
+                                placeholder="Search titles or descriptions"
+                                className="input input-bordered"
+                            />
+                        </label>
+
+                        <label className="form-control w-full">
+                            <span className="label-text">Location</span>
+                            <input
+                                type="text"
+                                value={formState.location}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, location: event.target.value }))}
+                                placeholder="City, venue, or keyword"
+                                className="input input-bordered"
+                            />
+                        </label>
+
+                        <label className="form-control w-full">
+                            <span className="label-text">Date range</span>
+                            <select
+                                value={formState.dateRange}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, dateRange: event.target.value as DateRangeSelection }))}
+                                className="select select-bordered"
+                            >
+                                {dateRangeOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        {formState.dateRange === 'custom' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <label className="form-control w-full">
+                                    <span className="label-text">Starts after</span>
+                                    <input
+                                        type="date"
+                                        value={formState.startDate}
+                                        onChange={(event) => setFormState((prev) => ({ ...prev, startDate: event.target.value }))}
+                                        className="input input-bordered"
+                                    />
+                                </label>
+                                <label className="form-control w-full">
+                                    <span className="label-text">Ends before</span>
+                                    <input
+                                        type="date"
+                                        value={formState.endDate}
+                                        onChange={(event) => setFormState((prev) => ({ ...prev, endDate: event.target.value }))}
+                                        className="input input-bordered"
+                                    />
+                                </label>
+                            </div>
+                        )}
+
+                        <label className="form-control w-full">
+                            <span className="label-text">Attendance mode</span>
+                            <select
+                                value={formState.mode}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, mode: event.target.value }))}
+                                className="select select-bordered"
+                            >
+                                <option value="">Any</option>
+                                <option value="OfflineEventAttendanceMode">In person</option>
+                                <option value="OnlineEventAttendanceMode">Online</option>
+                                <option value="MixedEventAttendanceMode">Hybrid</option>
+                            </select>
+                        </label>
+
+                        <label className="form-control w-full">
+                            <span className="label-text">Status</span>
+                            <select
+                                value={formState.status}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, status: event.target.value }))}
+                                className="select select-bordered"
+                            >
+                                <option value="">Any</option>
+                                <option value="EventScheduled">Scheduled</option>
+                                <option value="EventPostponed">Postponed</option>
+                                <option value="EventCancelled">Cancelled</option>
+                            </select>
+                        </label>
+
+                        <div className="space-y-2">
+                            <label className="form-control w-full">
+                                <span className="label-text">Categories / Tags</span>
+                                <input
+                                    type="text"
+                                    value={categoryInput}
+                                    onChange={(event) => setCategoryInput(event.target.value)}
+                                    onKeyDown={handleCategoryKeyDown}
+                                    placeholder="Press Enter to add"
+                                    className="input input-bordered"
+                                />
+                            </label>
+                            {formState.categories.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {formState.categories.map((category) => (
+                                        <span key={category} className="badge badge-outline gap-2">
+                                            #{category}
+                                            <button
+                                                type="button"
+                                                aria-label={`Remove ${category}`}
+                                                onClick={() => handleRemoveCategory(category)}
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button type="submit" className="btn btn-primary flex-1">
+                                Apply filters
+                            </button>
+                            <button type="button" onClick={handleClearAllFilters} className="btn btn-ghost">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </form>
 
                 <div className="lg:col-span-8 space-y-4">
                     <div className="card p-4 flex flex-col gap-3">

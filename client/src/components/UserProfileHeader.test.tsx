@@ -73,7 +73,8 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const followButton = screen.getByRole('button', { name: /Follow/i })
+        const buttons = screen.getAllByRole('button')
+        const followButton = buttons.find(btn => btn.textContent === 'Follow')
         expect(followButton).toBeInTheDocument()
     })
 
@@ -110,7 +111,6 @@ describe('UserProfileHeader Component', () => {
         const buttons = screen.getAllByRole('button')
         const followButton = buttons.find(btn => btn.textContent === 'Follow')
         const unfollowButton = buttons.find(btn => btn.textContent === 'Unfollow')
-        
         expect(followButton).toBeUndefined()
         expect(unfollowButton).toBeUndefined()
     })
@@ -130,10 +130,13 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const followButton = screen.getByRole('button', { name: /Follow/i })
-        expect(followButton).toBeInTheDocument()
-        fireEvent.click(followButton)
-        expect(onFollowClick).toHaveBeenCalledTimes(1)
+        const buttons = screen.getAllByRole('button')
+        const followButton = buttons.find(btn => btn.textContent === 'Follow')
+        expect(followButton).toBeDefined()
+        if (followButton) {
+            fireEvent.click(followButton)
+            expect(onFollowClick).toHaveBeenCalledTimes(1)
+        }
     })
 
     it('should call onUnfollowClick when unfollow button is clicked', () => {

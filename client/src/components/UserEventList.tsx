@@ -12,6 +12,7 @@ interface UserEventListProps {
  * UserEventList component displays a list of events created by a user.
  */
 export function UserEventList({ events, onEventClick }: UserEventListProps) {
+
     if (events.length === 0) {
         return (
             <div className="text-center">
