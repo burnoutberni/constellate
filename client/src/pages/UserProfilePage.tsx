@@ -113,7 +113,7 @@ export function UserProfilePage() {
                         {/* Sign Up Prompt for Unauthenticated Users */}
                         {!isAuthenticated && !isOwnProfile && (
                             <SignUpPrompt
-                                action="follow this user and see more"
+                                action="follow"
                                 className="mb-6"
                             />
                         )}
