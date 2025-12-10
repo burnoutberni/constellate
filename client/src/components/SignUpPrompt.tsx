@@ -109,6 +109,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   }
 
   // New API: uses Link or onSignUp callback
+<<<<<<< HEAD
   const getDefaultMessage = (): string => {
     if (message) return message
 
@@ -137,6 +138,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   /**
    * Helper function to get the action text for inline variant
    */
+<<<<<<< HEAD
   const getActionText = (actionValue: string | undefined): string => {
     if (!actionValue) return 'continue'
     

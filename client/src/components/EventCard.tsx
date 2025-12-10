@@ -4,8 +4,6 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Avatar } from './ui/Avatar'
 import { useAuth } from '../contexts/AuthContext'
-import { formatTime, formatRelativeDate } from '../lib/formatUtils'
-import { AttendeesIcon, LikeIcon, CommentIcon, LocationIcon, CalendarIcon } from './icons'
 import { getVisibilityMeta } from '../lib/visibility'
 import type { Event } from '../types'
 
