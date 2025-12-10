@@ -63,11 +63,7 @@ export function EventHeader({
         <Avatar
           src={organizer.profileImage || undefined}
           alt={organizer.name || organizer.username}
-<<<<<<< HEAD
           fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
-=======
-          fallback={organizer.name?.[0] || organizer.username[0]}
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
           size="lg"
         />
         <div>

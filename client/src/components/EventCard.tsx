@@ -155,7 +155,11 @@ export function EventCard(props: EventCardProps) {
           <h3 className="text-lg font-semibold text-text-primary line-clamp-2">{event.title}</h3>
           <p className="text-sm text-text-secondary">{formatEventDateTime(event.startTime)}</p>
           {event.location && (
+<<<<<<< HEAD
             <div className="flex items-center gap-2 text-sm text-text-secondary">
+=======
+            <div className="flex items-center gap-1 text-sm text-text-secondary">
+>>>>>>> b328d6e (Implement WP-107: Public User Profile Page with new components)
               <LocationIcon className="w-4 h-4" aria-label="Location" />
               <span>{event.location}</span>
             </div>
