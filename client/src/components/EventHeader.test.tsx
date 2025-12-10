@@ -23,11 +23,12 @@ describe('EventHeader', () => {
     expect(screen.getByText('@testuser')).toBeInTheDocument()
   })
 
-  it('renders delete button when user is owner', () => {
+  it('renders event actions when user is owner and eventId is provided', () => {
     const onDelete = vi.fn()
     renderWithRouter(
       <EventHeader
         organizer={mockOrganizer}
+        eventId="event123"
         isOwner={true}
         onDelete={onDelete}
       />
@@ -36,8 +37,26 @@ describe('EventHeader', () => {
     expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
   })
 
-  it('does not render delete button when user is not owner', () => {
-    renderWithRouter(<EventHeader organizer={mockOrganizer} isOwner={false} />)
+  it('does not render event actions when user is not owner', () => {
+    renderWithRouter(
+      <EventHeader 
+        organizer={mockOrganizer} 
+        eventId="event123"
+        isOwner={false} 
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
+  })
+
+  it('does not render event actions when eventId is not provided', () => {
+    renderWithRouter(
+      <EventHeader 
+        organizer={mockOrganizer} 
+        isOwner={true}
+        onDelete={vi.fn()}
+      />
+    )
 
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
   })

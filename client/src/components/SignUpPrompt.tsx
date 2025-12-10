@@ -1,18 +1,43 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
+import { SignupModal } from './SignupModal'
 
-interface SignUpPromptProps {
+// Legacy API props - uses SignupModal
+interface SignUpPromptPropsLegacy {
+  /**
+   * The action context for the prompt (e.g., "follow this user", "RSVP", etc.)
+   */
+  action?: string
+  /**
+   * Optional custom message
+   */
+  message?: string
+  /**
+   * Callback after successful signup/login
+   */
+  onSuccess?: () => void
+  /**
+   * Custom className for the card
+   */
+  className?: string
+  variant?: never
+  onSignUp?: never
+}
+
+// New API props - uses Link or onSignUp callback
+interface SignUpPromptPropsNew {
   /**
    * The action the user wants to perform
    */
-  action?: 'rsvp' | 'like' | 'comment' | 'share' | 'follow'
+  action?: 'rsvp' | 'like' | 'comment' | 'share' | 'follow' | string
   /**
    * Custom message to display
    */
   message?: string
   /**
-   * Callback when sign up button is clicked
+   * Callback when sign up button is clicked (alternative to opening modal)
    */
   onSignUp?: () => void
   /**
@@ -26,7 +51,10 @@ interface SignUpPromptProps {
    * Additional CSS classes to apply to the component
    */
   className?: string
+  onSuccess?: never
 }
+
+export type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
 
 /**
  * SignUpPrompt component displays a call-to-action for unauthenticated users
@@ -35,12 +63,58 @@ interface SignUpPromptProps {
  * Used throughout the app to encourage sign-ups for specific actions.
  */
 export function SignUpPrompt(props: SignUpPromptProps) {
-  const variant = props.variant || 'inline'
+  const [showSignupModal, setShowSignupModal] = useState(false)
+
+  // Determine which API is being used
+  const isLegacyAPI = 'onSuccess' in props || ('className' in props && !('variant' in props))
+  const variant = isLegacyAPI ? undefined : (props.variant || 'inline')
   const action = props.action
   const message = props.message
-  const className = props.className
-  const getDefaultMessage = () => {
+
+  // Legacy API: uses SignupModal (always shows as card)
+  if (isLegacyAPI) {
+    const defaultMessage = `Sign up to ${action || 'continue'}`
+
+    return (
+      <>
+        <Card variant="outlined" className={props.className}>
+          <CardContent className="text-center py-6">
+            <div className="text-4xl mb-3">👋</div>
+            <h3 className="text-lg font-semibold text-text-primary mb-2">
+              Join Constellate
+            </h3>
+            <p className="text-text-secondary mb-4">
+              {message || defaultMessage}
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => setShowSignupModal(true)}
+            >
+              Sign Up
+            </Button>
+          </CardContent>
+        </Card>
+
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+          onSuccess={() => {
+            setShowSignupModal(false)
+            props.onSuccess?.()
+          }}
+        />
+      </>
+    )
+  }
+
+  // New API: uses Link or onSignUp callback
+  const getDefaultMessage = (): string => {
     if (message) return message
+
+    if (typeof action === 'string' && !['rsvp', 'like', 'comment', 'share', 'follow'].includes(action)) {
+      return `Sign up to ${action}`
+    }
 
     switch (action) {
       case 'rsvp':
@@ -63,7 +137,13 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   /**
    * Helper function to get the action text for inline variant
    */
-  const getActionText = (actionValue: string): string => {
+  const getActionText = (actionValue: string | undefined): string => {
+    if (!actionValue) return 'continue'
+    
+    if (typeof actionValue === 'string' && !['rsvp', 'like', 'comment', 'share', 'follow'].includes(actionValue)) {
+      return actionValue
+    }
+
     switch (actionValue) {
       case 'rsvp':
         return 'RSVP to events'
@@ -82,7 +162,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
 
   if (variant === 'inline') {
     return (
-      <p className={`text-sm text-text-secondary text-center ${className || ''}`}>
+      <p className={`text-sm text-text-secondary text-center ${props.className || ''}`}>
         💡{' '}
         {props.onSignUp ? (
           <button
@@ -99,14 +179,14 @@ export function SignUpPrompt(props: SignUpPromptProps) {
             Sign up
           </Link>
         )}{' '}
-        to {action ? getActionText(action) : 'continue'}
+        to {getActionText(action)}
       </p>
     )
   }
 
   // Card variant
   return (
-    <Card variant="flat" padding="md" className={className}>
+    <Card variant="flat" padding="md" className={props.className}>
       <CardContent className="space-y-3">
         <p className="text-sm text-text-primary">{displayMessage}</p>
         {props.onSignUp ? (

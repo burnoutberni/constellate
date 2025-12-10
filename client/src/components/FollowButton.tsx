@@ -1,0 +1,84 @@
+import { Button } from './ui/Button'
+import { useFollowUser, useUnfollowUser, useFollowStatus } from '../hooks/queries/users'
+import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
+
+interface FollowButtonProps {
+    username: string
+    variant?: 'primary' | 'secondary' | 'ghost'
+    size?: 'sm' | 'md' | 'lg'
+    showStatus?: boolean
+}
+
+/**
+ * FollowButton component for following/unfollowing users.
+ * Integrates with the follow API and shows loading states.
+ */
+export function FollowButton({
+    username,
+    variant = 'primary',
+    size = 'sm',
+    showStatus = false,
+}: FollowButtonProps) {
+    const { user } = useAuth()
+    const navigate = useNavigate()
+    const { data: followStatus, isLoading: statusLoading } = useFollowStatus(username)
+    const followMutation = useFollowUser(username)
+    const unfollowMutation = useUnfollowUser(username)
+
+    // Don't show button if user is not authenticated or if it's their own profile
+    if (!user || user.username === username) {
+        return null
+    }
+
+    const isFollowing = followStatus?.isFollowing ?? false
+    const isAccepted = followStatus?.isAccepted ?? false
+    const isPending = isFollowing && !isAccepted
+    const isLoading = statusLoading || followMutation.isPending || unfollowMutation.isPending
+
+    const handleClick = () => {
+        if (!user) {
+            navigate('/login')
+            return
+        }
+
+        if (isFollowing) {
+            unfollowMutation.mutate()
+        } else {
+            followMutation.mutate()
+        }
+    }
+
+    // Show loading state while checking status
+    if (statusLoading) {
+        return (
+            <Button
+                variant={variant}
+                size={size}
+                disabled
+                loading
+            >
+                Loading...
+            </Button>
+        )
+    }
+
+    return (
+        <>
+            <Button
+                variant={isFollowing ? 'secondary' : variant}
+                size={size}
+                onClick={handleClick}
+                loading={isLoading}
+                disabled={isLoading}
+            >
+                {isFollowing ? 'Unfollow' : isPending ? 'Pending' : 'Follow'}
+            </Button>
+            {showStatus && isPending && (
+                <span className="text-xs text-text-tertiary ml-2">
+                    Follow request pending
+                </span>
+            )}
+        </>
+    )
+}
