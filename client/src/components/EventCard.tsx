@@ -134,7 +134,9 @@ export function EventCard({ event, formatter, viewMode = 'grid' }: EventCardProp
                             </Badge>
                         ))}
                         {event.tags.length > 3 && (
-                            <Badge variant="default" size="sm">+{event.tags.length - 3}</Badge>
+                            <Badge variant="default" size="sm" aria-label={`${event.tags.length - 3} more tags`}>
+                                +{event.tags.length - 3}
+                            </Badge>
                         )}
                     </div>
                 )}
