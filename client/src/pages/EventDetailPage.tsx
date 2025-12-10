@@ -25,6 +25,7 @@ import { setSEOMetadata } from '../lib/seo'
 import type { CommentMention } from '../types'
 import { getDefaultTimezone } from '../lib/timezones'
 import { useUIStore } from '../stores'
+import { formatDate } from '../lib/formatUtils'
 
 interface MentionSuggestion {
     id: string
@@ -498,7 +499,7 @@ export function EventDetailPage() {
     useEffect(() => {
         if (event) {
             const displayedEvent = event.sharedEvent ?? event
-            const eventDate = new Date(displayedEvent.startTime).toLocaleDateString()
+            const eventDate = formatDate(displayedEvent.startTime)
             
             let description: string
             if (displayedEvent.summary) {

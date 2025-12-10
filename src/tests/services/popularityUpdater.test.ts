@@ -217,7 +217,6 @@ describe('Popularity Updater Service', () => {
             // Processing should be false after stopping
             // Note: getIsProcessing might still be true if a cycle is running,
             // but after stopping the updater, it should eventually be false
-            const isProcessing = getIsProcessing()
             // The updater is stopped, so even if processing, it won't start new cycles
             expect(consoleLogSpy).toHaveBeenCalled()
 

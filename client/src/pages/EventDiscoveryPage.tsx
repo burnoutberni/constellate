@@ -103,19 +103,21 @@ export function EventDiscoveryPage() {
     const { sseConnected } = useUIStore()
     const [searchParams, setSearchParams] = useSearchParams()
     const [viewMode, setViewMode] = useState<ViewMode>('grid')
-    const [sortOption, setSortOption] = useState<SortOption>((searchParams.get('sort') as SortOption) || 'date')
 
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FilterFormState>(initialFormState)
 
+    // Derive sortOption directly from searchParams
+    const sortOption = useMemo<SortOption>(() => {
+        const sortParam = searchParams.get('sort') as SortOption | null
+        if (sortParam && ['date', 'popularity', 'trending'].includes(sortParam)) {
+            return sortParam
+        }
+        return 'date'
+    }, [searchParams])
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
-        // Update sort option from URL params
-        const sortParam = searchParams.get('sort') as SortOption | null
-        if (sortParam && ['date', 'popularity', 'trending'].includes(sortParam)) {
-            setSortOption(sortParam)
-        }
     }, [searchParams])
 
     const currentPage = Math.max(1, Number(searchParams.get('page') || '1'))
@@ -307,7 +309,6 @@ export function EventDiscoveryPage() {
                                             value={sortOption}
                                             onChange={(e) => {
                                                 const newSort = e.target.value as SortOption
-                                                setSortOption(newSort)
                                                 // Update URL params to reflect sort change
                                                 const next = new URLSearchParams(searchParams)
                                                 next.set('sort', newSort)
