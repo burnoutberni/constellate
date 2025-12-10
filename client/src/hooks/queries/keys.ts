@@ -25,5 +25,12 @@ export const queryKeys = {
         all: () => ['notifications'] as const,
         list: (limit: number) => ['notifications', 'list', limit] as const,
     },
+    instances: {
+        all: () => ['instances'] as const,
+        list: (params: { limit?: number; offset?: number; sortBy?: string }) =>
+            ['instances', 'list', params] as const,
+        search: (query: string, limit?: number) => ['instances', 'search', query, limit] as const,
+        detail: (domain: string) => ['instances', 'detail', domain] as const,
+    },
 } as const
 
