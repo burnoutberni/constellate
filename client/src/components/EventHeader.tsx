@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Avatar } from './ui/Avatar'
-import { EventActions } from './EventActions'
+import { Button } from './ui/Button'
 
 export interface EventHeaderProps {
   /**
@@ -14,10 +14,6 @@ export interface EventHeaderProps {
     displayColor?: string | null
   }
   /**
-   * Event ID
-   */
-  eventId?: string
-  /**
    * Whether the current user is the event owner
    */
   isOwner?: boolean
@@ -29,14 +25,6 @@ export interface EventHeaderProps {
    * Whether the delete action is in progress
    */
   isDeleting?: boolean
-  /**
-   * Callback for duplicate action
-   */
-  onDuplicate?: () => void
-  /**
-   * Whether duplicate is in progress
-   */
-  isDuplicating?: boolean
 }
 
 /**
@@ -47,12 +35,9 @@ export interface EventHeaderProps {
  */
 export function EventHeader({
   organizer,
-  eventId,
   isOwner = false,
   onDelete,
   isDeleting = false,
-  onDuplicate,
-  isDuplicating = false,
 }: EventHeaderProps) {
   return (
     <div className="flex items-start justify-between">
@@ -63,11 +48,7 @@ export function EventHeader({
         <Avatar
           src={organizer.profileImage || undefined}
           alt={organizer.name || organizer.username}
-<<<<<<< HEAD
           fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
-=======
-          fallback={organizer.name?.[0] || organizer.username[0]}
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
           size="lg"
         />
         <div>
@@ -77,16 +58,17 @@ export function EventHeader({
           <div className="text-text-secondary">@{organizer.username}</div>
         </div>
       </Link>
-      {isOwner && eventId && (
-        <EventActions
-          username={organizer.username}
-          eventId={eventId}
-          isOwner={isOwner}
-          onDelete={onDelete}
-          isDeleting={isDeleting}
-          onDuplicate={onDuplicate}
-          isDuplicating={isDuplicating}
-        />
+      {isOwner && onDelete && (
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={onDelete}
+          disabled={isDeleting}
+          loading={isDeleting}
+          leftIcon={<span>🗑️</span>}
+        >
+          Delete
+        </Button>
       )}
     </div>
   )

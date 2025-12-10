@@ -20,11 +20,8 @@ import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
-<<<<<<< HEAD
 import { Textarea } from '../components/ui/Textarea'
 import { Select } from '../components/ui/Select'
-=======
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
 import { Container } from '../components/layout/Container'
 import { setSEOMetadata } from '../lib/seo'
 import type { CommentMention } from '../types'
@@ -497,13 +494,6 @@ export function EventDetailPage() {
         }
     }
 
-    const handleDuplicateEvent = () => {
-        if (!event) return
-        // Navigate to edit page with duplicate intent - we'll handle this in EditEventPage
-        // For now, just navigate to create event modal (would need to open modal with pre-filled data)
-        addErrorToast({ id: crypto.randomUUID(), message: 'Duplicate functionality coming soon!' })
-    }
-
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
     const viewerTimezone = viewerProfile?.timezone || defaultTimezone
 
@@ -511,7 +501,6 @@ export function EventDetailPage() {
     useEffect(() => {
         if (event) {
             const displayedEvent = event.sharedEvent ?? event
-<<<<<<< HEAD
             const eventDate = formatDate(displayedEvent.startTime)
             
             let description: string
@@ -523,12 +512,6 @@ export function EventDetailPage() {
                 const locationText = displayedEvent.location ? ` at ${displayedEvent.location}` : ''
                 description = `Event on ${eventDate}${locationText}`
             }
-=======
-            const eventDate = new Date(displayedEvent.startTime).toLocaleDateString()
-            const description = displayedEvent.summary 
-                ? `${displayedEvent.summary.slice(0, 150)}${displayedEvent.summary.length > 150 ? '...' : ''}`
-                : `Event on ${eventDate}${displayedEvent.location ? ` at ${displayedEvent.location}` : ''}`
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
             
             setSEOMetadata({
                 title: displayedEvent.title,
@@ -643,12 +626,9 @@ export function EventDetailPage() {
                                 profileImage: event.user!.profileImage,
                                 displayColor: event.user!.displayColor,
                             }}
-                            eventId={eventId}
                             isOwner={user?.id === event.user!.id}
                             onDelete={handleDeleteEvent}
                             isDeleting={deleteEventMutation.isPending}
-                            onDuplicate={handleDuplicateEvent}
-                            isDuplicating={false}
                         />
 
                         <div className="mt-6">
@@ -711,7 +691,6 @@ export function EventDetailPage() {
                                 loading={shareMutation.isPending}
                                 className="flex-1 min-w-[100px]"
                             >
-<<<<<<< HEAD
                                 {(() => {
                                     if (shareMutation.isPending) {
                                         return 'Sharing...'
@@ -721,9 +700,6 @@ export function EventDetailPage() {
                                     }
                                     return '🔁 Share'
                                 })()}
-=======
-                                {shareMutation.isPending ? 'Sharing...' : (hasShared || userHasShared) ? '✅ Shared' : '🔁 Share'}
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                             </Button>
                         </div>
                         {!user && (
@@ -733,27 +709,15 @@ export function EventDetailPage() {
                         )}
                         {!eventHasStarted && (
                             <div className="mb-6 pb-4 border-b border-border-default">
-<<<<<<< HEAD
                                 <div className="flex items-center gap-3">
                                     <Select
                                         label="Reminder"
-=======
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Reminder
-                                </label>
-                                <div className="flex items-center gap-3">
-                                    <select
-                                        className="flex-1 px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                                         value={selectedReminder !== null ? String(selectedReminder) : ''}
                                         onChange={handleReminderChange}
                                         disabled={!user || !canManageReminder || reminderMutation.isPending}
                                         aria-label="Reminder notification timing"
-<<<<<<< HEAD
                                         helperText={getReminderHelperText()}
                                         className="flex-1"
-=======
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                                     >
                                         {REMINDER_OPTIONS.map((option) => (
                                             <option
@@ -763,21 +727,11 @@ export function EventDetailPage() {
                                                 {option.label}
                                             </option>
                                         ))}
-<<<<<<< HEAD
                                     </Select>
-=======
-                                    </select>
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                                     {reminderMutation.isPending && (
                                         <span className="text-sm text-text-secondary">Saving...</span>
                                     )}
                                 </div>
-<<<<<<< HEAD
-=======
-                                <p className="text-xs text-text-secondary mt-2">
-                                    {getReminderHelperText()}
-                                </p>
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                             </div>
                         )}
 
@@ -825,11 +779,7 @@ export function EventDetailPage() {
                         ) : (
                             <form onSubmit={handleCommentSubmit} className="mb-6">
                                 <div className="relative mb-3">
-<<<<<<< HEAD
                                     <Textarea
-=======
-                                    <textarea
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                                         ref={textareaRef}
                                         value={comment}
                                         onChange={handleCommentChange}
@@ -851,13 +801,8 @@ export function EventDetailPage() {
                                             }
                                         }}
                                         placeholder="Add a comment..."
-<<<<<<< HEAD
                                         rows={3}
                                         className="min-h-[80px]"
-=======
-                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 resize-y min-h-[80px]"
-                                        rows={3}
->>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
                                     />
                                     {showMentionSuggestions && mentionSuggestions.length > 0 && (
                                         <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border-default bg-background-primary shadow-lg">

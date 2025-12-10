@@ -104,7 +104,6 @@ describe('seo', () => {
       expect(ogTitleTags.length).toBe(1)
       expect((ogTitleTags[0] as HTMLMetaElement).content).toBe('Second Title')
     })
-<<<<<<< HEAD
 
     it('removes meta tags when values are no longer provided', () => {
       // Set initial metadata
@@ -154,8 +153,6 @@ describe('seo', () => {
       expect(document.querySelector('meta[name="twitter:image"]')).toBeNull()
       expect((document.querySelector('meta[name="twitter:card"]') as HTMLMetaElement).content).toBe('summary')
     })
-=======
->>>>>>> 80f45cd (WP-106: Add tests for EventHeader, EventInfo, SignUpPrompt and SEO utility)
   })
 
   describe('resetSEOMetadata', () => {

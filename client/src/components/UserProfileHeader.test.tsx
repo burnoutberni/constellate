@@ -73,7 +73,8 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const followButton = screen.getByRole('button', { name: /Follow/i })
+        const buttons = screen.getAllByRole('button')
+        const followButton = buttons.find(btn => btn.textContent === 'Follow')
         expect(followButton).toBeInTheDocument()
     })
 
@@ -129,8 +130,9 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const followButton = screen.getByRole('button', { name: /Follow/i })
-        expect(followButton).toBeInTheDocument()
+        const buttons = screen.getAllByRole('button')
+        const followButton = buttons.find(btn => btn.textContent === 'Follow')
+        expect(followButton).toBeDefined()
         if (followButton) {
             fireEvent.click(followButton)
             expect(onFollowClick).toHaveBeenCalledTimes(1)
