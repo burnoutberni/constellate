@@ -1,25 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { EventReminder } from '../../types'
-
-interface ReminderWithEvent extends EventReminder {
-    event: {
-        id: string
-        title: string
-        startTime: string
-        endTime?: string | null
-        timezone: string
-        headerImage?: string | null
-        user: {
-            id: string
-            username: string
-            name?: string | null
-            displayColor?: string
-            profileImage?: string | null
-            isRemote: boolean
-        }
-    }
-}
+import type { ReminderWithEvent } from '../../types'
 
 interface UserRemindersResponse {
     reminders: ReminderWithEvent[]

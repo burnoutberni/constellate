@@ -125,3 +125,15 @@ export interface CommentWithMentions {
     mentions?: CommentMention[]
     replies?: Array<CommentWithMentions>
 }
+
+export interface ReminderWithEvent extends EventReminder {
+    event: {
+        id: string
+        title: string
+        startTime: string
+        endTime?: string | null
+        timezone: string
+        headerImage?: string | null
+        user: EventUser
+    }
+}

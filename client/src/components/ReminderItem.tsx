@@ -3,27 +3,8 @@ import { Card, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Avatar } from './ui/Avatar'
-import type { EventReminder, ReminderStatus } from '../types'
+import type { ReminderWithEvent, ReminderStatus } from '../types'
 import { REMINDER_OPTIONS } from './ReminderSelector'
-
-interface ReminderWithEvent extends EventReminder {
-    event: {
-        id: string
-        title: string
-        startTime: string
-        endTime?: string | null
-        timezone: string
-        headerImage?: string | null
-        user: {
-            id: string
-            username: string
-            name?: string | null
-            displayColor?: string
-            profileImage?: string | null
-            isRemote: boolean
-        }
-    }
-}
 
 interface ReminderItemProps {
     reminder: ReminderWithEvent
@@ -49,12 +30,12 @@ function getReminderLabel(minutes: number): string {
     return option?.label || `${minutes} minutes before`
 }
 
-function getStatusBadgeVariant(status: ReminderStatus): 'default' | 'success' | 'warning' | 'danger' {
+function getStatusBadgeVariant(status: ReminderStatus): 'default' | 'success' | 'warning' | 'error' {
     switch (status) {
         case 'SENT':
             return 'success'
         case 'FAILED':
-            return 'danger'
+            return 'error'
         case 'CANCELLED':
             return 'default'
         case 'SENDING':
@@ -101,10 +82,9 @@ export function ReminderItem({ reminder, onDelete, isDeleting = false }: Reminde
 
                         <div className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
                             <Avatar
-                                src={event.user.profileImage}
+                                src={event.user.profileImage || undefined}
                                 fallback={event.user.username.slice(0, 2).toUpperCase()}
                                 size="sm"
-                                color={event.user.displayColor}
                             />
                             <Link
                                 to={`/@${event.user.username}`}
