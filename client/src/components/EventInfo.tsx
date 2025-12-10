@@ -2,7 +2,10 @@ import { useMemo } from 'react'
 import { Badge } from './ui/Badge'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
+<<<<<<< HEAD
 import { formatDate, formatTime } from '../lib/formatUtils'
+=======
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
 import type { EventVisibility, RecurrencePattern } from '../types'
 
 export interface EventInfoProps {
@@ -48,14 +51,21 @@ export function EventInfo({
     [event.visibility]
   )
 
+<<<<<<< HEAD
   const formatDateWithTimezone = useMemo(() => {
     return (dateString: string) => {
       return formatDate(dateString, {
+=======
+  const formatDate = useMemo(() => {
+    return (dateString: string) => {
+      return new Intl.DateTimeFormat('en-US', {
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         timeZone: viewerTimezone,
+<<<<<<< HEAD
       })
     }
   }, [viewerTimezone])
@@ -67,6 +77,19 @@ export function EventInfo({
         minute: '2-digit',
         timeZone: viewerTimezone,
       })
+=======
+      }).format(new Date(dateString))
+    }
+  }, [viewerTimezone])
+
+  const formatTime = useMemo(() => {
+    return (dateString: string) => {
+      return new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: viewerTimezone,
+      }).format(new Date(dateString))
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
     }
   }, [viewerTimezone])
 
@@ -99,15 +122,24 @@ export function EventInfo({
         {/* Date */}
         <div className="flex items-center gap-3 text-text-primary">
           <span className="text-xl" aria-hidden="true">📅</span>
+<<<<<<< HEAD
           <span>{formatDateWithTimezone(event.startTime)}</span>
+=======
+          <span>{formatDate(event.startTime)}</span>
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
         </div>
 
         {/* Time */}
         <div className="flex items-center gap-3 text-text-primary">
           <span className="text-xl" aria-hidden="true">🕐</span>
           <span>
+<<<<<<< HEAD
             {formatTimeWithTimezone(event.startTime)}
             {event.endTime && ` - ${formatTimeWithTimezone(event.endTime)}`}
+=======
+            {formatTime(event.startTime)}
+            {event.endTime && ` - ${formatTime(event.endTime)}`}
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
           </span>
         </div>
 
@@ -150,7 +182,11 @@ export function EventInfo({
             <span className="text-xl" aria-hidden="true">🔁</span>
             <span>
               Repeats {getRecurrenceLabel(event.recurrencePattern)}
+<<<<<<< HEAD
               {event.recurrenceEndDate && ` until ${formatDateWithTimezone(event.recurrenceEndDate)}`}
+=======
+              {event.recurrenceEndDate && ` until ${formatDate(event.recurrenceEndDate)}`}
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
             </span>
           </div>
         )}

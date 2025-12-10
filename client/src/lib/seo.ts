@@ -28,7 +28,10 @@ export interface SEOMetadata {
 /**
  * Sets SEO metadata for the current page.
  * Updates document title and meta tags.
+<<<<<<< HEAD
  * Removes meta tags when values are no longer provided.
+=======
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
  */
 export function setSEOMetadata({
   title,
@@ -44,6 +47,7 @@ export function setSEOMetadata({
     document.title = 'Constellate'
   }
 
+<<<<<<< HEAD
   // Set or update meta description, or remove if not provided
   if (description) {
     setOrUpdateMetaTag('name', 'description', description)
@@ -86,12 +90,45 @@ export function setSEOMetadata({
     setOrUpdateMetaTag('name', 'twitter:description', description)
   } else {
     removeMetaTag('name', 'twitter:description')
+=======
+  // Set or update meta description
+  if (description) {
+    setOrUpdateMetaTag('name', 'description', description)
+  }
+
+  // Set Open Graph meta tags
+  if (title) {
+    setOrUpdateMetaTag('property', 'og:title', title)
+  }
+  if (description) {
+    setOrUpdateMetaTag('property', 'og:description', description)
+  }
+  if (ogImage) {
+    setOrUpdateMetaTag('property', 'og:image', ogImage)
+  }
+  setOrUpdateMetaTag('property', 'og:type', ogType)
+
+  // Set canonical URL
+  if (canonicalUrl) {
+    setOrUpdateLink('canonical', canonicalUrl)
+  }
+
+  // Set Twitter Card meta tags
+  if (title) {
+    setOrUpdateMetaTag('name', 'twitter:title', title)
+  }
+  if (description) {
+    setOrUpdateMetaTag('name', 'twitter:description', description)
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
   }
   if (ogImage) {
     setOrUpdateMetaTag('name', 'twitter:image', ogImage)
     setOrUpdateMetaTag('name', 'twitter:card', 'summary_large_image')
   } else {
+<<<<<<< HEAD
     removeMetaTag('name', 'twitter:image')
+=======
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
     setOrUpdateMetaTag('name', 'twitter:card', 'summary')
   }
 }
@@ -119,6 +156,7 @@ function setOrUpdateMetaTag(
 }
 
 /**
+<<<<<<< HEAD
  * Helper function to remove a meta tag
  */
 function removeMetaTag(
@@ -135,6 +173,8 @@ function removeMetaTag(
 }
 
 /**
+=======
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
  * Helper function to set or update a link tag
  */
 function setOrUpdateLink(rel: string, href: string): void {
@@ -153,6 +193,7 @@ function setOrUpdateLink(rel: string, href: string): void {
 }
 
 /**
+<<<<<<< HEAD
  * Helper function to remove a link tag
  */
 function removeLink(rel: string): void {
@@ -166,6 +207,8 @@ function removeLink(rel: string): void {
 }
 
 /**
+=======
+>>>>>>> 0136c33 (WP-106: Add EventHeader, EventInfo, SignUpPrompt components and refactor EventDetailPage)
  * Resets SEO metadata to defaults
  */
 export function resetSEOMetadata(): void {
