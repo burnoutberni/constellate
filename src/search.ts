@@ -292,6 +292,12 @@ app.get('/', async (c) => {
             // For popularity sorting, fetch all matching events and sort by computed popularity
             // Popularity formula: attendance * 2 + likes
             // We fetch all matching events to ensure correct sorting across the entire dataset
+            // 
+            // PERFORMANCE NOTE: This approach loads all matching events into memory, calculates
+            // popularity scores, sorts them, and then applies pagination. This does not scale well
+            // and could lead to significant performance degradation and high memory usage as the
+            // number of events grows. Consider exploring alternatives, such as pre-calculating and
+            // storing a popularity score in the database, or using database-level aggregation queries.
             
             // Fetch all matching events with their counts
             const allEvents = await prisma.event.findMany({

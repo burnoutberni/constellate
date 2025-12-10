@@ -6,9 +6,6 @@ import { Badge } from './ui/Badge'
 import { normalizeCategory } from '../lib/searchUtils'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
-export { DATE_RANGE_LABELS, type DateRangeSelection }
-export type { BackendDateRange } from '../lib/searchConstants'
-
 export interface FilterFormState {
     q: string
     location: string

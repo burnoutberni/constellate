@@ -2,8 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { EventCard } from '../components/EventCard'
-import { EventFilters, type FilterFormState, type DateRangeSelection } from '../components/EventFilters'
-import { DATE_RANGE_LABELS } from '../lib/searchConstants'
+import { EventFilters, type FilterFormState } from '../components/EventFilters'
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -12,9 +12,6 @@ import { Grid } from '../components/layout/Grid'
 import { useAuth } from '../contexts/AuthContext'
 import { useUIStore } from '../stores'
 import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
-import { useQuery } from '@tanstack/react-query'
-import { queryKeys } from '../hooks/queries/keys'
-import { getDefaultTimezone } from '../lib/timezones'
 import { 
     parseCommaList, 
     isoToInputDate, 
@@ -91,16 +88,6 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
     }
 }
 
-const createEventDateTimeFormatter = (timezone: string) => {
-    return new Intl.DateTimeFormat(navigator.language || 'en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZone: timezone,
-    })
-}
 
 interface ActiveFilterChip {
     key: string
@@ -120,26 +107,6 @@ export function EventDiscoveryPage() {
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FilterFormState>(initialFormState)
 
-    const { data: viewerProfile } = useQuery({
-        queryKey: queryKeys.users.currentProfile(user?.id),
-        queryFn: async () => {
-            if (!user?.id) return null
-            const response = await fetch('/api/users/me/profile', {
-                credentials: 'include',
-            })
-            if (!response.ok) return null
-            return response.json()
-        },
-        enabled: !!user?.id,
-    })
-
-    const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
-    const viewerTimezone = viewerProfile?.timezone || defaultTimezone
-
-    const eventDateTimeFormatter = useMemo(
-        () => createEventDateTimeFormatter(viewerTimezone),
-        [viewerTimezone]
-    )
 
     useEffect(() => {
         setFormState(buildFormStateFromParams(searchParams))
@@ -466,8 +433,8 @@ export function EventDiscoveryPage() {
                                     <EventCard
                                         key={event.id}
                                         event={event}
-                                        formatter={eventDateTimeFormatter}
-                                        viewMode="grid"
+                                        variant="full"
+                                        isAuthenticated={!!user}
                                     />
                                 ))}
                             </Grid>
@@ -479,8 +446,8 @@ export function EventDiscoveryPage() {
                                     <EventCard
                                         key={event.id}
                                         event={event}
-                                        formatter={eventDateTimeFormatter}
-                                        viewMode="list"
+                                        variant="full"
+                                        isAuthenticated={!!user}
                                     />
                                 ))}
                             </div>

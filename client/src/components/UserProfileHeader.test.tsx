@@ -75,7 +75,7 @@ describe('UserProfileHeader Component', () => {
 
         const buttons = screen.getAllByRole('button')
         const followButton = buttons.find(btn => btn.textContent === 'Follow')
-        expect(followButton).toBeDefined()
+        expect(followButton).toBeInTheDocument()
     })
 
     it('should show unfollow button when following', () => {
@@ -92,9 +92,8 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const buttons = screen.getAllByRole('button')
-        const unfollowButton = buttons.find(btn => btn.textContent === 'Unfollow')
-        expect(unfollowButton).toBeDefined()
+        const unfollowButton = screen.getByRole('button', { name: /Unfollow/i })
+        expect(unfollowButton).toBeInTheDocument()
     })
 
     it('should not show follow button when own profile', () => {
@@ -112,7 +111,6 @@ describe('UserProfileHeader Component', () => {
         const buttons = screen.getAllByRole('button')
         const followButton = buttons.find(btn => btn.textContent === 'Follow')
         const unfollowButton = buttons.find(btn => btn.textContent === 'Unfollow')
-        
         expect(followButton).toBeUndefined()
         expect(unfollowButton).toBeUndefined()
     })
@@ -134,6 +132,7 @@ describe('UserProfileHeader Component', () => {
 
         const buttons = screen.getAllByRole('button')
         const followButton = buttons.find(btn => btn.textContent === 'Follow')
+        expect(followButton).toBeDefined()
         if (followButton) {
             fireEvent.click(followButton)
             expect(onFollowClick).toHaveBeenCalledTimes(1)
@@ -155,12 +154,9 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const buttons = screen.getAllByRole('button')
-        const unfollowButton = buttons.find(btn => btn.textContent === 'Unfollow')
-        if (unfollowButton) {
-            fireEvent.click(unfollowButton)
-            expect(onUnfollowClick).toHaveBeenCalledTimes(1)
-        }
+        const unfollowButton = screen.getByRole('button', { name: /Unfollow/i })
+        fireEvent.click(unfollowButton)
+        expect(onUnfollowClick).toHaveBeenCalledTimes(1)
     })
 
     it('should show pending state when follow is pending', () => {
@@ -177,9 +173,8 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
-        const buttons = screen.getAllByRole('button')
-        const pendingButton = buttons.find(btn => btn.textContent === 'Pending')
-        expect(pendingButton).toBeDefined()
+        const pendingButton = screen.getByRole('button', { name: /Pending/i })
+        expect(pendingButton).toBeInTheDocument()
     })
 
     it('should display remote badge and instance for remote users', () => {
@@ -282,8 +277,12 @@ describe('UserProfileHeader Component', () => {
             />
         )
 
+        // Find the disabled button (the follow button in loading state)
         const buttons = screen.getAllByRole('button')
-        const followButton = buttons.find(btn => btn.textContent?.includes('Follow') && btn.hasAttribute('disabled'))
+        const followButton = buttons.find(btn => 
+            btn.hasAttribute('disabled') && 
+            (btn.textContent?.includes('Follow') || btn.querySelector('svg.animate-spin'))
+        )
         expect(followButton).toBeDefined()
         expect(followButton).toBeDisabled()
     })

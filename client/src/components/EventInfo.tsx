@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Badge } from './ui/Badge'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
+import { formatDate, formatTime } from '../lib/formatUtils'
 import type { EventVisibility, RecurrencePattern } from '../types'
 
 export interface EventInfoProps {
@@ -47,25 +48,25 @@ export function EventInfo({
     [event.visibility]
   )
 
-  const formatDate = useMemo(() => {
+  const formatDateWithTimezone = useMemo(() => {
     return (dateString: string) => {
-      return new Intl.DateTimeFormat(navigator.language || 'en-US', {
+      return formatDate(dateString, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         timeZone: viewerTimezone,
-      }).format(new Date(dateString))
+      })
     }
   }, [viewerTimezone])
 
-  const formatTime = useMemo(() => {
+  const formatTimeWithTimezone = useMemo(() => {
     return (dateString: string) => {
-      return new Intl.DateTimeFormat(navigator.language || 'en-US', {
+      return formatTime(dateString, {
         hour: 'numeric',
         minute: '2-digit',
         timeZone: viewerTimezone,
-      }).format(new Date(dateString))
+      })
     }
   }, [viewerTimezone])
 
@@ -98,15 +99,15 @@ export function EventInfo({
         {/* Date */}
         <div className="flex items-center gap-3 text-text-primary">
           <span className="text-xl" aria-hidden="true">📅</span>
-          <span>{formatDate(event.startTime)}</span>
+          <span>{formatDateWithTimezone(event.startTime)}</span>
         </div>
 
         {/* Time */}
         <div className="flex items-center gap-3 text-text-primary">
           <span className="text-xl" aria-hidden="true">🕐</span>
           <span>
-            {formatTime(event.startTime)}
-            {event.endTime && ` - ${formatTime(event.endTime)}`}
+            {formatTimeWithTimezone(event.startTime)}
+            {event.endTime && ` - ${formatTimeWithTimezone(event.endTime)}`}
           </span>
         </div>
 
@@ -149,7 +150,7 @@ export function EventInfo({
             <span className="text-xl" aria-hidden="true">🔁</span>
             <span>
               Repeats {getRecurrenceLabel(event.recurrencePattern)}
-              {event.recurrenceEndDate && ` until ${formatDate(event.recurrenceEndDate)}`}
+              {event.recurrenceEndDate && ` until ${formatDateWithTimezone(event.recurrenceEndDate)}`}
             </span>
           </div>
         )}

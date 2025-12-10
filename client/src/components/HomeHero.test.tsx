@@ -1,30 +1,54 @@
 import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
 import { HomeHero } from './HomeHero'
 
 describe('HomeHero', () => {
-  it('should render hero title and description', () => {
-    const props = {
-      isAuthenticated: false,
-    }
+  it('should render hero title and description for unauthenticated users', () => {
+    render(
+      <BrowserRouter>
+        <HomeHero isAuthenticated={false} />
+      </BrowserRouter>
+    )
     
-    // Component should be exported and importable
-    expect(HomeHero).toBeDefined()
-    expect(typeof HomeHero).toBe('function')
-    
-    // Props interface should accept isAuthenticated
-    expect(props.isAuthenticated).toBe(false)
+    expect(screen.getByText(/Discover Events in the/i)).toBeInTheDocument()
+    expect(screen.getByText(/Fediverse/i)).toBeInTheDocument()
+    expect(screen.getByText(/A federated event platform built on ActivityPub/i)).toBeInTheDocument()
+    expect(screen.getByText('Sign Up Free')).toBeInTheDocument()
+    expect(screen.getByText('Browse Events')).toBeInTheDocument()
   })
 
-  it('should accept authenticated state', () => {
-    const props = {
-      isAuthenticated: true,
-    }
+  it('should render different CTAs for authenticated users', () => {
+    render(
+      <BrowserRouter>
+        <HomeHero isAuthenticated={true} />
+      </BrowserRouter>
+    )
     
-    expect(props.isAuthenticated).toBe(true)
+    expect(screen.getByText(/Discover Events in the/i)).toBeInTheDocument()
+    expect(screen.getByText('View Your Feed')).toBeInTheDocument()
+    expect(screen.getByText('Discover Events')).toBeInTheDocument()
+    expect(screen.queryByText('Sign Up Free')).not.toBeInTheDocument()
+    expect(screen.queryByText('Browse Events')).not.toBeInTheDocument()
   })
 
-  it('should be a valid React component', () => {
-    // Verify the component can be called as a function
-    expect(() => HomeHero({ isAuthenticated: false })).not.toThrow()
+  it('should show learn more link for unauthenticated users', () => {
+    render(
+      <BrowserRouter>
+        <HomeHero isAuthenticated={false} />
+      </BrowserRouter>
+    )
+    
+    expect(screen.getByText(/Learn more about federation/i)).toBeInTheDocument()
+  })
+
+  it('should not show learn more link for authenticated users', () => {
+    render(
+      <BrowserRouter>
+        <HomeHero isAuthenticated={true} />
+      </BrowserRouter>
+    )
+    
+    expect(screen.queryByText(/Learn more about federation/i)).not.toBeInTheDocument()
   })
 })

@@ -140,42 +140,46 @@ describe('EventCard Component', () => {
   })
 
   describe('New API (variant + isAuthenticated)', () => {
-    it('should accept event and variant props', () => {
-      const props = {
-        event: mockEvent,
-        variant: 'full' as const,
-        isAuthenticated: false,
-      }
+    it('should render full variant with event title', () => {
+      render(
+        <BrowserRouter>
+          <EventCard event={mockEvent} variant="full" isAuthenticated={false} />
+        </BrowserRouter>
+      )
 
-      expect(EventCard).toBeDefined()
-      expect(typeof EventCard).toBe('function')
-      expect(props.event.id).toBe('1')
-      expect(props.variant).toBe('full')
+      expect(screen.getByText('Test Event')).toBeInTheDocument()
     })
 
-    it('should accept compact variant', () => {
-      const props = {
-        event: mockEvent,
-        variant: 'compact' as const,
-        isAuthenticated: true,
-      }
+    it('should render compact variant with event title', () => {
+      render(
+        <BrowserRouter>
+          <EventCard event={mockEvent} variant="compact" isAuthenticated={true} />
+        </BrowserRouter>
+      )
 
-      expect(props.variant).toBe('compact')
+      expect(screen.getByText('Test Event')).toBeInTheDocument()
     })
 
-    it('should handle authentication state', () => {
-      const propsUnauthenticated = {
-        event: mockEvent,
-        isAuthenticated: false,
-      }
+    it('should show sign up link for unauthenticated users in full variant', () => {
+      render(
+        <BrowserRouter>
+          <EventCard event={mockEvent} variant="full" isAuthenticated={false} />
+        </BrowserRouter>
+      )
 
-      const propsAuthenticated = {
-        event: mockEvent,
-        isAuthenticated: true,
-      }
+      const signUpLink = screen.getByText('Sign up to RSVP')
+      expect(signUpLink).toBeInTheDocument()
+      expect(signUpLink.closest('a')).toHaveAttribute('href', '/login')
+    })
 
-      expect(propsUnauthenticated.isAuthenticated).toBe(false)
-      expect(propsAuthenticated.isAuthenticated).toBe(true)
+    it('should not show sign up link for authenticated users in full variant', () => {
+      render(
+        <BrowserRouter>
+          <EventCard event={mockEvent} variant="full" isAuthenticated={true} />
+        </BrowserRouter>
+      )
+
+      expect(screen.queryByText('Sign up to RSVP')).not.toBeInTheDocument()
     })
 
     it('should render full variant', () => {

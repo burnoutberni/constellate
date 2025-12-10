@@ -6,6 +6,7 @@ import { Avatar } from './ui/Avatar'
 import { useAuth } from '../contexts/AuthContext'
 import { getVisibilityMeta } from '../lib/visibility'
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
+import { AttendeesIcon, LikeIcon, CommentIcon, LocationIcon, CalendarIcon } from './icons'
 import type { Event } from '../types'
 
 interface EventCardPropsBase {
@@ -105,11 +106,22 @@ export function EventCard(props: EventCardProps) {
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-text-secondary">
           {typeof event._count?.attendance === 'number' && (
-            <span>👥 {event._count.attendance} attending</span>
+            <span className="flex items-center gap-1">
+              <AttendeesIcon className="w-4 h-4" aria-label="Attendees" />
+              {event._count.attendance} attending
+            </span>
           )}
-          {typeof event._count?.likes === 'number' && <span>❤️ {event._count.likes} likes</span>}
+          {typeof event._count?.likes === 'number' && (
+            <span className="flex items-center gap-1">
+              <LikeIcon className="w-4 h-4" aria-label="Likes" />
+              {event._count.likes} likes
+            </span>
+          )}
           {typeof event._count?.comments === 'number' && (
-            <span>💬 {event._count.comments} comments</span>
+            <span className="flex items-center gap-1">
+              <CommentIcon className="w-4 h-4" aria-label="Comments" />
+              {event._count.comments} comments
+            </span>
           )}
         </div>
 
@@ -147,7 +159,10 @@ export function EventCard(props: EventCardProps) {
           <h3 className="text-lg font-semibold text-text-primary line-clamp-2">{event.title}</h3>
           <p className="text-sm text-text-secondary">{formatEventDateTime(event.startTime)}</p>
           {event.location && (
-            <p className="text-sm text-text-secondary">📍 {event.location}</p>
+            <p className="text-sm text-text-secondary flex items-center gap-1">
+              <LocationIcon className="w-4 h-4" aria-label="Location" />
+              {event.location}
+            </p>
           )}
           {event.user && (
             <p className="text-xs text-text-secondary">by @{event.user.username}</p>
@@ -174,9 +189,17 @@ export function EventCard(props: EventCardProps) {
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary">
             {typeof event._count?.attendance === 'number' && (
-              <span>👥 {event._count.attendance}</span>
+              <span className="flex items-center gap-1">
+                <AttendeesIcon className="w-3 h-3" aria-label="Attendees" />
+                {event._count.attendance}
+              </span>
             )}
-            {typeof event._count?.likes === 'number' && <span>❤️ {event._count.likes}</span>}
+            {typeof event._count?.likes === 'number' && (
+              <span className="flex items-center gap-1">
+                <LikeIcon className="w-3 h-3" aria-label="Likes" />
+                {event._count.likes}
+              </span>
+            )}
           </div>
         </div>
 
@@ -218,7 +241,7 @@ export function EventCard(props: EventCardProps) {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <span>📅</span>
+              <CalendarIcon className="w-4 h-4" aria-label="Date" />
               <span>{formatRelativeDate(event.startTime)}</span>
               <span>•</span>
               <span>{formatTime(event.startTime)}</span>
@@ -226,7 +249,7 @@ export function EventCard(props: EventCardProps) {
 
             {event.location && (
               <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <span>📍</span>
+                <LocationIcon className="w-4 h-4" aria-label="Location" />
                 <span className="truncate">{event.location}</span>
               </div>
             )}
@@ -291,7 +314,7 @@ export function EventCard(props: EventCardProps) {
 
           {/* Date and Time */}
           <div className="flex items-center gap-2 text-sm text-text-secondary">
-            <span>📅</span>
+            <CalendarIcon className="w-4 h-4" aria-label="Date" />
             <span className="font-medium">{formatRelativeDate(event.startTime)}</span>
             <span>•</span>
             <span>{formatTime(event.startTime)}</span>
@@ -300,7 +323,7 @@ export function EventCard(props: EventCardProps) {
           {/* Location */}
           {event.location && (
             <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <span>📍</span>
+              <LocationIcon className="w-4 h-4" aria-label="Location" />
               <span className="truncate">{event.location}</span>
             </div>
           )}
@@ -310,19 +333,19 @@ export function EventCard(props: EventCardProps) {
             <div className="flex items-center gap-4 pt-2 border-t border-border-default text-sm text-text-secondary">
               {event._count.attendance > 0 && (
                 <div className="flex items-center gap-1">
-                  <span>👥</span>
+                  <AttendeesIcon className="w-4 h-4" aria-label="Attendees" />
                   <span>{event._count.attendance}</span>
                 </div>
               )}
               {event._count.likes > 0 && (
                 <div className="flex items-center gap-1">
-                  <span>❤️</span>
+                  <LikeIcon className="w-4 h-4" aria-label="Likes" />
                   <span>{event._count.likes}</span>
                 </div>
               )}
               {event._count.comments > 0 && (
                 <div className="flex items-center gap-1">
-                  <span>💬</span>
+                  <CommentIcon className="w-4 h-4" aria-label="Comments" />
                   <span>{event._count.comments}</span>
                 </div>
               )}
