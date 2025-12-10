@@ -1,8 +1,33 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
+import { SignupModal } from './SignupModal'
 
-interface SignUpPromptProps {
+// Legacy API props
+interface SignUpPromptPropsLegacy {
+  /**
+   * The action context for the prompt (e.g., "follow this user", "RSVP", etc.)
+   */
+  action?: string
+  /**
+   * Optional custom message
+   */
+  message?: string
+  /**
+   * Callback after successful signup/login
+   */
+  onSuccess?: () => void
+  /**
+   * Custom className for the card
+   */
+  className?: string
+  variant?: never
+  onSignUp?: never
+}
+
+// New API props
+interface SignUpPromptPropsNew {
   /**
    * The action the user wants to perform
    */
@@ -22,11 +47,11 @@ interface SignUpPromptProps {
    * @default 'inline'
    */
   variant?: 'inline' | 'card'
-  /**
-   * Additional CSS classes to apply to the component
-   */
-  className?: string
+  onSuccess?: never
+  className?: never
 }
+
+export type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
 
 /**
  * SignUpPrompt component displays a call-to-action for unauthenticated users
@@ -35,10 +60,52 @@ interface SignUpPromptProps {
  * Used throughout the app to encourage sign-ups for specific actions.
  */
 export function SignUpPrompt(props: SignUpPromptProps) {
-  const variant = props.variant || 'inline'
+  const [showSignupModal, setShowSignupModal] = useState(false)
+
+  // Determine which API is being used
+  const isLegacyAPI = 'onSuccess' in props || ('className' in props && props.className !== undefined)
+  const variant = isLegacyAPI ? undefined : (props.variant || 'inline')
   const action = props.action
   const message = props.message
-  const className = props.className
+
+  // Legacy API: uses SignupModal
+  if (isLegacyAPI) {
+    const defaultMessage = `Sign up to ${action || 'continue'}`
+
+    return (
+      <>
+        <Card variant="outlined" className={props.className}>
+          <CardContent className="text-center py-6">
+            <div className="text-4xl mb-3">👋</div>
+            <h3 className="text-lg font-semibold text-text-primary mb-2">
+              Join Constellate
+            </h3>
+            <p className="text-text-secondary mb-4">
+              {message || defaultMessage}
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => setShowSignupModal(true)}
+            >
+              Sign Up
+            </Button>
+          </CardContent>
+        </Card>
+
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+          onSuccess={() => {
+            setShowSignupModal(false)
+            props.onSuccess?.()
+          }}
+        />
+      </>
+    )
+  }
+
+  // New API: uses Link or onSignUp callback
   const getDefaultMessage = () => {
     if (message) return message
 
@@ -63,7 +130,8 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   /**
    * Helper function to get the action text for inline variant
    */
-  const getActionText = (actionValue: string): string => {
+  const getActionText = (actionValue: 'rsvp' | 'like' | 'comment' | 'share' | 'follow' | undefined): string => {
+    if (!actionValue) return 'continue'
     switch (actionValue) {
       case 'rsvp':
         return 'RSVP to events'
@@ -82,7 +150,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
 
   if (variant === 'inline') {
     return (
-      <p className={`text-sm text-text-secondary text-center ${className || ''}`}>
+      <p className="text-sm text-text-secondary text-center">
         💡{' '}
         {props.onSignUp ? (
           <button
@@ -106,7 +174,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
 
   // Card variant
   return (
-    <Card variant="flat" padding="md" className={className}>
+    <Card variant="flat" padding="md">
       <CardContent className="space-y-3">
         <p className="text-sm text-text-primary">{displayMessage}</p>
         {props.onSignUp ? (

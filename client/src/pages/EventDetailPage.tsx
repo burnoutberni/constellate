@@ -16,12 +16,14 @@ import { SignupModal } from '../components/SignupModal'
 import { EventHeader } from '../components/EventHeader'
 import { EventInfo } from '../components/EventInfo'
 import { SignUpPrompt } from '../components/SignUpPrompt'
+import { AttendanceWidget } from '../components/AttendanceWidget'
+import { AttendeeList } from '../components/AttendeeList'
+import { ReminderSelector } from '../components/ReminderSelector'
+import { CalendarExport } from '../components/CalendarExport'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { Textarea } from '../components/ui/Textarea'
-import { Select } from '../components/ui/Select'
 import { Container } from '../components/layout/Container'
 import { setSEOMetadata } from '../lib/seo'
 import type { CommentMention } from '../types'
@@ -39,16 +41,6 @@ interface MentionSuggestion {
 
 const mentionTriggerRegex = /(^|[\s({[]])@([\w.-]+(?:@[\w.-]+)?)$/i
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
-
-const REMINDER_OPTIONS: Array<{ label: string; value: number | null }> = [
-    { label: 'No reminder', value: null },
-    { label: '5 minutes before', value: 5 },
-    { label: '15 minutes before', value: 15 },
-    { label: '30 minutes before', value: 30 },
-    { label: '1 hour before', value: 60 },
-    { label: '2 hours before', value: 120 },
-    { label: '1 day before', value: 1440 },
-]
 
 export function EventDetailPage() {
     const location = useLocation()
@@ -340,9 +332,7 @@ export function EventDetailPage() {
         }
     }
 
-    const handleReminderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const nextValue = e.target.value === '' ? null : Number(e.target.value)
-
+    const handleReminderChange = async (nextValue: number | null) => {
         if (!user) {
             setPendingAction(null)
             setSignupModalOpen(true)
@@ -554,26 +544,6 @@ export function EventDetailPage() {
     const eventHasStarted = useMemo(() => eventStartDate.getTime() <= Date.now(), [eventStartDate])
     const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
 
-    const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
-        if (!rsvpMutation.isPending) {
-            return false
-        }
-        if (status === 'attending') {
-            return userAttendance === 'attending' || !userAttendance
-        }
-        return userAttendance === 'maybe'
-    }
-
-    const getReminderHelperText = () => {
-        if (!user) {
-            return 'Sign up to save reminder notifications.'
-        }
-        if (canManageReminder) {
-            return 'We will send reminder notifications and email (if configured).'
-        }
-        return 'RSVP as Going or Maybe to enable reminders.'
-    }
-
     return (
         <div className="min-h-screen bg-background-secondary">
             {/* Navigation */}
@@ -651,109 +621,49 @@ export function EventDetailPage() {
                             />
                         </div>
 
-                        {/* RSVP Buttons */}
-                        <div className="flex flex-wrap gap-3 mb-6 pb-6 border-b border-border-default mt-6">
-                            <Button
-                                variant={userAttendance === 'attending' ? 'primary' : 'secondary'}
-                                size="md"
-                                onClick={() => handleRSVP('attending')}
-                                disabled={rsvpMutation.isPending}
-                                loading={shouldShowRsvpSpinner('attending')}
-                                className="flex-1 min-w-[120px]"
-                            >
-                                {shouldShowRsvpSpinner('attending') ? 'Updating...' : `👍 Going (${attending})`}
-                            </Button>
-                            <Button
-                                variant={userAttendance === 'maybe' ? 'primary' : 'secondary'}
-                                size="md"
-                                onClick={() => handleRSVP('maybe')}
-                                disabled={rsvpMutation.isPending}
-                                loading={shouldShowRsvpSpinner('maybe')}
-                                className="flex-1 min-w-[120px]"
-                            >
-                                {shouldShowRsvpSpinner('maybe') ? 'Updating...' : `🤔 Maybe (${maybe})`}
-                            </Button>
-                            <Button
-                                variant={userLiked ? 'primary' : 'secondary'}
-                                size="md"
-                                onClick={handleLike}
-                                disabled={likeMutation.isPending}
-                                loading={likeMutation.isPending}
-                                className="flex-1 min-w-[100px]"
-                            >
-                                ❤️ {event.likes?.length || 0}
-                            </Button>
-                            <Button
-                                variant={(hasShared || userHasShared) ? 'primary' : 'secondary'}
-                                size="md"
-                                onClick={handleShare}
-                                disabled={shareMutation.isPending || hasShared || userHasShared}
-                                loading={shareMutation.isPending}
-                                className="flex-1 min-w-[100px]"
-                            >
-                                {(() => {
-                                    if (shareMutation.isPending) {
-                                        return 'Sharing...'
-                                    }
-                                    if (hasShared || userHasShared) {
-                                        return '✅ Shared'
-                                    }
-                                    return '🔁 Share'
-                                })()}
-                            </Button>
+                        {/* Attendance Widget */}
+                        <div className="mt-6">
+                            <AttendanceWidget
+                                userAttendance={userAttendance}
+                                attendingCount={attending}
+                                maybeCount={maybe}
+                                likeCount={event.likes?.length || 0}
+                                userLiked={userLiked}
+                                userHasShared={hasShared || userHasShared}
+                                isAuthenticated={!!user}
+                                isRSVPPending={rsvpMutation.isPending}
+                                isLikePending={likeMutation.isPending}
+                                isSharePending={shareMutation.isPending}
+                                onRSVP={handleRSVP}
+                                onLike={handleLike}
+                                onShare={handleShare}
+                                onSignUp={() => setSignupModalOpen(true)}
+                            />
                         </div>
-                        {!user && (
-                            <div className="mb-6 pb-4 border-b border-border-default">
-                                <SignUpPrompt variant="inline" />
-                            </div>
-                        )}
-                        {!eventHasStarted && (
-                            <div className="mb-6 pb-4 border-b border-border-default">
-                                <div className="flex items-center gap-3">
-                                    <Select
-                                        label="Reminder"
-                                        value={selectedReminder !== null ? String(selectedReminder) : ''}
-                                        onChange={handleReminderChange}
-                                        disabled={!user || !canManageReminder || reminderMutation.isPending}
-                                        aria-label="Reminder notification timing"
-                                        helperText={getReminderHelperText()}
-                                        className="flex-1"
-                                    >
-                                        {REMINDER_OPTIONS.map((option) => (
-                                            <option
-                                                key={option.label}
-                                                value={option.value !== null ? option.value : ''}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </Select>
-                                    {reminderMutation.isPending && (
-                                        <span className="text-sm text-text-secondary">Saving...</span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Attendees */}
-                        {event.attendance && event.attendance.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="font-bold mb-3 text-text-primary">Attendees</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {event.attendance.slice(0, 10).map((a, i) => (
-                                        <Badge key={i} variant="primary" size="md">
-                                            {a.user.name || a.user.username}
-                                            {a.status === 'maybe' && ' (Maybe)'}
-                                        </Badge>
-                                    ))}
-                                    {event.attendance.length > 10 && (
-                                        <Badge variant="secondary" size="md">
-                                            +{event.attendance.length - 10} more
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        {/* Reminder Selector */}
+                        <ReminderSelector
+                            value={selectedReminder}
+                            onChange={handleReminderChange}
+                            isAuthenticated={!!user}
+                            canManageReminder={canManageReminder}
+                            isPending={reminderMutation.isPending}
+                            eventHasStarted={eventHasStarted}
+                        />
+
+                        {/* Calendar Export */}
+                        <CalendarExport
+                            title={displayedEvent.title}
+                            description={displayedEvent.summary}
+                            location={displayedEvent.location}
+                            startTime={displayedEvent.startTime}
+                            endTime={displayedEvent.endTime}
+                            timezone={displayedEvent.timezone}
+                            url={window.location.href}
+                        />
+
+                        {/* Attendee List */}
+                        <AttendeeList attendees={event.attendance || []} />
                     </CardContent>
                 </Card>
 
