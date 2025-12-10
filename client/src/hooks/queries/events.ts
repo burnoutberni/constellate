@@ -41,6 +41,7 @@ interface RSVPInput {
 
 interface CommentInput {
     content: string
+    inReplyToId?: string
 }
 
 interface UpdateEventInput {

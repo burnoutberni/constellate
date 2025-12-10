@@ -36,7 +36,7 @@ export interface ReminderSelectorProps {
     options?: ReminderOption[]
 }
 
-const DEFAULT_REMINDER_OPTIONS: ReminderOption[] = [
+export const REMINDER_OPTIONS: ReminderOption[] = [
     { label: 'No reminder', value: null },
     { label: '5 minutes before', value: 5 },
     { label: '15 minutes before', value: 15 },
@@ -45,6 +45,8 @@ const DEFAULT_REMINDER_OPTIONS: ReminderOption[] = [
     { label: '2 hours before', value: 120 },
     { label: '1 day before', value: 1440 },
 ]
+
+const DEFAULT_REMINDER_OPTIONS = REMINDER_OPTIONS
 
 /**
  * ReminderSelector allows users to set reminder notifications for an event.

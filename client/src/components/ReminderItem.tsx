@@ -26,7 +26,7 @@ function formatDateTime(dateString: string, timezone: string): string {
 }
 
 function getReminderLabel(minutes: number): string {
-    const option = REMINDER_OPTIONS.find((opt) => opt.value === minutes)
+    const option = REMINDER_OPTIONS.find((opt: { label: string; value: number | null }) => opt.value === minutes)
     return option?.label || `${minutes} minutes before`
 }
 

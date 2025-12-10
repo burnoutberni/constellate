@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Avatar } from './ui/Avatar'
 import type { InstanceWithStats } from '../types'
 import { useAuth } from '../contexts/AuthContext'
+import { queryKeys } from '../hooks/queries/keys'
 
 interface InstanceCardProps {
     instance: InstanceWithStats
@@ -16,7 +18,22 @@ interface InstanceCardProps {
 export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: InstanceCardProps) {
     const navigate = useNavigate()
     const { user } = useAuth()
-    const isAdmin = user?.isAdmin
+    
+    // Fetch user profile to check admin status
+    const { data: userProfile } = useQuery({
+        queryKey: queryKeys.users.currentProfile(user?.id),
+        queryFn: async () => {
+            if (!user?.id) return null
+            const response = await fetch('/api/users/me/profile', {
+                credentials: 'include',
+            })
+            if (!response.ok) return null
+            return response.json()
+        },
+        enabled: !!user?.id,
+    })
+    
+    const isAdmin = userProfile?.isAdmin || false
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Never'
@@ -69,7 +86,7 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
                             </p>
                         </div>
                         {instance.isBlocked && (
-                            <Badge variant="danger">Blocked</Badge>
+                            <Badge variant="error">Blocked</Badge>
                         )}
                     </div>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceList } from '../components/InstanceList'
 import { Container } from '../components/layout/Container'
@@ -6,8 +7,10 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../contexts/AuthContext'
-import { useInstances, useInstanceSearch, useBlockInstance, useUnblockInstance, useRefreshInstance } from '../hooks/queries'
+import { useInstances, useInstanceSearch } from '../hooks/queries'
+import { queryKeys } from '../hooks/queries/keys'
 import { setSEOMetadata } from '../lib/seo'
+import type { InstanceWithStats } from '../types'
 
 type SortOption = 'activity' | 'users' | 'created'
 
@@ -41,49 +44,78 @@ export function InstancesPage() {
     const total = instancesData?.total || 0
 
     // Mutations for admin actions
-    const blockMutation = useBlockInstance('')
-    const unblockMutation = useUnblockInstance('')
-    const refreshMutation = useRefreshInstance('')
+    const queryClient = useQueryClient()
+    
+    const blockMutation = useMutation({
+        mutationFn: async (domain: string) => {
+            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/block`, {
+                method: 'POST',
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({
+                    error: 'Failed to block instance',
+                }))
+                throw new Error(error.error || 'Failed to block instance')
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
+        },
+    })
+
+    const unblockMutation = useMutation({
+        mutationFn: async (domain: string) => {
+            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/unblock`, {
+                method: 'POST',
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({
+                    error: 'Failed to unblock instance',
+                }))
+                throw new Error(error.error || 'Failed to unblock instance')
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
+        },
+    })
+
+    const refreshMutation = useMutation({
+        mutationFn: async (domain: string) => {
+            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({
+                    error: 'Failed to refresh instance',
+                }))
+                throw new Error(error.error || 'Failed to refresh instance')
+            }
+            return response.json()
+        },
+        onSuccess: (_data, domain) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.instances.detail(domain) })
+            queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
+        },
+    })
 
     const handleBlock = (domain: string) => {
         if (confirm(`Are you sure you want to block ${domain}?`)) {
-            blockMutation.mutate(undefined, {
-                mutationFn: async () => {
-                    const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/block`, {
-                        method: 'POST',
-                        credentials: 'include',
-                    })
-                    if (!response.ok) throw new Error('Failed to block instance')
-                    return response.json()
-                },
-            })
+            blockMutation.mutate(domain)
         }
     }
 
     const handleUnblock = (domain: string) => {
-        unblockMutation.mutate(undefined, {
-            mutationFn: async () => {
-                const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/unblock`, {
-                    method: 'POST',
-                    credentials: 'include',
-                })
-                if (!response.ok) throw new Error('Failed to unblock instance')
-                return response.json()
-            },
-        })
+        unblockMutation.mutate(domain)
     }
 
     const handleRefresh = (domain: string) => {
-        refreshMutation.mutate(undefined, {
-            mutationFn: async () => {
-                const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/refresh`, {
-                    method: 'POST',
-                    credentials: 'include',
-                })
-                if (!response.ok) throw new Error('Failed to refresh instance')
-                return response.json()
-            },
-        })
+        refreshMutation.mutate(domain)
     }
 
     const handlePreviousPage = () => {
@@ -180,7 +212,20 @@ export function InstancesPage() {
                 {/* Instance List */}
                 {!isLoading && instances.length > 0 && (
                     <InstanceList
-                        instances={instances}
+                        instances={instances.map((instance): InstanceWithStats => {
+                            // Convert Instance to InstanceWithStats by adding default stats
+                            if ('stats' in instance && instance.stats) {
+                                return instance as InstanceWithStats
+                            }
+                            return {
+                                ...instance,
+                                stats: {
+                                    remoteUsers: 0,
+                                    remoteEvents: 0,
+                                    localFollowing: 0,
+                                },
+                            }
+                        })}
                         onBlock={handleBlock}
                         onUnblock={handleUnblock}
                         onRefresh={handleRefresh}

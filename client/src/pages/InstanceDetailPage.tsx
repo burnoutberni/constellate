@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceStats } from '../components/InstanceStats'
 import { Container } from '../components/layout/Container'
@@ -9,13 +10,29 @@ import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { useAuth } from '../contexts/AuthContext'
 import { useInstanceDetail, useBlockInstance, useUnblockInstance, useRefreshInstance } from '../hooks/queries'
+import { queryKeys } from '../hooks/queries/keys'
 import { setSEOMetadata } from '../lib/seo'
 
 export function InstanceDetailPage() {
     const { domain } = useParams<{ domain: string }>()
     const navigate = useNavigate()
     const { user, logout } = useAuth()
-    const isAdmin = user?.isAdmin
+    
+    // Fetch user profile to check admin status
+    const { data: userProfile } = useQuery({
+        queryKey: queryKeys.users.currentProfile(user?.id),
+        queryFn: async () => {
+            if (!user?.id) return null
+            const response = await fetch('/api/users/me/profile', {
+                credentials: 'include',
+            })
+            if (!response.ok) return null
+            return response.json()
+        },
+        enabled: !!user?.id,
+    })
+    
+    const isAdmin = userProfile?.isAdmin || false
 
     const { data: instance, isLoading, error } = useInstanceDetail(domain || '')
     const blockMutation = useBlockInstance(domain || '')
@@ -128,7 +145,7 @@ export function InstanceDetailPage() {
                                     </p>
                                 </div>
                                 {instance.isBlocked && (
-                                    <Badge variant="danger">Blocked</Badge>
+                                    <Badge variant="error">Blocked</Badge>
                                 )}
                             </div>
 

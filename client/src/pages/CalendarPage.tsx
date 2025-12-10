@@ -8,7 +8,6 @@ import { eventsWithinRange } from '../lib/recurrence'
 import { CalendarView } from '../components/CalendarView'
 import { CalendarNavigation } from '../components/CalendarNavigation'
 import { CalendarEventPopup } from '../components/CalendarEventPopup'
-import { CalendarExport } from '../components/CalendarExport'
 import { Card } from '../components/ui/Card'
 
 export function CalendarPage() {
@@ -307,7 +306,18 @@ export function CalendarPage() {
                         {user && (
                             <Card>
                                 <h2 className="font-bold text-lg mb-4">Export Calendar</h2>
-                                <CalendarExport username={user.username} showFeed={false} />
+                                <p className="text-sm text-text-secondary mb-4">
+                                    Export your calendar feed to add events to your calendar application.
+                                </p>
+                                <div className="text-sm">
+                                    <a
+                                        href={`/api/calendar/${user.username}/feed.ics`}
+                                        download
+                                        className="text-primary-600 hover:text-primary-700 underline"
+                                    >
+                                        Download iCal Feed
+                                    </a>
+                                </div>
                             </Card>
                         )}
                     </div>

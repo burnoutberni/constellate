@@ -126,6 +126,7 @@ export function CalendarNavigation({
           aria-label={`Previous ${view}`}
           leftIcon={<span>←</span>}
         >
+          <span className="sr-only">Previous {view}</span>
         </Button>
         
         {/* Date Display with Picker */}
@@ -169,6 +170,7 @@ export function CalendarNavigation({
           aria-label={`Next ${view}`}
           rightIcon={<span>→</span>}
         >
+          <span className="sr-only">Next {view}</span>
         </Button>
       </div>
     </div>
