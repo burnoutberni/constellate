@@ -7,6 +7,7 @@ import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstan
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { ToggleGroup, ToggleButton } from '../components/ui/ToggleGroup'
 import { Container } from '../components/layout/Container'
 import { Grid } from '../components/layout/Grid'
 import { useAuth } from '../contexts/AuthContext'
@@ -322,54 +323,46 @@ export function EventDiscoveryPage() {
                                         </select>
 
                                         {/* View Toggle */}
-                                        <div className="flex gap-1 border border-gray-300 rounded-md p-1">
-                                            <button
-                                                onClick={() => setViewMode('grid')}
-                                                className={`p-1.5 rounded ${
-                                                    viewMode === 'grid'
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'text-gray-600 hover:bg-gray-100'
-                                                }`}
+                                        <ToggleGroup value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
+                                            <ToggleButton
+                                                value="grid"
                                                 aria-label="Grid view"
-                                            >
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                onClick={() => setViewMode('list')}
-                                                className={`p-1.5 rounded ${
-                                                    viewMode === 'list'
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'text-gray-600 hover:bg-gray-100'
-                                                }`}
+                                                icon={
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                                                        />
+                                                    </svg>
+                                                }
+                                            />
+                                            <ToggleButton
+                                                value="list"
                                                 aria-label="List view"
-                                            >
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M4 6h16M4 12h16M4 18h16"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </div>
+                                                icon={
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M4 6h16M4 12h16M4 18h16"
+                                                        />
+                                                    </svg>
+                                                }
+                                            />
+                                        </ToggleGroup>
                                     </div>
                                 </div>
 
