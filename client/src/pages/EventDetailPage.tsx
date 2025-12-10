@@ -499,9 +499,16 @@ export function EventDetailPage() {
         if (event) {
             const displayedEvent = event.sharedEvent ?? event
             const eventDate = new Date(displayedEvent.startTime).toLocaleDateString()
-            const description = displayedEvent.summary 
-                ? `${displayedEvent.summary.slice(0, 150)}${displayedEvent.summary.length > 150 ? '...' : ''}`
-                : `Event on ${eventDate}${displayedEvent.location ? ` at ${displayedEvent.location}` : ''}`
+            
+            let description: string
+            if (displayedEvent.summary) {
+                const summaryText = displayedEvent.summary.slice(0, 150)
+                const ellipsis = displayedEvent.summary.length > 150 ? '...' : ''
+                description = `${summaryText}${ellipsis}`
+            } else {
+                const locationText = displayedEvent.location ? ` at ${displayedEvent.location}` : ''
+                description = `Event on ${eventDate}${locationText}`
+            }
             
             setSEOMetadata({
                 title: displayedEvent.title,
@@ -681,7 +688,15 @@ export function EventDetailPage() {
                                 loading={shareMutation.isPending}
                                 className="flex-1 min-w-[100px]"
                             >
-                                {shareMutation.isPending ? 'Sharing...' : (hasShared || userHasShared) ? '✅ Shared' : '🔁 Share'}
+                                {(() => {
+                                    if (shareMutation.isPending) {
+                                        return 'Sharing...'
+                                    }
+                                    if (hasShared || userHasShared) {
+                                        return '✅ Shared'
+                                    }
+                                    return '🔁 Share'
+                                })()}
                             </Button>
                         </div>
                         {!user && (
