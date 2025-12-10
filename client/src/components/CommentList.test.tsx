@@ -67,6 +67,6 @@ describe('CommentList Component', () => {
             </BrowserRouter>
         )
 
-        expect(screen.getByText(/Sign up to comment/)).toBeInTheDocument()
+        expect(screen.getByText(/Sign up to join the conversation and leave a comment/)).toBeInTheDocument()
     })
 })

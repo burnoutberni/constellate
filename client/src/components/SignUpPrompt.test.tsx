@@ -22,7 +22,7 @@ const renderWithRouter = (ui: React.ReactElement) => {
 describe('SignUpPrompt Component', () => {
   describe('Legacy API (with SignupModal)', () => {
     it('should render with default action text', () => {
-      render(<SignUpPrompt />)
+      renderWithRouter(<SignUpPrompt className="test-class" />)
 
       expect(screen.getByText('Join Constellate')).toBeInTheDocument()
       expect(screen.getByText('Sign up to continue')).toBeInTheDocument()
@@ -30,20 +30,20 @@ describe('SignUpPrompt Component', () => {
     })
 
     it('should render with custom action text', () => {
-      render(<SignUpPrompt action="follow this user" />)
+      renderWithRouter(<SignUpPrompt action="follow this user" className="test-class" />)
 
       expect(screen.getByText('Sign up to follow this user')).toBeInTheDocument()
     })
 
     it('should render with custom message', () => {
       const customMessage = 'Create an account to unlock all features'
-      render(<SignUpPrompt message={customMessage} />)
+      renderWithRouter(<SignUpPrompt message={customMessage} className="test-class" />)
 
       expect(screen.getByText(customMessage)).toBeInTheDocument()
     })
 
     it('should open signup modal when sign up button is clicked', () => {
-      render(<SignUpPrompt />)
+      renderWithRouter(<SignUpPrompt className="test-class" />)
 
       const signUpButton = screen.getByRole('button', { name: /sign up/i })
       fireEvent.click(signUpButton)
@@ -52,7 +52,7 @@ describe('SignUpPrompt Component', () => {
     })
 
     it('should close signup modal when close is triggered', () => {
-      render(<SignUpPrompt />)
+      renderWithRouter(<SignUpPrompt className="test-class" />)
 
       // Open modal
       const signUpButton = screen.getByRole('button', { name: /sign up/i })
@@ -69,7 +69,7 @@ describe('SignUpPrompt Component', () => {
 
     it('should call onSuccess callback after successful signup', () => {
       const onSuccessMock = vi.fn()
-      render(<SignUpPrompt onSuccess={onSuccessMock} />)
+      renderWithRouter(<SignUpPrompt onSuccess={onSuccessMock} />)
 
       // Open modal
       const signUpButton = screen.getByRole('button', { name: /sign up/i })
@@ -81,7 +81,7 @@ describe('SignUpPrompt Component', () => {
     })
 
     it('should apply custom className', () => {
-      const { container } = render(<SignUpPrompt className="custom-class" />)
+      const { container } = renderWithRouter(<SignUpPrompt className="custom-class" />)
 
       const card = container.querySelector('.custom-class')
       expect(card).toBeInTheDocument()
