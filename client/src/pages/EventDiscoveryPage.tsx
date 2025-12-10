@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { EventCard } from '../components/EventCard'
-import { EventFilters, type FilterFormState, type DateRangeSelection, BACKEND_DATE_RANGES, type BackendDateRange, DATE_RANGE_LABELS } from '../components/EventFilters'
+import { EventFilters, type FilterFormState, type DateRangeSelection, DATE_RANGE_LABELS } from '../components/EventFilters'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -14,6 +14,13 @@ import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '../hooks/queries/keys'
 import { getDefaultTimezone } from '../lib/timezones'
+import { 
+    parseCommaList, 
+    isoToInputDate, 
+    inputDateToISO, 
+    isBackendDateRange, 
+    formatDateLabel 
+} from '../lib/searchUtils'
 
 type ViewMode = 'grid' | 'list'
 type SortOption = 'date' | 'trending' | 'popularity'
@@ -27,50 +34,6 @@ const DEFAULT_FORM_STATE: FilterFormState = {
     mode: '',
     status: '',
     categories: [],
-}
-
-const parseCommaList = (value?: string | null) =>
-    value
-        ? value
-              .split(',')
-              .map((item) => item.trim())
-              .filter((item) => item.length > 0)
-        : []
-
-const isoToInputDate = (value?: string | null) => {
-    if (!value) return ''
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        return ''
-    }
-    const year = date.getUTCFullYear()
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-    const day = String(date.getUTCDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-}
-
-const inputDateToISO = (value: string, endOfDay = false) => {
-    if (!value) return undefined
-    const [yearStr, monthStr, dayStr] = value.split('-')
-    const year = Number(yearStr)
-    const month = Number(monthStr)
-    const day = Number(dayStr)
-
-    if (!year || !month || !day) {
-        return undefined
-    }
-
-    const hours = endOfDay ? 23 : 0
-    const minutes = endOfDay ? 59 : 0
-    const seconds = endOfDay ? 59 : 0
-    const millis = endOfDay ? 999 : 0
-
-    const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds, millis))
-    return date.toISOString()
-}
-
-function isBackendDateRange(value: string): value is BackendDateRange {
-    return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
 }
 
 const buildRequestFilters = (params: URLSearchParams): EventSearchFilters => {
@@ -124,18 +87,6 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
         status: params.get('status') ?? '',
         categories,
     }
-}
-
-const formatDateLabel = (isoString: string) => {
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) {
-        return isoString
-    }
-    return date.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    })
 }
 
 const createEventDateTimeFormatter = (timezone: string) => {

@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
+import { normalizeCategory } from '../lib/searchUtils'
 
 export const DATE_RANGE_LABELS: Record<string, string> = {
     anytime: 'Any time',
@@ -45,8 +46,6 @@ const dateRangeOptions: Array<{ value: DateRangeSelection; label: string }> = [
     { value: 'next_30_days', label: DATE_RANGE_LABELS.next_30_days },
     { value: 'custom', label: DATE_RANGE_LABELS.custom },
 ]
-
-const normalizeCategory = (value: string) => value.trim().replace(/^#+/, '').trim().toLowerCase()
 
 export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAll }: EventFiltersProps) {
     const [categoryInput, setCategoryInput] = useState('')
