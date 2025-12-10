@@ -2,6 +2,10 @@ import { Link } from 'react-router-dom'
 import type { Activity } from '../types/activity'
 import type { EventVisibility } from '../types'
 import { getVisibilityMeta } from '../lib/visibility'
+import { Avatar } from './ui/Avatar'
+import { Badge } from './ui/Badge'
+import { Card } from './ui/Card'
+import { FollowButton } from './FollowButton'
 
 interface ActivityFeedItemProps {
     activity: Activity
@@ -95,41 +99,60 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
     }
 
     return (
-        <Link
-            to={`/@${activity.event.user?.username}/${activity.event.id}`}
-            className="block"
-        >
-            <div className="card-hover p-4 animate-fade-in">
-                <div className="flex items-start gap-3">
-                    <div
-                        className="avatar w-10 h-10 flex-shrink-0"
-                        style={{ backgroundColor: activity.user.displayColor || '#3b82f6' }}
-                    >
-                        {activity.user.name?.[0] || activity.user.username[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-1">
-                            <span className="text-lg">{getActivityIcon()}</span>
-                            <div className="flex-1">
-                                <p className="text-gray-900">
+        <Card variant="default" padding="md" className="hover:border-border-hover transition-colors">
+            <div className="flex items-start gap-3">
+                {/* User Avatar */}
+                <Link to={`/@${activity.user.username}`} className="flex-shrink-0">
+                    <Avatar
+                        src={activity.user.profileImage || undefined}
+                        fallback={(activity.user.name?.[0] || activity.user.username[0]).toUpperCase()}
+                        alt={activity.user.name || activity.user.username}
+                        size="md"
+                    />
+                </Link>
+
+                <div className="flex-1 min-w-0">
+                    {/* Activity Header */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                            <span className="text-lg flex-shrink-0">{getActivityIcon()}</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-text-primary text-sm">
                                     {getActivityText()}
                                 </p>
                                 {activity.type === 'comment' && activity.data?.commentContent && (
-                                    <p className="text-sm text-gray-600 mt-1 italic">
+                                    <p className="text-sm text-text-secondary mt-1 italic">
                                         "{activity.data.commentContent}"
                                     </p>
                                 )}
                                 {activity.type === 'event_shared' && activity.sharedEvent?.summary && (
-                                    <p className="text-sm text-gray-600 mt-1">
+                                    <p className="text-sm text-text-secondary mt-1">
                                         {activity.sharedEvent.summary}
                                     </p>
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
-                            <span className={`badge ${visibilityMeta.badgeClass}`}>
+                        {/* Follow Button */}
+                        <div className="flex-shrink-0">
+                            <FollowButton username={activity.user.username} size="sm" variant="ghost" />
+                        </div>
+                    </div>
+
+                    {/* Event Link */}
+                    <Link
+                        to={`/@${activity.event.user?.username}/${activity.event.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                    >
+                        {/* Event Info */}
+                        <div className="flex items-center gap-2 mt-2 text-xs text-text-tertiary flex-wrap">
+                            <Badge
+                                variant={visibilityMeta.badgeClass.includes('success') ? 'success' : 
+                                        visibilityMeta.badgeClass.includes('warning') ? 'warning' : 
+                                        visibilityMeta.badgeClass.includes('error') ? 'error' : 'default'}
+                                size="sm"
+                            >
                                 {visibilityMeta.icon} {visibilityMeta.label}
-                            </span>
+                            </Badge>
                             <span>{formatTime(activity.createdAt)}</span>
                             {activity.event.location && (
                                 <span>📍 {activity.event.location}</span>
@@ -142,27 +165,30 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                                 })}
                             </span>
                         </div>
+
+                        {/* Event Tags */}
                         {activity.event.tags && activity.event.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                                 {activity.event.tags.slice(0, 3).map((tag) => (
-                                    <span
+                                    <Badge
                                         key={tag.id}
-                                        className="badge badge-primary text-xs"
+                                        variant="primary"
+                                        size="sm"
                                     >
                                         #{tag.tag}
-                                    </span>
+                                    </Badge>
                                 ))}
                                 {activity.event.tags.length > 3 && (
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-text-tertiary">
                                         +{activity.event.tags.length - 3} more
                                     </span>
                                 )}
                             </div>
                         )}
-                    </div>
+                    </Link>
                 </div>
             </div>
-        </Link>
+        </Card>
     )
 }
 

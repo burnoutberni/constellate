@@ -204,6 +204,13 @@ describe('SignUpPrompt Component', () => {
 
       expect(onSignUp).toHaveBeenCalledOnce()
     })
+
+    it('links to login page when onSignUp not provided', () => {
+      renderWithRouter(<SignUpPrompt variant="card" />)
+
+      const link = screen.getByRole('link', { name: /sign up/i })
+      expect(link).toHaveAttribute('href', '/login')
+    })
   })
 
   describe('New API - action types', () => {
