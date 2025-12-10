@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { CreateEventModal } from '../components/CreateEventModal'
 import { MiniCalendar } from '../components/MiniCalendar'
@@ -16,6 +16,7 @@ import { eventsWithinRange } from '../lib/recurrence'
 
 export function FeedPage() {
     const { user, logout } = useAuth()
+    const location = useLocation()
     const { data: eventsData, isLoading: eventsLoading } = useEvents(100)
     const { data: activityData, isLoading: activityLoading } = useActivityFeed()
     const {
@@ -25,6 +26,7 @@ export function FeedPage() {
     const { openCreateEventModal, closeCreateEventModal, createEventModalOpen, sseConnected } = useUIStore()
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [activeTab, setActiveTab] = useState<'activity' | 'trending'>('activity')
+    const [templateIdToUse, setTemplateIdToUse] = useState<string | undefined>(undefined)
     const {
         data: trendingData,
         isLoading: trendingLoading,
@@ -96,7 +98,16 @@ export function FeedPage() {
         })
     }
 
-
+    // Handle template from location state
+    useEffect(() => {
+        const state = location.state as { useTemplate?: { id: string } } | null
+        if (state?.useTemplate?.id) {
+            setTemplateIdToUse(state.useTemplate.id)
+            openCreateEventModal()
+            // Clear the state so it doesn't reopen on navigation
+            navigate('/feed', { replace: true, state: {} })
+        }
+    }, [location.state, navigate, openCreateEventModal])
 
     const handleEventClick = (event: typeof events[0]) => {
         if (event.user?.username) {
@@ -521,8 +532,10 @@ export function FeedPage() {
             <CreateEventModal
                 isOpen={createEventModalOpen}
                 onClose={closeCreateEventModal}
+                initialTemplateId={templateIdToUse}
                 onSuccess={() => {
                     closeCreateEventModal()
+                    setTemplateIdToUse(undefined)
                     // Invalidate feed query
                     queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
                     queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
