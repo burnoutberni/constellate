@@ -9,6 +9,7 @@ import { EventCard } from '../components/EventCard'
 import { Container } from '../components/layout/Container'
 import { Section } from '../components/layout/Section'
 import { Button } from '../components/ui/Button'
+import { primaryColors } from '../design-system/tokens'
 
 export function HomePage() {
     const { user, logout } = useAuth()
@@ -409,7 +410,7 @@ export function HomePage() {
                                             >
                                                 <div
                                                     className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                    style={{ backgroundColor: event.user?.displayColor || '#0284c7' }}
+                                                    style={{ backgroundColor: event.user?.displayColor || primaryColors[600] }}
                                                 >
                                                     {new Date(event.startTime).getDate()}
                                                 </div>
