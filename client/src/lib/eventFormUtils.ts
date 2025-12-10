@@ -76,6 +76,42 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
 }
 
 /**
+ * Helper function to add optional fields for update operations
+ */
+function addOptionalFieldsForUpdate(
+    payload: Record<string, unknown>,
+    formData: Pick<FormData, 'summary' | 'location' | 'url'>
+): void {
+    if (formData.summary !== undefined) {
+        payload.summary = formData.summary.trim() || null
+    }
+    if (formData.location !== undefined) {
+        payload.location = formData.location.trim() || null
+    }
+    if (formData.url !== undefined) {
+        payload.url = formData.url.trim() || null
+    }
+}
+
+/**
+ * Helper function to add optional fields for create operations
+ */
+function addOptionalFieldsForCreate(
+    payload: Record<string, unknown>,
+    formData: Pick<FormData, 'summary' | 'location' | 'url'>
+): void {
+    if (formData.summary && formData.summary.trim()) {
+        payload.summary = formData.summary
+    }
+    if (formData.location && formData.location.trim()) {
+        payload.location = formData.location
+    }
+    if (formData.url && formData.url.trim()) {
+        payload.url = formData.url
+    }
+}
+
+/**
  * Builds the event payload for API submission
  * @param isUpdate - If true, allows explicit empty strings/null to clear optional fields during updates.
  *                    If false (default), only includes fields with non-empty values (for creates).
@@ -96,29 +132,9 @@ export function buildEventPayload(
     // For updates, include fields even if empty (to allow clearing them)
     // For creates, only include fields with non-empty values
     if (isUpdate) {
-        // Include summary if provided (even if empty, to clear it)
-        if (formData.summary !== undefined) {
-            payload.summary = formData.summary.trim() || null
-        }
-        // Include location if provided (even if empty, to clear it)
-        if (formData.location !== undefined) {
-            payload.location = formData.location.trim() || null
-        }
-        // Include url if provided (even if empty, to clear it)
-        if (formData.url !== undefined) {
-            payload.url = formData.url.trim() || null
-        }
+        addOptionalFieldsForUpdate(payload, formData)
     } else {
-        // Only include optional fields if they have non-empty values (for creates)
-        if (formData.summary && formData.summary.trim()) {
-            payload.summary = formData.summary
-        }
-        if (formData.location && formData.location.trim()) {
-            payload.location = formData.location
-        }
-        if (formData.url && formData.url.trim()) {
-            payload.url = formData.url
-        }
+        addOptionalFieldsForCreate(payload, formData)
     }
     
     if (locationLatitude !== undefined && locationLongitude !== undefined) {

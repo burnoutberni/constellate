@@ -26,6 +26,62 @@ export interface SEOMetadata {
 }
 
 /**
+ * Helper function to set or remove a conditional meta tag
+ */
+function setOrRemoveMetaTag(
+  attributeName: 'name' | 'property',
+  attributeValue: string,
+  content: string | undefined
+): void {
+  if (content) {
+    setOrUpdateMetaTag(attributeName, attributeValue, content)
+  } else {
+    removeMetaTag(attributeName, attributeValue)
+  }
+}
+
+/**
+ * Helper function to set document title
+ */
+function setDocumentTitle(title: string | undefined): void {
+  document.title = title ? `${title} - Constellate` : 'Constellate'
+}
+
+/**
+ * Helper function to set Open Graph tags
+ */
+function setOpenGraphTags(
+  title: string | undefined,
+  description: string | undefined,
+  ogImage: string | undefined,
+  ogType: 'website' | 'article' | 'event'
+): void {
+  setOrRemoveMetaTag('property', 'og:title', title)
+  setOrRemoveMetaTag('property', 'og:description', description)
+  setOrRemoveMetaTag('property', 'og:image', ogImage)
+  setOrUpdateMetaTag('property', 'og:type', ogType)
+}
+
+/**
+ * Helper function to set Twitter Card tags
+ */
+function setTwitterCardTags(
+  title: string | undefined,
+  description: string | undefined,
+  ogImage: string | undefined
+): void {
+  setOrRemoveMetaTag('name', 'twitter:title', title)
+  setOrRemoveMetaTag('name', 'twitter:description', description)
+  if (ogImage) {
+    setOrUpdateMetaTag('name', 'twitter:image', ogImage)
+    setOrUpdateMetaTag('name', 'twitter:card', 'summary_large_image')
+  } else {
+    removeMetaTag('name', 'twitter:image')
+    setOrUpdateMetaTag('name', 'twitter:card', 'summary')
+  }
+}
+
+/**
  * Sets SEO metadata for the current page.
  * Updates document title and meta tags.
  * Removes meta tags when values are no longer provided.
@@ -37,63 +93,17 @@ export function setSEOMetadata({
   ogImage,
   ogType = 'website',
 }: SEOMetadata): void {
-  // Set document title
-  if (title) {
-    document.title = `${title} - Constellate`
-  } else {
-    document.title = 'Constellate'
-  }
-
-  // Set or update meta description, or remove if not provided
-  if (description) {
-    setOrUpdateMetaTag('name', 'description', description)
-  } else {
-    removeMetaTag('name', 'description')
-  }
-
-  // Set Open Graph meta tags, or remove if not provided
-  if (title) {
-    setOrUpdateMetaTag('property', 'og:title', title)
-  } else {
-    removeMetaTag('property', 'og:title')
-  }
-  if (description) {
-    setOrUpdateMetaTag('property', 'og:description', description)
-  } else {
-    removeMetaTag('property', 'og:description')
-  }
-  if (ogImage) {
-    setOrUpdateMetaTag('property', 'og:image', ogImage)
-  } else {
-    removeMetaTag('property', 'og:image')
-  }
-  setOrUpdateMetaTag('property', 'og:type', ogType)
-
-  // Set canonical URL, or remove if not provided
+  setDocumentTitle(title)
+  setOrRemoveMetaTag('name', 'description', description)
+  setOpenGraphTags(title, description, ogImage, ogType)
+  
   if (canonicalUrl) {
     setOrUpdateLink('canonical', canonicalUrl)
   } else {
     removeLink('canonical')
   }
-
-  // Set Twitter Card meta tags, or remove if not provided
-  if (title) {
-    setOrUpdateMetaTag('name', 'twitter:title', title)
-  } else {
-    removeMetaTag('name', 'twitter:title')
-  }
-  if (description) {
-    setOrUpdateMetaTag('name', 'twitter:description', description)
-  } else {
-    removeMetaTag('name', 'twitter:description')
-  }
-  if (ogImage) {
-    setOrUpdateMetaTag('name', 'twitter:image', ogImage)
-    setOrUpdateMetaTag('name', 'twitter:card', 'summary_large_image')
-  } else {
-    removeMetaTag('name', 'twitter:image')
-    setOrUpdateMetaTag('name', 'twitter:card', 'summary')
-  }
+  
+  setTwitterCardTags(title, description, ogImage)
 }
 
 /**

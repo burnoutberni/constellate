@@ -63,6 +63,12 @@ export function FollowButton({
         )
     }
 
+    const getButtonText = () => {
+        if (isFollowing) return 'Unfollow'
+        if (isPending) return 'Pending'
+        return 'Follow'
+    }
+
     return (
         <>
             <Button
@@ -72,7 +78,7 @@ export function FollowButton({
                 loading={isLoading}
                 disabled={isLoading}
             >
-                {isFollowing ? 'Unfollow' : isPending ? 'Pending' : 'Follow'}
+                {getButtonText()}
             </Button>
             {showStatus && isPending && (
                 <span className="text-xs text-text-tertiary ml-2">

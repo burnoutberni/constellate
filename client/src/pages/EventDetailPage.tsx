@@ -37,7 +37,6 @@ export function EventDetailPage() {
     const [eventId, setEventId] = useState<string>('')
     const [signupModalOpen, setSignupModalOpen] = useState(false)
     const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | 'share' | null>(null)
-    const [pendingRSVPStatus, setPendingRSVPStatus] = useState<string | null>(null)
     const [selectedReminder, setSelectedReminder] = useState<number | null>(null)
     const [hasShared, setHasShared] = useState(false)
 
@@ -116,7 +115,6 @@ export function EventDetailPage() {
     const handleRSVP = async (status: string) => {
         if (!user) {
             setPendingAction('rsvp')
-            setPendingRSVPStatus(status)
             setSignupModalOpen(true)
             return
         }
@@ -214,7 +212,6 @@ export function EventDetailPage() {
     const handleSignupSuccess = () => {
         // User is now authenticated, pending actions are cleared
         setPendingAction(null)
-        setPendingRSVPStatus(null)
     }
 
 
@@ -472,7 +469,6 @@ export function EventDetailPage() {
                 onClose={() => {
                     setSignupModalOpen(false)
                     setPendingAction(null)
-                    setPendingRSVPStatus(null)
                 }}
                 action={pendingAction && pendingAction !== 'share' ? pendingAction : undefined}
                 onSuccess={handleSignupSuccess}

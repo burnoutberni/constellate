@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Event } from '../types/event'
 
 interface CalendarViewProps {
@@ -16,6 +16,24 @@ function formatHourLabel(hour: number): string {
     if (hour < 12) return `${hour} AM`
     if (hour === 12) return '12 PM'
     return `${hour - 12} PM`
+}
+
+/**
+ * Shared event click handler for all calendar views
+ */
+function createEventClickHandler(
+    onEventClick?: (event: Event, position: { x: number; y: number }) => void
+) {
+    return (event: Event, e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation()
+        if (onEventClick) {
+            const rect = e.currentTarget.getBoundingClientRect()
+            onEventClick(event, { 
+                x: rect.left + rect.width / 2, 
+                y: rect.bottom + 5 
+            })
+        }
+    }
 }
 
 export function CalendarView({ 
@@ -66,7 +84,41 @@ interface ViewProps {
     onEventHover?: (event: Event | null) => void
 }
 
+interface EventButtonProps {
+    event: Event
+    isAttending: boolean
+    onEventClick: (event: Event, e: React.MouseEvent<HTMLButtonElement>) => void
+    onEventHover?: (event: Event | null) => void
+    title?: string
+    className?: string
+}
+
+function MonthEventButton({ event, isAttending, onEventClick, onEventHover, title }: EventButtonProps) {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
+    const handleMouseEnter = () => onEventHover?.(event)
+    const handleMouseLeave = () => onEventHover?.(null)
+
+    return (
+        <button
+            key={event.id}
+            className={`text-xs px-2 py-1 rounded truncate w-full text-left transition-colors ${
+                isAttending 
+                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
+                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            }`}
+            title={title || event.title}
+            onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            {event.title}
+        </button>
+    )
+}
+
 function MonthView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+    const handleEventClick = createEventClickHandler(onEventClick)
+
     const monthMetadata = useMemo(() => {
         const year = currentDate.getFullYear()
         const month = currentDate.getMonth()
@@ -150,34 +202,15 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
                                             {day}
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-1">
-                                            {dayEvents.slice(0, 3).map((event) => {
-                                                const isAttending = userAttendingEventIds?.has(event.id)
-                                                return (
-                                                    <button
-                                                        key={event.id}
-                                                        className={`text-xs px-2 py-1 rounded truncate w-full text-left transition-colors ${
-                                                            isAttending 
-                                                                ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
-                                                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                                        }`}
-                                                        title={event.title}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            if (onEventClick) {
-                                                                const rect = e.currentTarget.getBoundingClientRect()
-                                                                onEventClick(event, { 
-                                                                    x: rect.left + rect.width / 2, 
-                                                                    y: rect.bottom + 5 
-                                                                })
-                                                            }
-                                                        }}
-                                                        onMouseEnter={() => onEventHover?.(event)}
-                                                        onMouseLeave={() => onEventHover?.(null)}
-                                                    >
-                                                        {event.title}
-                                                    </button>
-                                                )
-                                            })}
+                                            {dayEvents.slice(0, 3).map((event) => (
+                                                <MonthEventButton
+                                                    key={event.id}
+                                                    event={event}
+                                                    isAttending={userAttendingEventIds?.has(event.id) ?? false}
+                                                    onEventClick={handleEventClick}
+                                                    onEventHover={onEventHover}
+                                                />
+                                            ))}
                                             {dayEvents.length > 3 && (
                                                 <div className="text-xs text-gray-400 px-2">
                                                     +{dayEvents.length - 3} more
@@ -195,7 +228,35 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
     )
 }
 
+function WeekEventButton({ event, isAttending, onEventClick, onEventHover, title }: EventButtonProps) {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
+    const handleMouseEnter = () => onEventHover?.(event)
+    const handleMouseLeave = () => onEventHover?.(null)
+
+    return (
+        <button
+            key={event.id}
+            className={`text-xs px-2 py-1 mb-1 rounded truncate w-full text-left transition-colors ${
+                isAttending 
+                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
+                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            }`}
+            title={title || event.title}
+            onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            <div className="font-medium">{event.title}</div>
+            <div className="text-[10px] text-gray-600">
+                {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+            </div>
+        </button>
+    )
+}
+
 function WeekView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+    const handleEventClick = createEventClickHandler(onEventClick)
+
     const weekDays = useMemo(() => {
         const dayOfWeek = currentDate.getDay()
         const startOfWeek = new Date(
@@ -283,37 +344,16 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
                                         key={`${day.toISOString()}-${hour}`}
                                         className="min-h-[60px] border rounded bg-white p-1"
                                     >
-                                        {dayEvents.map((event) => {
-                                            const isAttending = userAttendingEventIds?.has(event.id)
-                                            return (
-                                                <button
-                                                    key={event.id}
-                                                    className={`text-xs px-2 py-1 mb-1 rounded truncate w-full text-left transition-colors ${
-                                                        isAttending 
-                                                            ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
-                                                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                                    }`}
-                                                    title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        if (onEventClick) {
-                                                            const rect = e.currentTarget.getBoundingClientRect()
-                                                            onEventClick(event, { 
-                                                                x: rect.left + rect.width / 2, 
-                                                                y: rect.bottom + 5 
-                                                            })
-                                                        }
-                                                    }}
-                                                    onMouseEnter={() => onEventHover?.(event)}
-                                                    onMouseLeave={() => onEventHover?.(null)}
-                                                >
-                                                    <div className="font-medium">{event.title}</div>
-                                                    <div className="text-[10px] text-gray-600">
-                                                        {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                    </div>
-                                                </button>
-                                            )
-                                        })}
+                                        {dayEvents.map((event) => (
+                                            <WeekEventButton
+                                                key={event.id}
+                                                event={event}
+                                                isAttending={userAttendingEventIds?.has(event.id) ?? false}
+                                                onEventClick={handleEventClick}
+                                                onEventHover={onEventHover}
+                                                title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                                            />
+                                        ))}
                                     </div>
                                 )
                             })}
@@ -325,7 +365,41 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
     )
 }
 
+function DayEventButton({ event, isAttending, onEventClick, onEventHover }: EventButtonProps) {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
+    const handleMouseEnter = () => onEventHover?.(event)
+    const handleMouseLeave = () => onEventHover?.(null)
+
+    return (
+        <button
+            key={event.id}
+            className={`p-3 rounded border w-full text-left transition-colors ${
+                isAttending 
+                    ? 'bg-primary-50 border-primary-300 hover:bg-primary-100' 
+                    : 'bg-blue-50 border-blue-100 hover:bg-blue-100'
+            }`}
+            onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            <div className="font-medium text-blue-900">{event.title}</div>
+            <div className="text-sm text-gray-600 mt-1">
+                {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                {event.endTime && ` - ${new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+            </div>
+            {event.location && (
+                <div className="text-sm text-gray-500 mt-1">📍 {event.location}</div>
+            )}
+            {event.summary && (
+                <div className="text-sm text-gray-600 mt-2">{event.summary}</div>
+            )}
+        </button>
+    )
+}
+
 function DayView({ currentDate, events, loading, userAttendingEventIds, onEventClick, onEventHover }: ViewProps) {
+    const handleEventClick = createEventClickHandler(onEventClick)
+
     const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
     const eventsByHour = useMemo(() => {
@@ -381,43 +455,15 @@ function DayView({ currentDate, events, loading, userAttendingEventIds, onEventC
                                             <div className="text-gray-300 text-sm">No events</div>
                                         ) : (
                                             <div className="space-y-2">
-                                                {hourEvents.map((event) => {
-                                                    const isAttending = userAttendingEventIds?.has(event.id)
-                                                    return (
-                                                        <button
-                                                            key={event.id}
-                                                            className={`p-3 rounded border w-full text-left transition-colors ${
-                                                                isAttending 
-                                                                    ? 'bg-primary-50 border-primary-300 hover:bg-primary-100' 
-                                                                    : 'bg-blue-50 border-blue-100 hover:bg-blue-100'
-                                                            }`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                if (onEventClick) {
-                                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                                    onEventClick(event, { 
-                                                                        x: rect.left + rect.width / 2, 
-                                                                        y: rect.bottom + 5 
-                                                                    })
-                                                                }
-                                                            }}
-                                                            onMouseEnter={() => onEventHover?.(event)}
-                                                            onMouseLeave={() => onEventHover?.(null)}
-                                                        >
-                                                            <div className="font-medium text-blue-900">{event.title}</div>
-                                                            <div className="text-sm text-gray-600 mt-1">
-                                                                {new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                                {event.endTime && ` - ${new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                                                            </div>
-                                                            {event.location && (
-                                                                <div className="text-sm text-gray-500 mt-1">📍 {event.location}</div>
-                                                            )}
-                                                            {event.summary && (
-                                                                <div className="text-sm text-gray-600 mt-2">{event.summary}</div>
-                                                            )}
-                                                        </button>
-                                                    )
-                                                })}
+                                                {hourEvents.map((event) => (
+                                                    <DayEventButton
+                                                        key={event.id}
+                                                        event={event}
+                                                        isAttending={userAttendingEventIds?.has(event.id) ?? false}
+                                                        onEventClick={handleEventClick}
+                                                        onEventHover={onEventHover}
+                                                    />
+                                                ))}
                                             </div>
                                         )}
                                     </div>

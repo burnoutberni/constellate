@@ -18,7 +18,6 @@ export function CalendarPage() {
     const [view, setView] = useState<'month' | 'week' | 'day'>('month')
     const [loading, setLoading] = useState(true)
     const [selectedEvent, setSelectedEvent] = useState<{ event: Event; position: { x: number; y: number } } | null>(null)
-    const [hoveredEvent, setHoveredEvent] = useState<Event | null>(null)
     const [userAttendance, setUserAttendance] = useState<Array<{ eventId: string }>>([])
 
     const dateRange = useMemo(() => {
@@ -177,10 +176,6 @@ export function CalendarPage() {
         setSelectedEvent({ event, position })
     }, [])
 
-    const handleEventHover = useCallback((event: Event | null) => {
-        setHoveredEvent(event)
-    }, [])
-
     const handleNavigateToEvent = useCallback((eventId: string) => {
         navigate(`/events/${eventId}`)
     }, [navigate])
@@ -252,7 +247,6 @@ export function CalendarPage() {
                                 loading={loading}
                                 userAttendingEventIds={userAttendingEventIds}
                                 onEventClick={handleEventClick}
-                                onEventHover={handleEventHover}
                             />
                         </Card>
                     </div>

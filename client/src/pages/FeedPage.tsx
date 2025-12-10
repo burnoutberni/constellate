@@ -20,6 +20,19 @@ import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Container } from '../components/layout/Container'
 
+function getEmptyActivityMessage(filter: ActivityFilterType): string {
+    if (filter === 'all') return 'No activity yet'
+    if (filter === 'events') return 'No event activities'
+    return 'No interactions yet'
+}
+
+function getBadgeVariant(badgeClass: string): 'success' | 'warning' | 'error' | 'default' {
+    if (badgeClass.includes('success')) return 'success'
+    if (badgeClass.includes('warning')) return 'warning'
+    if (badgeClass.includes('error')) return 'error'
+    return 'default'
+}
+
 export function FeedPage() {
     const { user, logout } = useAuth()
     const location = useLocation()
@@ -157,11 +170,7 @@ export function FeedPage() {
                     {user ? (
                         <>
                             <p className="text-text-primary mb-2">
-                                {activityFilter === 'all' 
-                                    ? 'No activity yet'
-                                    : activityFilter === 'events'
-                                    ? 'No event activities'
-                                    : 'No interactions yet'}
+                                {getEmptyActivityMessage(activityFilter)}
                             </p>
                             <p className="text-sm text-text-secondary">
                                 Follow people to see their activities in your feed
@@ -263,9 +272,7 @@ export function FeedPage() {
                             </Badge>
                             <div className="mt-2">
                                 <Badge
-                                    variant={visibilityMeta.badgeClass.includes('success') ? 'success' : 
-                                            visibilityMeta.badgeClass.includes('warning') ? 'warning' : 
-                                            visibilityMeta.badgeClass.includes('error') ? 'error' : 'default'}
+                                    variant={getBadgeVariant(visibilityMeta.badgeClass)}
                                     size="sm"
                                 >
                                     {visibilityMeta.icon} {visibilityMeta.label}
@@ -552,9 +559,7 @@ export function FeedPage() {
                                                         )}
                                                         <div className="mt-1">
                                                             <Badge
-                                                                variant={visibilityMeta.badgeClass.includes('success') ? 'success' : 
-                                                                        visibilityMeta.badgeClass.includes('warning') ? 'warning' : 
-                                                                        visibilityMeta.badgeClass.includes('error') ? 'error' : 'default'}
+                                                                variant={getBadgeVariant(visibilityMeta.badgeClass)}
                                                                 size="sm"
                                                             >
                                                                 {visibilityMeta.icon} {visibilityMeta.label}
