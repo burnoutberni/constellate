@@ -28,5 +28,12 @@ export const queryKeys = {
     reminders: {
         list: () => ['reminders', 'list'] as const,
     },
+    instances: {
+        all: () => ['instances'] as const,
+        list: (params: { limit?: number; offset?: number; sortBy?: string }) =>
+            ['instances', 'list', params] as const,
+        search: (query: string, limit?: number) => ['instances', 'search', query, limit] as const,
+        detail: (domain: string) => ['instances', 'detail', domain] as const,
+    },
 } as const
 
