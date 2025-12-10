@@ -131,6 +131,7 @@ describe('UserProfileHeader Component', () => {
         )
 
         const followButton = screen.getByRole('button', { name: /Follow/i })
+        expect(followButton).toBeInTheDocument()
         fireEvent.click(followButton)
         expect(onFollowClick).toHaveBeenCalledTimes(1)
     })
