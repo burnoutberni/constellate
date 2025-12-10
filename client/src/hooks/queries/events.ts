@@ -43,27 +43,6 @@ interface CommentInput {
     content: string
 }
 
-interface UpdateEventInput {
-    title?: string
-    summary?: string
-    location?: string
-    locationLatitude?: number | null
-    locationLongitude?: number | null
-    headerImage?: string
-    url?: string
-    startTime?: string
-    endTime?: string
-    duration?: string
-    eventStatus?: 'EventScheduled' | 'EventCancelled' | 'EventPostponed'
-    eventAttendanceMode?: 'OfflineEventAttendanceMode' | 'OnlineEventAttendanceMode' | 'MixedEventAttendanceMode'
-    maximumAttendeeCapacity?: number
-    visibility?: string
-    recurrencePattern?: string | null
-    recurrenceEndDate?: string | null
-    tags?: string[]
-    timezone?: string
-}
-
 // Queries
 export function useEvents(limit: number = 50) {
     return useQuery<EventsResponse>({
@@ -124,38 +103,6 @@ export function useRecommendedEvents(limit: number = 6, options?: { enabled?: bo
             }
 
             return response.json()
-        },
-    })
-}
-
-export function useUpdateEvent(eventId: string, username: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: async (input: UpdateEventInput) => {
-            const response = await fetch(`/api/events/${eventId}`, {
-                method: 'PUT',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(input),
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to update event',
-                }))
-                throw new Error(error.error || 'Failed to update event')
-            }
-
-            return response.json()
-        },
-        onSuccess: () => {
-            // Invalidate event detail and lists
-            queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
-            queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
-            queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
         },
     })
 }

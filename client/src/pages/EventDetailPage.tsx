@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -15,31 +15,199 @@ import { queryKeys } from '../hooks/queries/keys'
 import { SignupModal } from '../components/SignupModal'
 import { EventHeader } from '../components/EventHeader'
 import { EventInfo } from '../components/EventInfo'
-import { AttendanceWidget } from '../components/AttendanceWidget'
-import { AttendeeList } from '../components/AttendeeList'
-import { ReminderSelector } from '../components/ReminderSelector'
-import { CalendarExport } from '../components/CalendarExport'
-import { CommentList } from '../components/CommentList'
+import { SignUpPrompt } from '../components/SignUpPrompt'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
+import { Badge } from '../components/ui/Badge'
+import { Avatar } from '../components/ui/Avatar'
+import { Textarea } from '../components/ui/Textarea'
+import { Select } from '../components/ui/Select'
 import { Container } from '../components/layout/Container'
 import { setSEOMetadata } from '../lib/seo'
+import type { CommentMention } from '../types'
 import { getDefaultTimezone } from '../lib/timezones'
 import { useUIStore } from '../stores'
 import { formatDate } from '../lib/formatUtils'
+
+interface MentionSuggestion {
+    id: string
+    username: string
+    name?: string | null
+    profileImage?: string | null
+    displayColor?: string | null
+}
+
+const mentionTriggerRegex = /(^|[\s({[]])@([\w.-]+(?:@[\w.-]+)?)$/i
+const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
+
+const REMINDER_OPTIONS: Array<{ label: string; value: number | null }> = [
+    { label: 'No reminder', value: null },
+    { label: '5 minutes before', value: 5 },
+    { label: '15 minutes before', value: 15 },
+    { label: '30 minutes before', value: 30 },
+    { label: '1 hour before', value: 60 },
+    { label: '2 hours before', value: 120 },
+    { label: '1 day before', value: 1440 },
+]
 
 export function EventDetailPage() {
     const location = useLocation()
     const navigate = useNavigate()
     const { user } = useAuth()
     const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const [comment, setComment] = useState('')
     const [username, setUsername] = useState<string>('')
     const [eventId, setEventId] = useState<string>('')
     const [signupModalOpen, setSignupModalOpen] = useState(false)
     const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | 'share' | null>(null)
     const [pendingRSVPStatus, setPendingRSVPStatus] = useState<string | null>(null)
     const [selectedReminder, setSelectedReminder] = useState<number | null>(null)
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+    const [mentionQuery, setMentionQuery] = useState('')
+    const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
+    const [activeMentionIndex, setActiveMentionIndex] = useState(0)
+    const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
+    const [showMentionSuggestions, setShowMentionSuggestions] = useState(false)
     const [hasShared, setHasShared] = useState(false)
+
+    const resetMentionState = useCallback(() => {
+        setMentionRange(null)
+        setMentionQuery('')
+        setMentionSuggestions([])
+        setShowMentionSuggestions(false)
+        setActiveMentionIndex(0)
+    }, [])
+
+    const updateMentionState = useCallback(
+        (value: string, caretPosition: number) => {
+            if (caretPosition < 0) {
+                resetMentionState()
+                return
+            }
+
+            const textBeforeCaret = value.slice(0, caretPosition)
+            const match = textBeforeCaret.match(mentionTriggerRegex)
+
+            if (match && match[2]) {
+                const atIndex = textBeforeCaret.lastIndexOf('@')
+                if (atIndex >= 0) {
+                    setMentionRange({ start: atIndex, end: caretPosition })
+                    setMentionQuery(match[2])
+                    setShowMentionSuggestions(true)
+                    return
+                }
+            }
+
+            resetMentionState()
+        },
+        [resetMentionState]
+    )
+
+    const renderCommentContent = useCallback(
+        (commentId: string, text: string, mentions?: CommentMention[]) => {
+            if (!mentions || mentions.length === 0) {
+                return text
+            }
+
+            const mentionMap = new Map<string, CommentMention>()
+            mentions.forEach((mention) => {
+                const normalizedHandle = mention.handle?.startsWith('@')
+                    ? mention.handle.slice(1).toLowerCase()
+                    : mention.handle.toLowerCase()
+                mentionMap.set(normalizedHandle, mention)
+                mentionMap.set(mention.user.username.toLowerCase(), mention)
+            })
+
+            return text.split(mentionSplitRegex).map((part, index) => {
+                if (!part) {
+                    return null
+                }
+
+                if (part.startsWith('@')) {
+                    const normalized = part.slice(1).toLowerCase()
+                    const mention = mentionMap.get(normalized)
+
+                    if (mention) {
+                        return (
+                            <Link
+                                key={`${commentId}-mention-${index}`}
+                                to={`/@${mention.user.username}`}
+                                className="text-blue-600 font-medium hover:underline"
+                            >
+                                {part}
+                            </Link>
+                        )
+                    }
+                }
+
+                return (
+                    <span key={`${commentId}-text-${index}`}>
+                        {part}
+                    </span>
+                )
+            })
+        },
+        []
+    )
+
+    const applyMentionSuggestion = useCallback(
+        (suggestion: MentionSuggestion) => {
+            if (!mentionRange || !textareaRef.current) {
+                return
+            }
+
+            const currentValue = textareaRef.current.value
+            const before = currentValue.slice(0, mentionRange.start)
+            const after = currentValue.slice(mentionRange.end)
+            const insertion = `@${suggestion.username}`
+            const needsSpace = after.startsWith(' ') || after.length === 0 ? '' : ' '
+            const nextValue = `${before}${insertion}${needsSpace}${after}`
+
+            setComment(nextValue)
+            const newCaret = before.length + insertion.length + needsSpace.length
+
+            requestAnimationFrame(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.selectionStart = newCaret
+                    textareaRef.current.selectionEnd = newCaret
+                }
+            })
+
+            resetMentionState()
+        },
+        [mentionRange, resetMentionState]
+    )
+
+    const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value
+        setComment(value)
+        const caret = e.target.selectionStart ?? value.length
+        updateMentionState(value, caret)
+    }
+
+    const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (!showMentionSuggestions || mentionSuggestions.length === 0) {
+            return
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setActiveMentionIndex((prev) => (prev + 1) % mentionSuggestions.length)
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setActiveMentionIndex((prev) =>
+                prev === 0 ? mentionSuggestions.length - 1 : prev - 1
+            )
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (activeMentionIndex >= 0 && activeMentionIndex < mentionSuggestions.length) {
+                applyMentionSuggestion(mentionSuggestions[activeMentionIndex])
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault()
+            resetMentionState()
+        }
+    }
 
     // Extract username and eventId from pathname
     useEffect(() => {
@@ -52,6 +220,46 @@ export function EventDetailPage() {
             setEventId(extractedEventId)
         }
     }, [location.pathname])
+
+    useEffect(() => {
+        if (!mentionQuery || mentionQuery.length === 0) {
+            setMentionSuggestions([])
+            setShowMentionSuggestions(false)
+            return
+        }
+
+        const controller = new AbortController()
+        const timeout = setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `/api/user-search?q=${encodeURIComponent(mentionQuery)}&limit=5`,
+                    {
+                        credentials: 'include',
+                        signal: controller.signal,
+                    }
+                )
+
+                if (!response.ok) {
+                    return
+                }
+
+                const body = await response.json() as { users?: MentionSuggestion[] }
+                const suggestions = Array.isArray(body.users) ? body.users.slice(0, 5) : []
+                setMentionSuggestions(suggestions)
+                setActiveMentionIndex(0)
+                setShowMentionSuggestions(suggestions.length > 0)
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    console.error('Failed to load mention suggestions:', error)
+                }
+            }
+        }, 200)
+
+        return () => {
+            controller.abort()
+            clearTimeout(timeout)
+        }
+    }, [mentionQuery])
 
     // Fetch event
     const { data: event, isLoading } = useEventDetail(username, eventId)
@@ -132,7 +340,9 @@ export function EventDetailPage() {
         }
     }
 
-    const handleReminderChange = async (nextValue: number | null) => {
+    const handleReminderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextValue = e.target.value === '' ? null : Number(e.target.value)
+
         if (!user) {
             setPendingAction(null)
             setSignupModalOpen(true)
@@ -188,34 +398,62 @@ export function EventDetailPage() {
         }
     }
 
-    const handleAddComment = async (content: string) => {
+    const handleCommentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!comment.trim()) return
+
+        if (!user) {
+            setPendingAction('comment')
+            setSignupModalOpen(true)
+            return
+        }
+
         try {
-            await addCommentMutation.mutateAsync({ content })
+            await addCommentMutation.mutateAsync({ content: comment })
+            setComment('')
+            resetMentionState()
+            textareaRef.current?.focus()
         } catch (error) {
             console.error('Comment failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to post comment. Please try again.' })
         }
-    }
-
-    const handleReply = async (parentId: string, content: string) => {
-        try {
-            await addCommentMutation.mutateAsync({ content, inReplyToId: parentId })
-        } catch (error) {
-            console.error('Reply failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to post reply. Please try again.' })
-        }
-    }
-
-    const handleSignupPrompt = () => {
-        setPendingAction('comment')
-        setSignupModalOpen(true)
     }
 
     const handleSignupSuccess = () => {
-        // User is now authenticated, pending actions are cleared
-        setPendingAction(null)
-        setPendingRSVPStatus(null)
+        // The pending action will be executed automatically by the useEffect
+        // that watches for user and pendingAction changes
+        // This callback is called after successful signup/login
     }
+
+    const executePendingAction = useCallback(async () => {
+        if (!pendingAction) return
+
+        try {
+            if (pendingAction === 'rsvp' && pendingRSVPStatus) {
+                await rsvpMutation.mutateAsync({ status: pendingRSVPStatus })
+            } else if (pendingAction === 'like') {
+                await likeMutation.mutateAsync(false) // false = like (not unlike)
+            } else if (pendingAction === 'comment' && comment.trim()) {
+                await addCommentMutation.mutateAsync({ content: comment })
+                setComment('')
+            } else if (pendingAction === 'share') {
+                await shareMutation.mutateAsync()
+                setHasShared(true)
+            }
+        } catch (error) {
+            console.error('Failed to perform action after signup:', error)
+        } finally {
+            setPendingAction(null)
+            setPendingRSVPStatus(null)
+        }
+    }, [pendingAction, pendingRSVPStatus, comment, rsvpMutation, likeMutation, addCommentMutation, shareMutation])
+
+    useEffect(() => {
+        if (user && pendingAction) {
+            // Small delay to ensure mutations are ready
+            const timer = setTimeout(executePendingAction, 100)
+            return () => clearTimeout(timer)
+        }
+    }, [user, pendingAction, executePendingAction])
 
 
     const handleDeleteComment = async (commentId: string) => {
@@ -254,13 +492,6 @@ export function EventDetailPage() {
             console.error('Delete event failed:', error)
             addErrorToast({ id: crypto.randomUUID(), message: 'Failed to delete event. Please try again.' })
         }
-    }
-
-    const handleDuplicateEvent = () => {
-        if (!event) return
-        // Navigate to edit page with duplicate intent - we'll handle this in EditEventPage
-        // For now, just navigate to create event modal (would need to open modal with pre-filled data)
-        addErrorToast({ id: crypto.randomUUID(), message: 'Duplicate functionality coming soon!' })
     }
 
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
@@ -323,6 +554,26 @@ export function EventDetailPage() {
     const eventHasStarted = useMemo(() => eventStartDate.getTime() <= Date.now(), [eventStartDate])
     const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
 
+    const shouldShowRsvpSpinner = (status: 'attending' | 'maybe') => {
+        if (!rsvpMutation.isPending) {
+            return false
+        }
+        if (status === 'attending') {
+            return userAttendance === 'attending' || !userAttendance
+        }
+        return userAttendance === 'maybe'
+    }
+
+    const getReminderHelperText = () => {
+        if (!user) {
+            return 'Sign up to save reminder notifications.'
+        }
+        if (canManageReminder) {
+            return 'We will send reminder notifications and email (if configured).'
+        }
+        return 'RSVP as Going or Maybe to enable reminders.'
+    }
+
     return (
         <div className="min-h-screen bg-background-secondary">
             {/* Navigation */}
@@ -375,12 +626,9 @@ export function EventDetailPage() {
                                 profileImage: event.user!.profileImage,
                                 displayColor: event.user!.displayColor,
                             }}
-                            eventId={eventId}
                             isOwner={user?.id === event.user!.id}
                             onDelete={handleDeleteEvent}
                             isDeleting={deleteEventMutation.isPending}
-                            onDuplicate={handleDuplicateEvent}
-                            isDuplicating={false}
                         />
 
                         <div className="mt-6">
@@ -403,65 +651,239 @@ export function EventDetailPage() {
                             />
                         </div>
 
-                        {/* Attendance Widget */}
-                        <div className="mt-6">
-                            <AttendanceWidget
-                                userAttendance={userAttendance}
-                                attendingCount={attending}
-                                maybeCount={maybe}
-                                likeCount={event.likes?.length || 0}
-                                userLiked={userLiked}
-                                userHasShared={hasShared || userHasShared}
-                                isAuthenticated={!!user}
-                                isRSVPPending={rsvpMutation.isPending}
-                                isLikePending={likeMutation.isPending}
-                                isSharePending={shareMutation.isPending}
-                                onRSVP={handleRSVP}
-                                onLike={handleLike}
-                                onShare={handleShare}
-                                onSignUp={() => setSignupModalOpen(true)}
-                            />
+                        {/* RSVP Buttons */}
+                        <div className="flex flex-wrap gap-3 mb-6 pb-6 border-b border-border-default mt-6">
+                            <Button
+                                variant={userAttendance === 'attending' ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={() => handleRSVP('attending')}
+                                disabled={rsvpMutation.isPending}
+                                loading={shouldShowRsvpSpinner('attending')}
+                                className="flex-1 min-w-[120px]"
+                            >
+                                {shouldShowRsvpSpinner('attending') ? 'Updating...' : `👍 Going (${attending})`}
+                            </Button>
+                            <Button
+                                variant={userAttendance === 'maybe' ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={() => handleRSVP('maybe')}
+                                disabled={rsvpMutation.isPending}
+                                loading={shouldShowRsvpSpinner('maybe')}
+                                className="flex-1 min-w-[120px]"
+                            >
+                                {shouldShowRsvpSpinner('maybe') ? 'Updating...' : `🤔 Maybe (${maybe})`}
+                            </Button>
+                            <Button
+                                variant={userLiked ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={handleLike}
+                                disabled={likeMutation.isPending}
+                                loading={likeMutation.isPending}
+                                className="flex-1 min-w-[100px]"
+                            >
+                                ❤️ {event.likes?.length || 0}
+                            </Button>
+                            <Button
+                                variant={(hasShared || userHasShared) ? 'primary' : 'secondary'}
+                                size="md"
+                                onClick={handleShare}
+                                disabled={shareMutation.isPending || hasShared || userHasShared}
+                                loading={shareMutation.isPending}
+                                className="flex-1 min-w-[100px]"
+                            >
+                                {(() => {
+                                    if (shareMutation.isPending) {
+                                        return 'Sharing...'
+                                    }
+                                    if (hasShared || userHasShared) {
+                                        return '✅ Shared'
+                                    }
+                                    return '🔁 Share'
+                                })()}
+                            </Button>
                         </div>
+                        {!user && (
+                            <div className="mb-6 pb-4 border-b border-border-default">
+                                <SignUpPrompt variant="inline" />
+                            </div>
+                        )}
+                        {!eventHasStarted && (
+                            <div className="mb-6 pb-4 border-b border-border-default">
+                                <div className="flex items-center gap-3">
+                                    <Select
+                                        label="Reminder"
+                                        value={selectedReminder !== null ? String(selectedReminder) : ''}
+                                        onChange={handleReminderChange}
+                                        disabled={!user || !canManageReminder || reminderMutation.isPending}
+                                        aria-label="Reminder notification timing"
+                                        helperText={getReminderHelperText()}
+                                        className="flex-1"
+                                    >
+                                        {REMINDER_OPTIONS.map((option) => (
+                                            <option
+                                                key={option.label}
+                                                value={option.value !== null ? option.value : ''}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                    {reminderMutation.isPending && (
+                                        <span className="text-sm text-text-secondary">Saving...</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                        {/* Reminder Selector */}
-                        <ReminderSelector
-                            value={selectedReminder}
-                            onChange={handleReminderChange}
-                            isAuthenticated={!!user}
-                            canManageReminder={canManageReminder}
-                            isPending={reminderMutation.isPending}
-                            eventHasStarted={eventHasStarted}
-                        />
-
-                        {/* Calendar Export */}
-                        <CalendarExport
-                            title={displayedEvent.title}
-                            description={displayedEvent.summary}
-                            location={displayedEvent.location}
-                            startTime={displayedEvent.startTime}
-                            endTime={displayedEvent.endTime}
-                            timezone={displayedEvent.timezone}
-                            url={window.location.href}
-                        />
-
-                        {/* Attendee List */}
-                        <AttendeeList attendees={event.attendance || []} />
+                        {/* Attendees */}
+                        {event.attendance && event.attendance.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="font-bold mb-3 text-text-primary">Attendees</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {event.attendance.slice(0, 10).map((a, i) => (
+                                        <Badge key={i} variant="primary" size="md">
+                                            {a.user.name || a.user.username}
+                                            {a.status === 'maybe' && ' (Maybe)'}
+                                        </Badge>
+                                    ))}
+                                    {event.attendance.length > 10 && (
+                                        <Badge variant="secondary" size="md">
+                                            +{event.attendance.length - 10} more
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
                 {/* Comments Section */}
                 <Card variant="elevated" padding="lg">
                     <CardContent>
-                        <CommentList
-                            comments={event.comments || []}
-                            currentUserId={user?.id}
-                            isAuthenticated={!!user}
-                            onAddComment={handleAddComment}
-                            onReply={handleReply}
-                            onDelete={handleDeleteComment}
-                            isAddingComment={addCommentMutation.isPending}
-                            onSignUpPrompt={handleSignupPrompt}
-                        />
+                        <h2 className="text-xl font-bold mb-4 text-text-primary">
+                            Comments ({event.comments?.length || 0})
+                        </h2>
+
+                        {/* Comment Form */}
+                        {!user ? (
+                            <div className="mb-6">
+                                <SignUpPrompt
+                                    action="comment"
+                                    variant="card"
+                                    onSignUp={() => {
+                                        setPendingAction('comment')
+                                        setSignupModalOpen(true)
+                                    }}
+                                />
+                            </div>
+                        ) : (
+                            <form onSubmit={handleCommentSubmit} className="mb-6">
+                                <div className="relative mb-3">
+                                    <Textarea
+                                        ref={textareaRef}
+                                        value={comment}
+                                        onChange={handleCommentChange}
+                                        onKeyDown={handleCommentKeyDown}
+                                        onSelect={() => {
+                                            if (textareaRef.current) {
+                                                updateMentionState(
+                                                    textareaRef.current.value,
+                                                    textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                                )
+                                            }
+                                        }}
+                                        onClick={() => {
+                                            if (textareaRef.current) {
+                                                updateMentionState(
+                                                    textareaRef.current.value,
+                                                    textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                                )
+                                            }
+                                        }}
+                                        placeholder="Add a comment..."
+                                        rows={3}
+                                        className="min-h-[80px]"
+                                    />
+                                    {showMentionSuggestions && mentionSuggestions.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border-default bg-background-primary shadow-lg">
+                                            {mentionSuggestions.map((suggestion, index) => {
+                                                const isActive = index === activeMentionIndex
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={suggestion.id}
+                                                        className={`flex w-full items-center gap-3 p-2 text-left transition-colors ${isActive ? 'bg-primary-50' : 'bg-background-primary'}`}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault()
+                                                            applyMentionSuggestion(suggestion)
+                                                        }}
+                                                    >
+                                                        <Avatar
+                                                            src={suggestion.profileImage || undefined}
+                                                            alt={suggestion.name || suggestion.username}
+                                                            fallback={suggestion.name?.[0] || suggestion.username[0]}
+                                                            size="sm"
+                                                        />
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-sm text-text-primary">{suggestion.name || suggestion.username}</span>
+                                                            <span className="text-xs text-text-secondary">@{suggestion.username}</span>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    disabled={addCommentMutation.isPending || !comment.trim()}
+                                    loading={addCommentMutation.isPending}
+                                >
+                                    {addCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
+                                </Button>
+                            </form>
+                        )}
+
+                        {/* Comments List */}
+                        <div className="space-y-4">
+                            {event.comments?.map((c) => (
+                                <div key={c.id} className="flex gap-3">
+                                    <Avatar
+                                        src={c.author.profileImage || undefined}
+                                        alt={c.author.name || c.author.username}
+                                        fallback={c.author.name?.[0] || c.author.username[0]}
+                                        size="sm"
+                                        className="flex-shrink-0"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="bg-background-secondary rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="font-semibold text-sm text-text-primary">
+                                                    {c.author.name || c.author.username}
+                                                </div>
+                                                {user && c.author.id === user.id && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteComment(c.id)}
+                                                        className="text-error-500 hover:text-error-700 text-xs"
+                                                    >
+                                                        🗑️
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <p className="text-text-primary break-words">
+                                                {renderCommentContent(c.id, c.content, c.mentions)}
+                                            </p>
+                                        </div>
+                                        <div className="text-xs text-text-secondary mt-1">
+                                            {new Date(c.createdAt).toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
             </Container>

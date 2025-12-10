@@ -91,6 +91,7 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
     }
 }
 
+
 interface ActiveFilterChip {
     key: string
     label: string
@@ -413,7 +414,7 @@ export function EventDiscoveryPage() {
                                     <EventCard
                                         key={event.id}
                                         event={event}
-                                        variant="compact"
+                                        variant="full"
                                         isAuthenticated={!!user}
                                     />
                                 ))}
