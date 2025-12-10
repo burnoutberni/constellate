@@ -17,6 +17,7 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { SearchPage } from './pages/SearchPage'
 import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
+import { InstancesPage } from './pages/InstancesPage'
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { MentionNotifications } from './components/MentionNotifications'
@@ -62,6 +63,7 @@ function AppContent() {
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/events" element={<EventDiscoveryPage />} />
+                <Route path="/instances" element={<InstancesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/followers/pending" element={<PendingFollowersPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />

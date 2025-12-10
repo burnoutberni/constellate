@@ -43,6 +43,11 @@ export function Navbar({ isConnected, user, onLogout }: {
               <Link to="/search" className="nav-link">
                 Search
               </Link>
+              {user && (
+                <Link to="/instances" className="nav-link">
+                  Instances
+                </Link>
+              )}
               <Link to="/about" className="nav-link">
                 About
               </Link>
