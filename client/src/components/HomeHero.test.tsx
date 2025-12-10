@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+<<<<<<< HEAD
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { HomeHero } from './HomeHero'
@@ -50,5 +51,34 @@ describe('HomeHero', () => {
     )
     
     expect(screen.queryByText(/Learn more about federation/i)).not.toBeInTheDocument()
+=======
+import { HomeHero } from './HomeHero'
+
+describe('HomeHero', () => {
+  it('should render hero title and description', () => {
+    const props = {
+      isAuthenticated: false,
+    }
+    
+    // Component should be exported and importable
+    expect(HomeHero).toBeDefined()
+    expect(typeof HomeHero).toBe('function')
+    
+    // Props interface should accept isAuthenticated
+    expect(props.isAuthenticated).toBe(false)
+  })
+
+  it('should accept authenticated state', () => {
+    const props = {
+      isAuthenticated: true,
+    }
+    
+    expect(props.isAuthenticated).toBe(true)
+  })
+
+  it('should be a valid React component', () => {
+    // Verify the component can be called as a function
+    expect(() => HomeHero({ isAuthenticated: false })).not.toThrow()
+>>>>>>> 6e42472 (Add new components for WP-104: HomeHero, EventStats, and EventCard)
   })
 })

@@ -109,7 +109,7 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   }
 
   // New API: uses Link or onSignUp callback
-  const getDefaultMessage = () => {
+  const getDefaultMessage = (): string => {
     if (message) return message
 
     if (typeof action === 'string' && !['rsvp', 'like', 'comment', 'share', 'follow'].includes(action)) {
