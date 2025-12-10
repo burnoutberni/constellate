@@ -25,7 +25,7 @@ import {
 } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { trackInstance } from './lib/instanceHelpers.js'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, Event, User } from '@prisma/client'
 import type {
     Activity,
     FollowActivity,
@@ -426,50 +426,44 @@ async function handleCreate(activity: CreateActivity): Promise<void> {
 /**
  * Extract event properties from ActivityPub event object
  */
+function getLocationValue(eventLocation: unknown): string | null {
+    if (typeof eventLocation === 'string') {
+        return eventLocation
+    }
+    if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation && typeof eventLocation.name === 'string') {
+        return eventLocation.name
+    }
+    return null
+}
+
+function getAttachmentUrl(attachment: unknown): string | null {
+    if (Array.isArray(attachment) && attachment[0] && typeof attachment[0] === 'object' && attachment[0] !== null && 'url' in attachment[0]) {
+        return attachment[0].url as string
+    }
+    return null
+}
+
 function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
     const eventObj = event as Record<string, unknown>
-    const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-    const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-    const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
-    const eventContent = typeof eventObj.content === 'string' ? eventObj.content : null
-    const eventLocation = eventObj.location
-    const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
-    const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
-    const eventDuration = typeof eventObj.duration === 'string' ? eventObj.duration : null
-    const eventUrl = typeof eventObj.url === 'string' ? eventObj.url : null
-    const eventStatus = eventObj.eventStatus
-    const eventAttendanceMode = eventObj.eventAttendanceMode
-    const eventMaxCapacity = typeof eventObj.maximumAttendeeCapacity === 'number' ? eventObj.maximumAttendeeCapacity : null
-    const eventAttachment = Array.isArray(eventObj.attachment) ? eventObj.attachment : null
-    const attachmentUrl = eventAttachment && eventAttachment[0] && typeof eventAttachment[0] === 'object' && eventAttachment[0] !== null && 'url' in eventAttachment[0]
-        ? eventAttachment[0].url as string
-        : null
 
-    let locationValue: string | null
-    if (typeof eventLocation === 'string') {
-        locationValue = eventLocation
-    } else if (eventLocation && typeof eventLocation === 'object' && 'name' in eventLocation && typeof eventLocation.name === 'string') {
-        locationValue = eventLocation.name
-    } else {
-        locationValue = null
-    }
-    const attributedTo = typeof eventObj.attributedTo === 'string' ? eventObj.attributedTo : null
+    const getString = (val: unknown) => typeof val === 'string' ? val : null
+    const getNumber = (val: unknown) => typeof val === 'number' ? val : null
 
     return {
-        eventId,
-        eventName,
-        eventSummary,
-        eventContent,
-        locationValue,
-        eventStartTime,
-        eventEndTime,
-        eventDuration,
-        eventUrl,
-        eventStatus,
-        eventAttendanceMode,
-        eventMaxCapacity,
-        attachmentUrl,
-        attributedTo,
+        eventId: getString(eventObj.id) || '',
+        eventName: getString(eventObj.name) || '',
+        eventSummary: getString(eventObj.summary),
+        eventContent: getString(eventObj.content),
+        locationValue: getLocationValue(eventObj.location),
+        eventStartTime: getString(eventObj.startTime) || '',
+        eventEndTime: getString(eventObj.endTime),
+        eventDuration: getString(eventObj.duration),
+        eventUrl: getString(eventObj.url),
+        eventStatus: eventObj.eventStatus,
+        eventAttendanceMode: eventObj.eventAttendanceMode,
+        eventMaxCapacity: getNumber(eventObj.maximumAttendeeCapacity),
+        attachmentUrl: getAttachmentUrl(eventObj.attachment),
+        attributedTo: getString(eventObj.attributedTo),
     }
 }
 
@@ -540,59 +534,70 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
 // Maximum response size limit (10MB)
 const MAX_RESPONSE_SIZE = 10 * 1024 * 1024
 
+async function fetchAndParseRemoteEvent(url: string) {
+    const response = await safeFetch(
+        url,
+        {
+            headers: {
+                Accept: ContentType.ACTIVITY_JSON,
+            },
+        },
+        10000 // 10 second timeout
+    )
+
+    // Check content-length header if available
+    const contentLength = response.headers.get('content-length')
+    if (contentLength) {
+        const size = parseInt(contentLength, 10)
+        if (!Number.isNaN(size) && size > MAX_RESPONSE_SIZE) {
+            console.error('Response too large:', size, 'bytes')
+            return null
+        }
+    }
+
+    if (!response.ok) {
+        return null
+    }
+
+    const text = await response.text()
+    if (text.length > MAX_RESPONSE_SIZE) {
+        console.error('Response body too large:', text.length, 'bytes')
+        return null
+    }
+    try {
+        return JSON.parse(text) as Record<string, unknown>
+    } catch (parseError) {
+        console.error('Error parsing JSON response:', parseError)
+        return null
+    }
+}
+
+
+async function resolveEventFromString(objectUrl: string) {
+    const existing = await findEventByReference(objectUrl)
+    if (existing) {
+        return existing
+    }
+
+    try {
+        const payload = await fetchAndParseRemoteEvent(objectUrl)
+        if (payload) {
+            return upsertRemoteEventFromObject(payload)
+        }
+    } catch (error) {
+        console.error('Error fetching announced event object:', error)
+    }
+
+    return null
+}
+
 async function resolveSharedEventTarget(object: string | Record<string, unknown> | undefined) {
     if (!object) {
         return null
     }
 
     if (typeof object === 'string') {
-        const existing = await findEventByReference(object)
-        if (existing) {
-            return existing
-        }
-
-        try {
-            // Use safeFetch to prevent SSRF attacks with timeout and size limits
-            const response = await safeFetch(
-                object,
-                {
-                    headers: {
-                        Accept: ContentType.ACTIVITY_JSON,
-                    },
-                },
-                10000 // 10 second timeout
-            )
-
-            // Check content-length header if available
-            const contentLength = response.headers.get('content-length')
-            if (contentLength) {
-                const size = parseInt(contentLength, 10)
-                if (!Number.isNaN(size) && size > MAX_RESPONSE_SIZE) {
-                    console.error('Response too large:', size, 'bytes')
-                    return null
-                }
-            }
-
-            if (response.ok) {
-                // Read response with size limit
-                const text = await response.text()
-                if (text.length > MAX_RESPONSE_SIZE) {
-                    console.error('Response body too large:', text.length, 'bytes')
-                    return null
-                }
-                try {
-                    const payload = JSON.parse(text) as Record<string, unknown>
-                    return upsertRemoteEventFromObject(payload)
-                } catch (parseError) {
-                    console.error('Error parsing JSON response:', parseError)
-                    return null
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching announced event object:', error)
-        }
-
-        return null
+        return resolveEventFromString(object)
     }
 
     if (typeof object === 'object') {
@@ -602,24 +607,54 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
     return null
 }
 
+async function getActorInfo(actorUrl: string) {
+    const actor = await fetchActor(actorUrl)
+    if (!actor) {
+        console.log('Failed to fetch actor')
+        return null
+    }
+    const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+    await trackInstance(actorUrl)
+    return remoteUser
+}
+
+async function broadcastRemoteEventCreation(createdEvent: Event, remoteUser: User) {
+    await broadcast({
+        type: BroadcastEvents.EVENT_CREATED,
+        data: {
+            event: {
+                id: createdEvent.id,
+                title: createdEvent.title,
+                summary: createdEvent.summary,
+                location: createdEvent.location,
+                url: createdEvent.url,
+                startTime: createdEvent.startTime.toISOString(),
+                endTime: createdEvent.endTime?.toISOString(),
+                eventStatus: createdEvent.eventStatus,
+                user: {
+                    id: remoteUser.id,
+                    username: remoteUser.username,
+                    name: remoteUser.name,
+                    displayColor: remoteUser.displayColor,
+                    profileImage: remoteUser.profileImage,
+                    isRemote: true,
+                },
+                _count: {
+                    attendance: 0,
+                    likes: 0,
+                    comments: 0,
+                },
+            },
+        },
+    })
+}
+
 /**
  * Handle Create Event
  */
 async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
-    const actorUrl = activity.actor
-
-    // Cache remote user
-    const actor = await fetchActor(actorUrl)
-    if (!actor) {
-        console.log('Failed to fetch actor')
-        return
-    }
-
-    const actorPerson = actor as unknown as Person
-    const remoteUser = await cacheRemoteUser(actorPerson)
-
-    // Track instance
-    await trackInstance(actorUrl)
+    const remoteUser = await getActorInfo(activity.actor)
+    if (!remoteUser) return
 
     // Extract event properties
     const {
@@ -652,7 +687,7 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
         eventAttendanceMode: eventAttendanceMode as string | null,
         maximumAttendeeCapacity: eventMaxCapacity,
         headerImage: attachmentUrl,
-        attributedTo: attributedTo || actorUrl,
+        attributedTo: attributedTo || activity.actor,
     }
 
     const createdEvent = await prisma.event.upsert({
@@ -666,34 +701,7 @@ async function handleCreateEvent(activity: CreateActivity, event: ActivityPubEve
     })
 
     // Broadcast real-time update
-    await broadcast({
-        type: BroadcastEvents.EVENT_CREATED,
-        data: {
-            event: {
-                id: createdEvent.id,
-                title: createdEvent.title,
-                summary: createdEvent.summary,
-                location: createdEvent.location,
-                url: createdEvent.url,
-                startTime: createdEvent.startTime.toISOString(),
-                endTime: createdEvent.endTime?.toISOString(),
-                eventStatus: createdEvent.eventStatus,
-                user: {
-                    id: remoteUser.id,
-                    username: remoteUser.username,
-                    name: remoteUser.name,
-                    displayColor: remoteUser.displayColor,
-                    profileImage: remoteUser.profileImage,
-                    isRemote: true,
-                },
-                _count: {
-                    attendance: 0,
-                    likes: 0,
-                    comments: 0,
-                },
-            },
-        },
-    })
+    await broadcastRemoteEventCreation(createdEvent, remoteUser)
 
     console.log(`✅ Cached remote event: ${eventName}`)
 }
@@ -909,80 +917,93 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
  * 
  * @param activity - The Delete activity containing the object to be deleted
  */
+
+/**
+ * Extracts the object ID from a Delete activity's object.
+ * 
+ * @param object - The object from a Delete activity (can be a string, Tombstone, or object with id)
+ * @returns The object ID string, or an empty string if the ID cannot be extracted
+ */
+function getObjectId(object: DeleteActivity['object']): string {
+    if (typeof object === 'string') {
+        return object
+    }
+    if (typeof object === 'object' && object !== null && 'id' in object && typeof object.id === 'string') {
+        return object.id
+    }
+    return ''
+}
+
+/**
+ * Extracts the formerType from a Tombstone object in a Delete activity.
+ * 
+ * @param object - The object from a Delete activity
+ * @returns The formerType string if present, or null if not a Tombstone or formerType is missing
+ */
+function getFormerType(object: DeleteActivity['object']): string | null {
+    if (typeof object === 'object' && object !== null && 'formerType' in object && typeof object.formerType === 'string') {
+        return object.formerType
+    }
+    return null
+}
+
+async function handleDeleteComment(objectId: string): Promise<boolean> {
+    const comment = await prisma.comment.findFirst({
+        where: {
+            OR: [{ externalId: objectId }, { id: objectId.split('/').pop() }],
+        },
+        include: { event: true },
+    })
+
+    if (!comment) return false
+
+    await prisma.comment.delete({ where: { id: comment.id } })
+
+    await broadcast({
+        type: BroadcastEvents.COMMENT_DELETED,
+        data: { eventId: comment.eventId, commentId: comment.id },
+    })
+
+    console.log(`✅ Deleted remote comment: ${objectId}`)
+    return true
+}
+
+async function handleDeleteEvent(objectId: string): Promise<boolean> {
+    const deletedEvents = await prisma.event.findMany({ where: { externalId: objectId } })
+
+    if (deletedEvents.length === 0) {
+        return false
+    }
+
+    const eventIds = deletedEvents.map(e => e.id)
+    await prisma.event.deleteMany({ where: { externalId: objectId } })
+
+    for (const eventId of eventIds) {
+        await broadcast({
+            type: BroadcastEvents.EVENT_DELETED,
+            data: { eventId, externalId: objectId },
+        })
+    }
+
+    console.log(`✅ Deleted ${deletedEvents.length} remote event(s): ${objectId}`)
+    return true
+}
+
 async function handleDelete(activity: DeleteActivity): Promise<void> {
     const object = activity.object
-    let objectId: string
-    if (typeof object === 'string') {
-        objectId = object
-    } else if (typeof object === 'object' && object !== null && 'id' in object && typeof object.id === 'string') {
-        objectId = object.id
-    } else {
-        objectId = ''
-    }
-    const formerType = typeof object === 'object' && object !== null && 'formerType' in object && typeof object.formerType === 'string'
-        ? object.formerType
-        : null
+    const objectId = getObjectId(object)
+    if (!objectId) return
+    
+    const formerType = getFormerType(object)
 
-    // Handle comment deletion (Note/Tombstone)
     if (formerType === ObjectType.NOTE || objectId.includes('/comments/')) {
-        const comment = await prisma.comment.findFirst({
-            where: {
-                OR: [
-                    { externalId: objectId },
-                    { id: objectId.split('/').pop() },
-                ],
-            },
-            include: {
-                event: true,
-            },
-        })
-
-        if (comment) {
-            await prisma.comment.delete({
-                where: { id: comment.id },
-            })
-
-            // Broadcast update
-            await broadcast({
-                type: BroadcastEvents.COMMENT_DELETED,
-                data: {
-                    eventId: comment.eventId,
-                    commentId: comment.id,
-                },
-            })
-
-            console.log(`✅ Deleted remote comment: ${objectId}`)
+        if (await handleDeleteComment(objectId)) {
             return
         }
     }
 
-    // Try to delete event
-    const deletedEvents = await prisma.event.findMany({
-        where: { externalId: objectId },
-    })
-
-    if (deletedEvents.length > 0) {
-        const eventIds = deletedEvents.map(e => e.id)
-
-        // Delete events
-        await prisma.event.deleteMany({
-            where: { externalId: objectId },
-        })
-
-        // Broadcast update for each deleted event
-        for (const eventId of eventIds) {
-            await broadcast({
-                type: BroadcastEvents.EVENT_DELETED,
-                data: {
-                    eventId,
-                    externalId: objectId,
-                },
-            })
-        }
-
-        console.log(`✅ Deleted ${deletedEvents.length} remote event(s): ${objectId}`)
-    } else {
-        console.log(`⚠️  No event found to delete: ${objectId}`)
+    if (!(await handleDeleteEvent(objectId))) {
+        console.log(`⚠️  No event or comment found to delete: ${objectId}`)
     }
 }
 
@@ -1496,15 +1517,8 @@ async function handleFollowReject(
  * Handle Reject activity (not attending or follow rejection)
  */
 async function handleReject(activity: Activity | Record<string, unknown>): Promise<void> {
-    let actorUrl: string
-    if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
-        actorUrl = activity.actor
-    } else {
-        actorUrl = ''
-    }
-    const object = (typeof activity === 'object' && activity !== null && 'object' in activity)
-        ? activity.object
-        : null
+    const actorUrl = extractActorUrl(activity)
+    const object = extractObject(activity)
 
     const actor = await fetchActor(actorUrl)
     if (!actor) return
@@ -1512,41 +1526,17 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
     const actorPerson = actor as unknown as Person
     const remoteUser = await cacheRemoteUser(actorPerson)
 
-    // Check if this is a Reject for a Follow activity
-    // The object could be a Follow activity object or a string URL
-    const isFollowReject = typeof object === 'object' && object !== null && 'type' in object && object.type === ActivityType.FOLLOW
-
-    if (isFollowReject) {
+    if (isFollowRejectObject(object)) {
         const followActivity = object as Record<string, unknown>
         const handled = await handleFollowReject(actorUrl, followActivity, remoteUser)
-        if (handled) {
-            return
-        }
+        if (handled) return
     }
 
-    // Otherwise, treat as event attendance rejection
-    let objectUrl: string
-    if (typeof object === 'string') {
-        objectUrl = object
-    } else if (typeof object === 'object' && object !== null && 'id' in object && typeof object.id === 'string') {
-        objectUrl = object.id
-    } else {
-        objectUrl = ''
-    }
-    const event = await prisma.event.findFirst({
-        where: {
-            OR: [
-                { externalId: objectUrl },
-                { id: objectUrl.split('/').pop() },
-            ],
-        },
-    })
-
+    const objectUrl = resolveObjectUrl(object)
+    const event = await findEventByObjectUrl(objectUrl)
     if (!event) return
 
-    const activityId = (typeof activity === 'object' && activity !== null && 'id' in activity && typeof activity.id === 'string')
-        ? activity.id
-        : null
+    const activityId = getActivityId(activity)
 
     await prisma.eventAttendance.upsert({
         where: {
@@ -1566,7 +1556,6 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
         },
     })
 
-    // Broadcast update
     await broadcast({
         type: BroadcastEvents.ATTENDANCE_UPDATED,
         data: {
@@ -1584,4 +1573,81 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
     })
 
     console.log(`✅ Not attending from ${actorUrl}`)
+}
+
+/**
+ * Extracts the actor URL from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The actor URL string, or an empty string if not found
+ */
+function extractActorUrl(activity: Activity | Record<string, unknown>) {
+    if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
+        return activity.actor
+    }
+    return ''
+}
+
+/**
+ * Extracts the object from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The object value, or null if not present
+ */
+function extractObject(activity: Activity | Record<string, unknown>) {
+    return typeof activity === 'object' && activity !== null && 'object' in activity ? activity.object : null
+}
+
+/**
+ * Checks if an object is a Follow activity (used for identifying Follow rejections).
+ * 
+ * @param object - The object to check
+ * @returns True if the object is a Follow activity, false otherwise
+ */
+function isFollowRejectObject(object: unknown) {
+    return typeof object === 'object' && object !== null && 'type' in object && (object as { type?: unknown }).type === ActivityType.FOLLOW
+}
+
+/**
+ * Resolves an object to its URL/ID string.
+ * 
+ * @param object - The object (can be a string URL or object with id property)
+ * @returns The object URL/ID string, or an empty string if it cannot be resolved
+ */
+function resolveObjectUrl(object: unknown) {
+    if (typeof object === 'string') return object
+    if (typeof object === 'object' && object !== null && 'id' in object && typeof (object as { id?: unknown }).id === 'string') {
+        return (object as { id: string }).id
+    }
+    return ''
+}
+
+/**
+ * Finds an event by its external ID or local ID.
+ * 
+ * @param objectUrl - The event URL/ID to search for
+ * @returns The event if found, or null if not found
+ */
+async function findEventByObjectUrl(objectUrl: string) {
+    return prisma.event.findFirst({
+        where: {
+            OR: [
+                { externalId: objectUrl },
+                { id: objectUrl.split('/').pop() },
+            ],
+        },
+    })
+}
+
+/**
+ * Extracts the activity ID from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The activity ID string if present, or null if not found
+ */
+function getActivityId(activity: Activity | Record<string, unknown>) {
+    if (typeof activity === 'object' && activity !== null && 'id' in activity && typeof activity.id === 'string') {
+        return activity.id
+    }
+    return null
 }

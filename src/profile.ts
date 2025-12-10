@@ -262,173 +262,30 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
         const { username } = c.req.param()
         const userId = requireAuth(c)
 
-        // Get current user
-        const currentUser = await prisma.user.findUnique({
-            where: { id: userId, isRemote: false },
-        })
+        const currentUser = await requireLocalUser(userId)
+        if (!currentUser) return c.json({ error: 'User not found' }, 404)
 
-        if (!currentUser) {
-            return c.json({ error: 'User not found' }, 404)
-        }
+        const targetUser = await findTargetUser(username)
+        if (!targetUser) return c.json({ error: 'User not found' }, 404)
 
-        // Find target user
-        const isRemote = username.includes('@')
-
-        // For remote users, we don't need autoAcceptFollowers (they handle it on their server)
-        // For local users, we need it to check their setting
-        const targetUser = await prisma.user.findFirst({
-            where: {
-                username,
-                isRemote,
-            },
-            select: {
-                id: true,
-                username: true,
-                name: true,
-                bio: true,
-                displayColor: true,
-                profileImage: true,
-                headerImage: true,
-                isRemote: true,
-                externalActorUrl: true,
-                inboxUrl: true,
-                sharedInboxUrl: true,
-                ...(isRemote ? {} : { autoAcceptFollowers: true }),
-            },
-        }) as {
-            id: string;
-            username: string;
-            name: string | null;
-            bio: string | null;
-            displayColor: string;
-            profileImage: string | null;
-            headerImage: string | null;
-            isRemote: boolean;
-            externalActorUrl: string | null;
-            inboxUrl: string | null;
-            sharedInboxUrl: string | null;
-            autoAcceptFollowers?: boolean;
-        } | null
-
-        if (!targetUser) {
-            return c.json({ error: 'User not found' }, 404)
-        }
-
-        // Can't follow yourself
         if (targetUser.id === userId) {
             return c.json({ error: 'Cannot follow yourself' }, 400)
         }
 
-        // Get target actor URL
         const baseUrl = getBaseUrl()
-        const targetActorUrl = targetUser.isRemote
-            ? targetUser.externalActorUrl!
-            : `${baseUrl}/users/${targetUser.username}`
+        const targetActorUrl = getTargetActorUrl(targetUser, baseUrl)
 
-        // Check if already following
-        const existing = await prisma.following.findUnique({
-            where: {
-                userId_actorUrl: {
-                    userId,
-                    actorUrl: targetActorUrl,
-                },
-            },
-        })
-
-        // If already following and accepted, return error
-        // If already following but not accepted, we can resend the follow request
-        if (existing && existing.accepted) {
+        const isAlreadyFollowing = await checkFollowingStatus(userId, targetActorUrl)
+        if (isAlreadyFollowing) {
             return c.json({ error: 'Already following' }, 400)
         }
 
-        // If existing but not accepted, delete it so we can create a new one
-        if (existing && !existing.accepted) {
-            await prisma.following.delete({
-                where: {
-                    userId_actorUrl: {
-                        userId,
-                        actorUrl: targetActorUrl,
-                    },
-                },
-            })
-        }
-
-        // Build Follow activity
         const followActivity = buildFollowActivity(currentUser, targetActorUrl)
 
-        // For local users, handle the follow directly (no need to go through inbox)
         if (!targetUser.isRemote) {
-            const currentUserActorUrl = `${baseUrl}/users/${currentUser.username}`
-            // Check if target user auto-accepts followers (only for local users)
-            const shouldAutoAccept = targetUser.autoAcceptFollowers ?? true
-
-            // Create the follower record
-            await prisma.follower.upsert({
-                where: {
-                    userId_actorUrl: {
-                        userId: targetUser.id,
-                        actorUrl: currentUserActorUrl,
-                    },
-                },
-                update: {
-                    accepted: shouldAutoAccept,
-                },
-                create: {
-                    userId: targetUser.id,
-                    actorUrl: currentUserActorUrl,
-                    username: currentUser.username,
-                    inboxUrl: `${baseUrl}/users/${currentUser.username}/inbox`,
-                    sharedInboxUrl: `${baseUrl}/inbox`,
-                    iconUrl: currentUser.profileImage,
-                    accepted: shouldAutoAccept,
-                },
-            })
-
-            // Create following record - for local users, accepted status matches auto-accept setting
-            await prisma.following.create({
-                data: {
-                    userId,
-                    actorUrl: targetActorUrl,
-                    username: targetUser.username,
-                    inboxUrl: targetUser.inboxUrl || '',
-                    sharedInboxUrl: targetUser.sharedInboxUrl,
-                    iconUrl: targetUser.profileImage,
-                    accepted: shouldAutoAccept, // Already accepted if auto-accepting
-                },
-            })
-
-            // If auto-accepting, we've already set accepted: true above, so no need to send Accept activity
-            // The records are already in the correct state
+            await handleLocalFollow(currentUser, targetUser, baseUrl, targetActorUrl)
         } else {
-            // Remote user - create following record as unaccepted, will be updated when they accept
-            await prisma.following.create({
-                data: {
-                    userId,
-                    actorUrl: targetActorUrl,
-                    username: targetUser.username,
-                    inboxUrl: targetUser.inboxUrl || '',
-                    sharedInboxUrl: targetUser.sharedInboxUrl,
-                    iconUrl: targetUser.profileImage,
-                    accepted: false, // Will be updated when remote user accepts
-                },
-            })
-
-            // Send Follow activity to their inbox
-            const inboxUrl = targetUser.sharedInboxUrl || targetUser.inboxUrl
-            if (inboxUrl) {
-                await deliverToInbox(followActivity, inboxUrl, currentUser)
-            }
-
-            // Broadcast FOLLOW_PENDING to the follower's clients
-            // This tells Alice's frontend that the request was sent and is pending
-            await broadcastToUser(userId, {
-                type: BroadcastEvents.FOLLOW_PENDING,
-                data: {
-                    username: targetUser.username,
-                    actorUrl: targetActorUrl,
-                    isAccepted: false,
-                },
-            })
+            await handleRemoteFollow(currentUser, targetUser, targetActorUrl, followActivity)
         }
 
         return c.json({ success: true, message: 'Follow request sent' })
@@ -440,6 +297,145 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
         return c.json({ error: 'Internal server error' }, 500)
     }
 })
+
+async function requireLocalUser(userId: string) {
+    return prisma.user.findUnique({
+        where: { id: userId, isRemote: false },
+    })
+}
+
+async function findTargetUser(username: string) {
+    const isRemote = username.includes('@')
+    const targetUser = await prisma.user.findFirst({
+        where: { username, isRemote },
+        select: {
+            id: true,
+            username: true,
+            name: true,
+            bio: true,
+            displayColor: true,
+            profileImage: true,
+            headerImage: true,
+            isRemote: true,
+            externalActorUrl: true,
+            inboxUrl: true,
+            sharedInboxUrl: true,
+            ...(isRemote ? {} : { autoAcceptFollowers: true }),
+        },
+    })
+
+    return targetUser
+}
+
+function getTargetActorUrl(targetUser: { isRemote: boolean; externalActorUrl: string | null; username: string }, baseUrl: string) {
+    return targetUser.isRemote ? targetUser.externalActorUrl! : `${baseUrl}/users/${targetUser.username}`
+}
+
+async function checkFollowingStatus(userId: string, targetActorUrl: string): Promise<boolean> {
+    const existing = await prisma.following.findUnique({
+        where: {
+            userId_actorUrl: {
+                userId,
+                actorUrl: targetActorUrl,
+            },
+        },
+    })
+
+    if (existing?.accepted) {
+        return true
+    }
+
+    if (existing && !existing.accepted) {
+        await prisma.following.delete({
+            where: {
+                userId_actorUrl: {
+                    userId,
+                    actorUrl: targetActorUrl,
+                },
+            },
+        })
+    }
+
+    return false
+}
+
+async function handleLocalFollow(
+    currentUser: { id: string; username: string; profileImage: string | null; privateKey: string | null },
+    targetUser: { id: string; username: string; profileImage: string | null; sharedInboxUrl: string | null; inboxUrl: string | null; autoAcceptFollowers?: boolean },
+    baseUrl: string,
+    targetActorUrl: string
+) {
+    const currentUserActorUrl = `${baseUrl}/users/${currentUser.username}`
+    const shouldAutoAccept = targetUser.autoAcceptFollowers ?? true
+
+    await prisma.follower.upsert({
+        where: {
+            userId_actorUrl: {
+                userId: targetUser.id,
+                actorUrl: currentUserActorUrl,
+            },
+        },
+        update: { accepted: shouldAutoAccept },
+        create: {
+            userId: targetUser.id,
+            actorUrl: currentUserActorUrl,
+            username: currentUser.username,
+            inboxUrl: `${baseUrl}/users/${currentUser.username}/inbox`,
+            sharedInboxUrl: `${baseUrl}/inbox`,
+            iconUrl: currentUser.profileImage,
+            accepted: shouldAutoAccept,
+        },
+    })
+
+    await prisma.following.create({
+        data: {
+            userId: currentUser.id,
+            actorUrl: targetActorUrl,
+            username: targetUser.username,
+            inboxUrl: targetUser.inboxUrl || '',
+            sharedInboxUrl: targetUser.sharedInboxUrl,
+            iconUrl: targetUser.profileImage,
+            accepted: shouldAutoAccept,
+        },
+    })
+}
+
+async function handleRemoteFollow(
+    currentUser: { id: string; username: string; profileImage: string | null; privateKey: string | null },
+    targetUser: { username: string; profileImage: string | null; inboxUrl: string | null; sharedInboxUrl: string | null },
+    targetActorUrl: string,
+    followActivity: FollowActivity
+) {
+    await prisma.following.create({
+        data: {
+            userId: currentUser.id,
+            actorUrl: targetActorUrl,
+            username: targetUser.username,
+            inboxUrl: targetUser.inboxUrl || '',
+            sharedInboxUrl: targetUser.sharedInboxUrl,
+            iconUrl: targetUser.profileImage,
+            accepted: false,
+        },
+    })
+
+    const inboxUrl = targetUser.sharedInboxUrl || targetUser.inboxUrl
+    if (inboxUrl) {
+        await deliverToInbox(followActivity, inboxUrl, {
+            id: currentUser.id,
+            username: currentUser.username,
+            privateKey: currentUser.privateKey,
+        })
+    }
+
+    await broadcastToUser(currentUser.id, {
+        type: BroadcastEvents.FOLLOW_PENDING,
+        data: {
+            username: targetUser.username,
+            actorUrl: targetActorUrl,
+            isAccepted: false,
+        },
+    })
+}
 
 // Unfollow user
 app.delete('/users/:username/follow', moderateRateLimit, async (c) => {

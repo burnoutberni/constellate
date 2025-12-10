@@ -38,70 +38,66 @@ const ResolveAccountSchema = z.object({
  */
 function parseHandle(input: string): { username: string; domain: string } | null {
     try {
-        // Try URL format first
-        if (input.startsWith('http://') || input.startsWith('https://')) {
-            const url = new URL(input)
-            const pathParts = url.pathname.split('/').filter(Boolean)
+        const urlResult = parseUrlHandle(input)
+        if (urlResult) return urlResult
 
-            // Look for /users/username pattern
-            const userIndex = pathParts.indexOf('users')
-            if (userIndex !== -1 && pathParts[userIndex + 1]) {
-                return {
-                    username: pathParts[userIndex + 1],
-                    domain: url.hostname,
-                }
-            }
+        const domainPathResult = parseDomainPathHandle(input)
+        if (domainPathResult) return domainPathResult
 
-            // Look for /@username pattern
-            if (pathParts.length > 0 && pathParts[0].startsWith('@')) {
-                return {
-                    username: pathParts[0].slice(1),
-                    domain: url.hostname,
-                }
-            }
-
-            // Try last path segment as username
-            if (pathParts.length > 0) {
-                return {
-                    username: pathParts[pathParts.length - 1],
-                    domain: url.hostname,
-                }
-            }
-
-            return null
-        }
-
-        // Check for domain/@username format (e.g., app2.local/@bob)
-        if (input.includes('/') && input.includes('@')) {
-            const slashIndex = input.indexOf('/')
-            const domain = input.substring(0, slashIndex)
-            const pathPart = input.substring(slashIndex + 1)
-
-            if (pathPart.startsWith('@')) {
-                return {
-                    username: pathPart.slice(1),
-                    domain,
-                }
-            }
-        }
-
-        // Remove leading @ if present
-        const normalized = input.startsWith('@') ? input.slice(1) : input
-
-        // Check for @domain format
-        const parts = normalized.split('@')
-        if (parts.length === 2 && parts[0] && parts[1]) {
-            return {
-                username: parts[0],
-                domain: parts[1],
-            }
-        }
-
-        return null
+        const normalized = normalizeHandleInput(input)
+        return parseSimpleHandle(normalized)
     } catch (error) {
         console.error('Error parsing handle:', error)
         return null
     }
+}
+
+function parseUrlHandle(input: string) {
+    if (!input.startsWith('http://') && !input.startsWith('https://')) return null
+
+    const url = new URL(input)
+    const pathParts = url.pathname.split('/').filter(Boolean)
+
+    const userIndex = pathParts.indexOf('users')
+    if (userIndex !== -1 && pathParts[userIndex + 1]) {
+        return { username: pathParts[userIndex + 1], domain: url.hostname }
+    }
+
+    if (pathParts[0]?.startsWith('@')) {
+        return { username: pathParts[0].slice(1), domain: url.hostname }
+    }
+
+    if (pathParts.length > 0) {
+        return { username: pathParts[pathParts.length - 1], domain: url.hostname }
+    }
+
+    return null
+}
+
+function parseDomainPathHandle(input: string) {
+    if (!input.includes('/') || !input.includes('@')) return null
+
+    const slashIndex = input.indexOf('/')
+    const domain = input.substring(0, slashIndex)
+    const pathPart = input.substring(slashIndex + 1)
+
+    if (pathPart.startsWith('@')) {
+        return { username: pathPart.slice(1), domain }
+    }
+
+    return null
+}
+
+function normalizeHandleInput(input: string) {
+    return input.startsWith('@') ? input.slice(1) : input
+}
+
+function parseSimpleHandle(normalized: string) {
+    const parts = normalized.split('@')
+    if (parts.length === 2 && parts[0] && parts[1]) {
+        return { username: parts[0], domain: parts[1] }
+    }
+    return null
 }
 
 /**
@@ -113,108 +109,144 @@ function isLocalHandle(domain: string): boolean {
     return domain === localDomain
 }
 
+type SearchUserResult = {
+    id: string
+    username: string
+    name: string | null
+    profileImage: string | null
+    displayColor: string
+    isRemote: boolean
+    externalActorUrl: string | null
+}
+
+type RemoteAccountSuggestion = {
+    handle: string
+    username: string
+    domain: string
+} | null
+
+function parseSearchParams(c: { req: { query: (key: string) => string | undefined | null } }) {
+    const params = SearchQuerySchema.parse({
+        q: c.req.query('q'),
+        limit: c.req.query('limit'),
+    })
+
+    const query = params.q
+    const limit = Math.min(parseInt(params.limit || '10'), 50)
+    return { query, limit }
+}
+
+async function searchLocalUsers(query: string, limit: number): Promise<SearchUserResult[]> {
+    return prisma.user.findMany({
+        where: {
+            OR: [
+                { username: { contains: query } },
+                { name: { contains: query } },
+            ],
+        },
+        select: {
+            id: true,
+            username: true,
+            name: true,
+            profileImage: true,
+            displayColor: true,
+            isRemote: true,
+            externalActorUrl: true,
+        },
+        take: limit,
+    })
+}
+
+async function searchLocalEvents(query: string, limit: number) {
+    return prisma.event.findMany({
+        where: {
+            OR: [
+                { title: { contains: query } },
+                { summary: { contains: query } },
+            ],
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    displayColor: true,
+                    profileImage: true,
+                },
+            },
+            _count: {
+                select: {
+                    attendance: true,
+                    likes: true,
+                },
+            },
+        },
+        take: limit,
+        orderBy: { startTime: 'asc' },
+    })
+}
+
+async function handleRemoteSuggestion(
+    query: string,
+    users: SearchUserResult[],
+): Promise<{ users: SearchUserResult[]; remoteAccountSuggestion: RemoteAccountSuggestion }> {
+    const parsedHandle = parseHandle(query)
+
+    if (!parsedHandle || isLocalHandle(parsedHandle.domain)) {
+        return { users, remoteAccountSuggestion: null }
+    }
+
+    const cachedRemoteUser = await findCachedRemoteUser(parsedHandle)
+    if (cachedRemoteUser) {
+        const alreadyPresent = users.some((user) => user.id === cachedRemoteUser.id)
+        return {
+            users: alreadyPresent ? users : [cachedRemoteUser, ...users],
+            remoteAccountSuggestion: null,
+        }
+    }
+
+    return {
+        users,
+        remoteAccountSuggestion: {
+            handle: `@${parsedHandle.username}@${parsedHandle.domain}`,
+            username: parsedHandle.username,
+            domain: parsedHandle.domain,
+        },
+    }
+}
+
+async function findCachedRemoteUser(parsedHandle: { username: string; domain: string }) {
+    return prisma.user.findFirst({
+        where: {
+            username: `${parsedHandle.username}@${parsedHandle.domain}`,
+            isRemote: true,
+        },
+        select: {
+            id: true,
+            username: true,
+            name: true,
+            profileImage: true,
+            displayColor: true,
+            isRemote: true,
+            externalActorUrl: true,
+        },
+    })
+}
+
 /**
  * Search for users and events
  * GET /api/user-search?q=query&limit=10
  */
 app.get('/', async (c) => {
     try {
-        const params = SearchQuerySchema.parse({
-            q: c.req.query('q'),
-            limit: c.req.query('limit'),
-        })
-
-        const query = params.q
-        const limit = Math.min(parseInt(params.limit || '10'), 50)
-
-        // Search local users
-        const users = await prisma.user.findMany({
-            where: {
-                OR: [
-                    { username: { contains: query } },
-                    { name: { contains: query } },
-                ],
-            },
-            select: {
-                id: true,
-                username: true,
-                name: true,
-                profileImage: true,
-                displayColor: true,
-                isRemote: true,
-                externalActorUrl: true,
-            },
-            take: limit,
-        })
-
-        // Search local events
-        const events = await prisma.event.findMany({
-            where: {
-                OR: [
-                    { title: { contains: query } },
-                    { summary: { contains: query } },
-                ],
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        username: true,
-                        name: true,
-                        displayColor: true,
-                        profileImage: true,
-                    },
-                },
-                _count: {
-                    select: {
-                        attendance: true,
-                        likes: true,
-                    },
-                },
-            },
-            take: limit,
-            orderBy: { startTime: 'asc' },
-        })
-
-        // Check if query looks like a remote handle
-        const parsedHandle = parseHandle(query)
-        let remoteAccountSuggestion = null
-
-        if (parsedHandle && !isLocalHandle(parsedHandle.domain)) {
-            // Check if we already have this remote user cached
-            const cachedRemoteUser = await prisma.user.findFirst({
-                where: {
-                    username: `${parsedHandle.username}@${parsedHandle.domain}`,
-                    isRemote: true,
-                },
-                select: {
-                    id: true,
-                    username: true,
-                    name: true,
-                    profileImage: true,
-                    displayColor: true,
-                    isRemote: true,
-                    externalActorUrl: true,
-                },
-            })
-
-            if (cachedRemoteUser) {
-                // Add to users list if not already there
-                if (!users.find(u => u.id === cachedRemoteUser.id)) {
-                    users.unshift(cachedRemoteUser)
-                }
-            } else {
-                // Suggest resolving this remote account
-                remoteAccountSuggestion = {
-                    handle: `@${parsedHandle.username}@${parsedHandle.domain}`,
-                    username: parsedHandle.username,
-                    domain: parsedHandle.domain,
-                }
-            }
-        }
+        const { query, limit } = parseSearchParams(c)
+        const users = await searchLocalUsers(query, limit)
+        const events = await searchLocalEvents(query, limit)
+        const { users: finalUsers, remoteAccountSuggestion } = await handleRemoteSuggestion(query, users)
 
         return c.json({
-            users,
+            users: finalUsers,
             events,
             remoteAccountSuggestion,
         })

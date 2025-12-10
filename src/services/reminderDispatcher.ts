@@ -33,11 +33,10 @@ function formatEventStart(startTime: Date) {
     }
 }
 
-async function processReminder(reminderId: string) {
-    // Reminder has already been claimed and set to SENDING in the transaction
-    // Just verify it still exists and is in SENDING status
+type ReminderWithContext = Awaited<ReturnType<typeof fetchReminderWithContext>>
 
-    const reminder = await prisma.eventReminder.findUnique({
+async function fetchReminderWithContext(reminderId: string) {
+    return prisma.eventReminder.findUnique({
         where: { id: reminderId },
         include: {
             event: {
@@ -62,102 +61,106 @@ async function processReminder(reminderId: string) {
             },
         },
     })
+}
 
-    if (!reminder || !reminder.event || !reminder.user) {
-        if (reminder) {
-            try {
-                await prisma.eventReminder.update({
-                    where: { id: reminderId },
-                    data: {
-                        status: ReminderStatus.FAILED,
-                        failureReason: 'Reminder missing event or user context',
-                    },
-                })
-            } catch {
-                // Reminder was deleted, ignore
-            }
-        }
-        return
+async function markReminderFailed(reminderId: string, reason: string) {
+    try {
+        await prisma.eventReminder.update({
+            where: { id: reminderId },
+            data: {
+                status: ReminderStatus.FAILED,
+                failureReason: reason,
+            },
+        })
+    } catch {
+        // Reminder was deleted, ignore
     }
+}
 
-    let notificationSucceeded = false
-    let notificationError: Error | null = null
-    let emailError: Error | null = null
+async function sendReminderNotification(reminder: NonNullable<ReminderWithContext>) {
+    const eventUrl = buildEventUrl(reminder.event)
+    const eventStartFormatted = formatEventStart(reminder.event.startTime)
+    const reminderLabel = `Reminder: ${reminder.event.title}`
 
     try {
-        const eventUrl = buildEventUrl(reminder.event)
-        const eventStartFormatted = formatEventStart(reminder.event.startTime)
-        const reminderLabel = `Reminder: ${reminder.event.title}`
-
-        // Try to create notification
-        try {
-            await createNotification({
-                userId: reminder.user.id,
-                type: NotificationType.EVENT,
-                title: reminderLabel,
-                body: `"${reminder.event.title}" starts at ${eventStartFormatted}.`,
-                contextUrl: eventUrl,
-                data: {
-                    eventId: reminder.event.id,
-                    reminderId: reminder.id,
-                    remindAt: reminder.remindAt.toISOString(),
-                },
-            })
-            notificationSucceeded = true
-        } catch (error) {
-            notificationError = error instanceof Error ? error : new Error(String(error))
-            console.error('Failed to create notification for reminder:', error)
-        }
-
-        // Try to send email (non-critical, don't fail if this fails)
-        if (reminder.user.email) {
-            try {
-                const greeting = reminder.user.name || reminder.user.username
-                const textBody = `Hi ${greeting},\n\nThis is your reminder for "${reminder.event.title}".\n\nStart time: ${eventStartFormatted}\nReminder offset: ${reminder.minutesBeforeStart} minutes before start\n\nView event: ${eventUrl}\n\n— Constellate`
-
-                await sendEmail({
-                    to: reminder.user.email,
-                    subject: reminderLabel,
-                    text: textBody,
-                })
-            } catch (error) {
-                emailError = error instanceof Error ? error : new Error(String(error))
-                console.warn('Failed to send email for reminder (non-critical):', error)
-            }
-        }
-
-        // Determine final status based on what succeeded
-        if (notificationSucceeded) {
-            // Notification succeeded - reminder is considered sent
-            // Email failure is non-critical and logged as a warning
-            await prisma.eventReminder.update({
-                where: { id: reminder.id },
-                data: {
-                    status: ReminderStatus.SENT,
-                    deliveredAt: new Date(),
-                    failureReason: emailError ? `Email failed: ${emailError.message}` : null,
-                },
-            })
-        } else {
-            // Notification failed - mark as failed
-            await prisma.eventReminder.update({
-                where: { id: reminder.id },
-                data: {
-                    status: ReminderStatus.FAILED,
-                    failureReason: notificationError?.message || 'Unknown error',
-                },
-            })
-        }
+        await createNotification({
+            userId: reminder.user.id,
+            type: NotificationType.EVENT,
+            title: reminderLabel,
+            body: `"${reminder.event.title}" starts at ${eventStartFormatted}.`,
+            contextUrl: eventUrl,
+            data: {
+                eventId: reminder.event.id,
+                reminderId: reminder.id,
+                remindAt: reminder.remindAt.toISOString(),
+            },
+        })
+        return { success: true as const, reminderLabel, eventUrl, eventStartFormatted }
     } catch (error) {
-        // Unexpected error during processing
-        console.error('Unexpected error processing reminder, marking as FAILED:', error)
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.error('Failed to create notification for reminder:', error)
+        return { success: false as const, reminderLabel, eventUrl, eventStartFormatted, error: err }
+    }
+}
+
+async function sendReminderEmail(reminder: NonNullable<ReminderWithContext>, context: { reminderLabel: string; eventUrl: string; eventStartFormatted: string }) {
+    if (!reminder.user.email) return null
+
+    try {
+        const greeting = reminder.user.name || reminder.user.username
+        const textBody = `Hi ${greeting},\n\nThis is your reminder for "${reminder.event.title}".\n\nStart time: ${context.eventStartFormatted}\nReminder offset: ${reminder.minutesBeforeStart} minutes before start\n\nView event: ${context.eventUrl}\n\n— Constellate`
+
+        await sendEmail({
+            to: reminder.user.email,
+            subject: context.reminderLabel,
+            text: textBody,
+        })
+        return null
+    } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.warn('Failed to send email for reminder (non-critical):', error)
+        return err
+    }
+}
+
+async function finalizeReminder(reminder: NonNullable<ReminderWithContext>, notificationResult: Awaited<ReturnType<typeof sendReminderNotification>>, emailError: Error | null) {
+    if (notificationResult.success) {
+        await prisma.eventReminder.update({
+            where: { id: reminder.id },
+            data: {
+                status: ReminderStatus.SENT,
+                deliveredAt: new Date(),
+                failureReason: emailError ? `Email failed: ${emailError.message}` : null,
+            },
+        })
+    } else {
         await prisma.eventReminder.update({
             where: { id: reminder.id },
             data: {
                 status: ReminderStatus.FAILED,
-                failureReason: error instanceof Error ? error.message : 'Unknown error',
+                failureReason: notificationResult.error?.message || 'Unknown error',
             },
         })
+    }
+}
+
+async function processReminder(reminderId: string) {
+    const reminder = await fetchReminderWithContext(reminderId)
+
+    if (!reminder || !reminder.event || !reminder.user) {
+        if (reminder) {
+            await markReminderFailed(reminderId, 'Reminder missing event or user context')
+        }
+        return
+    }
+
+    try {
+        const notificationResult = await sendReminderNotification(reminder)
+        const emailError = await sendReminderEmail(reminder, notificationResult)
+        await finalizeReminder(reminder, notificationResult, emailError)
+    } catch (error) {
+        console.error('Unexpected error processing reminder, marking as FAILED:', error)
+        await markReminderFailed(reminder.id, error instanceof Error ? error.message : 'Unknown error')
     }
 }
 

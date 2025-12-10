@@ -162,68 +162,79 @@ const haversineDistanceKm = (
 export const buildSearchWhereClause = async (params: z.infer<typeof SearchSchema>): Promise<Prisma.EventWhereInput> => {
     const where: Record<string, unknown> = {}
 
-    if (params.q) {
-        where.OR = [
-            { title: { contains: params.q, mode: 'insensitive' } },
-            { summary: { contains: params.q, mode: 'insensitive' } },
-        ]
-    }
+    applySearchTermFilter(where, params.q)
+    applyLocationFilter(where, params.location)
+    applyDateFilters(where, params)
+    applyStatusAndModeFilters(where, params.status, params.mode)
+    await applyUsernameFilter(where, params.username)
+    applyTagFilters(where, params.tags, params.categories)
 
-    if (params.location) {
-        where.location = { contains: params.location, mode: 'insensitive' }
-    }
+    return where as Prisma.EventWhereInput
+}
 
+function applySearchTermFilter(where: Record<string, unknown>, q?: string) {
+    if (!q) return
+    where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { summary: { contains: q, mode: 'insensitive' } },
+    ]
+}
+
+function applyLocationFilter(where: Record<string, unknown>, location?: string) {
+    if (!location) return
+    where.location = { contains: location, mode: 'insensitive' }
+}
+
+function applyDateFilters(where: Record<string, unknown>, params: z.infer<typeof SearchSchema>) {
     const presetBounds = params.dateRange ? resolveDateRangeBounds(params.dateRange) : undefined
     const explicitStart = params.startDate ? new Date(params.startDate) : undefined
     const explicitEnd = params.endDate ? new Date(params.endDate) : undefined
     const startBound = explicitStart ?? presetBounds?.start
     const endBound = explicitEnd ?? presetBounds?.end
 
-    if (startBound || endBound) {
-        where.startTime = {} as { gte?: Date; lte?: Date }
-        if (startBound) {
-            (where.startTime as { gte?: Date }).gte = startBound
-        }
-        if (endBound) {
-            (where.startTime as { lte?: Date }).lte = endBound
-        }
-    }
+    if (!startBound && !endBound) return
 
-    if (params.status) {
-        where.eventStatus = params.status
-    }
+    const range: { gte?: Date; lte?: Date } = {}
+    if (startBound) range.gte = startBound
+    if (endBound) range.lte = endBound
+    where.startTime = range
+}
 
-    if (params.mode) {
-        where.eventAttendanceMode = params.mode
+function applyStatusAndModeFilters(where: Record<string, unknown>, status?: string, mode?: string) {
+    if (status) {
+        where.eventStatus = status
     }
-
-    if (params.username) {
-        const user = await prisma.user.findUnique({
-            where: { username: params.username },
-        })
-        if (!user) {
-            throw new UserNotFoundError(params.username)
-        }
-        where.userId = user.id
+    if (mode) {
+        where.eventAttendanceMode = mode
     }
+}
 
-    const inputTags = params.tags && params.tags.trim() ? normalizeTags(params.tags.split(',')) : []
-    const inputCategories = params.categories && params.categories.trim()
-        ? normalizeTags(params.categories.split(','))
-        : []
+async function applyUsernameFilter(where: Record<string, unknown>, username?: string) {
+    if (!username) return
+
+    const user = await prisma.user.findUnique({
+        where: { username },
+    })
+    if (!user) {
+        throw new UserNotFoundError(username)
+    }
+    where.userId = user.id
+}
+
+function applyTagFilters(where: Record<string, unknown>, tags?: string, categories?: string) {
+    const inputTags = tags && tags.trim() ? normalizeTags(tags.split(',')) : []
+    const inputCategories = categories && categories.trim() ? normalizeTags(categories.split(',')) : []
     const combinedTags = Array.from(new Set([...inputTags, ...inputCategories]))
 
-    if (combinedTags.length > 0) {
-        where.tags = {
-            some: {
-                tag: {
-                    in: combinedTags,
-                },
-            },
-        }
-    }
+    if (combinedTags.length === 0) return
 
-    return where as Prisma.EventWhereInput
+    where.tags = {
+        some: {
+            tag: {
+                in: combinedTags,
+            },
+        },
+    }
 }
 
 // Search events
@@ -716,23 +727,10 @@ app.get('/stats', async (c) => {
             where: visibilityFilter,
         })
 
-        // Get upcoming events count (events with startTime in the future)
-        const upcomingEvents = await prisma.event.count({
-            where: {
-                AND: [
-                    visibilityFilter,
-                    {
-                        startTime: {
-                            gte: now,
-                        },
-                    },
-                ],
-            },
-        })
-
-        // Get today's events count
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
         const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+        // Get today's events count
         const todayEvents = await prisma.event.count({
             where: {
                 AND: [
@@ -741,6 +739,20 @@ app.get('/stats', async (c) => {
                         startTime: {
                             gte: todayStart,
                             lte: todayEnd,
+                        },
+                    },
+                ],
+            },
+        })
+
+        // Get upcoming events count (events starting from now forward)
+        const upcomingEvents = await prisma.event.count({
+            where: {
+                AND: [
+                    visibilityFilter,
+                    {
+                        startTime: {
+                            gte: now,
                         },
                     },
                 ],

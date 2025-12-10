@@ -202,6 +202,72 @@ function buildCommentBroadcastData(
     }
 }
 
+// New helper for initial validation
+async function validateCommentCreation(
+    eventId: string,
+    userId: string,
+    inReplyToId?: string
+): Promise<{ event: EventWithOwner; user: User }> {
+    const event = (await prisma.event.findUnique({
+        where: { id: eventId },
+        include: { user: true },
+    })) as EventWithOwner | null
+
+    if (!event) throw new AppError('Event not found', 'NOT_FOUND', 404)
+
+    const canView = await canUserViewEvent(event, userId)
+    if (!canView) throw new AppError('Forbidden', 'FORBIDDEN', 403)
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) throw new AppError('User not found', 'NOT_FOUND', 404)
+
+    if (inReplyToId) {
+        const parentComment = await prisma.comment.findUnique({ where: { id: inReplyToId } })
+        if (!parentComment || parentComment.eventId !== eventId) {
+            throw new AppError('Invalid parent comment', 'BAD_REQUEST', 400)
+        }
+    }
+
+    return { event, user }
+}
+
+// New helper for broadcasting mention notifications
+async function broadcastMentionNotifications(
+    targets: Awaited<ReturnType<typeof createCommentMentions>>,
+    comment: Comment & { author: User },
+    event: EventWithOwner,
+    sanitizedContent: string,
+    userId: string
+) {
+    const notificationTargets = targets.filter((target) => !target.user.isRemote && target.user.id !== userId)
+
+    if (notificationTargets.length === 0) return
+
+    const ownerHandle = getEventOwnerHandle(event)
+
+    const broadcastPromises = notificationTargets.map((target) =>
+        broadcast({
+            type: BroadcastEvents.MENTION_RECEIVED,
+            targetUserId: target.user.id,
+            data: {
+                commentId: comment.id,
+                commentContent: sanitizedContent,
+                createdAt: comment.createdAt.toISOString(),
+                eventId: event.id,
+                eventTitle: event.title,
+                eventOwnerHandle: ownerHandle,
+                handle: target.handle,
+                author: {
+                    id: comment.author.id,
+                    username: comment.author.username,
+                    name: comment.author.name,
+                },
+            },
+        }),
+    )
+    await Promise.allSettled(broadcastPromises)
+}
+
 // Create comment
 app.post('/:id/comments', moderateRateLimit, async (c) => {
     try {
@@ -211,43 +277,9 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
         const body = await c.req.json()
         const { content, inReplyToId } = CommentSchema.parse(body)
 
-        // Get event
-        const event = (await prisma.event.findUnique({
-            where: { id },
-            include: { user: true },
-        })) as EventWithOwner | null
+        const { event } = await validateCommentCreation(id, userId, inReplyToId)
 
-        if (!event) {
-            return c.json({ error: 'Event not found' }, 404)
-        }
-
-        const canView = await canUserViewEvent(event, userId)
-        if (!canView) {
-            return c.json({ error: 'Forbidden' }, 403)
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-        })
-
-        if (!user) {
-            return c.json({ error: 'User not found' }, 404)
-        }
-
-        // Validate inReplyToId if provided
-        if (inReplyToId) {
-            const parentComment = await prisma.comment.findUnique({
-                where: { id: inReplyToId },
-            })
-
-            if (!parentComment || parentComment.eventId !== id) {
-                return c.json({ error: 'Invalid parent comment' }, 400)
-            }
-        }
-
-        // Create comment with sanitized content
         const sanitizedContent = sanitizeText(content)
-
         const comment = await prisma.comment.create({
             data: {
                 content: sanitizedContent,
@@ -257,81 +289,33 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
             },
             include: {
                 author: true,
-                event: {
-                    include: { user: true },
-                },
+                event: { include: { user: true } },
             },
         })
 
-        // Create mentions
         const mentionTargets = await createCommentMentions(comment.id, sanitizedContent)
 
         const commentWithRelations = await prisma.comment.findUnique({
             where: { id: comment.id },
-            include: {
-                author: {
-                    select: commentAuthorSelect,
-                },
-                ...mentionInclude,
-            },
+            include: { author: { select: commentAuthorSelect }, ...mentionInclude },
         })
 
         if (!commentWithRelations) {
             throw new AppError('Failed to load comment relations', 'INTERNAL_ERROR', 500)
         }
 
-        // Build and deliver Create(Note) activity
         const baseUrl = getBaseUrl()
         const shouldNotifyFollowers = event.visibility === 'PUBLIC' || event.visibility === 'FOLLOWERS'
-        const eventAuthorFollowersUrl = shouldNotifyFollowers
-            ? getEventAuthorFollowersUrl(event, baseUrl)
-            : undefined
+        const eventAuthorFollowersUrl = shouldNotifyFollowers ? getEventAuthorFollowersUrl(event, baseUrl) : undefined
         const parentCommentAuthorUrl = await getParentCommentAuthorUrl(inReplyToId, userId, baseUrl)
 
-        await buildAndDeliverCommentActivity(
-            comment,
-            event,
-            eventAuthorFollowersUrl,
-            parentCommentAuthorUrl,
-            userId
-        )
+        await buildAndDeliverCommentActivity(comment, event, eventAuthorFollowersUrl, parentCommentAuthorUrl, userId)
 
-        // Broadcast real-time update
         const broadcastData = buildCommentBroadcastData(commentWithRelations, id)
+        await broadcast({ type: BroadcastEvents.COMMENT_ADDED, data: broadcastData })
         console.log(`📡 Broadcasting comment:added for event ${id}`)
-        await broadcast({
-            type: BroadcastEvents.COMMENT_ADDED,
-            data: broadcastData,
-        })
 
-        const notificationTargets = mentionTargets.filter(
-            (target) => !target.user.isRemote && target.user.id !== userId
-        )
-
-        if (notificationTargets.length) {
-            const ownerHandle = getEventOwnerHandle(event)
-
-            for (const target of notificationTargets) {
-                await broadcast({
-                    type: BroadcastEvents.MENTION_RECEIVED,
-                    targetUserId: target.user.id,
-                    data: {
-                        commentId: comment.id,
-                        commentContent: sanitizedContent,
-                        createdAt: comment.createdAt.toISOString(),
-                        eventId: id,
-                        eventTitle: event.title,
-                        eventOwnerHandle: ownerHandle,
-                        handle: target.handle,
-                        author: {
-                            id: comment.author.id,
-                            username: comment.author.username,
-                            name: comment.author.name,
-                        },
-                    },
-                })
-            }
-        }
+        await broadcastMentionNotifications(mentionTargets, comment, event, sanitizedContent, userId)
 
         return c.json(commentWithRelations, 201)
     } catch (error) {

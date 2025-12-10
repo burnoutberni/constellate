@@ -147,36 +147,8 @@ app.put('/event-templates/:id', async (c) => {
         const userId = requireAuth(c)
         const payload = TemplateUpdate.parse(await c.req.json())
 
-        const template = await prisma.eventTemplate.findUnique({
-            where: { id },
-        })
-
-        if (!template || template.userId !== userId) {
-            throw Errors.notFound('Event template')
-        }
-
-        const updateData: Record<string, unknown> = {}
-
-        if (payload.name) {
-            updateData.name = sanitizeText(payload.name)
-        }
-
-        if (payload.description !== undefined) {
-            updateData.description = payload.description ? sanitizeText(payload.description) : null
-        }
-
-        if (payload.data) {
-            const currentData =
-                template.data && typeof template.data === 'object' && !Array.isArray(template.data)
-                    ? (template.data as Record<string, unknown>)
-                    : {}
-            const sanitizedData = sanitizeTemplateData(payload.data)
-            const mergedData: Record<string, unknown> = {
-                ...currentData,
-                ...(sanitizedData as Record<string, unknown>),
-            }
-            updateData.data = mergedData as Prisma.InputJsonValue
-        }
+        const template = await getOwnedTemplate(id, userId)
+        const updateData = buildTemplateUpdateData(payload, template)
 
         const updated = await prisma.eventTemplate.update({
             where: { id },
@@ -198,6 +170,55 @@ app.put('/event-templates/:id', async (c) => {
         return c.json({ error: 'Internal server error' }, 500 as const)
     }
 })
+
+type TemplateRecord = {
+    id: string
+    userId: string
+    data: Prisma.JsonValue | null
+}
+
+async function getOwnedTemplate(id: string, userId: string): Promise<TemplateRecord> {
+    const template = await prisma.eventTemplate.findUnique({
+        where: { id },
+    })
+
+    if (!template || template.userId !== userId) {
+        throw Errors.notFound('Event template')
+    }
+
+    return template
+}
+
+function buildTemplateUpdateData(payload: z.infer<typeof TemplateUpdate>, template: TemplateRecord): Record<string, unknown> {
+    const updateData: Record<string, unknown> = {}
+
+    if (payload.name) {
+        updateData.name = sanitizeText(payload.name)
+    }
+
+    if (payload.description !== undefined) {
+        updateData.description = payload.description ? sanitizeText(payload.description) : null
+    }
+
+    if (payload.data) {
+        updateData.data = mergeTemplateData(payload.data, template.data)
+    }
+
+    return updateData
+}
+
+function mergeTemplateData(newData: Partial<TemplateData>, existingData: Prisma.JsonValue | null) {
+    const currentData =
+        existingData && typeof existingData === 'object' && !Array.isArray(existingData)
+            ? (existingData as Record<string, unknown>)
+            : {}
+    const sanitizedData = sanitizeTemplateData(newData)
+    const mergedData: Record<string, unknown> = {
+        ...currentData,
+        ...(sanitizedData as Record<string, unknown>),
+    }
+    return mergedData as Prisma.InputJsonValue
+}
 
 app.delete('/event-templates/:id', async (c) => {
     try {
