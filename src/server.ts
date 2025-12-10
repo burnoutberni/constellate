@@ -37,6 +37,7 @@ import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
 import { startReminderDispatcher, stopReminderDispatcher, getIsProcessing } from './services/reminderDispatcher.js'
+import { startPopularityUpdater, stopPopularityUpdater, getIsProcessing as getIsPopularityProcessing } from './services/popularityUpdater.js'
 
 const app = new OpenAPIHono()
 
@@ -341,6 +342,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
     if (config.enableReminderDispatcher) {
         startReminderDispatcher()
     }
+    
+    // Start popularity updater background job
+    startPopularityUpdater()
 
     // Graceful shutdown handler
     const shutdown = async () => {
@@ -348,16 +352,17 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
         
         // Stop accepting new work
         stopReminderDispatcher()
+        stopPopularityUpdater()
         
-        // Wait for current processing cycle to complete (with timeout)
+        // Wait for current processing cycles to complete (with timeout)
         const shutdownTimeout = 30000 // 30 seconds
         const startTime = Date.now()
         
-        while (getIsProcessing() && (Date.now() - startTime) < shutdownTimeout) {
+        while ((getIsProcessing() || getIsPopularityProcessing()) && (Date.now() - startTime) < shutdownTimeout) {
             await new Promise(resolve => setTimeout(resolve, 100))
         }
         
-        if (getIsProcessing()) {
+        if (getIsProcessing() || getIsPopularityProcessing()) {
             console.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
         } else {
             console.log('✅ All operations completed')

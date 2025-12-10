@@ -649,13 +649,14 @@ describe('Search API - Advanced Filters', () => {
     })
 
     describe('Popular events endpoint', () => {
-        it('should return events sorted by popularity (attendance + likes)', async () => {
+        it('should return events sorted by popularity (attendance * 2 + likes)', async () => {
             const lessPopular = await prisma.event.create({
                 data: {
                     title: 'Less Popular',
                     startTime: new Date(Date.now() + 86400000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 2, // 1 attendance * 2 = 2
                     attendance: {
                         create: [{ userId: testUser.id, status: 'attending' }],
                     },
@@ -668,6 +669,7 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 172800000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 3, // 1 attendance * 2 + 1 like = 3
                     attendance: {
                         create: [
                             { userId: testUser.id, status: 'attending' },
@@ -686,7 +688,7 @@ describe('Search API - Advanced Filters', () => {
             expect(Array.isArray(body.events)).toBe(true)
             expect(body.events.length).toBeGreaterThan(0)
             
-            // More popular event should appear first
+            // More popular event should appear first (sorted by popularityScore DESC)
             const morePopularIndex = body.events.findIndex((e: { id: string }) => e.id === morePopular.id)
             const lessPopularIndex = body.events.findIndex((e: { id: string }) => e.id === lessPopular.id)
             expect(morePopularIndex).toBeGreaterThanOrEqual(0)
@@ -748,20 +750,76 @@ describe('Search API - Advanced Filters', () => {
                     startTime: new Date(Date.now() + 86400000),
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 5,
                 },
             })
 
             const res = await app.request('/api/search/popular')
             expect(res.status).toBe(200)
             const body = await res.json() as any
+            expect(body.events).toBeDefined()
+            expect(Array.isArray(body.events)).toBe(true)
+            
             const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
-            if (foundEvent) {
-                expect(foundEvent.user).toBeDefined()
-                expect(foundEvent._count).toBeDefined()
-                expect(typeof foundEvent._count.attendance).toBe('number')
-                expect(typeof foundEvent._count.likes).toBe('number')
-                expect(typeof foundEvent._count.comments).toBe('number')
-            }
+            expect(foundEvent).toBeDefined()
+            expect(foundEvent.user).toBeDefined()
+            expect(foundEvent._count).toBeDefined()
+            expect(typeof foundEvent._count.attendance).toBe('number')
+            expect(typeof foundEvent._count.likes).toBe('number')
+            expect(typeof foundEvent._count.comments).toBe('number')
+        })
+
+        it('should use popularityScore for sorting (not in-memory calculation)', async () => {
+            // Create events with different popularityScore values
+            // This verifies the database-level sorting is working
+            const event1 = await prisma.event.create({
+                data: {
+                    title: 'Event 1',
+                    startTime: new Date(Date.now() + 86400000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 10, // Highest
+                },
+            })
+
+            const event2 = await prisma.event.create({
+                data: {
+                    title: 'Event 2',
+                    startTime: new Date(Date.now() + 172800000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 5, // Medium
+                },
+            })
+
+            const event3 = await prisma.event.create({
+                data: {
+                    title: 'Event 3',
+                    startTime: new Date(Date.now() + 259200000),
+                    userId: testUser.id,
+                    attributedTo: `${baseUrl}/users/${testUser.username}`,
+                    popularityScore: 1, // Lowest
+                },
+            })
+
+            const res = await app.request('/api/search/popular')
+            expect(res.status).toBe(200)
+            const body = await res.json() as any
+            const eventIds = body.events.map((e: { id: string }) => e.id)
+            
+            // Verify events are sorted by popularityScore descending
+            const event1Index = eventIds.indexOf(event1.id)
+            const event2Index = eventIds.indexOf(event2.id)
+            const event3Index = eventIds.indexOf(event3.id)
+            
+            expect(event1Index).toBeGreaterThanOrEqual(0)
+            expect(event2Index).toBeGreaterThanOrEqual(0)
+            expect(event3Index).toBeGreaterThanOrEqual(0)
+            
+            // Event 1 (score 10) should come before Event 2 (score 5)
+            expect(event1Index).toBeLessThan(event2Index)
+            // Event 2 (score 5) should come before Event 3 (score 1)
+            expect(event2Index).toBeLessThan(event3Index)
         })
     })
 
@@ -811,7 +869,9 @@ describe('Search API - Advanced Filters', () => {
             expect(event3Index).toBeLessThan(event1Index)
         })
 
-        it('should sort events by popularity (attendance * 2 + likes)', async () => {
+        it('should sort events by popularity using popularityScore field', async () => {
+            // Create events with explicit popularityScore values
+            // Less popular: 1 attendance * 2 = 2
             const lessPopular = await prisma.event.create({
                 data: {
                     title: 'Less Popular Event',
@@ -819,12 +879,14 @@ describe('Search API - Advanced Filters', () => {
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
                     visibility: 'PUBLIC',
+                    popularityScore: 2, // 1 attendance * 2
                     attendance: {
                         create: [{ userId: testUser.id, status: 'attending' }],
                     },
                 },
             })
 
+            // More popular: 2 attendance * 2 + 1 like = 5
             const morePopular = await prisma.event.create({
                 data: {
                     title: 'More Popular Event',
@@ -832,6 +894,7 @@ describe('Search API - Advanced Filters', () => {
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
                     visibility: 'PUBLIC',
+                    popularityScore: 5, // 2 attendance * 2 + 1 like = 5
                     attendance: {
                         create: [
                             { userId: testUser.id, status: 'attending' },
@@ -861,6 +924,12 @@ describe('Search API - Advanced Filters', () => {
                 },
             })
 
+            // Update popularity score to reflect the new attendance
+            await prisma.event.update({
+                where: { id: morePopular.id },
+                data: { popularityScore: 5 }, // Still 5: 2 attendance * 2 + 1 like
+            })
+
             const res = await app.request('/api/search?sort=popularity')
             expect(res.status).toBe(200)
             const body = await res.json() as any
@@ -874,14 +943,15 @@ describe('Search API - Advanced Filters', () => {
 
             expect(morePopularIndex).toBeGreaterThanOrEqual(0)
             expect(lessPopularIndex).toBeGreaterThanOrEqual(0)
-            // More popular (2 attendance + 1 like = score 5) should come before less popular (1 attendance = score 2)
+            // More popular (score 5) should come before less popular (score 2)
             expect(morePopularIndex).toBeLessThan(lessPopularIndex)
         })
 
         it('should handle popularity sort with pagination', async () => {
-            // Create multiple events with varying popularity
+            // Create multiple events with varying popularity scores
             const events = []
             for (let i = 0; i < 5; i++) {
+                // Set popularityScore: i attendance * 2 = i * 2
                 const event = await prisma.event.create({
                     data: {
                         title: `Event ${i}`,
@@ -889,11 +959,12 @@ describe('Search API - Advanced Filters', () => {
                         userId: testUser.id,
                         attributedTo: `${baseUrl}/users/${testUser.username}`,
                         visibility: 'PUBLIC',
+                        popularityScore: i * 2, // Higher i = more popular
                     },
                 })
                 events.push(event)
 
-                // Add attendance to make them popular
+                // Add attendance to match the popularity score
                 for (let j = 0; j < i; j++) {
                     const attendee = await prisma.user.create({
                         data: {
@@ -921,6 +992,13 @@ describe('Search API - Advanced Filters', () => {
             expect(body.pagination).toBeDefined()
             expect(body.pagination.page).toBe(1)
             expect(body.pagination.limit).toBe(2)
+            
+            // Events should be sorted by popularityScore descending
+            // Event 4 (score 8) should come before Event 3 (score 6)
+            if (body.events.length >= 2) {
+                const scores = body.events.map((e: any) => e.popularityScore ?? 0)
+                expect(scores[0]).toBeGreaterThanOrEqual(scores[1])
+            }
         })
 
         it('should sort by trending (falls back to date)', async () => {

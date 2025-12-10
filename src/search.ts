@@ -289,101 +289,9 @@ app.get('/', async (c) => {
         // Determine orderBy based on sort option
         let orderBy: Prisma.EventOrderByWithRelationInput
         if (sortOption === 'popularity') {
-            // For popularity sorting, fetch all matching events and sort by computed popularity
-            // Popularity formula: attendance * 2 + likes
-            // We fetch all matching events to ensure correct sorting across the entire dataset
-            // 
-            // PERFORMANCE NOTE: This approach loads all matching events into memory, calculates
-            // popularity scores, sorts them, and then applies pagination. This does not scale well
-            // and could lead to significant performance degradation and high memory usage as the
-            // number of events grows. Consider exploring alternatives, such as pre-calculating and
-            // storing a popularity score in the database, or using database-level aggregation queries.
-            
-            // Fetch all matching events with their counts
-            const allEvents = await prisma.event.findMany({
-                where: combinedWhere,
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            name: true,
-                            displayColor: true,
-                            profileImage: true,
-                        },
-                    },
-                    tags: true,
-                    _count: {
-                        select: {
-                            attendance: true,
-                            likes: true,
-                            comments: true,
-                        },
-                    },
-                },
-            })
-
-            // Get accurate counts using groupBy for better performance
-            const eventIds = allEvents.map(e => e.id)
-            const [attendanceCounts, likesCounts] = await Promise.all([
-                prisma.eventAttendance.groupBy({
-                    by: ['eventId'],
-                    where: { eventId: { in: eventIds } },
-                    _count: { eventId: true },
-                }),
-                prisma.eventLike.groupBy({
-                    by: ['eventId'],
-                    where: { eventId: { in: eventIds } },
-                    _count: { eventId: true },
-                }),
-            ])
-
-            const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
-            const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
-
-            // Sort by popularity (attendance * 2 + likes) and paginate
-            const sortedEvents = allEvents
-                .map((event) => {
-                    const attendance = attendanceMap.get(event.id) ?? (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
-                    const likes = likesMap.get(event.id) ?? (typeof event._count?.likes === 'number' ? event._count.likes : 0)
-                    return {
-                        ...event,
-                        _count: {
-                            attendance,
-                            likes,
-                            comments: typeof event._count?.comments === 'number' ? event._count.comments : 0,
-                        },
-                        popularity: attendance * 2 + likes,
-                    }
-                })
-                .sort((a, b) => b.popularity - a.popularity)
-                .slice(skip, skip + limit)
-                .map(({ popularity: _popularity, ...event }) => event)
-
-            const total = allEvents.length
-
-            return c.json({
-                events: sortedEvents,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    pages: Math.ceil(total / limit),
-                },
-                filters: {
-                    q: params.q,
-                    location: params.location,
-                    startDate: params.startDate,
-                    endDate: params.endDate,
-                    dateRange: params.dateRange,
-                    status: params.status,
-                    mode: params.mode,
-                    username: params.username,
-                    tags: params.tags,
-                    categories: params.categories,
-                    sort: sortOption,
-                },
-            })
+            // Use denormalized popularityScore for efficient database-level sorting
+            // This avoids loading all events into memory and scales well with large datasets
+            orderBy = { popularityScore: 'desc' }
         } else if (sortOption === 'trending') {
             // For trending, we'll use date sorting as a fallback since trending requires
             // complex calculation that's better handled by the /trending endpoint
@@ -538,7 +446,7 @@ app.get('/popular', async (c) => {
             visibilityFilter = { visibility: 'PUBLIC' }
         }
 
-        // Fetch events - we'll sort in memory, so fetch more than the limit
+        // Use denormalized popularityScore for efficient database-level sorting
         const events = await prisma.event.findMany({
             where: {
                 AND: [
@@ -560,6 +468,7 @@ app.get('/popular', async (c) => {
                         profileImage: true,
                     },
                 },
+                tags: true,
                 _count: {
                     select: {
                         attendance: true,
@@ -568,59 +477,17 @@ app.get('/popular', async (c) => {
                     },
                 },
             },
-            take: Math.max(limit * 10, 100),
+            orderBy: { popularityScore: 'desc' },
+            take: limit,
         })
 
-        // Manually count attendance and likes to ensure accuracy
-        // Prisma's _count may not reflect nested creates immediately in some cases
-        const eventIds = events.map(e => e.id)
-        const [attendanceCounts, likesCounts] = await Promise.all([
-            prisma.eventAttendance.groupBy({
-                by: ['eventId'],
-                where: { eventId: { in: eventIds } },
-                _count: { eventId: true },
-            }),
-            prisma.eventLike.groupBy({
-                by: ['eventId'],
-                where: { eventId: { in: eventIds } },
-                _count: { eventId: true },
-            }),
-        ])
+        // Ensure _count is explicitly included in response
+        const eventsWithCounts = events.map((event) => ({
+            ...event,
+            _count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
+        }))
 
-        const attendanceMap = new Map(attendanceCounts.map(a => [a.eventId, a._count.eventId]))
-        const likesMap = new Map(likesCounts.map(l => [l.eventId, l._count.eventId]))
-
-        // Sort by popularity (attendance + likes)
-        const sorted = events
-            .map((event) => {
-                // Use attendanceMap and likesMap as the source of truth
-                // Only fall back to event._count if the map doesn't have the value
-                // and validate that _count values are actually numbers
-                const attendanceFromMap = attendanceMap.get(event.id)
-                const likesFromMap = likesMap.get(event.id)
-                
-                const attendanceCount = attendanceFromMap ?? 
-                    (typeof event._count?.attendance === 'number' ? event._count.attendance : 0)
-                const likesCount = likesFromMap ?? 
-                    (typeof event._count?.likes === 'number' ? event._count.likes : 0)
-                const commentsCount = typeof event._count?.comments === 'number' ? event._count.comments : 0
-                
-                const popularity = attendanceCount + likesCount
-                return {
-                    ...event,
-                    _count: {
-                        attendance: attendanceCount,
-                        likes: likesCount,
-                        comments: commentsCount,
-                    },
-                    popularity,
-                }
-            })
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, limit)
-            .map(({ popularity: _popularity, ...event }) => event)
-
-        return c.json({ events: sorted })
+        return c.json({ events: eventsWithCounts })
     } catch (error) {
         console.error('Error getting popular events:', error)
         return c.json({ error: 'Internal server error' }, 500)

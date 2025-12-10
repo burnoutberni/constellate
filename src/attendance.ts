@@ -23,6 +23,7 @@ import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { scheduleReminderForEvent, cancelReminderForEvent } from './services/reminders.js'
 import { AppError } from './lib/errors.js'
+import { updateEventPopularityScore } from './services/popularityUpdater.js'
 
 const app = new Hono()
 
@@ -251,6 +252,11 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
             console.error('Unexpected reminder operation error during attendance update:', reminderError)
         }
 
+        // Update popularity score in background (non-blocking)
+        updateEventPopularityScore(id).catch(err => {
+            console.error(`Failed to update popularity score for event ${id}:`, err)
+        })
+
         return c.json(attendance)
     } catch (error) {
         if (error instanceof ZodError) {
@@ -331,6 +337,11 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
             // Log reminder error but allow attendance removal to succeed
             console.error('Reminder cancellation failed during attendance removal:', reminderError)
         }
+
+        // Update popularity score in background (non-blocking)
+        updateEventPopularityScore(id).catch(err => {
+            console.error(`Failed to update popularity score for event ${id}:`, err)
+        })
 
         return c.json({ success: true })
     } catch (error) {
