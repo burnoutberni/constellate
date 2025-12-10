@@ -1,123 +1,174 @@
-import { useState } from 'react'
 import { Button } from './ui/Button'
 
-interface CalendarExportProps {
-  /** Username for exporting user's calendar */
-  username?: string
-  /** Individual event ID for exporting single event */
-  eventId?: string
-  /** Whether to show feed export option (public events) */
-  showFeed?: boolean
+export interface CalendarExportProps {
+    /**
+     * Event title
+     */
+    title: string
+    /**
+     * Event description/summary
+     */
+    description?: string | null
+    /**
+     * Event location
+     */
+    location?: string | null
+    /**
+     * Event start time (ISO 8601 string)
+     */
+    startTime: string
+    /**
+     * Event end time (ISO 8601 string)
+     */
+    endTime?: string | null
+    /**
+     * Event timezone
+     */
+    timezone?: string
+    /**
+     * Event URL
+     */
+    url?: string
 }
 
-export function CalendarExport({ username, eventId, showFeed = false }: CalendarExportProps) {
-  const [exporting, setExporting] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Format date for iCal (YYYYMMDDTHHMMSS format in UTC)
+ */
+function formatICalDate(dateString: string): string {
+    const date = new Date(dateString)
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+}
 
-  const handleExportICS = async () => {
-    try {
-      setExporting('ics')
-      setError(null)
-      
-      let url = '/api/calendar/'
-      if (eventId) {
-        url += `${eventId}/export.ics`
-      } else if (username) {
-        url += `user/${username}/export.ics`
-      } else if (showFeed) {
-        url += 'feed.ics'
-      } else {
-        throw new Error('No export target specified')
-      }
+/**
+ * Escape special characters for iCal format
+ */
+function escapeICalText(text: string): string {
+    return text.replace(/[,;\\]/g, '\\$&').replace(/\n/g, '\\n')
+}
 
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error('Failed to export calendar')
-      }
+/**
+ * Generate iCal file content
+ */
+function generateICalContent({
+    title,
+    description,
+    location,
+    startTime,
+    endTime,
+    url,
+}: CalendarExportProps): string {
+    const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Constellate//Event//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        `DTSTART:${formatICalDate(startTime)}`,
+    ]
 
-      const blob = await response.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = eventId 
-        ? `event-${eventId}.ics`
-        : username 
-          ? `${username}-calendar.ics`
-          : 'constellate-feed.ics'
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(downloadUrl)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Error exporting calendar:', err)
-      setError(err instanceof Error ? err.message : 'Failed to export calendar')
-    } finally {
-      setExporting(null)
-    }
-  }
-
-  const handleExportGoogle = async () => {
-    if (!eventId) {
-      setError('Google Calendar export only available for individual events')
-      return
+    if (endTime) {
+        lines.push(`DTEND:${formatICalDate(endTime)}`)
     }
 
-    try {
-      setExporting('google')
-      setError(null)
-      
-      const response = await fetch(`/api/calendar/${eventId}/export/google`)
-      if (!response.ok) {
-        throw new Error('Failed to generate Google Calendar link')
-      }
-      
-      const data = await response.json()
-      if (data?.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer')
-      } else {
-        throw new Error('No URL returned from server')
-      }
-    } catch (err) {
-      console.error('Error exporting to Google Calendar:', err)
-      setError(err instanceof Error ? err.message : 'Failed to export to Google Calendar')
-    } finally {
-      setExporting(null)
-    }
-  }
+    lines.push(`SUMMARY:${escapeICalText(title)}`)
 
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleExportICS}
-          loading={exporting === 'ics'}
-          disabled={exporting !== null}
-          leftIcon={<span>📥</span>}
-        >
-          {exporting === 'ics' ? 'Exporting...' : 'Export ICS'}
-        </Button>
-        
-        {eventId && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportGoogle}
-            loading={exporting === 'google'}
-            disabled={exporting !== null}
-            leftIcon={<span>📅</span>}
-          >
-            {exporting === 'google' ? 'Opening...' : 'Add to Google'}
-          </Button>
-        )}
-      </div>
-      
-      {error && (
-        <p className="text-sm text-error-600" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  )
+    if (description) {
+        lines.push(`DESCRIPTION:${escapeICalText(description)}`)
+    }
+
+    if (location) {
+        lines.push(`LOCATION:${escapeICalText(location)}`)
+    }
+
+    if (url) {
+        lines.push(`URL:${url}`)
+    }
+
+    lines.push(`DTSTAMP:${formatICalDate(new Date().toISOString())}`)
+    lines.push(`UID:${crypto.randomUUID()}@constellate`)
+    lines.push('STATUS:CONFIRMED')
+    lines.push('SEQUENCE:0')
+    lines.push('END:VEVENT')
+    lines.push('END:VCALENDAR')
+
+    return lines.join('\r\n')
+}
+
+/**
+ * Generate Google Calendar URL
+ */
+function generateGoogleCalendarUrl({
+    title,
+    description,
+    location,
+    startTime,
+    endTime,
+}: CalendarExportProps): string {
+    const baseUrl = 'https://calendar.google.com/calendar/render'
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: title,
+        dates: `${formatICalDate(startTime)}/${endTime ? formatICalDate(endTime) : formatICalDate(startTime)}`,
+    })
+
+    if (description) {
+        params.set('details', description)
+    }
+
+    if (location) {
+        params.set('location', location)
+    }
+
+    return `${baseUrl}?${params.toString()}`
+}
+
+/**
+ * CalendarExport provides buttons to export event to calendar applications.
+ * Supports iCal download and Google Calendar integration.
+ */
+export function CalendarExport(props: CalendarExportProps) {
+    const handleICalExport = () => {
+        const icalContent = generateICalContent(props)
+        const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${props.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
+    const handleGoogleCalendar = () => {
+        const url = generateGoogleCalendarUrl(props)
+        window.open(url, '_blank', 'noopener,noreferrer')
+    }
+
+    return (
+        <div className="mb-6 pb-4 border-b border-border-default">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">
+                Add to Calendar
+            </h3>
+            <div className="flex flex-wrap gap-3">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleICalExport}
+                    leftIcon="📅"
+                >
+                    Download iCal
+                </Button>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleGoogleCalendar}
+                    leftIcon="🗓️"
+                >
+                    Google Calendar
+                </Button>
+            </div>
+        </div>
+    )
 }
