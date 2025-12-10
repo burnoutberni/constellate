@@ -37,6 +37,11 @@ export interface ReminderSelectorProps {
 }
 
 const DEFAULT_REMINDER_OPTIONS: ReminderOption[] = [
+=======
+import { useAuth } from '../contexts/AuthContext'
+
+export const REMINDER_OPTIONS: Array<{ label: string; value: number | null }> = [
+>>>>>>> dd55cb8 (Initial plan)
     { label: 'No reminder', value: null },
     { label: '5 minutes before', value: 5 },
     { label: '15 minutes before', value: 15 },
@@ -46,6 +51,7 @@ const DEFAULT_REMINDER_OPTIONS: ReminderOption[] = [
     { label: '1 day before', value: 1440 },
 ]
 
+<<<<<<< HEAD
 /**
  * ReminderSelector allows users to set reminder notifications for an event.
  * Only available for authenticated users who have RSVP'd as attending or maybe.
@@ -108,6 +114,55 @@ export function ReminderSelector({
             <p className="text-xs text-text-secondary mt-2">
                 {getHelperText()}
             </p>
+=======
+interface ReminderSelectorProps {
+    value: number | null
+    onChange: (value: number | null) => void
+    disabled?: boolean
+    isPending?: boolean
+    helperText?: string
+    onSignUpRequired?: () => void
+}
+
+export function ReminderSelector({
+    value,
+    onChange,
+    disabled = false,
+    isPending = false,
+    helperText,
+    onSignUpRequired,
+}: ReminderSelectorProps) {
+    const { user } = useAuth()
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextValue = e.target.value === '' ? null : Number(e.target.value)
+
+        if (!user && onSignUpRequired) {
+            onSignUpRequired()
+            return
+        }
+
+        onChange(nextValue)
+    }
+
+    return (
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-text-primary">Reminder</label>
+            <select
+                value={value !== null ? value : ''}
+                onChange={handleChange}
+                disabled={disabled || isPending}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            >
+                {REMINDER_OPTIONS.map((option) => (
+                    <option key={option.label} value={option.value !== null ? option.value : ''}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+            {isPending && <span className="text-sm text-text-secondary">Saving...</span>}
+            {helperText && <p className="text-xs text-text-secondary">{helperText}</p>}
+>>>>>>> dd55cb8 (Initial plan)
         </div>
     )
 }

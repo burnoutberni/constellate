@@ -68,6 +68,9 @@ export function Navbar({ isConnected, user, onLogout }: {
                 <Link to="/settings" className="text-sm text-gray-700 hover:text-gray-900">
                   Settings
                 </Link>
+                <Link to="/reminders" className="text-sm text-gray-700 hover:text-gray-900">
+                  Reminders
+                </Link>
                 <Link to="/followers/pending" className="text-sm text-gray-700 hover:text-gray-900">
                   Followers
                 </Link>
