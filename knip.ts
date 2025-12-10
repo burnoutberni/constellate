@@ -29,6 +29,9 @@ const config: KnipConfig = {
                 'src/components/ui/**/*.tsx',
                 // UI component barrel export - public API entry point
                 'src/components/ui/index.ts',
+                // Layout components - exported as public API for layout primitives
+                'src/components/layout/**/*.tsx',
+                'src/components/layout/**/*.ts',
                 // Type definitions that are part of public API
                 'src/types/**/*.ts',
                 'src/hooks/queries/search.ts',

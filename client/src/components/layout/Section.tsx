@@ -1,0 +1,113 @@
+import React from 'react'
+import { cn } from '../../lib/utils'
+import { Container, type ContainerSize } from './Container'
+
+export type SectionPadding = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
+export type SectionVariant = 'default' | 'muted' | 'accent'
+
+export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
+  /**
+   * HTML element to render
+   * @default 'section'
+   */
+  as?: 'section' | 'div' | 'article' | 'aside' | 'header' | 'footer' | 'main'
+  /**
+   * Visual variant of the section
+   * @default 'default'
+   */
+  variant?: SectionVariant
+  /**
+   * Vertical padding size
+   * @default 'lg'
+   */
+  padding?: SectionPadding
+  /**
+   * Whether to constrain content width with Container
+   * @default true
+   */
+  contained?: boolean
+  /**
+   * Container size when contained is true
+   * @default 'lg'
+   */
+  containerSize?: ContainerSize
+  /**
+   * Section content
+   */
+  children: React.ReactNode
+}
+
+// Variant styles
+const variantStyles: Record<SectionVariant, string> = {
+  default: 'bg-background-primary',
+  muted: 'bg-background-secondary',
+  accent: 'bg-primary-50 dark:bg-primary-950/20',
+}
+
+// Padding styles using design tokens
+const paddingStyles: Record<SectionPadding, string> = {
+  none: 'py-0',
+  sm: 'py-4 sm:py-6',
+  md: 'py-6 sm:py-8',
+  lg: 'py-8 sm:py-12',
+  xl: 'py-12 sm:py-16',
+  '2xl': 'py-16 sm:py-24',
+}
+
+/**
+ * Section component for page sections.
+ * Provides consistent spacing and background variants.
+ * Responsive and uses design tokens for spacing.
+ */
+export const Section = React.forwardRef<
+  HTMLElement,
+  SectionProps
+>((props, ref) => {
+  const {
+    as: Component = 'section',
+    variant = 'default',
+    padding = 'lg',
+    contained = true,
+    containerSize = 'lg',
+    children,
+    className,
+    ...restProps
+  } = props
+
+  // Base styles
+  const baseStyles = ['w-full']
+
+  const sectionClasses = cn(
+    baseStyles,
+    variantStyles[variant],
+    paddingStyles[padding],
+    className
+  )
+
+  // Determine content - wrap in Container if contained
+  const content = contained ? (
+    <Container size={containerSize}>
+      {children}
+    </Container>
+  ) : (
+    children
+  )
+
+  return (
+    <Component
+      {...restProps}
+      // Type assertion needed for polymorphic component: Component can be section, div, article, etc.
+      // Unlike CardTitle (where all headings share HTMLHeadingElement), Section's element types
+      // don't share a common specific type, so TypeScript can't verify ref compatibility statically.
+      // All possible element types extend HTMLElement, so this cast is safe at runtime.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref={ref as unknown as any}
+      className={sectionClasses}
+    >
+      {content}
+    </Component>
+  )
+  }
+)
+
+Section.displayName = 'Section'

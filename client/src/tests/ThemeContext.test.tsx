@@ -57,7 +57,7 @@ function TestColorsComponent() {
 
 describe('ThemeContext', () => {
   let originalLocalStorage: typeof global.localStorage
-  let originalMatchMedia: typeof window.matchMedia
+  let originalMatchMedia: typeof window.matchMedia | undefined
   let originalDocumentClassName: string
   let localStorageMock: {
     getItem: ReturnType<typeof vi.fn>
@@ -69,8 +69,8 @@ describe('ThemeContext', () => {
   beforeEach(() => {
     // Store original values before modifying
     originalLocalStorage = global.localStorage
-    originalMatchMedia = window.matchMedia
-    originalDocumentClassName = document.documentElement.className
+    originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined
+    originalDocumentClassName = typeof document !== 'undefined' ? document.documentElement.className : ''
 
     // Reset localStorage
     localStorageMock = {
@@ -82,16 +82,24 @@ describe('ThemeContext', () => {
     global.localStorage = localStorageMock as any
 
     // Reset document classes
-    document.documentElement.className = ''
+    if (typeof document !== 'undefined') {
+      document.documentElement.className = ''
+    }
 
     // Reset matchMedia
-    window.matchMedia = createMatchMedia(false)
+    if (typeof window !== 'undefined') {
+      window.matchMedia = createMatchMedia(false)
+    }
   })
 
   afterEach(() => {
     global.localStorage = originalLocalStorage
-    window.matchMedia = originalMatchMedia
-    document.documentElement.className = originalDocumentClassName
+    if (typeof window !== 'undefined' && originalMatchMedia !== undefined) {
+      window.matchMedia = originalMatchMedia
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.className = originalDocumentClassName
+    }
     vi.clearAllMocks()
   })
 
@@ -444,6 +452,134 @@ describe('ThemeContext', () => {
       expect(screen.getByTestId('bg-primary')).toHaveTextContent(
         tokens.colors.dark.background.primary
       )
+    })
+  })
+
+  describe('SSR and window undefined scenarios', () => {
+    it('should handle SSR scenario when window is undefined', () => {
+      // Note: React Testing Library requires window to be available for rendering,
+      // so we can't actually render when window is undefined. Instead, we test that:
+      // 1. The ThemeProvider code checks for window existence (verified in ThemeContext.tsx)
+      // 2. It defaults to 'light' theme when no window/localStorage/system preference
+      
+      localStorageMock.getItem = vi.fn(() => null)
+      
+      // When no defaultTheme, no localStorage, and system preference is light,
+      // it should default to light
+      window.matchMedia = createMatchMedia(false) // System prefers light
+      
+      const rendered = render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+      
+      // Should default to light theme (system preference)
+      expect(rendered.getByTestId('theme')).toHaveTextContent('light')
+      
+      // Clean up before next render
+      rendered.unmount()
+      
+      // Test with explicit defaultTheme (SSR scenario)
+      const renderedWithDefault = render(
+        <ThemeProvider defaultTheme="light">
+          <TestComponent />
+        </ThemeProvider>
+      )
+      expect(renderedWithDefault.getByTestId('theme')).toHaveTextContent('light')
+    })
+
+    it('should handle localStorage being unavailable', () => {
+      const originalLocalStorage = global.localStorage
+      
+      try {
+        // Simulate localStorage being unavailable (e.g., private browsing mode)
+        // by making getItem throw an error
+        Object.defineProperty(global, 'localStorage', {
+          value: {
+            getItem: vi.fn(() => {
+              throw new Error('localStorage is not available')
+            }),
+            setItem: vi.fn(() => {
+              throw new Error('localStorage is not available')
+            }),
+            removeItem: vi.fn(),
+            clear: vi.fn(),
+          },
+          writable: true,
+          configurable: true,
+        })
+
+        // ThemeProvider should handle localStorage errors gracefully
+        // and fall back to defaultTheme or system preference
+        let firstRender: ReturnType<typeof render>
+        expect(() => {
+          firstRender = render(
+            <ThemeProvider defaultTheme="light">
+              <TestComponent />
+            </ThemeProvider>
+          )
+        }).not.toThrow()
+
+        // Clean up before next render
+        firstRender!.unmount()
+
+        const rendered = render(
+          <ThemeProvider defaultTheme="light">
+            <TestComponent />
+          </ThemeProvider>
+        )
+        expect(rendered.getByTestId('theme')).toHaveTextContent('light')
+      } finally {
+        // Restore original localStorage
+        global.localStorage = originalLocalStorage
+      }
+    })
+  })
+
+  describe('Edge cases', () => {
+    it('should handle invalid theme in localStorage gracefully', () => {
+      localStorageMock.getItem = vi.fn(() => 'invalid-theme')
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      // Should fall back to system preference
+      expect(screen.getByTestId('theme')).toBeInTheDocument()
+    })
+
+    it('should handle empty string in localStorage', () => {
+      localStorageMock.getItem = vi.fn(() => '')
+
+      render(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      // Should fall back to system preference
+      expect(screen.getByTestId('theme')).toBeInTheDocument()
+    })
+
+    it('should handle custom storage key with special characters', () => {
+      localStorageMock.getItem = vi.fn(() => null)
+      const customKey = 'custom-theme-key-123'
+
+      render(
+        <ThemeProvider storageKey={customKey}>
+          <TestComponent />
+        </ThemeProvider>
+      )
+
+      const setLightButton = screen.getByTestId('set-light')
+      act(() => {
+        setLightButton.click()
+      })
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(customKey, 'light')
     })
   })
 })

@@ -59,9 +59,14 @@ export function ThemeProvider({
       return 'light'
     }
     
-    const stored = localStorage.getItem(storageKey)
-    if (stored && isValidTheme(stored)) {
-      return stored
+    try {
+      const stored = localStorage.getItem(storageKey)
+      if (stored && isValidTheme(stored)) {
+        return stored
+      }
+    // eslint-disable-next-line sonarjs/no-ignored-exceptions, @typescript-eslint/no-unused-vars
+    } catch (_e) {
+      // localStorage is not available, proceed to system theme.
     }
     
     return getSystemTheme()
@@ -70,6 +75,9 @@ export function ThemeProvider({
 
   // Apply theme class to document root
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
     const root = document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
@@ -88,8 +96,14 @@ export function ThemeProvider({
       setSystemPreference(newPreference)
       
       // Only update theme if no explicit preference is stored
-      const stored = localStorage.getItem(storageKey)
-      if (!stored) {
+      try {
+        const stored = localStorage.getItem(storageKey)
+        if (!stored) {
+          setThemeState(newPreference)
+        }
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions, @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        // localStorage is not available, update theme to system preference
         setThemeState(newPreference)
       }
     }
@@ -101,7 +115,12 @@ export function ThemeProvider({
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme)
     if (typeof window !== 'undefined') {
-      localStorage.setItem(storageKey, newTheme)
+      try {
+        localStorage.setItem(storageKey, newTheme)
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions, @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        // localStorage is not available.
+      }
     }
   }
 

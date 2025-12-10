@@ -416,3 +416,129 @@ describe('Type Safety', () => {
     expect(Object.isSealed(tokens)).toBe(false)
   })
 })
+
+describe('Token Validation Edge Cases', () => {
+  describe('isValidSpacing', () => {
+    it('should handle numeric string inputs', () => {
+      expect(isValidSpacing('0')).toBe(true)
+      expect(isValidSpacing('4')).toBe(true)
+      expect(isValidSpacing('16')).toBe(true)
+    })
+
+    it('should handle numeric inputs', () => {
+      expect(isValidSpacing(0)).toBe(true)
+      expect(isValidSpacing(4)).toBe(true)
+      expect(isValidSpacing(16)).toBe(true)
+    })
+
+    it('should reject non-existent spacing values', () => {
+      expect(isValidSpacing('7')).toBe(false)
+      expect(isValidSpacing('11')).toBe(false)
+      expect(isValidSpacing('99')).toBe(false)
+    })
+
+    it('should reject invalid types', () => {
+      expect(isValidSpacing('')).toBe(false)
+      expect(isValidSpacing('abc')).toBe(false)
+      expect(isValidSpacing(null as any)).toBe(false)
+      expect(isValidSpacing(undefined as any)).toBe(false)
+    })
+  })
+
+  describe('isValidBorderRadius', () => {
+    it('should handle all valid border radius values', () => {
+      const validValues = ['none', 'sm', 'base', 'md', 'lg', 'xl', '2xl', '3xl', 'full']
+      validValues.forEach(value => {
+        expect(isValidBorderRadius(value)).toBe(true)
+      })
+    })
+
+    it('should reject invalid border radius values', () => {
+      expect(isValidBorderRadius('')).toBe(false)
+      expect(isValidBorderRadius('invalid')).toBe(false)
+      expect(isValidBorderRadius('xxl')).toBe(false)
+      expect(isValidBorderRadius('small')).toBe(false)
+    })
+  })
+
+  describe('isValidShadow', () => {
+    it('should validate shadows from both light and dark themes', () => {
+      const validShadows = ['none', 'xs', 'sm', 'base', 'md', 'lg', 'xl', '2xl', 'inner']
+      validShadows.forEach(shadow => {
+        expect(isValidShadow(shadow)).toBe(true)
+      })
+    })
+
+    it('should reject invalid shadow values', () => {
+      expect(isValidShadow('')).toBe(false)
+      expect(isValidShadow('invalid')).toBe(false)
+      expect(isValidShadow('huge')).toBe(false)
+      expect(isValidShadow('3xl')).toBe(false)
+    })
+  })
+
+  describe('isValidBreakpoint', () => {
+    it('should validate all breakpoint values', () => {
+      const validBreakpoints = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
+      validBreakpoints.forEach(bp => {
+        expect(isValidBreakpoint(bp)).toBe(true)
+      })
+    })
+
+    it('should reject invalid breakpoint values', () => {
+      expect(isValidBreakpoint('')).toBe(false)
+      expect(isValidBreakpoint('invalid')).toBe(false)
+      expect(isValidBreakpoint('xxl')).toBe(false)
+      expect(isValidBreakpoint('3xl')).toBe(false)
+    })
+  })
+
+  describe('isValidFontSize', () => {
+    it('should validate all font size values', () => {
+      const validSizes = ['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl']
+      validSizes.forEach(size => {
+        expect(isValidFontSize(size)).toBe(true)
+      })
+    })
+
+    it('should reject invalid font size values', () => {
+      expect(isValidFontSize('')).toBe(false)
+      expect(isValidFontSize('invalid')).toBe(false)
+      expect(isValidFontSize('7xl')).toBe(false)
+      expect(isValidFontSize('tiny')).toBe(false)
+    })
+  })
+
+  describe('isValidFontWeight', () => {
+    it('should validate all font weight values', () => {
+      const validWeights = [300, 400, 500, 600, 700, 800]
+      validWeights.forEach(weight => {
+        expect(isValidFontWeight(weight)).toBe(true)
+      })
+    })
+
+    it('should reject invalid font weight values', () => {
+      expect(isValidFontWeight(100)).toBe(false)
+      expect(isValidFontWeight(200)).toBe(false)
+      expect(isValidFontWeight(250)).toBe(false)
+      expect(isValidFontWeight(900)).toBe(false)
+      expect(isValidFontWeight(1000)).toBe(false)
+    })
+  })
+
+  describe('isValidTheme', () => {
+    it('should validate valid theme values', () => {
+      expect(isValidTheme('light')).toBe(true)
+      expect(isValidTheme('dark')).toBe(true)
+    })
+
+    it('should reject invalid theme values', () => {
+      expect(isValidTheme('')).toBe(false)
+      expect(isValidTheme('invalid')).toBe(false)
+      expect(isValidTheme('auto')).toBe(false)
+      expect(isValidTheme('LIGHT')).toBe(false)
+      expect(isValidTheme('DARK')).toBe(false)
+      expect(isValidTheme('Light')).toBe(false)
+    })
+  })
+})
