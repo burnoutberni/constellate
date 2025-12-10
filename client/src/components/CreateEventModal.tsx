@@ -10,6 +10,7 @@ interface CreateEventModalProps {
     isOpen: boolean
     onClose: () => void
     onSuccess: () => void
+    initialTemplateId?: string
 }
 
 const MAX_TAG_LENGTH = 50
@@ -43,7 +44,7 @@ interface EventTemplate {
     }
 }
 
-export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModalProps) {
+export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId }: CreateEventModalProps) {
     const { user } = useAuth()
     const addErrorToast = useUIStore((state) => state.addErrorToast)
     const [error, setError] = useState<string | null>(null)
@@ -206,6 +207,16 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
             setTemplateName((prev) => prev || formData.title)
         }
     }, [saveAsTemplate, formData.title])
+
+    // Apply initial template if provided
+    useEffect(() => {
+        if (initialTemplateId && templates.length > 0 && isOpen) {
+            const template = templates.find((t) => t.id === initialTemplateId)
+            if (template && selectedTemplateId !== initialTemplateId) {
+                applyTemplate(initialTemplateId)
+            }
+        }
+    }, [initialTemplateId, templates, isOpen, selectedTemplateId])
 
     const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
         setFormData((prev) => ({
@@ -822,6 +833,53 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
                                 </p>
                             </div>
                         </div>
+
+                        {user && (
+                            <div className="border-t border-gray-200 pt-4">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={saveAsTemplate}
+                                        onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                                        className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                    />
+                                    <div className="flex-1">
+                                        <span className="text-sm font-medium text-gray-900">Save as template</span>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Save this event configuration as a reusable template (excludes dates and tags)
+                                        </p>
+                                    </div>
+                                </label>
+                                {saveAsTemplate && (
+                                    <div className="mt-4 space-y-3 pl-7">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Template Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={templateName}
+                                                onChange={(e) => setTemplateName(e.target.value)}
+                                                className="input"
+                                                placeholder={formData.title || "My Event Template"}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Template Description (optional)
+                                            </label>
+                                            <textarea
+                                                value={templateDescription}
+                                                onChange={(e) => setTemplateDescription(e.target.value)}
+                                                className="textarea"
+                                                rows={2}
+                                                placeholder="Describe this template"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex gap-3 pt-4">
                             <button

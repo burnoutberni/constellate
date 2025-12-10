@@ -92,11 +92,11 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
 
                 {/* Metadata */}
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Badge variant="neutral" size="sm">
+                    <Badge variant="default" size="sm">
                         Updated {new Date(template.updatedAt).toLocaleDateString()}
                     </Badge>
                     {(template.data.locationLatitude !== undefined && template.data.locationLongitude !== undefined) && (
-                        <Badge variant="neutral" size="sm">
+                        <Badge variant="default" size="sm">
                             Has Coordinates
                         </Badge>
                     )}
