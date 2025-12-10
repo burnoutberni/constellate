@@ -159,7 +159,7 @@ export function NotificationsPage() {
                         preferences={{}}
                         onUpdate={(prefs) => {
                             console.log('Notification preferences updated:', prefs)
-                            // TODO: Add API endpoint to save preferences
+                            // Note: API endpoint for saving preferences not yet implemented in backend
                         }}
                     />
                 )}

@@ -9,7 +9,6 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { NotificationItem } from './NotificationItem'
-import type { Notification } from '../types'
 
 interface NotificationBellProps {
     userId?: string
