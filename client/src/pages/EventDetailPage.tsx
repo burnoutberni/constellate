@@ -20,6 +20,8 @@ import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
+import { Textarea } from '../components/ui/Textarea'
+import { Select } from '../components/ui/Select'
 import { Container } from '../components/layout/Container'
 import { setSEOMetadata } from '../lib/seo'
 import type { CommentMention } from '../types'
@@ -707,16 +709,15 @@ export function EventDetailPage() {
                         )}
                         {!eventHasStarted && (
                             <div className="mb-6 pb-4 border-b border-border-default">
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Reminder
-                                </label>
                                 <div className="flex items-center gap-3">
-                                    <select
-                                        className="flex-1 px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    <Select
+                                        label="Reminder"
                                         value={selectedReminder !== null ? String(selectedReminder) : ''}
                                         onChange={handleReminderChange}
                                         disabled={!user || !canManageReminder || reminderMutation.isPending}
                                         aria-label="Reminder notification timing"
+                                        helperText={getReminderHelperText()}
+                                        className="flex-1"
                                     >
                                         {REMINDER_OPTIONS.map((option) => (
                                             <option
@@ -726,14 +727,11 @@ export function EventDetailPage() {
                                                 {option.label}
                                             </option>
                                         ))}
-                                    </select>
+                                    </Select>
                                     {reminderMutation.isPending && (
                                         <span className="text-sm text-text-secondary">Saving...</span>
                                     )}
                                 </div>
-                                <p className="text-xs text-text-secondary mt-2">
-                                    {getReminderHelperText()}
-                                </p>
                             </div>
                         )}
 
@@ -781,7 +779,7 @@ export function EventDetailPage() {
                         ) : (
                             <form onSubmit={handleCommentSubmit} className="mb-6">
                                 <div className="relative mb-3">
-                                    <textarea
+                                    <Textarea
                                         ref={textareaRef}
                                         value={comment}
                                         onChange={handleCommentChange}
@@ -803,8 +801,8 @@ export function EventDetailPage() {
                                             }
                                         }}
                                         placeholder="Add a comment..."
-                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 resize-y min-h-[80px]"
                                         rows={3}
+                                        className="min-h-[80px]"
                                     />
                                     {showMentionSuggestions && mentionSuggestions.length > 0 && (
                                         <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border-default bg-background-primary shadow-lg">

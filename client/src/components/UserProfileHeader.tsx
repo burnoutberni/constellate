@@ -3,6 +3,7 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import type { UserProfile } from '../types'
+import { formatDate } from '../lib/formatUtils'
 
 interface UserProfileHeaderProps {
     user: UserProfile
@@ -41,14 +42,6 @@ export function UserProfileHeader({
     showFollowButton,
     headerImageUrl,
 }: UserProfileHeaderProps) {
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString(navigator.language || 'en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-    }
-
     // Extract instance hostname from external actor URL
     const getInstanceHostname = () => {
         if (!user.isRemote || !user.externalActorUrl) return null

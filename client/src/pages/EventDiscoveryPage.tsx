@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { ToggleGroup, ToggleButton } from '../components/ui/ToggleGroup'
+import { Select } from '../components/ui/Select'
 import { Container } from '../components/layout/Container'
 import { Grid } from '../components/layout/Grid'
 import { useAuth } from '../contexts/AuthContext'
@@ -305,7 +306,7 @@ export function EventDiscoveryPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {/* Sort Selector */}
-                                        <select
+                                        <Select
                                             value={sortOption}
                                             onChange={(e) => {
                                                 const newSort = e.target.value as SortOption
@@ -315,13 +316,13 @@ export function EventDiscoveryPage() {
                                                 next.set('page', '1') // Reset to first page when sorting changes
                                                 setSearchParams(next, { replace: true })
                                             }}
-                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            size="sm"
                                             aria-label="Sort events"
                                         >
                                             <option value="date">By Date</option>
                                             <option value="popularity">By Popularity</option>
                                             <option value="trending">Trending</option>
-                                        </select>
+                                        </Select>
 
                                         {/* View Toggle */}
                                         <ToggleGroup value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
