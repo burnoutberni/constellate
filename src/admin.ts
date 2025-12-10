@@ -305,62 +305,15 @@ app.put('/users/:id', async (c) => {
         const { id } = c.req.param()
         const body = await c.req.json()
         const data = UpdateUserSchema.parse(body)
-
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({
-            where: { id },
-        })
-
+        const existingUser = await findUserById(id)
         if (!existingUser) {
             return c.json({ error: 'User not found' }, 404)
         }
 
-        // Check username uniqueness if changing
-        if (data.username && data.username !== existingUser.username) {
-            const usernameExists = await prisma.user.findUnique({
-                where: { username: data.username },
-            })
+        const conflictResponse = await validateUniqueUserFields(data, existingUser, c)
+        if (conflictResponse) return conflictResponse
 
-            if (usernameExists) {
-                return c.json({ error: 'Username already exists' }, 400)
-            }
-        }
-
-        // Check email uniqueness if changing
-        if (data.email && data.email !== existingUser.email) {
-            const emailExists = await prisma.user.findUnique({
-                where: { email: data.email },
-            })
-
-            if (emailExists) {
-                return c.json({ error: 'Email already exists' }, 400)
-            }
-        }
-
-        // Update user
-        const user = await prisma.user.update({
-            where: { id },
-            data: {
-                ...(data.username && { username: data.username }),
-                ...(data.email !== undefined && { email: data.email }),
-                ...(data.name !== undefined && { name: data.name }),
-                ...(data.isAdmin !== undefined && { isAdmin: data.isAdmin }),
-                ...(data.isBot !== undefined && { isBot: data.isBot }),
-                ...(data.displayColor !== undefined && { displayColor: data.displayColor }),
-                ...(data.bio !== undefined && { bio: data.bio }),
-            } as unknown as Record<string, unknown>,
-            select: {
-                id: true,
-                username: true,
-                email: true,
-                name: true,
-                isAdmin: true,
-                isBot: true,
-                displayColor: true,
-                bio: true,
-                updatedAt: true,
-            } as unknown as Record<string, unknown>,
-        })
+        const user = await updateAdminUser(id, data)
 
         return c.json(user)
     } catch (error) {
@@ -370,6 +323,76 @@ app.put('/users/:id', async (c) => {
         return handleError(error, c)
     }
 })
+
+type AdminUserUpdate = ReturnType<typeof UpdateUserSchema.parse>
+
+async function findUserById(id: string) {
+    return prisma.user.findUnique({
+        where: { id },
+    })
+}
+
+async function validateUniqueUserFields(
+    data: AdminUserUpdate,
+    existingUser: NonNullable<Awaited<ReturnType<typeof findUserById>>>,
+    c: { json: (body: Record<string, unknown>, status?: number) => Response },
+): Promise<Response | null> {
+    if (data.username && data.username !== existingUser.username) {
+        const usernameExists = await prisma.user.findUnique({
+            where: { username: data.username },
+        })
+
+        if (usernameExists) {
+            return c.json({ error: 'Username already exists' }, 400)
+        }
+    }
+
+    if (data.email && data.email !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+            where: { email: data.email },
+        })
+
+        if (emailExists) {
+            return c.json({ error: 'Email already exists' }, 400)
+        }
+    }
+
+    return null
+}
+
+async function updateAdminUser(id: string, data: AdminUserUpdate) {
+    return prisma.user.update({
+        where: { id },
+        data: buildAdminUserUpdateData(data) as unknown as Record<string, unknown>,
+        select: buildAdminUserSelect(),
+    })
+}
+
+function buildAdminUserUpdateData(data: AdminUserUpdate) {
+    return {
+        ...(data.username && { username: data.username }),
+        ...(data.email !== undefined && { email: data.email }),
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.isAdmin !== undefined && { isAdmin: data.isAdmin }),
+        ...(data.isBot !== undefined && { isBot: data.isBot }),
+        ...(data.displayColor !== undefined && { displayColor: data.displayColor }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+    }
+}
+
+function buildAdminUserSelect() {
+    return {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        isAdmin: true,
+        isBot: true,
+        displayColor: true,
+        bio: true,
+        updatedAt: true,
+    } as unknown as Record<string, unknown>
+}
 
 // Delete user (admin only)
 app.delete('/users/:id', async (c) => {
@@ -609,6 +632,38 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
     }
 })
 
+function processDelivery(
+    domainStats: Map<string, { success: number; failed: number }>,
+    delivery: { inboxUrl: string; status: FailedDeliveryStatus }
+) {
+    try {
+        const domain = new URL(delivery.inboxUrl).hostname
+        const stats = domainStats.get(domain) || { success: 0, failed: 0 }
+        if (delivery.status === 'FAILED' || delivery.status === 'PENDING') {
+            stats.failed++
+        } else {
+            stats.success++
+        }
+        domainStats.set(domain, stats)
+    } catch {
+        // Invalid URL, skip
+    }
+}
+
+function getDomainStats(
+    recentDeliveries: { inboxUrl: string; status: FailedDeliveryStatus }[],
+) {
+    const domainStats = new Map<string, { success: number; failed: number }>()
+    for (const delivery of recentDeliveries) {
+        processDelivery(domainStats, delivery)
+    }
+
+    return Array.from(domainStats.entries()).map(([domain, stats]) => ({
+        domain,
+        ...stats,
+    }))
+}
+
 // Get federation statistics
 app.get('/federation-stats', requireAdmin, async (c) => {
     try {
@@ -637,21 +692,7 @@ app.get('/federation-stats', requireAdmin, async (c) => {
         ])
 
         // Group by inbox domain
-        const domainStats = new Map<string, { success: number; failed: number }>()
-        for (const delivery of recentDeliveries) {
-            try {
-                const domain = new URL(delivery.inboxUrl).hostname
-                const stats = domainStats.get(domain) || { success: 0, failed: 0 }
-                if (delivery.status === 'FAILED' || delivery.status === 'PENDING') {
-                    stats.failed++
-                } else {
-                    stats.success++
-                }
-                domainStats.set(domain, stats)
-            } catch {
-                // Invalid URL, skip
-            }
-        }
+        const domainStats = getDomainStats(recentDeliveries)
 
         return c.json({
             summary: {
@@ -661,10 +702,7 @@ app.get('/federation-stats', requireAdmin, async (c) => {
                 discarded: discardedCount,
                 total: pendingCount + retryingCount + failedCount + discardedCount,
             },
-            domainStats: Array.from(domainStats.entries()).map(([domain, stats]) => ({
-                domain,
-                ...stats,
-            })),
+            domainStats,
         })
     } catch (error) {
         return handleError(error, c)

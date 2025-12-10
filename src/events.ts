@@ -23,7 +23,7 @@ import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
 import { config } from './config.js'
-import type { Event, EventVisibility, RecurrencePattern } from '@prisma/client'
+import type { Event, EventReminder, EventVisibility, RecurrencePattern } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 import {
     calculateTrendingScore,
@@ -753,6 +753,22 @@ function getEventFullInclude() {
     }
 }
 
+type EventWithFullInclude = Prisma.EventGetPayload<{
+    include: ReturnType<typeof getEventFullInclude>
+}>
+
+type EventUserSummary = Prisma.UserGetPayload<{
+    select: {
+        id: true
+        username: true
+        name: true
+        displayColor: true
+        profileImage: true
+        externalActorUrl: true
+        isRemote: true
+    }
+}>
+
 // Helper function to find or cache remote user
 async function findOrCacheRemoteUser(actorUrl: string | undefined) {
     if (!actorUrl) return null
@@ -924,33 +940,68 @@ async function cacheRemoteEventData(eventId: string, externalId: string) {
     }
 }
 
+async function processRemoteEvent(
+    event: EventWithFullInclude | null,
+    user: EventUserSummary,
+    responseExtras: { userHasShared: boolean, viewerReminders: EventReminder[] }
+) {
+    if (event && event.externalId) {
+        await cacheRemoteEventData(event.id, event.externalId)
+        const updatedEvent = await prisma.event.findFirst({
+            where: { id: event.id },
+            include: getEventFullInclude(),
+        })
+        if (updatedEvent) {
+            return { ...updatedEvent, user: updatedEvent.user || user, ...responseExtras }
+        }
+    }
+    if (event) {
+        return { ...event, user: event.user || user, ...responseExtras }
+    }
+    return { error: 'Event not found', ...responseExtras }
+}
+
 // Get event by username and eventId (Mastodon-style URL)
 app.get('/by-user/:username/:eventId', async (c) => {
     try {
         const { username, eventId } = c.req.param()
+        const viewerId = c.get('userId') as string | undefined
 
-        // Check if it's a remote user (contains @domain)
         const isRemote = username.includes('@')
-
-        // Find the user first
         const user = await prisma.user.findFirst({
-            where: {
-                username,
-                isRemote,
+            where: { username, isRemote },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                displayColor: true,
+                profileImage: true,
+                externalActorUrl: true,
+                isRemote: true,
+                headerImage: true,
+                timezone: true,
+                createdAt: true,
+                updatedAt: true,
+                email: true,
+                emailVerified: true,
+                bio: true,
+                autoAcceptFollowers: true,
+                isAdmin: true,
+                isBot: true,
+                publicKey: true,
+                privateKey: true,
+                inboxUrl: true,
+                sharedInboxUrl: true,
             },
         })
-
         if (!user) {
             return c.json({ error: 'User not found' }, 404)
         }
 
-        // Find event by eventId and user
         const event = await prisma.event.findFirst({
             where: {
                 id: eventId,
-                ...(isRemote
-                    ? { attributedTo: user.externalActorUrl || undefined }
-                    : { userId: user.id }),
+                ...(isRemote ? { attributedTo: user.externalActorUrl || undefined } : { userId: user.id }),
             },
             include: getEventFullInclude(),
         })
@@ -959,77 +1010,32 @@ app.get('/by-user/:username/:eventId', async (c) => {
             return c.json({ error: 'Event not found' }, 404)
         }
 
-        const viewerId = c.get('userId') as string | undefined
-        const canView = await canUserViewEvent(event, viewerId)
-        if (!canView) {
+        if (!(await canUserViewEvent(event, viewerId))) {
             return c.json({ error: 'Forbidden' }, 403)
         }
 
-        // Check if viewer has shared the original event
         const originalEvent = event.sharedEvent ?? event
-        let userHasShared = false
-        if (viewerId) {
-            const existingShare = await prisma.event.findFirst({
-                where: {
-                    userId: viewerId,
-                    sharedEventId: originalEvent.id,
-                },
+        const userHasShared =
+            !!viewerId &&
+            !!(await prisma.event.findFirst({
+                where: { userId: viewerId, sharedEventId: originalEvent.id },
                 select: { id: true },
-            })
-            userHasShared = !!existingShare
-        }
+            }))
 
         const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
-        const responseExtras = { userHasShared, viewerReminders }
+        const viewerRemindersTyped: EventReminder[] = viewerReminders.map(r => ({
+            ...r,
+            createdAt: new Date(r.createdAt),
+            updatedAt: new Date(r.updatedAt),
+            remindAt: new Date(r.remindAt),
+            deliveredAt: r.deliveredAt ? new Date(r.deliveredAt) : null,
+            lastAttemptAt: r.lastAttemptAt ? new Date(r.lastAttemptAt) : null,
+        }));
+        const responseExtras = { userHasShared, viewerReminders: viewerRemindersTyped }
 
-        // If it's a remote event, fetch fresh data from the remote server and cache it
-        if (isRemote && event.externalId) {
-            await cacheRemoteEventData(event.id, event.externalId)
-
-            // Re-fetch event with updated attendance and likes
-            const updatedEvent = await prisma.event.findFirst({
-                where: { id: event.id },
-                include: getEventFullInclude(),
-            })
-
-            if (updatedEvent) {
-                // Populate user if still null
-                if (!updatedEvent.user) {
-                    const eventWithUser = {
-                        ...updatedEvent,
-                        user: {
-                            id: user.id,
-                            username: user.username,
-                            name: user.name,
-                            displayColor: user.displayColor,
-                            profileImage: user.profileImage,
-                            externalActorUrl: user.externalActorUrl,
-                            isRemote: user.isRemote,
-                        },
-                        ...responseExtras,
-                    }
-                    return c.json(eventWithUser)
-                }
-                return c.json({ ...updatedEvent, ...responseExtras })
-            }
-        }
-
-        // If event has no user (remote event), populate from the user we found earlier
-        if (!event.user && isRemote) {
-            const eventWithUser = {
-                ...event,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    name: user.name,
-                    displayColor: user.displayColor,
-                    profileImage: user.profileImage,
-                    externalActorUrl: user.externalActorUrl,
-                    isRemote: user.isRemote,
-                },
-                ...responseExtras,
-            }
-            return c.json(eventWithUser)
+        if (isRemote) {
+            const result = await processRemoteEvent(event, user, responseExtras)
+            return c.json(result)
         }
 
         return c.json({ ...event, ...responseExtras })
@@ -1239,8 +1245,11 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
         }
 
         const baseUrl = getBaseUrl()
-        const originalActorUrl = originalEvent.attributedTo
-            ?? (originalEvent.user ? `${baseUrl}/users/${originalEvent.user.username}` : undefined)
+        let originalActorUrl = originalEvent.attributedTo
+        if (!originalActorUrl && originalEvent.user) {
+            originalActorUrl = `${baseUrl}/users/${originalEvent.user.username}`
+        }
+
         const originalEventUrl = originalEvent.externalId || `${baseUrl}/events/${originalEvent.id}`
 
         const share = await prisma.event.create({
@@ -1271,7 +1280,7 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
             shareUser,
             originalEventUrl,
             originalEvent.visibility,
-            originalActorUrl
+            originalActorUrl ?? undefined
         )
         const addressing = buildAddressingFromActivity(announceActivity)
         await deliverActivity(announceActivity, addressing, userId)
@@ -1295,34 +1304,44 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
     }
 })
 
+const updatableEventFields: Record<string, (val: unknown) => unknown> = {
+    title: (val) => sanitizeText(val as string),
+    summary: (val) => val ? sanitizeText(val as string) : null,
+    location: (val) => val ? sanitizeText(val as string) : null,
+    locationLatitude: (val) => val ?? null,
+    locationLongitude: (val) => val ?? null,
+    headerImage: (val) => val || null,
+    url: (val) => val || null,
+    startTime: (val) => new Date(val as string),
+    endTime: (val) => val ? new Date(val as string) : null,
+    duration: (val) => val || null,
+    eventStatus: (val) => val || null,
+    eventAttendanceMode: (val) => val || null,
+    maximumAttendeeCapacity: (val) => val || null,
+    timezone: (val) => normalizeTimeZone(val as string),
+    recurrencePattern: (val) => val || null,
+    recurrenceEndDate: (val) => val ? new Date(val as string) : null,
+}
+
 // Helper function to build update data from validated input
 function buildEventUpdateData(
     validatedData: Partial<z.infer<typeof EventSchema>> & { visibility?: string },
-    requestedVisibility: string | undefined
+    requestedVisibility: string | undefined,
 ) {
-    const updateData: Record<string, unknown> = {
-        ...(validatedData.title !== undefined && { title: sanitizeText(validatedData.title) }),
-        ...(validatedData.summary !== undefined && { summary: validatedData.summary ? sanitizeText(validatedData.summary) : null }),
-        ...(validatedData.location !== undefined && { location: validatedData.location ? sanitizeText(validatedData.location) : null }),
-        ...(validatedData.locationLatitude !== undefined && { locationLatitude: validatedData.locationLatitude ?? null }),
-        ...(validatedData.locationLongitude !== undefined && { locationLongitude: validatedData.locationLongitude ?? null }),
-        ...(validatedData.headerImage !== undefined && { headerImage: validatedData.headerImage ? validatedData.headerImage : null }),
-        ...(validatedData.url !== undefined && { url: validatedData.url ? validatedData.url : null }),
-        ...(validatedData.startTime !== undefined && { startTime: new Date(validatedData.startTime) }),
-        ...(validatedData.endTime !== undefined && { endTime: validatedData.endTime ? new Date(validatedData.endTime) : null }),
-        ...(validatedData.duration !== undefined && { duration: validatedData.duration ? validatedData.duration : null }),
-        ...(validatedData.eventStatus !== undefined && { eventStatus: validatedData.eventStatus ? validatedData.eventStatus : null }),
-        ...(validatedData.eventAttendanceMode !== undefined && { eventAttendanceMode: validatedData.eventAttendanceMode ? validatedData.eventAttendanceMode : null }),
-        ...(validatedData.maximumAttendeeCapacity !== undefined && { maximumAttendeeCapacity: validatedData.maximumAttendeeCapacity ? validatedData.maximumAttendeeCapacity : null }),
-        ...(requestedVisibility !== undefined && { visibility: requestedVisibility }),
-        ...(validatedData.timezone !== undefined && { timezone: normalizeTimeZone(validatedData.timezone) }),
+    const updateData: Record<string, unknown> = {}
+
+    // Use a type assertion to ensure keys are valid for updatableEventFields
+    const updatableKeys = Object.keys(updatableEventFields) as Array<keyof typeof updatableEventFields>;
+
+    const validatedDataRecord = validatedData as Record<string, unknown>;
+    for (const key of updatableKeys) {
+        if (key in validatedDataRecord && validatedDataRecord[key] !== undefined) {
+            updateData[key] = updatableEventFields[key](validatedDataRecord[key]);
+        }
     }
 
-    if (validatedData.recurrencePattern !== undefined) {
-        updateData.recurrencePattern = validatedData.recurrencePattern || null
-    }
-    if (validatedData.recurrenceEndDate !== undefined) {
-        updateData.recurrenceEndDate = validatedData.recurrenceEndDate ? new Date(validatedData.recurrenceEndDate) : null
+    if (requestedVisibility !== undefined) {
+        updateData.visibility = requestedVisibility
     }
 
     return updateData
@@ -1395,6 +1414,60 @@ async function broadcastEventUpdate(
     })
 }
 
+// Extracts and validates recurrence rules from the request
+function getValidatedRecurrence(
+    validatedData: Partial<z.infer<typeof UpdateEventSchema>>,
+    existingEvent: Event,
+) {
+    const nextStartTime = validatedData.startTime ? new Date(validatedData.startTime) : existingEvent.startTime
+    const nextRecurrencePattern =
+        validatedData.recurrencePattern !== undefined
+            ? validatedData.recurrencePattern || null
+            : existingEvent.recurrencePattern
+    let nextRecurrenceEndDate;
+    if (validatedData.recurrenceEndDate !== undefined) {
+        if (validatedData.recurrenceEndDate) {
+            nextRecurrenceEndDate = new Date(validatedData.recurrenceEndDate);
+        } else {
+            nextRecurrenceEndDate = null;
+        }
+    } else {
+        nextRecurrenceEndDate = existingEvent.recurrenceEndDate;
+    }
+
+    validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
+    return { nextRecurrencePattern, nextRecurrenceEndDate }
+}
+
+// Updates the event and its tags within a single database transaction
+async function updateEventAndTagsInTransaction(
+    id: string,
+    updateData: Record<string, unknown>,
+    normalizedTags: string[] | undefined,
+) {
+    return prisma.$transaction(async (tx) => {
+        await tx.event.update({
+            where: { id },
+            data: { ...updateData, updatedAt: new Date() },
+        })
+
+        if (normalizedTags !== undefined) {
+            await updateEventTags(tx, id, normalizedTags)
+        }
+
+        const refreshedEvent = await tx.event.findUnique({
+            where: { id },
+            include: { user: true, tags: true },
+        })
+
+        if (!refreshedEvent) {
+            // This should not happen if the update succeeded
+            throw new Error('Failed to retrieve updated event after transaction')
+        }
+        return refreshedEvent
+    })
+}
+
 // Update event
 app.put('/:id', moderateRateLimit, async (c) => {
     try {
@@ -1403,45 +1476,18 @@ app.put('/:id', moderateRateLimit, async (c) => {
 
         const body = await c.req.json()
         const validatedData = UpdateEventSchema.parse(body)
-        const { visibility: requestedVisibility } = validatedData
 
-        // Check ownership
-        const existingEvent = await prisma.event.findUnique({
-            where: { id },
-            include: { user: true },
-        })
+        const existingEvent = await prisma.event.findUnique({ where: { id }, include: { user: true } })
+        const ownership = validateEventOwnership(existingEvent, userId, c)
+        if (ownership instanceof Response) return ownership
+        const ownedEvent = ownership
 
-        if (!existingEvent) {
-            return c.json({ error: 'Event not found' }, 404)
-        }
+        const { nextRecurrencePattern, nextRecurrenceEndDate } = getValidatedRecurrence(
+            validatedData,
+            ownedEvent,
+        )
 
-        if (existingEvent.userId !== userId) {
-            return c.json({ error: 'Forbidden' }, 403)
-        }
-
-        const nextStartTime = validatedData.startTime
-            ? new Date(validatedData.startTime)
-            : existingEvent.startTime
-        const nextRecurrencePattern =
-            validatedData.recurrencePattern !== undefined
-                ? (validatedData.recurrencePattern || null)
-                : existingEvent.recurrencePattern
-        let nextRecurrenceEndDate: Date | null
-        if (validatedData.recurrenceEndDate !== undefined) {
-            nextRecurrenceEndDate = validatedData.recurrenceEndDate
-                ? new Date(validatedData.recurrenceEndDate)
-                : null
-        } else {
-            nextRecurrenceEndDate = existingEvent.recurrenceEndDate
-        }
-
-        validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
-
-        // Build update data
-        const updateData = buildEventUpdateData(validatedData, requestedVisibility)
-        
-        // Set recurrence fields if they were provided in the validated data
-        // These will be included in the database update below
+        const updateData = buildEventUpdateData(validatedData, validatedData.visibility)
         if (validatedData.recurrencePattern !== undefined) {
             updateData.recurrencePattern = nextRecurrencePattern
         }
@@ -1449,91 +1495,85 @@ app.put('/:id', moderateRateLimit, async (c) => {
             updateData.recurrenceEndDate = nextRecurrenceEndDate
         }
 
-        // Extract and normalize tags if provided
-        const { tags } = validatedData
-        let normalizedTags: string[] | undefined
-        if (tags !== undefined) {
-            try {
-                normalizedTags = normalizeTagsSafely(tags)
-            } catch (error) {
-                // Return validation error when tag normalization fails (consistent with create)
-                return c.json({ 
-                    error: 'VALIDATION_ERROR', 
+        const tagsResult = tryNormalizeTags(validatedData.tags)
+        if (!tagsResult.ok) {
+            return c.json(
+                {
+                    error: 'VALIDATION_ERROR',
                     message: 'Failed to process tags: ensure tags are valid strings',
-                    details: config.isDevelopment ? { originalError: String(error) } : undefined
-                }, 400)
-            }
-        }
-
-        const event = await prisma.$transaction(async (tx) => {
-            // Always set updatedAt when updating, regardless of whether other fields are being updated
-            const finalUpdateData = { ...updateData, updatedAt: new Date() }
-            
-            await tx.event.update({
-                where: { id },
-                data: finalUpdateData,
-            })
-
-            if (normalizedTags !== undefined) {
-                await updateEventTags(tx, id, normalizedTags)
-            }
-            
-            // Always refresh to get the latest data with all fields and relations
-            const refreshedEvent = await tx.event.findUnique({
-                where: { id },
-                include: {
-                    user: true,
-                    tags: true,
+                    details: config.isDevelopment ? { originalError: String(tagsResult.error) } : undefined,
                 },
-            })
-            
-            if (!refreshedEvent) {
-                throw new Error('Failed to retrieve updated event')
-            }
-            
-            return refreshedEvent
-        })
-
-        if (!event) {
-            console.error('Failed to retrieve updated event after transaction', { eventId: id, userId })
-            return c.json({ error: 'Internal server error' }, 500)
+                400,
+            )
         }
 
-        // Build and deliver Update activity
-        // Ensure event object includes user property for activity builder
+        const event = await updateEventAndTagsInTransaction(id, updateData, tagsResult.tags)
+
         if (!event.user) {
             throw new Error('Event missing user data - data integrity issue')
         }
-        const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
-        const addressing = buildAddressingFromActivity(activity)
-        await deliverActivity(activity, addressing, userId)
 
-        await broadcastEventUpdate(event)
+        await deliverEventUpdate(event, userId)
 
         return c.json(event)
     } catch (error) {
         if (error instanceof ZodError) {
-            // Check for coordinate validation errors
-            // Note: The coordinate validation refinement sets the error path to ['locationLatitude'],
-            // so we only need to check for latError
-            const latError = error.issues.find(issue => issue.path.includes('locationLatitude'))
-            // Prefer the refine error message if found, otherwise use any coordinate error, otherwise generic
+            const latError = error.issues.find((issue) => issue.path.includes('locationLatitude'))
             const errorMessage = latError?.message || 'Validation failed'
             return c.json({ error: errorMessage, details: error.issues }, 400 as const)
         }
         console.error('Error updating event:', error)
-        // Sanitize error message to prevent leaking internal details in production
         const errorMessage = error instanceof Error ? error.message : String(error)
         const errorStack = error instanceof Error ? error.stack : undefined
-        return c.json({ 
-            error: 'Internal server error', 
-            ...(config.isDevelopment && { 
-                message: errorMessage,
-                stack: errorStack 
-            })
-        }, 500)
+        return c.json(
+            {
+                error: 'Internal server error',
+                ...(config.isDevelopment && {
+                    message: errorMessage,
+                    stack: errorStack,
+                }),
+            },
+            500,
+        )
     }
 })
+
+type EventWithOwner = Prisma.EventGetPayload<{ include: { user: true } }>
+type EventWithUser = Prisma.EventGetPayload<{ include: { user: true; tags: true } }>
+
+function validateEventOwnership(
+    event: EventWithOwner | null,
+    userId: string,
+    c: { json: (body: Record<string, unknown>, status?: number) => Response }
+) {
+    if (!event) {
+        return c.json({ error: 'Event not found' }, 404)
+    }
+
+    if (event.userId !== userId) {
+        return c.json({ error: 'Forbidden' }, 403)
+    }
+
+    return event
+}
+
+function tryNormalizeTags(tags: string[] | undefined) {
+    if (tags === undefined) {
+        return { ok: true as const, tags: undefined as string[] | undefined }
+    }
+
+    try {
+        return { ok: true as const, tags: normalizeTagsSafely(tags) }
+    } catch (error) {
+        return { ok: false as const, error }
+    }
+}
+
+async function deliverEventUpdate(event: EventWithUser, userId: string) {
+    const activity = buildUpdateEventActivity({ ...event, user: event.user }, userId)
+    await deliverActivity(activity, buildAddressingFromActivity(activity), userId)
+    await broadcastEventUpdate(event)
+}
 
 // Delete event
 app.delete('/:id', moderateRateLimit, async (c) => {

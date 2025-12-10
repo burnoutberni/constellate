@@ -7,6 +7,59 @@
 
 const ALLOWED_PROTOCOLS = ['http:', 'https:']
 
+function isAllowedProtocol(url: URL) {
+    return ALLOWED_PROTOCOLS.includes(url.protocol)
+}
+
+function allowDevLocalhost(hostname: string) {
+    return process.env.NODE_ENV === 'development' && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local'))
+}
+
+function getPrivateHostnameReason(hostname: string): string | null {
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+        return isPrivateIP(hostname) ? `[SSRF] Blocked private IPv4: ${hostname}` : null
+    }
+
+    if (hostname.includes(':')) {
+        const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
+        return isPrivateIP(normalizedHostname) ? `[SSRF] Blocked private IPv6: ${normalizedHostname}` : null
+    }
+
+    if (hostname === 'localhost' || hostname.endsWith('.local')) {
+        return `[SSRF] Blocked localhost variation: ${hostname}`
+    }
+
+    return null
+}
+
+function shouldSkipDns(hostname: string) {
+    return process.env.NODE_ENV === 'development' && hostname.endsWith('.local')
+}
+
+async function resolveAndValidateDns(hostname: string): Promise<string | null> {
+    try {
+        const dns = await import('dns/promises')
+        const ipv4Addresses = await dns.resolve4(hostname).catch(() => [] as string[])
+        const ipv6Addresses = await dns.resolve6(hostname).catch(() => [] as string[])
+        const allAddresses = [...ipv4Addresses, ...ipv6Addresses]
+
+        if (allAddresses.length === 0) {
+            return `[SSRF] Hostname does not resolve: ${hostname}`
+        }
+
+        for (const ip of allAddresses) {
+            if (isPrivateIP(ip)) {
+                return `[SSRF] Blocked private IP from DNS: ${ip} for ${hostname}`
+            }
+        }
+    } catch (error) {
+        console.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
+        return `[SSRF] DNS resolution failed for: ${hostname}`
+    }
+
+    return null
+}
+
 /**
  * Checks if an IP address is in a private range
  * @param ip - IP address to check (IPv4 or IPv6)
@@ -52,76 +105,26 @@ function isPrivateIP(ip: string): boolean {
 export async function isUrlSafe(urlString: string): Promise<boolean> {
     try {
         const url = new URL(urlString)
-
-        // Check protocol
-        if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+        if (!isAllowedProtocol(url)) {
             return false
         }
 
-        // In development, allow localhost and .local domains (for Docker federation testing)
-        if (process.env.NODE_ENV === 'development') {
-            if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.endsWith('.local')) {
-                return true
-            }
-        }
-
-        // Check for private IP ranges in hostname
         const hostname = url.hostname
 
-        // Check if it's an IP address
-        if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-            if (isPrivateIP(hostname)) {
-                console.error(`[SSRF] Blocked private IPv4: ${hostname}`)
-                return false
-            }
+        if (allowDevLocalhost(hostname)) {
+            return true
         }
 
-        // Check for IPv6 (handle bracketed format like [::1])
-        if (hostname.includes(':')) {
-            // Remove brackets if present for IPv6 addresses
-            const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']')
-                ? hostname.slice(1, -1)
-                : hostname
-
-            if (isPrivateIP(normalizedHostname)) {
-                console.error(`[SSRF] Blocked private IPv6: ${normalizedHostname}`)
-                return false
-            }
-        }
-
-        // Check for localhost variations (only in production)
-        if (hostname === 'localhost' || hostname.endsWith('.local')) {
-            console.error(`[SSRF] Blocked localhost variation: ${hostname}`)
+        const privateReason = getPrivateHostnameReason(hostname)
+        if (privateReason) {
+            console.error(privateReason)
             return false
         }
 
-        // Resolve DNS and check all IPs (skip in development for .local domains)
-        if (process.env.NODE_ENV !== 'development' || !hostname.endsWith('.local')) {
-            try {
-                const dns = await import('dns/promises')
-
-                // Try to resolve both IPv4 and IPv6
-                const ipv4Addresses = await dns.resolve4(hostname).catch(() => [] as string[])
-                const ipv6Addresses = await dns.resolve6(hostname).catch(() => [] as string[])
-
-                const allAddresses = [...ipv4Addresses, ...ipv6Addresses]
-
-                // If we got no addresses, the hostname doesn't resolve
-                if (allAddresses.length === 0) {
-                    console.error(`[SSRF] Hostname does not resolve: ${hostname}`)
-                    return false
-                }
-
-                // Check each resolved IP
-                for (const ip of allAddresses) {
-                    if (isPrivateIP(ip)) {
-                        console.error(`[SSRF] Blocked private IP from DNS: ${ip} for ${hostname}`)
-                        return false
-                    }
-                }
-            } catch (error) {
-                // DNS resolution failed - block by default
-                console.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
+        if (!shouldSkipDns(hostname)) {
+            const dnsBlockReason = await resolveAndValidateDns(hostname)
+            if (dnsBlockReason) {
+                console.error(dnsBlockReason)
                 return false
             }
         }

@@ -363,108 +363,126 @@ export async function deliverWithRetry(
     return false
 }
 
+async function fetchPendingDeadLetters(now: Date) {
+    const allPendingDeliveries = await prisma.failedDelivery.findMany({
+        where: {
+            status: 'PENDING',
+            nextRetryAt: {
+                lte: now,
+            },
+        },
+        take: 100,
+    })
+
+    return allPendingDeliveries
+        .filter((d) => d.attemptCount < d.maxAttempts)
+        .slice(0, 50)
+}
+
+async function markRetryingDelivery(id: string) {
+    await prisma.failedDelivery.update({
+        where: { id },
+        data: { status: 'RETRYING' },
+    })
+}
+
+async function findDeliveryUser(userId: string) {
+    return prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true, privateKey: true },
+    })
+}
+
+async function markDeliveryFailedMissingUser(id: string) {
+    await prisma.failedDelivery.update({
+        where: { id },
+        data: {
+            status: 'FAILED',
+            lastError: 'User not found',
+            resolvedAt: new Date(),
+        },
+    })
+}
+
+async function deleteSuccessfulDelivery(deliveryId: string, activityId: string, inboxUrl: string) {
+    await prisma.failedDelivery.delete({
+        where: { id: deliveryId },
+    })
+    console.log(`[Dead Letter Queue] Successfully delivered: ${activityId} -> ${inboxUrl}`)
+}
+
+async function updateAttemptFailure(delivery: { id: string; attemptCount: number; maxAttempts: number }) {
+    const newAttemptCount = delivery.attemptCount + 1
+    const nextRetryAt = calculateNextRetry(newAttemptCount)
+    const status = newAttemptCount >= delivery.maxAttempts ? 'FAILED' : 'PENDING'
+
+    await prisma.failedDelivery.update({
+        where: { id: delivery.id },
+        data: {
+            attemptCount: newAttemptCount,
+            nextRetryAt: status === 'PENDING' ? nextRetryAt : null,
+            status,
+            lastAttemptAt: new Date(),
+            resolvedAt: status === 'FAILED' ? new Date() : null,
+        },
+    })
+}
+
+async function markDeliveryError(id: string, error: unknown) {
+    await prisma.failedDelivery.update({
+        where: { id },
+        data: {
+            status: 'PENDING',
+            lastError: error instanceof Error ? error.message : 'Unknown error',
+            lastAttemptAt: new Date(),
+        },
+    })
+}
+
+async function processSingleDeadLetter(delivery: Awaited<ReturnType<typeof prisma.failedDelivery.findFirst>>) {
+    if (!delivery) return
+
+    try {
+        await markRetryingDelivery(delivery.id)
+
+        const user = await findDeliveryUser(delivery.userId)
+        if (!user) {
+            await markDeliveryFailedMissingUser(delivery.id)
+            return
+        }
+
+        const success = await deliverToInbox(
+            delivery.activity as Activity,
+            delivery.inboxUrl,
+            user,
+            false
+        )
+
+        if (success) {
+            await deleteSuccessfulDelivery(delivery.id, delivery.activityId, delivery.inboxUrl)
+            return
+        }
+
+        await updateAttemptFailure(delivery)
+    } catch (error) {
+        console.error(`[Dead Letter Queue] Error processing delivery ${delivery.id}:`, error)
+        await markDeliveryError(delivery.id, error)
+    }
+}
+
 /**
  * Processes pending deliveries in the dead letter queue
  * Retries failed deliveries that are ready for retry
  */
 export async function processDeadLetterQueue(): Promise<void> {
     try {
-        const now = new Date()
-        
-        // Find deliveries ready for retry
-        // Note: We filter by attemptCount < maxAttempts after fetching
-        // since Prisma doesn't support field-to-field comparisons in WHERE clauses
-        const allPendingDeliveries = await prisma.failedDelivery.findMany({
-            where: {
-                status: 'PENDING',
-                nextRetryAt: {
-                    lte: now,
-                },
-            },
-            take: 100, // Fetch more and filter in memory
-        })
-        
-        // Filter to only those that haven't exceeded max attempts
-        const pendingDeliveries = allPendingDeliveries
-            .filter(d => d.attemptCount < d.maxAttempts)
-            .slice(0, 50) // Process in batches of 50
-
-        if (pendingDeliveries.length === 0) {
-            return
-        }
+        const pendingDeliveries = await fetchPendingDeadLetters(new Date())
+        if (pendingDeliveries.length === 0) return
 
         console.log(`[Dead Letter Queue] Processing ${pendingDeliveries.length} pending deliveries`)
 
         for (const delivery of pendingDeliveries) {
-            try {
-                // Update status to retrying
-                await prisma.failedDelivery.update({
-                    where: { id: delivery.id },
-                    data: { status: 'RETRYING' },
-                })
-
-                // Get user for delivery
-                const user = await prisma.user.findUnique({
-                    where: { id: delivery.userId },
-                    select: { id: true, username: true, privateKey: true },
-                })
-
-                if (!user) {
-                    await prisma.failedDelivery.update({
-                        where: { id: delivery.id },
-                        data: {
-                            status: 'FAILED',
-                            lastError: 'User not found',
-                            resolvedAt: new Date(),
-                        },
-                    })
-                    continue
-                }
-
-                // Attempt delivery
-                const success = await deliverToInbox(
-                    delivery.activity as Activity,
-                    delivery.inboxUrl,
-                    user,
-                    false
-                )
-
-                if (success) {
-                    // Delete successful delivery from queue (no need to keep it)
-                    await prisma.failedDelivery.delete({
-                        where: { id: delivery.id },
-                    })
-                    console.log(`[Dead Letter Queue] Successfully delivered: ${delivery.activityId} -> ${delivery.inboxUrl}`)
-                } else {
-                    // Increment attempt count and schedule next retry
-                    const newAttemptCount = delivery.attemptCount + 1
-                    const nextRetryAt = calculateNextRetry(newAttemptCount)
-                    const status = newAttemptCount >= delivery.maxAttempts ? 'FAILED' : 'PENDING'
-
-                    await prisma.failedDelivery.update({
-                        where: { id: delivery.id },
-                        data: {
-                            attemptCount: newAttemptCount,
-                            nextRetryAt: status === 'PENDING' ? nextRetryAt : null,
-                            status,
-                            lastAttemptAt: new Date(),
-                            resolvedAt: status === 'FAILED' ? new Date() : null,
-                        },
-                    })
-                }
-            } catch (error) {
-                console.error(`[Dead Letter Queue] Error processing delivery ${delivery.id}:`, error)
-                
-                // Mark as failed on error
-                await prisma.failedDelivery.update({
-                    where: { id: delivery.id },
-                    data: {
-                        status: 'PENDING', // Allow retry on next run
-                        lastError: error instanceof Error ? error.message : 'Unknown error',
-                        lastAttemptAt: new Date(),
-                    },
-                })
-            }
+            await processSingleDeadLetter(delivery)
         }
     } catch (error) {
         console.error('[Dead Letter Queue] Error processing queue:', error)

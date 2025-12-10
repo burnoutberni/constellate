@@ -139,62 +139,38 @@ export async function getActorInboxes(actorUrls: string[]): Promise<string[]> {
  * @param userId - User ID (for followers collection)
  * @returns Array of inbox URLs
  */
+async function processRecipient(recipient: string, senderUserId: string, inboxes: Set<string>): Promise<void> {
+    if (recipient === PUBLIC_COLLECTION) {
+        const followerInboxes = await getFollowerInboxes(senderUserId);
+        followerInboxes.forEach(inbox => inboxes.add(inbox));
+    } else if (recipient.endsWith('/followers')) {
+        const baseUrl = getBaseUrl();
+        if (recipient.startsWith(baseUrl)) {
+            const username = recipient.replace(`${baseUrl}/users/`, '').replace('/followers', '');
+            const targetUser = await prisma.user.findUnique({
+                where: { username, isRemote: false },
+            });
+            if (targetUser) {
+                const followerInboxes = await getFollowerInboxes(targetUser.id);
+                followerInboxes.forEach(inbox => inboxes.add(inbox));
+            }
+        }
+    } else {
+        const actorInboxes = await getActorInboxes([recipient]);
+        actorInboxes.forEach(inbox => inboxes.add(inbox));
+    }
+}
+
 export async function resolveInboxes(
     addressing: Addressing,
     userId: string
 ): Promise<string[]> {
     const inboxes = new Set<string>()
 
-    // Process 'to' field
-    for (const recipient of addressing.to) {
-        if (recipient === PUBLIC_COLLECTION) {
-            // Public - send to all followers of the sender
-            const followerInboxes = await getFollowerInboxes(userId)
-            followerInboxes.forEach((inbox) => inboxes.add(inbox))
-        } else if (recipient.endsWith('/followers')) {
-            // Followers collection - extract username from URL
-            const baseUrl = getBaseUrl()
-            if (recipient.startsWith(baseUrl)) {
-                const username = recipient.replace(`${baseUrl}/users/`, '').replace('/followers', '')
-                const targetUser = await prisma.user.findUnique({
-                    where: { username, isRemote: false },
-                })
-                if (targetUser) {
-                    const followerInboxes = await getFollowerInboxes(targetUser.id)
-                    followerInboxes.forEach((inbox) => inboxes.add(inbox))
-                }
-            }
-        } else {
-            // Specific actor
-            const actorInboxes = await getActorInboxes([recipient])
-            actorInboxes.forEach((inbox) => inboxes.add(inbox))
-        }
-    }
+    const toAndCc = [...addressing.to, ...addressing.cc]
 
-    // Process 'cc' field
-    for (const recipient of addressing.cc) {
-        if (recipient === PUBLIC_COLLECTION) {
-            // Public - send to all followers of the sender
-            const followerInboxes = await getFollowerInboxes(userId)
-            followerInboxes.forEach((inbox) => inboxes.add(inbox))
-        } else if (recipient.endsWith('/followers')) {
-            // Followers collection - extract username from URL
-            const baseUrl = getBaseUrl()
-            if (recipient.startsWith(baseUrl)) {
-                const username = recipient.replace(`${baseUrl}/users/`, '').replace('/followers', '')
-                const targetUser = await prisma.user.findUnique({
-                    where: { username, isRemote: false },
-                })
-                if (targetUser) {
-                    const followerInboxes = await getFollowerInboxes(targetUser.id)
-                    followerInboxes.forEach((inbox) => inboxes.add(inbox))
-                }
-            }
-        } else {
-            // Specific actor
-            const actorInboxes = await getActorInboxes([recipient])
-            actorInboxes.forEach((inbox) => inboxes.add(inbox))
-        }
+    for (const recipient of toAndCc) {
+        await processRecipient(recipient, userId, inboxes)
     }
 
     // Process 'bcc' field (same as 'to' but not included in activity)
