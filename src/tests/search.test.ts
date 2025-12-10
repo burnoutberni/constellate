@@ -1113,11 +1113,13 @@ describe('Search API - Advanced Filters', () => {
             const now = new Date()
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
             const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-            
+            const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000)
+            const todayEventStart = thirtyMinutesFromNow <= todayEnd ? thirtyMinutesFromNow : todayEnd
+
             await prisma.event.create({
                 data: {
                     title: 'Today Event',
-                    startTime: new Date((todayStart.getTime() + todayEnd.getTime()) / 2), // Today
+                    startTime: todayEventStart, // Today and still upcoming
                     userId: testUser.id,
                     attributedTo: `${baseUrl}/users/${testUser.username}`,
                     visibility: 'PUBLIC',

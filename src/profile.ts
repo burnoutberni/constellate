@@ -275,8 +275,8 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
         const baseUrl = getBaseUrl()
         const targetActorUrl = getTargetActorUrl(targetUser, baseUrl)
 
-        const followHandling = await prepareFollowingState(userId, targetActorUrl)
-        if (followHandling === 'alreadyAccepted') {
+        const isAlreadyFollowing = await checkFollowingStatus(userId, targetActorUrl)
+        if (isAlreadyFollowing) {
             return c.json({ error: 'Already following' }, 400)
         }
 
@@ -285,7 +285,7 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
         if (!targetUser.isRemote) {
             await handleLocalFollow(currentUser, targetUser, baseUrl, targetActorUrl)
         } else {
-            await handleRemoteFollow(currentUser, targetUser, userId, targetActorUrl, followActivity)
+            await handleRemoteFollow(currentUser, targetUser, targetActorUrl, followActivity)
         }
 
         return c.json({ success: true, message: 'Follow request sent' })
@@ -331,7 +331,7 @@ function getTargetActorUrl(targetUser: { isRemote: boolean; externalActorUrl: st
     return targetUser.isRemote ? targetUser.externalActorUrl! : `${baseUrl}/users/${targetUser.username}`
 }
 
-async function prepareFollowingState(userId: string, targetActorUrl: string) {
+async function checkFollowingStatus(userId: string, targetActorUrl: string): Promise<boolean> {
     const existing = await prisma.following.findUnique({
         where: {
             userId_actorUrl: {
@@ -342,7 +342,7 @@ async function prepareFollowingState(userId: string, targetActorUrl: string) {
     })
 
     if (existing?.accepted) {
-        return 'alreadyAccepted' as const
+        return true
     }
 
     if (existing && !existing.accepted) {
@@ -356,7 +356,7 @@ async function prepareFollowingState(userId: string, targetActorUrl: string) {
         })
     }
 
-    return 'proceed' as const
+    return false
 }
 
 async function handleLocalFollow(
@@ -403,13 +403,12 @@ async function handleLocalFollow(
 async function handleRemoteFollow(
     currentUser: { id: string; username: string; profileImage: string | null; privateKey: string | null },
     targetUser: { username: string; profileImage: string | null; inboxUrl: string | null; sharedInboxUrl: string | null },
-    userId: string,
     targetActorUrl: string,
     followActivity: FollowActivity
 ) {
     await prisma.following.create({
         data: {
-            userId,
+            userId: currentUser.id,
             actorUrl: targetActorUrl,
             username: targetUser.username,
             inboxUrl: targetUser.inboxUrl || '',
@@ -428,7 +427,7 @@ async function handleRemoteFollow(
         })
     }
 
-    await broadcastToUser(userId, {
+    await broadcastToUser(currentUser.id, {
         type: BroadcastEvents.FOLLOW_PENDING,
         data: {
             username: targetUser.username,

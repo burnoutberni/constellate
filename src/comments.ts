@@ -245,8 +245,8 @@ async function broadcastMentionNotifications(
 
     const ownerHandle = getEventOwnerHandle(event)
 
-    for (const target of notificationTargets) {
-        await broadcast({
+    const broadcastPromises = notificationTargets.map((target) =>
+        broadcast({
             type: BroadcastEvents.MENTION_RECEIVED,
             targetUserId: target.user.id,
             data: {
@@ -263,8 +263,9 @@ async function broadcastMentionNotifications(
                     name: comment.author.name,
                 },
             },
-        })
-    }
+        }),
+    )
+    await Promise.allSettled(broadcastPromises)
 }
 
 // Create comment

@@ -917,6 +917,13 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
  * 
  * @param activity - The Delete activity containing the object to be deleted
  */
+
+/**
+ * Extracts the object ID from a Delete activity's object.
+ * 
+ * @param object - The object from a Delete activity (can be a string, Tombstone, or object with id)
+ * @returns The object ID string, or an empty string if the ID cannot be extracted
+ */
 function getObjectId(object: DeleteActivity['object']): string {
     if (typeof object === 'string') {
         return object
@@ -927,6 +934,12 @@ function getObjectId(object: DeleteActivity['object']): string {
     return ''
 }
 
+/**
+ * Extracts the formerType from a Tombstone object in a Delete activity.
+ * 
+ * @param object - The object from a Delete activity
+ * @returns The formerType string if present, or null if not a Tombstone or formerType is missing
+ */
 function getFormerType(object: DeleteActivity['object']): string | null {
     if (typeof object === 'object' && object !== null && 'formerType' in object && typeof object.formerType === 'string') {
         return object.formerType
@@ -1562,6 +1575,12 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
     console.log(`✅ Not attending from ${actorUrl}`)
 }
 
+/**
+ * Extracts the actor URL from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The actor URL string, or an empty string if not found
+ */
 function extractActorUrl(activity: Activity | Record<string, unknown>) {
     if (typeof activity === 'object' && activity !== null && 'actor' in activity && typeof activity.actor === 'string') {
         return activity.actor
@@ -1569,14 +1588,32 @@ function extractActorUrl(activity: Activity | Record<string, unknown>) {
     return ''
 }
 
+/**
+ * Extracts the object from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The object value, or null if not present
+ */
 function extractObject(activity: Activity | Record<string, unknown>) {
     return typeof activity === 'object' && activity !== null && 'object' in activity ? activity.object : null
 }
 
+/**
+ * Checks if an object is a Follow activity (used for identifying Follow rejections).
+ * 
+ * @param object - The object to check
+ * @returns True if the object is a Follow activity, false otherwise
+ */
 function isFollowRejectObject(object: unknown) {
     return typeof object === 'object' && object !== null && 'type' in object && (object as { type?: unknown }).type === ActivityType.FOLLOW
 }
 
+/**
+ * Resolves an object to its URL/ID string.
+ * 
+ * @param object - The object (can be a string URL or object with id property)
+ * @returns The object URL/ID string, or an empty string if it cannot be resolved
+ */
 function resolveObjectUrl(object: unknown) {
     if (typeof object === 'string') return object
     if (typeof object === 'object' && object !== null && 'id' in object && typeof (object as { id?: unknown }).id === 'string') {
@@ -1585,6 +1622,12 @@ function resolveObjectUrl(object: unknown) {
     return ''
 }
 
+/**
+ * Finds an event by its external ID or local ID.
+ * 
+ * @param objectUrl - The event URL/ID to search for
+ * @returns The event if found, or null if not found
+ */
 async function findEventByObjectUrl(objectUrl: string) {
     return prisma.event.findFirst({
         where: {
@@ -1596,6 +1639,12 @@ async function findEventByObjectUrl(objectUrl: string) {
     })
 }
 
+/**
+ * Extracts the activity ID from an activity.
+ * 
+ * @param activity - The activity object
+ * @returns The activity ID string if present, or null if not found
+ */
 function getActivityId(activity: Activity | Record<string, unknown>) {
     if (typeof activity === 'object' && activity !== null && 'id' in activity && typeof activity.id === 'string') {
         return activity.id

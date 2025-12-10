@@ -187,11 +187,14 @@ async function searchLocalEvents(query: string, limit: number) {
     })
 }
 
-async function handleRemoteSuggestion(query: string, users: SearchUserResult[]) {
+async function handleRemoteSuggestion(
+    query: string,
+    users: SearchUserResult[],
+): Promise<{ users: SearchUserResult[]; remoteAccountSuggestion: RemoteAccountSuggestion }> {
     const parsedHandle = parseHandle(query)
 
     if (!parsedHandle || isLocalHandle(parsedHandle.domain)) {
-        return { users, remoteAccountSuggestion: null as RemoteAccountSuggestion }
+        return { users, remoteAccountSuggestion: null }
     }
 
     const cachedRemoteUser = await findCachedRemoteUser(parsedHandle)
@@ -199,7 +202,7 @@ async function handleRemoteSuggestion(query: string, users: SearchUserResult[]) 
         const alreadyPresent = users.some((user) => user.id === cachedRemoteUser.id)
         return {
             users: alreadyPresent ? users : [cachedRemoteUser, ...users],
-            remoteAccountSuggestion: null as RemoteAccountSuggestion,
+            remoteAccountSuggestion: null,
         }
     }
 

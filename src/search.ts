@@ -745,22 +745,19 @@ app.get('/stats', async (c) => {
             },
         })
 
-        // Get future events count (after today)
-        const futureEvents = await prisma.event.count({
+        // Get upcoming events count (events starting from now forward)
+        const upcomingEvents = await prisma.event.count({
             where: {
                 AND: [
                     visibilityFilter,
                     {
                         startTime: {
-                            gt: todayEnd,
+                            gte: now,
                         },
                     },
                 ],
             },
         })
-
-        // Upcoming includes today + future
-        const upcomingEvents = todayEvents + futureEvents
 
         return c.json({
             totalEvents,

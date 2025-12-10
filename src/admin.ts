@@ -310,8 +310,10 @@ app.put('/users/:id', async (c) => {
             return c.json({ error: 'User not found' }, 404)
         }
 
-        const conflictResponse = await validateUniqueUserFields(data, existingUser, c)
-        if (conflictResponse) return conflictResponse
+        const conflict = await validateUniqueUserFields(data, existingUser)
+        if (conflict) {
+            return c.json(conflict, 400)
+        }
 
         const user = await updateAdminUser(id, data)
 
@@ -335,25 +337,30 @@ async function findUserById(id: string) {
 async function validateUniqueUserFields(
     data: AdminUserUpdate,
     existingUser: NonNullable<Awaited<ReturnType<typeof findUserById>>>,
-    c: { json: (body: Record<string, unknown>, status?: number) => Response },
-): Promise<Response | null> {
+): Promise<{ error: string } | null> {
+    const orChecks: Prisma.UserWhereInput[] = []
     if (data.username && data.username !== existingUser.username) {
-        const usernameExists = await prisma.user.findUnique({
-            where: { username: data.username },
-        })
-
-        if (usernameExists) {
-            return c.json({ error: 'Username already exists' }, 400)
-        }
+        orChecks.push({ username: data.username })
+    }
+    if (data.email && data.email !== existingUser.email) {
+        orChecks.push({ email: data.email })
     }
 
-    if (data.email && data.email !== existingUser.email) {
-        const emailExists = await prisma.user.findUnique({
-            where: { email: data.email },
+    if (orChecks.length > 0) {
+        const conflictingUser = await prisma.user.findFirst({
+            where: {
+                OR: orChecks,
+            },
+            select: { username: true, email: true },
         })
 
-        if (emailExists) {
-            return c.json({ error: 'Email already exists' }, 400)
+        if (conflictingUser) {
+            if (conflictingUser.username === data.username) {
+                return { error: 'Username already exists' }
+            }
+            if (conflictingUser.email === data.email) {
+                return { error: 'Email already exists' }
+            }
         }
     }
 
@@ -363,14 +370,14 @@ async function validateUniqueUserFields(
 async function updateAdminUser(id: string, data: AdminUserUpdate) {
     return prisma.user.update({
         where: { id },
-        data: buildAdminUserUpdateData(data) as unknown as Record<string, unknown>,
+        data: buildAdminUserUpdateData(data),
         select: buildAdminUserSelect(),
     })
 }
 
-function buildAdminUserUpdateData(data: AdminUserUpdate) {
+function buildAdminUserUpdateData(data: AdminUserUpdate): Prisma.UserUpdateInput {
     return {
-        ...(data.username && { username: data.username }),
+        ...(data.username !== undefined && { username: data.username }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.name !== undefined && { name: data.name }),
         ...(data.isAdmin !== undefined && { isAdmin: data.isAdmin }),
@@ -391,7 +398,7 @@ function buildAdminUserSelect() {
         displayColor: true,
         bio: true,
         updatedAt: true,
-    } as unknown as Record<string, unknown>
+    }
 }
 
 // Delete user (admin only)
@@ -641,12 +648,13 @@ function processDelivery(
         const stats = domainStats.get(domain) || { success: 0, failed: 0 }
         if (delivery.status === 'FAILED' || delivery.status === 'PENDING') {
             stats.failed++
-        } else {
+        } else if (delivery.status === 'DISCARDED') {
             stats.success++
         }
+        // RETRYING status is not counted as either success or failure
         domainStats.set(domain, stats)
     } catch {
-        // Invalid URL, skip
+        console.debug('Skipping delivery with invalid inbox URL:', delivery.inboxUrl)
     }
 }
 

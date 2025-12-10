@@ -23,7 +23,7 @@ import type { Person } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
 import { config } from './config.js'
-import type { Event, EventReminder, EventVisibility, RecurrencePattern } from '@prisma/client'
+import type { Event, EventVisibility, RecurrencePattern } from '@prisma/client'
 import { RECURRENCE_PATTERNS, validateRecurrenceInput } from './lib/recurrence.js'
 import {
     calculateTrendingScore,
@@ -368,6 +368,16 @@ app.post('/', moderateRateLimit, async (c) => {
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                displayColor: true,
+                profileImage: true,
+                externalActorUrl: true,
+                isRemote: true,
+                timezone: true,
+            },
         })
 
         if (!user || user.isRemote) {
@@ -413,8 +423,7 @@ app.post('/', moderateRateLimit, async (c) => {
         })
 
         // Build and deliver Create activity
-        // Ensure event object includes user property for activity builder
-        const activity = buildCreateEventActivity({ ...event, user }, userId)
+        const activity = buildCreateEventActivity(event, userId)
 
         const addressing = buildAddressingFromActivity(activity)
         await deliverActivity(activity, addressing, userId)
@@ -769,6 +778,8 @@ type EventUserSummary = Prisma.UserGetPayload<{
     }
 }>
 
+type SerializedReminderList = Awaited<ReturnType<typeof listEventRemindersForUser>>
+
 // Helper function to find or cache remote user
 async function findOrCacheRemoteUser(actorUrl: string | undefined) {
     if (!actorUrl) return null
@@ -941,11 +952,11 @@ async function cacheRemoteEventData(eventId: string, externalId: string) {
 }
 
 async function processRemoteEvent(
-    event: EventWithFullInclude | null,
+    event: EventWithFullInclude,
     user: EventUserSummary,
-    responseExtras: { userHasShared: boolean, viewerReminders: EventReminder[] }
+    responseExtras: { userHasShared: boolean; viewerReminders: SerializedReminderList }
 ) {
-    if (event && event.externalId) {
+    if (event.externalId) {
         await cacheRemoteEventData(event.id, event.externalId)
         const updatedEvent = await prisma.event.findFirst({
             where: { id: event.id },
@@ -955,10 +966,8 @@ async function processRemoteEvent(
             return { ...updatedEvent, user: updatedEvent.user || user, ...responseExtras }
         }
     }
-    if (event) {
-        return { ...event, user: event.user || user, ...responseExtras }
-    }
-    return { error: 'Event not found', ...responseExtras }
+
+    return { ...event, user: event.user || user, ...responseExtras }
 }
 
 // Get event by username and eventId (Mastodon-style URL)
@@ -978,20 +987,6 @@ app.get('/by-user/:username/:eventId', async (c) => {
                 profileImage: true,
                 externalActorUrl: true,
                 isRemote: true,
-                headerImage: true,
-                timezone: true,
-                createdAt: true,
-                updatedAt: true,
-                email: true,
-                emailVerified: true,
-                bio: true,
-                autoAcceptFollowers: true,
-                isAdmin: true,
-                isBot: true,
-                publicKey: true,
-                privateKey: true,
-                inboxUrl: true,
-                sharedInboxUrl: true,
             },
         })
         if (!user) {
@@ -1023,15 +1018,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
             }))
 
         const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
-        const viewerRemindersTyped: EventReminder[] = viewerReminders.map(r => ({
-            ...r,
-            createdAt: new Date(r.createdAt),
-            updatedAt: new Date(r.updatedAt),
-            remindAt: new Date(r.remindAt),
-            deliveredAt: r.deliveredAt ? new Date(r.deliveredAt) : null,
-            lastAttemptAt: r.lastAttemptAt ? new Date(r.lastAttemptAt) : null,
-        }));
-        const responseExtras = { userHasShared, viewerReminders: viewerRemindersTyped }
+        const responseExtras = { userHasShared, viewerReminders }
 
         if (isRemote) {
             const result = await processRemoteEvent(event, user, responseExtras)
@@ -1304,44 +1291,58 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
     }
 })
 
-const updatableEventFields: Record<string, (val: unknown) => unknown> = {
+// Maps event field names to their transformation/sanitization functions
+const eventFieldTransformers: Record<string, (val: unknown) => unknown> = {
     title: (val) => sanitizeText(val as string),
-    summary: (val) => val ? sanitizeText(val as string) : null,
-    location: (val) => val ? sanitizeText(val as string) : null,
-    locationLatitude: (val) => val ?? null,
-    locationLongitude: (val) => val ?? null,
-    headerImage: (val) => val || null,
-    url: (val) => val || null,
+    summary: (val) => (val ? sanitizeText(val as string) : null),
+    location: (val) => (val ? sanitizeText(val as string) : null),
+    locationLatitude: (val) => (val === null || val === undefined ? null : val),
+    locationLongitude: (val) => (val === null || val === undefined ? null : val),
+    headerImage: (val) => (val ? val : null),
+    url: (val) => (val ? val : null),
     startTime: (val) => new Date(val as string),
-    endTime: (val) => val ? new Date(val as string) : null,
-    duration: (val) => val || null,
-    eventStatus: (val) => val || null,
-    eventAttendanceMode: (val) => val || null,
-    maximumAttendeeCapacity: (val) => val || null,
+    endTime: (val) => (val === null || val === undefined ? null : new Date(val as string)),
+    duration: (val) => (val ? val : null),
+    eventStatus: (val) => (val ? val : null),
+    eventAttendanceMode: (val) => (val ? val : null),
+    maximumAttendeeCapacity: (val) => (val === null || val === undefined ? null : val),
     timezone: (val) => normalizeTimeZone(val as string),
-    recurrencePattern: (val) => val || null,
-    recurrenceEndDate: (val) => val ? new Date(val as string) : null,
+    recurrencePattern: (val) => (val === null || val === undefined ? null : val),
+    recurrenceEndDate: (val) => (val === null || val === undefined ? null : new Date(val as string)),
 }
 
 // Helper function to build update data from validated input
 function buildEventUpdateData(
     validatedData: Partial<z.infer<typeof EventSchema>> & { visibility?: string },
     requestedVisibility: string | undefined,
+    recurrenceData?: {
+        recurrencePattern: RecurrencePattern | null
+        recurrenceEndDate: Date | null
+    }
 ) {
     const updateData: Record<string, unknown> = {}
 
-    // Use a type assertion to ensure keys are valid for updatableEventFields
-    const updatableKeys = Object.keys(updatableEventFields) as Array<keyof typeof updatableEventFields>;
+    const updatableKeys = Object.keys(eventFieldTransformers) as Array<keyof typeof eventFieldTransformers>
 
-    const validatedDataRecord = validatedData as Record<string, unknown>;
+    const validatedDataRecord = validatedData as Record<string, unknown>
     for (const key of updatableKeys) {
         if (key in validatedDataRecord && validatedDataRecord[key] !== undefined) {
-            updateData[key] = updatableEventFields[key](validatedDataRecord[key]);
+            updateData[key] = eventFieldTransformers[key](validatedDataRecord[key])
         }
     }
 
     if (requestedVisibility !== undefined) {
         updateData.visibility = requestedVisibility
+    }
+
+    // Apply validated recurrence fields if provided
+    if (recurrenceData) {
+        if (validatedData.recurrencePattern !== undefined) {
+            updateData.recurrencePattern = recurrenceData.recurrencePattern
+        }
+        if (validatedData.recurrenceEndDate !== undefined) {
+            updateData.recurrenceEndDate = recurrenceData.recurrenceEndDate
+        }
     }
 
     return updateData
@@ -1424,15 +1425,15 @@ function getValidatedRecurrence(
         validatedData.recurrencePattern !== undefined
             ? validatedData.recurrencePattern || null
             : existingEvent.recurrencePattern
-    let nextRecurrenceEndDate;
+    let nextRecurrenceEndDate
     if (validatedData.recurrenceEndDate !== undefined) {
         if (validatedData.recurrenceEndDate) {
-            nextRecurrenceEndDate = new Date(validatedData.recurrenceEndDate);
+            nextRecurrenceEndDate = new Date(validatedData.recurrenceEndDate)
         } else {
-            nextRecurrenceEndDate = null;
+            nextRecurrenceEndDate = null
         }
     } else {
-        nextRecurrenceEndDate = existingEvent.recurrenceEndDate;
+        nextRecurrenceEndDate = existingEvent.recurrenceEndDate
     }
 
     validateRecurrenceInput(nextStartTime, nextRecurrencePattern, nextRecurrenceEndDate)
@@ -1461,7 +1462,7 @@ async function updateEventAndTagsInTransaction(
         })
 
         if (!refreshedEvent) {
-            // This should not happen if the update succeeded
+            // Event not found after successful update - this indicates a data consistency issue
             throw new Error('Failed to retrieve updated event after transaction')
         }
         return refreshedEvent
@@ -1487,13 +1488,14 @@ app.put('/:id', moderateRateLimit, async (c) => {
             ownedEvent,
         )
 
-        const updateData = buildEventUpdateData(validatedData, validatedData.visibility)
-        if (validatedData.recurrencePattern !== undefined) {
-            updateData.recurrencePattern = nextRecurrencePattern
-        }
-        if (validatedData.recurrenceEndDate !== undefined) {
-            updateData.recurrenceEndDate = nextRecurrenceEndDate
-        }
+        const updateData = buildEventUpdateData(
+            validatedData,
+            validatedData.visibility,
+            {
+                recurrencePattern: nextRecurrencePattern,
+                recurrenceEndDate: nextRecurrenceEndDate,
+            }
+        )
 
         const tagsResult = tryNormalizeTags(validatedData.tags)
         if (!tagsResult.ok) {
@@ -1559,7 +1561,7 @@ function validateEventOwnership(
 
 function tryNormalizeTags(tags: string[] | undefined) {
     if (tags === undefined) {
-        return { ok: true as const, tags: undefined as string[] | undefined }
+        return { ok: true as const, tags: undefined }
     }
 
     try {
