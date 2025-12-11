@@ -1,6 +1,6 @@
-import { Input } from './ui/Input'
+import { Input } from './ui'
 
-export interface RecurrencePattern {
+interface RecurrencePattern {
   pattern: '' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
   endDate: string
 }
@@ -69,7 +69,7 @@ export function RecurrenceSelector({ value, onChange, startTime, error }: Recurr
           onChange={(e) => handleEndDateChange(e.target.value)}
           required
           min={minEndDate}
-          error={!!error}
+          error={Boolean(error)}
           errorMessage={error}
           helperText="Recurring events show on the calendar up to this date."
           fullWidth

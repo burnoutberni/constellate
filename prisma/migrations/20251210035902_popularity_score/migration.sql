@@ -13,3 +13,5 @@ SET "popularityScore" = (
     COALESCE((SELECT COUNT(*) * 2 FROM "EventAttendance" WHERE "eventId" = e.id), 0) +
     COALESCE((SELECT COUNT(*) FROM "EventLike" WHERE "eventId" = e.id), 0)
 );
+
+

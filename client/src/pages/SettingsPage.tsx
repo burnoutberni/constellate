@@ -1,8 +1,8 @@
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
-import { queryKeys } from '../hooks/queries/keys'
-import { Container } from '../components/layout/Container'
+import { queryKeys } from '@/hooks/queries'
+import { Container } from '@/components/layout'
 import { ProfileSettings } from '../components/ProfileSettings'
 import { PrivacySettings } from '../components/PrivacySettings'
 import { TimeZoneSettings } from '../components/TimeZoneSettings'
@@ -27,7 +27,7 @@ export function SettingsPage() {
             }
             return response.json()
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
     })
 
     // Set SEO metadata
@@ -44,7 +44,7 @@ export function SettingsPage() {
                 <Navbar isConnected={false} user={user} onLogout={logout} />
                 <Container className="py-8">
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
                     </div>
                 </Container>
             </div>
@@ -87,4 +87,3 @@ export function SettingsPage() {
         </div>
     )
 }
-

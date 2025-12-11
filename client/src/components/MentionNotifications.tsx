@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useUIStore, MentionNotification } from '../stores'
+import { useUIStore, MentionNotification } from '@/stores'
+import { Stack } from './layout'
 
 function formatTimestamp(value: string) {
     try {
@@ -18,11 +19,11 @@ export function MentionNotifications() {
     }
 
     return (
-        <div className="fixed bottom-4 right-4 z-40 flex max-w-sm flex-col gap-3">
+        <Stack className="fixed bottom-4 right-4 z-40 max-w-sm" gap="sm">
             {notifications.map((notification) => (
                 <MentionToast key={notification.id} notification={notification} onDismiss={dismiss} />
             ))}
-        </div>
+        </Stack>
     )
 }
 

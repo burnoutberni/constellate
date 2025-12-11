@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 
 export function LoginPage() {
     const [isLogin, setIsLogin] = useState(true)
@@ -13,7 +13,7 @@ export function LoginPage() {
     const { login, signup } = useAuth()
     const navigate = useNavigate()
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError('')
         setLoading(true)
@@ -124,7 +124,7 @@ export function LoginPage() {
 
                 <div className="mt-6 text-center text-sm text-gray-500">
                     <p>
-                        {isLogin ? "Don't have an account? " : "Already have an account? "}
+                        {isLogin ? "Don't have an account? " : 'Already have an account? '}
                         <button
                             onClick={() => setIsLogin(!isLogin)}
                             className="text-blue-600 hover:underline focus:outline-none"

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Avatar } from './ui/Avatar'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
+import { Avatar, Badge, Button } from './ui'
 
 export interface Attendee {
     user: {
@@ -15,7 +13,7 @@ export interface Attendee {
     status: string
 }
 
-export interface AttendeeListProps {
+interface AttendeeListProps {
     /**
      * List of event attendees
      */
@@ -122,8 +120,8 @@ export function AttendeeList({
                 </div>
             ) : (
                 <div className="flex flex-wrap gap-2">
-                    {displayedAttendees.map((a, i) => (
-                        <Badge key={i} variant="primary" size="md">
+                    {displayedAttendees.map((a) => (
+                        <Badge key={a.user.id} variant="primary" size="md">
                             {a.user.name || a.user.username}
                             {a.status === 'maybe' && ' (Maybe)'}
                         </Badge>

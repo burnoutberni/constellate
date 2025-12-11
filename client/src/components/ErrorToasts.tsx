@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { useUIStore, ErrorToast } from '../stores'
+import { useUIStore, ErrorToast } from '@/stores'
+import { Stack } from './layout'
 
 export function ErrorToasts() {
     const toasts = useUIStore((state) => state.errorToasts)
@@ -10,11 +11,11 @@ export function ErrorToasts() {
     }
 
     return (
-        <div className="fixed top-4 right-4 z-50 flex max-w-sm flex-col gap-3" role="alert" aria-atomic="true">
+        <Stack className="fixed top-4 right-4 z-50 max-w-sm" gap="sm" role="alert" aria-atomic="true">
             {toasts.map((toast) => (
                 <ErrorToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
             ))}
-        </div>
+        </Stack>
     )
 }
 

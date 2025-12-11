@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { queryKeys } from '../hooks/queries/keys'
+import { queryKeys } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 
 interface User {
     id: string
@@ -65,17 +67,23 @@ export function AdminPage() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const addSuccessToast = useUIStore((state) => state.addSuccessToast)
     const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances'>('users')
     const [showCreateUserModal, setShowCreateUserModal] = useState(false)
     const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
     const [, setSelectedUserId] = useState<string | null>(null)
     const [newApiKey, setNewApiKey] = useState<string | null>(null)
+    const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
+    const [revokeApiKeyId, setRevokeApiKeyId] = useState<string | null>(null)
 
     // Check if user is admin
     const { data: userProfile, isLoading: isLoadingProfile } = useQuery({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            if (!user) return null
+            if (!user) {
+return null
+}
             const response = await fetch(`/api/users/me/profile`, {
                 credentials: 'include',
             })
@@ -84,14 +92,8 @@ export function AdminPage() {
             }
             return response.json()
         },
-        enabled: !!user,
+        enabled: Boolean(user),
     })
-
-    // Redirect if not admin
-    if (userProfile && !userProfile.isAdmin) {
-        navigate('/')
-        return null
-    }
 
     // Fetch users
     const { data: usersData, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
@@ -104,10 +106,9 @@ export function AdminPage() {
                 throw new Error('Failed to fetch users')
             }
             const data = await response.json() as { users: User[]; pagination: { page: number; limit: number; total: number; pages: number } }
-            console.log('[AdminPage] Fetched users:', data.users.length, 'users:', data.users.map(u => ({ username: u.username, isBot: u.isBot })))
             return data
         },
-        enabled: activeTab === 'users' && !!userProfile?.isAdmin,
+        enabled: activeTab === 'users' && Boolean(userProfile?.isAdmin),
         refetchOnMount: true,
         refetchOnWindowFocus: false,
     })
@@ -124,7 +125,7 @@ export function AdminPage() {
             }
             return response.json() as Promise<{ apiKeys: ApiKey[] }>
         },
-        enabled: activeTab === 'api-keys' && !!userProfile?.isAdmin,
+        enabled: activeTab === 'api-keys' && Boolean(userProfile?.isAdmin),
     })
 
     // Fetch instances
@@ -139,7 +140,7 @@ export function AdminPage() {
             }
             return response.json() as Promise<{ instances: Instance[]; total: number }>
         },
-        enabled: activeTab === 'instances' && !!userProfile?.isAdmin,
+        enabled: activeTab === 'instances' && Boolean(userProfile?.isAdmin),
     })
 
     // Create user mutation
@@ -233,13 +234,19 @@ export function AdminPage() {
         },
     })
 
+    // Redirect if not admin (after all hooks)
+    if (userProfile && !userProfile.isAdmin) {
+        navigate('/')
+        return null
+    }
+
     if (isLoadingProfile) {
         return (
             <div className="min-h-screen bg-gray-50">
                 <Navbar isConnected={false} user={user} onLogout={logout} />
                 <div className="max-w-6xl mx-auto px-4 py-8">
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
                     </div>
                 </div>
             </div>
@@ -309,7 +316,7 @@ export function AdminPage() {
 
                         {isLoadingUsers ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                             </div>
                         ) : (
                             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -334,34 +341,34 @@ export function AdminPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {usersData?.users.map((user) => (
-                                            <tr key={user.id}>
+                                        {usersData?.users.map((userItem) => (
+                                            <tr key={userItem.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {user.username}
+                                                            {userItem.username}
                                                         </div>
-                                                        {user.email && (
-                                                            <div className="text-sm text-gray-500">{user.email}</div>
+                                                        {userItem.email && (
+                                                            <div className="text-sm text-gray-500">{userItem.email}</div>
                                                         )}
-                                                        {user.name && (
-                                                            <div className="text-sm text-gray-500">{user.name}</div>
+                                                        {userItem.name && (
+                                                            <div className="text-sm text-gray-500">{userItem.name}</div>
                                                         )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex gap-2">
-                                                        {user.isAdmin && (
+                                                        {userItem.isAdmin && (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                                                 Admin
                                                             </span>
                                                         )}
-                                                        {user.isBot && (
+                                                        {userItem.isBot && (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                                 Bot
                                                             </span>
                                                         )}
-                                                        {user.isRemote && (
+                                                        {userItem.isRemote && (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                                                 Remote
                                                             </span>
@@ -369,22 +376,20 @@ export function AdminPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user._count && (
+                                                    {userItem._count && (
                                                         <div>
-                                                            {user._count.events} events, {user._count.followers}{' '}
+                                                            {userItem._count.events} events, {userItem._count.followers}{' '}
                                                             followers
                                                         </div>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {new Date(user.createdAt).toLocaleDateString()}
+                                                    {new Date(userItem.createdAt).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm('Are you sure you want to delete this user?')) {
-                                                                deleteUserMutation.mutate(user.id)
-                                                            }
+                                                            setDeleteUserId(userItem.id)
                                                         }}
                                                         className="text-error-600 hover:text-error-900"
                                                         disabled={deleteUserMutation.isPending}
@@ -419,7 +424,7 @@ export function AdminPage() {
 
                         {isLoadingApiKeys ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                             </div>
                         ) : (
                             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -457,7 +462,7 @@ export function AdminPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {key.user.username}
+                                                    {key.user?.username}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
                                                     {key.prefix}...
@@ -470,9 +475,7 @@ export function AdminPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm('Are you sure you want to revoke this API key?')) {
-                                                                deleteApiKeyMutation.mutate(key.id)
-                                                            }
+                                                            setRevokeApiKeyId(key.id)
                                                         }}
                                                         className="text-error-600 hover:text-error-900"
                                                         disabled={deleteApiKeyMutation.isPending}
@@ -505,7 +508,7 @@ export function AdminPage() {
 
                         {isLoadingInstances ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                             </div>
                         ) : (
                             <>
@@ -544,7 +547,9 @@ export function AdminPage() {
                                                                         src={instance.iconUrl}
                                                                         alt={instance.domain}
                                                                         className="h-8 w-8 rounded mr-3"
-                                                                        onError={(e) => e.currentTarget.style.display = 'none'}
+                                                                        onError={(e) => {
+                                                                            e.currentTarget.style.display = 'none'
+                                                                        }}
                                                                     />
                                                                 )}
                                                                 <div>
@@ -674,7 +679,7 @@ export function AdminPage() {
                                         // Try modern clipboard API first
                                         if (navigator.clipboard && navigator.clipboard.writeText) {
                                             await navigator.clipboard.writeText(newApiKey)
-                                            alert('Copied to clipboard!')
+                                            addSuccessToast({ id: crypto.randomUUID(), message: 'Copied to clipboard!' })
                                         } else {
                                             // Fallback: create temporary textarea and copy
                                             const textarea = document.createElement('textarea')
@@ -685,7 +690,7 @@ export function AdminPage() {
                                             textarea.select()
                                             try {
                                                 document.execCommand('copy')
-                                                alert('Copied to clipboard!')
+                                                addSuccessToast({ id: crypto.randomUUID(), message: 'Copied to clipboard!' })
                                             } catch (err) {
                                                 console.error('Failed to copy to clipboard:', err)
                                                 // Fallback: select the text so user can manually copy
@@ -693,7 +698,7 @@ export function AdminPage() {
                                                 textarea.style.opacity = '1'
                                                 textarea.focus()
                                                 textarea.select()
-                                                alert('Please manually copy the text above')
+                                                addErrorToast({ id: crypto.randomUUID(), message: 'Please manually copy the text above' })
                                             }
                                             document.body.removeChild(textarea)
                                         }
@@ -707,9 +712,9 @@ export function AdminPage() {
                                             const selection = window.getSelection()
                                             selection?.removeAllRanges()
                                             selection?.addRange(range)
-                                            alert('Text selected - press Ctrl+C (or Cmd+C) to copy')
+                                            addSuccessToast({ id: crypto.randomUUID(), message: 'Text selected - press Ctrl+C (or Cmd+C) to copy' })
                                         } else {
-                                            alert('Failed to copy. Please manually select and copy the key above.')
+                                            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to copy. Please manually select and copy the key above.' })
                                         }
                                     }
                                 }}
@@ -721,11 +726,47 @@ export function AdminPage() {
                                 onClick={() => setNewApiKey(null)}
                                 className="btn btn-primary w-full"
                             >
-                                I've Saved It
+                                I&apos;ve Saved It
                             </button>
                         </div>
                     </div>
                 )}
+
+                {/* Delete User Confirmation */}
+                <ConfirmationModal
+                    isOpen={deleteUserId !== null}
+                    title="Delete User"
+                    message="Are you sure you want to delete this user?"
+                    confirmLabel="Delete"
+                    cancelLabel="Cancel"
+                    variant="danger"
+                    onConfirm={() => {
+                        if (deleteUserId) {
+                            deleteUserMutation.mutate(deleteUserId)
+                            setDeleteUserId(null)
+                        }
+                    }}
+                    onCancel={() => setDeleteUserId(null)}
+                    isPending={deleteUserMutation.isPending}
+                />
+
+                {/* Revoke API Key Confirmation */}
+                <ConfirmationModal
+                    isOpen={revokeApiKeyId !== null}
+                    title="Revoke API Key"
+                    message="Are you sure you want to revoke this API key?"
+                    confirmLabel="Revoke"
+                    cancelLabel="Cancel"
+                    variant="danger"
+                    onConfirm={() => {
+                        if (revokeApiKeyId) {
+                            deleteApiKeyMutation.mutate(revokeApiKeyId)
+                            setRevokeApiKeyId(null)
+                        }
+                    }}
+                    onCancel={() => setRevokeApiKeyId(null)}
+                    isPending={deleteApiKeyMutation.isPending}
+                />
             </div>
         </div>
     )
@@ -756,7 +797,7 @@ function CreateUserModal({
     const [isBot, setIsBot] = useState(false)
     const [password, setPassword] = useState('')
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
         onCreate({
             username,
@@ -877,7 +918,7 @@ function CreateApiKeyModal({
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
         onCreate({
             userId,
@@ -903,9 +944,9 @@ function CreateApiKeyModal({
                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         >
                             <option value="">Select a user</option>
-                            {users.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                    {user.username} {user.isBot && '(Bot)'}
+                            {users.map((userOption) => (
+                                <option key={userOption.id} value={userOption.id}>
+                                    {userOption.username} {userOption.isBot && '(Bot)'}
                                 </option>
                             ))}
                         </select>
@@ -949,4 +990,3 @@ function CreateApiKeyModal({
         </div>
     )
 }
-

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { queryKeys } from '../hooks/queries/keys'
+import { Card, CardHeader, CardTitle, CardContent } from './ui'
+import { queryKeys } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
 
 interface PrivacySettingsProps {
   profile: {
@@ -12,8 +13,9 @@ interface PrivacySettingsProps {
 
 export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
   const queryClient = useQueryClient()
+  const addErrorToast = useUIStore((state) => state.addErrorToast)
   const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(
-    profile.autoAcceptFollowers ?? true
+    profile.autoAcceptFollowers ?? true,
   )
 
   // Update local state when profile changes
@@ -50,7 +52,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
       // Revert on error
       console.error('Failed to update auto-accept setting:', error)
       setAutoAcceptFollowers(!newValue)
-      alert('Failed to update privacy setting. Please try again.')
+      addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update privacy setting. Please try again.' })
     }
   }
 
@@ -66,7 +68,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
             <div className="flex-1 pr-4">
               <h3 className="font-medium text-text-primary">Auto-accept followers</h3>
               <p className="text-sm text-text-tertiary mt-1">
-                Automatically accept follow requests. When disabled, you'll need to manually
+                Automatically accept follow requests. When disabled, you&apos;ll need to manually
                 approve each follower.
               </p>
             </div>

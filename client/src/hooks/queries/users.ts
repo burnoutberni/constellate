@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { UserProfile, FollowStatus, Event } from '../../types'
+import type { UserProfile, FollowStatus, Event } from '@/types'
 
 interface UserProfileResponse {
     user: UserProfile
@@ -16,7 +16,7 @@ export function useUserProfile(username: string) {
                 `/api/user-search/profile/${encodeURIComponent(username)}`,
                 {
                     credentials: 'include',
-                }
+                },
             )
 
             if (!response.ok) {
@@ -28,7 +28,7 @@ export function useUserProfile(username: string) {
 
             return response.json()
         },
-        enabled: !!username,
+        enabled: Boolean(username),
     })
 }
 
@@ -40,7 +40,7 @@ export function useFollowStatus(username: string) {
                 `/api/users/${encodeURIComponent(username)}/follow-status`,
                 {
                     credentials: 'include',
-                }
+                },
             )
 
             if (!response.ok) {
@@ -49,7 +49,7 @@ export function useFollowStatus(username: string) {
 
             return response.json()
         },
-        enabled: !!username,
+        enabled: Boolean(username),
     })
 }
 
@@ -64,7 +64,7 @@ export function useFollowUser(username: string) {
                 {
                     method: 'POST',
                     credentials: 'include',
-                }
+                },
             )
 
             if (!response.ok) {
@@ -86,15 +86,15 @@ export function useFollowUser(username: string) {
             })
 
             const previousProfile = queryClient.getQueryData<UserProfileResponse>(
-                queryKeys.users.profile(username)
+                queryKeys.users.profile(username),
             )
             const previousStatus = queryClient.getQueryData<FollowStatus>(
-                queryKeys.users.followStatus(username)
+                queryKeys.users.followStatus(username),
             )
 
             // Only optimistically update follower count for local users
             // For remote users, we'll get the accurate count from the SSE event
-            if (previousProfile && !previousProfile.user.isRemote) {
+            if (previousProfile && !previousProfile.user.isRemote && previousProfile.user._count) {
                 queryClient.setQueryData<UserProfileResponse>(
                     queryKeys.users.profile(username),
                     {
@@ -102,19 +102,19 @@ export function useFollowUser(username: string) {
                         user: {
                             ...previousProfile.user,
                             _count: {
-                                ...previousProfile.user._count!,
+                                ...previousProfile.user._count,
                                 followers:
-                                    (previousProfile.user._count?.followers || 0) + 1,
+                                    (previousProfile.user._count.followers || 0) + 1,
                             },
                         },
-                    }
+                    },
                 )
             }
 
             // Optimistically update follow status to pending
             queryClient.setQueryData<FollowStatus>(
                 queryKeys.users.followStatus(username),
-                { isFollowing: true, isAccepted: false }
+                { isFollowing: true, isAccepted: false },
             )
 
             return { previousProfile, previousStatus }
@@ -124,13 +124,13 @@ export function useFollowUser(username: string) {
             if (context?.previousProfile) {
                 queryClient.setQueryData(
                     queryKeys.users.profile(username),
-                    context.previousProfile
+                    context.previousProfile,
                 )
             }
             if (context?.previousStatus) {
                 queryClient.setQueryData(
                     queryKeys.users.followStatus(username),
-                    context.previousStatus
+                    context.previousStatus,
                 )
             }
         },
@@ -156,7 +156,7 @@ export function useUnfollowUser(username: string) {
                 {
                     method: 'DELETE',
                     credentials: 'include',
-                }
+                },
             )
 
             if (!response.ok) {
@@ -178,15 +178,15 @@ export function useUnfollowUser(username: string) {
             })
 
             const previousProfile = queryClient.getQueryData<UserProfileResponse>(
-                queryKeys.users.profile(username)
+                queryKeys.users.profile(username),
             )
             const previousStatus = queryClient.getQueryData<FollowStatus>(
-                queryKeys.users.followStatus(username)
+                queryKeys.users.followStatus(username),
             )
 
             // Only optimistically update follower count for local users
             // For remote users, we'll get the accurate count from the SSE event
-            if (previousProfile && !previousProfile.user.isRemote) {
+            if (previousProfile && !previousProfile.user.isRemote && previousProfile.user._count) {
                 queryClient.setQueryData<UserProfileResponse>(
                     queryKeys.users.profile(username),
                     {
@@ -194,21 +194,21 @@ export function useUnfollowUser(username: string) {
                         user: {
                             ...previousProfile.user,
                             _count: {
-                                ...previousProfile.user._count!,
+                                ...previousProfile.user._count,
                                 followers: Math.max(
                                     0,
-                                    (previousProfile.user._count?.followers || 0) - 1
+                                    (previousProfile.user._count.followers || 0) - 1,
                                 ),
                             },
                         },
-                    }
+                    },
                 )
             }
 
             // Optimistically update follow status
             queryClient.setQueryData<FollowStatus>(
                 queryKeys.users.followStatus(username),
-                { isFollowing: false, isAccepted: false }
+                { isFollowing: false, isAccepted: false },
             )
 
             return { previousProfile, previousStatus }
@@ -218,13 +218,13 @@ export function useUnfollowUser(username: string) {
             if (context?.previousProfile) {
                 queryClient.setQueryData(
                     queryKeys.users.profile(username),
-                    context.previousProfile
+                    context.previousProfile,
                 )
             }
             if (context?.previousStatus) {
                 queryClient.setQueryData(
                     queryKeys.users.followStatus(username),
-                    context.previousStatus
+                    context.previousStatus,
                 )
             }
         },
@@ -239,4 +239,3 @@ export function useUnfollowUser(username: string) {
         },
     })
 }
-

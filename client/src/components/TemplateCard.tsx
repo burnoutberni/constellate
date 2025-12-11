@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { Card } from './ui/Card'
-import { Button } from './ui/Button'
-import { Badge } from './ui/Badge'
+import { Card, Button, Badge } from './ui'
 
 export interface EventTemplate {
     id: string
@@ -72,9 +70,9 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
                     {template.data.url && (
                         <div>
                             <span className="font-medium text-gray-700">URL: </span>
-                            <a 
-                                href={template.data.url} 
-                                target="_blank" 
+                            <a
+                                href={template.data.url}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary-600 hover:underline"
                             >

@@ -52,7 +52,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     const generatedId = React.useId()
     const selectId = id || `select-${generatedId}`
@@ -104,7 +104,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               'block text-sm font-medium mb-1.5',
               'text-text-secondary',
               error && 'text-error-600 dark:text-error-400',
-              required && "after:content-['*'] after:ml-0.5 after:text-error-500"
+              required && "after:content-['*'] after:ml-0.5 after:text-error-500",
             )}
           >
             {label}
@@ -132,14 +132,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               'text-text-disabled',
               error && 'text-error-500 dark:text-error-400',
               size === 'sm' && 'right-2.5',
-              size === 'lg' && 'right-3.5'
+              size === 'lg' && 'right-3.5',
             )}
           >
             <svg
               className={cn(
                 size === 'sm' && 'w-3.5 h-3.5',
                 size === 'md' && 'w-4 h-4',
-                size === 'lg' && 'w-5 h-5'
+                size === 'lg' && 'w-5 h-5',
               )}
               fill="none"
               stroke="currentColor"
@@ -174,7 +174,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 Select.displayName = 'Select'

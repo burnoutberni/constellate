@@ -1,11 +1,11 @@
 /**
  * Theme Toggle Component
- * 
+ *
  * Allows users to switch between light and dark themes.
  * Uses Tailwind utility classes with theme-aware semantic colors.
  */
 
-import { useTheme } from '../design-system'
+import { useTheme } from '@/design-system'
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()

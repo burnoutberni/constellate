@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import type { EventVisibility } from '../types'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import type { EventVisibility } from '@/types'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
-import { useUIStore } from '../stores'
+import { useUIStore } from '@/stores'
 import { useEventDraft } from '../hooks/useEventDraft'
-import { Button } from './ui/Button'
-import { Input } from './ui/Input'
-import { Textarea } from './ui/Textarea'
-import { Card } from './ui/Card'
+import { Button, Input, Textarea, Card } from './ui'
 import { RecurrenceSelector } from './RecurrenceSelector'
 import { VisibilitySelector } from './VisibilitySelector'
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
@@ -31,11 +28,7 @@ const GEO_TIMEOUT_MS = 10000
 const COORDINATE_DECIMAL_PLACES = 6
 
 // Helper function to normalize tag input
-const normalizeTagInput = (input: string): string => {
-    return input.trim().replace(/^#+/, '').trim().toLowerCase()
-}
-
-
+const normalizeTagInput = (input: string): string => input.trim().replace(/^#+/, '').trim().toLowerCase()
 
 export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId }: CreateEventModalProps) {
     const { user } = useAuth()
@@ -98,29 +91,28 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         if (!tagInput.trim()) {
             return
         }
-        
+
         // Normalize first, then validate the normalized result
         const tag = normalizeTagInput(tagInput)
-        
+
         if (!tag) {
             setTagError('Tag cannot be empty after normalization')
             return
         }
-        
+
         // Validate length after normalization (backend enforces .max(50))
         if (tag.length > MAX_TAG_LENGTH) {
             setTagError(`Tag must be ${MAX_TAG_LENGTH} characters or less after normalization (currently ${tag.length} characters)`)
             return
         }
-        
-        setFormData(prev => {
+
+        setFormData((prev) => {
             if (!prev.tags.includes(tag)) {
                 setTagInput('')
                 return { ...prev, tags: [...prev.tags, tag] }
-            } else {
+            }
                 setTagError('This tag has already been added')
                 return prev
-            }
         })
     }, [tagInput])
 
@@ -175,7 +167,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
 
     // Auto-save draft every few seconds when form has content
     useEffect(() => {
-        if (!isOpen) return
+        if (!isOpen) {
+return
+}
 
         const autoSaveInterval = setInterval(() => {
             saveDraft(formData)
@@ -241,6 +235,37 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         setShowDraftPrompt(false)
     }
 
+    const applyTemplate = useCallback((templateId: string) => {
+        setSelectedTemplateId(templateId)
+        if (!templateId) {
+            return
+        }
+        const template = templates.find((item) => item.id === templateId)
+        if (!template) {
+            return
+        }
+        setFormData({
+            title: template.data.title || '',
+            summary: template.data.summary || '',
+            location: template.data.location || '',
+            locationLatitude: template.data.locationLatitude !== undefined
+                ? template.data.locationLatitude.toString()
+                : '',
+            locationLongitude: template.data.locationLongitude !== undefined
+                ? template.data.locationLongitude.toString()
+                : '',
+            url: template.data.url || '',
+            headerImage: template.data.headerImage || '',
+            timezone: template.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            startTime: template.data.startTime || '',
+            endTime: template.data.endTime || '',
+            visibility: (template.data.visibility as EventVisibility) || 'PUBLIC',
+            recurrencePattern: template.data.recurrencePattern || 'none',
+            recurrenceEndDate: template.data.recurrenceEndDate || '',
+            tags: template.data.tags || [],
+        })
+    }, [templates])
+
     // Apply initial template if provided
     useEffect(() => {
         if (initialTemplateId && templates.length > 0 && isOpen) {
@@ -249,7 +274,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 applyTemplate(initialTemplateId)
             }
         }
-    }, [initialTemplateId, templates, isOpen, selectedTemplateId])
+    }, [initialTemplateId, templates, isOpen, selectedTemplateId, applyTemplate])
 
     const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
         setFormData((prev) => ({
@@ -277,7 +302,6 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         setGeoLoading(true)
         // Geolocation is necessary here to allow users to quickly set event coordinates
         // for location-based features like map display and nearby event discovery.
-        // eslint-disable-next-line sonarjs/no-intrusive-permissions
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setFormData((prev) => ({
@@ -296,39 +320,10 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         )
     }
 
-    const applyTemplate = (templateId: string) => {
-        setSelectedTemplateId(templateId)
-        if (!templateId) {
-            return
-        }
-        const template = templates.find((item) => item.id === templateId)
-        if (!template) {
-            return
-        }
-        setFormData({
-            title: template.data.title || '',
-            summary: template.data.summary || '',
-            location: template.data.location || '',
-            locationLatitude: template.data.locationLatitude !== undefined
-                ? template.data.locationLatitude.toString()
-                : '',
-            locationLongitude: template.data.locationLongitude !== undefined
-                ? template.data.locationLongitude.toString()
-                : '',
-            url: template.data.url || '',
-            headerImage: '',
-            timezone: formData.timezone,
-            startTime: '',
-            endTime: '',
-            visibility: formData.visibility,
-            recurrencePattern: '',
-            recurrenceEndDate: '',
-            tags: formData.tags,
-        })
-    }
-
     const refreshTemplates = async () => {
-        if (!user) return
+        if (!user) {
+return
+}
         setTemplatesLoading(true)
         setTemplateError(null)
         try {
@@ -434,10 +429,10 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         onClose()
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError(null)
-        
+
         if (!user) {
             setError('You must be signed in to create an event.')
             return
@@ -467,7 +462,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
             const payload = buildEventPayloadUtil(
                 formData,
                 'latitude' in coordinateResult ? coordinateResult.latitude : undefined,
-                'longitude' in coordinateResult ? coordinateResult.longitude : undefined
+                'longitude' in coordinateResult ? coordinateResult.longitude : undefined,
             )
             const response = await fetch('/api/events', {
                 method: 'POST',
@@ -487,7 +482,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                 const hasCoordinates = 'latitude' in coordinateResult && 'longitude' in coordinateResult
                 await handleSuccessfulSubmission(
                     hasCoordinates ? coordinateResult.latitude : undefined,
-                    hasCoordinates ? coordinateResult.longitude : undefined
+                    hasCoordinates ? coordinateResult.longitude : undefined,
                 )
             } else if (response.status === 401) {
                 setError('Authentication required. Please sign in.')
@@ -750,8 +745,8 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                                     {tz}
                                                 </option>
                                             ))
-                                        } catch (error) {
-                                            console.error('Failed to load timezones:', error)
+                                        } catch (timezoneError) {
+                                            console.error('Failed to load timezones:', timezoneError)
                                         }
                                     }
                                     // Fallback to common timezones
@@ -820,7 +815,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                                 addTag()
                                             }
                                         }}
-                                        error={!!tagError}
+                                        error={Boolean(tagError)}
                                         errorMessage={tagError || undefined}
                                         placeholder="Add a tag (press Enter)"
                                         fullWidth
@@ -891,7 +886,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
                                                 value={templateName}
                                                 onChange={(e) => setTemplateName(e.target.value)}
                                                 className="input"
-                                                placeholder={formData.title || "My Event Template"}
+                                                placeholder={formData.title || 'My Event Template'}
                                             />
                                         </div>
                                         <div>

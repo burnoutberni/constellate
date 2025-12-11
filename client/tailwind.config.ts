@@ -1,21 +1,5 @@
 import type { Config } from 'tailwindcss'
-import {
-  primaryColors,
-  secondaryColors,
-  neutralColors,
-  semanticColors,
-  fontFamilies,
-  fontSizes,
-  fontWeights,
-  lineHeights,
-  letterSpacing,
-  spacing,
-  borderRadius,
-  breakpoints,
-  zIndex,
-  transitionDuration,
-  transitionTiming,
-} from './src/design-system/tokens'
+import { tokens } from './src/design-system/tokens'
 
 /**
  * Tailwind CSS configuration using design system tokens
@@ -30,13 +14,13 @@ const config: Config = {
     extend: {
       // Colors from design tokens
       colors: {
-        primary: primaryColors,
-        secondary: secondaryColors,
-        neutral: neutralColors,
-        success: semanticColors.success,
-        warning: semanticColors.warning,
-        error: semanticColors.error,
-        info: semanticColors.info,
+        primary: tokens.colors.primary,
+        secondary: tokens.colors.secondary,
+        neutral: tokens.colors.neutral,
+        success: tokens.colors.semantic.success,
+        warning: tokens.colors.semantic.warning,
+        error: tokens.colors.semantic.error,
+        info: tokens.colors.semantic.info,
         // Semantic theme colors using CSS variables
         background: {
           primary: 'var(--color-background-primary)',
@@ -64,19 +48,19 @@ const config: Config = {
       
       // Typography from design tokens
       fontFamily: {
-        sans: fontFamilies.sans,
-        mono: fontFamilies.mono,
+        sans: tokens.fontFamilies.sans,
+        mono: tokens.fontFamilies.mono,
       },
-      fontSize: fontSizes,
-      fontWeight: fontWeights,
-      lineHeight: lineHeights,
-      letterSpacing: letterSpacing,
+      fontSize: tokens.fontSizes,
+      fontWeight: tokens.fontWeights,
+      lineHeight: tokens.lineHeights,
+      letterSpacing: tokens.letterSpacing,
       
       // Spacing from design tokens
-      spacing,
+      spacing: tokens.spacing,
       
       // Border radius from design tokens
-      borderRadius: borderRadius,
+      borderRadius: tokens.borderRadius,
       
       // Shadows using CSS variables for theme-aware shadows
       boxShadow: {
@@ -92,14 +76,14 @@ const config: Config = {
       },
       
       // Breakpoints from design tokens
-      screens: breakpoints,
+      screens: tokens.breakpoints,
       
       // Z-index from design tokens
-      zIndex: zIndex,
+      zIndex: tokens.zIndex,
       
       // Transitions
-      transitionDuration: transitionDuration,
-      transitionTimingFunction: transitionTiming,
+      transitionDuration: tokens.transitionDuration,
+      transitionTimingFunction: tokens.transitionTiming,
       
       // Existing animations (preserved)
       animation: {

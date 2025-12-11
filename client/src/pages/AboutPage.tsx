@@ -122,5 +122,3 @@ export function AboutPage() {
         </div>
     )
 }
-
-

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Event } from '../types'
+import { User, Event } from '@/types'
+import { useThemeColors } from '@/design-system'
 
 interface RemoteAccountSuggestion {
     handle: string
@@ -15,6 +16,7 @@ interface SearchResults {
 }
 
 export function SearchBar() {
+    const colors = useThemeColors()
     const [query, setQuery] = useState('')
     const [results, setResults] = useState<SearchResults | null>(null)
     const [isOpen, setIsOpen] = useState(false)
@@ -37,7 +39,7 @@ export function SearchBar() {
         const timer = setTimeout(async () => {
             try {
                 const response = await fetch(
-                    `/api/user-search?q=${encodeURIComponent(query)}&limit=5`
+                    `/api/user-search?q=${encodeURIComponent(query)}&limit=5`,
                 )
                 if (response.ok) {
                     const data = await response.json()
@@ -79,7 +81,7 @@ export function SearchBar() {
 
             if (response.ok) {
                 const data = await response.json()
-                const user = data.user
+                const { user } = data
                 // Navigate to the resolved user's profile
                 const profilePath = `/@${user.username}`
                 navigate(profilePath)
@@ -100,43 +102,14 @@ export function SearchBar() {
         const items: Array<{ type: 'user'; data: User } | { type: 'event'; data: Event } | { type: 'remote'; data: RemoteAccountSuggestion }> = []
 
         if (results) {
-            results.users.forEach(user => items.push({ type: 'user', data: user }))
-            results.events.forEach(event => items.push({ type: 'event', data: event }))
+            results.users.forEach((user) => items.push({ type: 'user', data: user }))
+            results.events.forEach((event) => items.push({ type: 'event', data: event }))
             if (results.remoteAccountSuggestion) {
                 items.push({ type: 'remote', data: results.remoteAccountSuggestion })
             }
         }
 
         return items
-    }
-
-    // Keyboard navigation
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (!isOpen) return
-
-        const items = getSelectableItems()
-
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault()
-                setSelectedIndex(prev => (prev < items.length - 1 ? prev + 1 : prev))
-                break
-            case 'ArrowUp':
-                e.preventDefault()
-                setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1))
-                break
-            case 'Enter':
-                e.preventDefault()
-                if (selectedIndex >= 0 && selectedIndex < items.length) {
-                    const item = items[selectedIndex]
-                    handleItemClick(item)
-                }
-                break
-            case 'Escape':
-                setIsOpen(false)
-                inputRef.current?.blur()
-                break
-        }
     }
 
     // Handle item click
@@ -157,6 +130,40 @@ export function SearchBar() {
         }
         setQuery('')
         setIsOpen(false)
+    }
+
+    // Keyboard navigation
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (!isOpen) {
+return
+}
+
+        const items = getSelectableItems()
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault()
+                setSelectedIndex((prev) => (prev < items.length - 1 ? prev + 1 : prev))
+                break
+            case 'ArrowUp':
+                e.preventDefault()
+                setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1))
+                break
+            case 'Enter':
+                e.preventDefault()
+                if (selectedIndex >= 0 && selectedIndex < items.length) {
+                    const item = items[selectedIndex]
+                    handleItemClick(item)
+                }
+                break
+            case 'Escape':
+                setIsOpen(false)
+                inputRef.current?.blur()
+                break
+            default:
+                // No action needed for other keys
+                break
+        }
     }
 
     const selectableItems = getSelectableItems()
@@ -189,7 +196,7 @@ export function SearchBar() {
                 </svg>
                 {isLoading && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" />
                     </div>
                 )}
             </div>
@@ -220,7 +227,7 @@ export function SearchBar() {
                                         ) : (
                                             <div
                                                 className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-                                                style={{ backgroundColor: user.displayColor }}
+                                                style={{ backgroundColor: user.displayColor || colors.info[500] }}
                                             >
                                                 {(user.name || user.username).charAt(0).toUpperCase()}
                                             </div>
@@ -279,12 +286,14 @@ export function SearchBar() {
                                 Remote Account
                             </div>
                             <button
-                                onClick={() =>
-                                    handleItemClick({
-                                        type: 'remote',
-                                        data: results.remoteAccountSuggestion!,
-                                    })
-                                }
+                                onClick={() => {
+                                    if (results.remoteAccountSuggestion) {
+                                        handleItemClick({
+                                            type: 'remote',
+                                            data: results.remoteAccountSuggestion,
+                                        })
+                                    }
+                                }}
                                 disabled={isResolving}
                                 className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors ${selectedIndex === selectableItems.length - 1 ? 'bg-blue-50' : ''
                                     }`}

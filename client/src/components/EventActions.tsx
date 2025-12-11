@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Button } from './ui/Button'
+import { Button } from './ui'
 
-export interface EventActionsProps {
+interface EventActionsProps {
     /**
      * Event username (organizer)
      */

@@ -2,40 +2,19 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
-import { useUIStore } from '../stores'
-import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
-import { queryKeys } from '../hooks/queries/keys'
+import { Stack } from '@/components/layout'
+import { useAuth } from '../hooks/useAuth'
+import { useUIStore } from '@/stores'
+import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
 import { getVisibilityMeta } from '../lib/visibility'
 import { getDefaultTimezone } from '../lib/timezones'
-import type { Event } from '../types'
+import type { Event } from '@/types'
 import { AdvancedSearchFilters } from '../components/AdvancedSearchFilters'
-import { addRecentSearch } from '../components/SearchSuggestions'
+import { addRecentSearch } from '../lib/recentSearches'
 import { TrendingEvents } from '../components/TrendingEvents'
 import { RecommendedEvents } from '../components/RecommendedEvents'
-
-const DATE_RANGE_LABELS: Record<string, string> = {
-    anytime: 'Any time',
-    custom: 'Custom range',
-    today: 'Today',
-    tomorrow: 'Tomorrow',
-    this_weekend: 'This weekend',
-    next_7_days: 'Next 7 days',
-    next_30_days: 'Next 30 days',
-}
-
-// Backend date range presets - must match backend validation in src/search.ts
-export const BACKEND_DATE_RANGES = ['today', 'tomorrow', 'this_weekend', 'next_7_days', 'next_30_days'] as const
-type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
-
-// Type guard to check if a string is a valid backend date range.
-// This is needed because URL parameters come in as strings, but we need to ensure
-// they match one of the backend's accepted date range presets before sending them
-// to the API. Without this check, invalid date ranges could be sent to the backend.
-function isBackendDateRange(value: string): value is BackendDateRange {
-    return BACKEND_DATE_RANGES.includes(value as BackendDateRange)
-}
-type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
+import { isBackendDateRange } from '../lib/searchUtils'
 
 interface FormState {
     q: string
@@ -75,7 +54,9 @@ const parseCommaList = (value?: string | null) =>
         : []
 
 const isoToInputDate = (value?: string | null) => {
-    if (!value) return ''
+    if (!value) {
+return ''
+}
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) {
         return ''
@@ -87,7 +68,9 @@ const isoToInputDate = (value?: string | null) => {
 }
 
 const inputDateToISO = (value: string, endOfDay = false) => {
-    if (!value) return undefined
+    if (!value) {
+return undefined
+}
     const [yearStr, monthStr, dayStr] = value.split('-')
     const year = Number(yearStr)
     const month = Number(monthStr)
@@ -123,7 +106,7 @@ const buildRequestFilters = (params: URLSearchParams): EventSearchFilters => {
 const buildFormStateFromParams = (params: URLSearchParams): FormState => {
     const categories = [
         ...parseCommaList(params.get('categories')),
-        ...parseCommaList(params.get('tags'))
+        ...parseCommaList(params.get('tags')),
     ]
     const startDateParam = params.get('startDate')
     const endDateParam = params.get('endDate')
@@ -161,8 +144,7 @@ const formatDateLabel = (isoString: string) => {
 }
 
 // Memoized formatter factory to avoid creating new Intl.DateTimeFormat instances on every call
-const createEventDateTimeFormatter = (timezone: string) => {
-    return new Intl.DateTimeFormat('en-US', {
+const createEventDateTimeFormatter = (timezone: string) => new Intl.DateTimeFormat('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -170,7 +152,6 @@ const createEventDateTimeFormatter = (timezone: string) => {
         minute: '2-digit',
         timeZone: timezone,
     })
-}
 
 // Format event date/time - formatter should be memoized at component level for performance
 const formatEventDateTime = (isoString: string, formatter: Intl.DateTimeFormat) => {
@@ -193,23 +174,27 @@ export function SearchPage() {
     const { data: viewerProfile } = useQuery({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            if (!user?.id) return null
+            if (!user?.id) {
+return null
+}
             const response = await fetch('/api/users/me/profile', {
                 credentials: 'include',
             })
-            if (!response.ok) return null
+            if (!response.ok) {
+return null
+}
             return response.json()
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
     })
 
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
     const viewerTimezone = viewerProfile?.timezone || defaultTimezone
-    
+
     // Memoize the date/time formatter to avoid creating new instances on every render
     const eventDateTimeFormatter = useMemo(
         () => createEventDateTimeFormatter(viewerTimezone),
-        [viewerTimezone]
+        [viewerTimezone],
     )
 
     useEffect(() => {
@@ -386,12 +371,12 @@ export function SearchPage() {
                         onApply={() => handleSubmit()}
                         onClear={handleClearAllFilters}
                     />
-                    
+
                     {/* Trending Events Sidebar */}
                     {!user && (
                         <TrendingEvents limit={5} windowDays={7} />
                     )}
-                    
+
                     {/* Recommended Events Sidebar */}
                     {user && (
                         <RecommendedEvents limit={5} />
@@ -399,13 +384,15 @@ export function SearchPage() {
                 </div>
 
                 <div className="lg:col-span-8 space-y-4">
-                    <div className="card p-4 flex flex-col gap-3">
+                    <Stack className="card p-4" gap="sm">
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
                                 <p className="text-sm text-gray-500">
                                     {(() => {
-                                        if (isFetching) return 'Updating results…'
+                                        if (isFetching) {
+return 'Updating results…'
+}
                                         const eventText = totalResults === 1 ? 'event' : 'events'
                                         return `${totalResults} ${eventText} found`
                                     })()}
@@ -434,7 +421,7 @@ export function SearchPage() {
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </Stack>
 
                     <div className="space-y-4">
                         {isError && (
@@ -481,7 +468,7 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
 
     return (
         <div className="card p-5 space-y-3">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <Stack direction="column" directionMd="row" alignMd="center" justifyMd="between" gap="sm">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
                     <p className="text-sm text-gray-500">
@@ -501,7 +488,7 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
                         <span className="badge badge-outline">{event.eventAttendanceMode.replace('EventAttendanceMode', '')}</span>
                     )}
                 </div>
-            </div>
+            </Stack>
 
             {event.summary && (
                 <p className="text-sm text-gray-700 line-clamp-3">{event.summary}</p>

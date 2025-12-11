@@ -43,7 +43,7 @@ export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Padding styles
     const paddingStyles = padding
@@ -54,7 +54,7 @@ export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
       'w-full mx-auto',
       sizeStyles[size],
       paddingStyles,
-      className
+      className,
     )
 
     return (
@@ -66,7 +66,7 @@ export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
         {children}
       </div>
     )
-  }
+  },
 )
 
 Container.displayName = 'Container'

@@ -1,6 +1,6 @@
-import { Button } from './ui/Button'
-import { useFollowUser, useUnfollowUser, useFollowStatus } from '../hooks/queries/users'
-import { useAuth } from '../contexts/AuthContext'
+import { Button } from './ui'
+import { useFollowUser, useUnfollowUser, useFollowStatus } from '@/hooks/queries'
+import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 
 interface FollowButtonProps {
@@ -64,8 +64,12 @@ export function FollowButton({
     }
 
     const getButtonText = () => {
-        if (isFollowing) return 'Unfollow'
-        if (isPending) return 'Pending'
+        if (isFollowing) {
+return 'Unfollow'
+}
+        if (isPending) {
+return 'Pending'
+}
         return 'Follow'
     }
 

@@ -1,15 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
-import { PageLayout } from '../components/layout/PageLayout'
-import { Container } from '../components/layout/Container'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Textarea } from '../components/ui/Textarea'
+import { PageLayout, Container } from '@/components/layout'
+import { Button, Input, Textarea } from '@/components/ui'
 import { TemplateList } from '../components/TemplateList'
-import { useAuth } from '../contexts/AuthContext'
-import { useUIStore } from '../stores'
+import { useAuth } from '../hooks/useAuth'
+import { useUIStore } from '@/stores'
 import type { EventTemplate } from '../components/TemplateCard'
 
 interface TemplatePreviewModalProps {
@@ -18,7 +15,9 @@ interface TemplatePreviewModalProps {
 }
 
 function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) {
-    if (!template) return null
+    if (!template) {
+return null
+}
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -44,7 +43,7 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
                         <div className="border-t border-gray-200 pt-4 space-y-3">
                             <h4 className="font-medium text-gray-900">Template Data</h4>
-                            
+
                             {template.data.title && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Event Title</label>
@@ -79,9 +78,9 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Event URL</label>
                                     <p className="mt-1 text-sm text-gray-900">
-                                        <a 
-                                            href={template.data.url} 
-                                            target="_blank" 
+                                        <a
+                                            href={template.data.url}
+                                            target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-primary-600 hover:underline"
                                         >
@@ -116,13 +115,15 @@ function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        if (!template) return
+        if (!template) {
+return
+}
 
         setError(null)
         setSaving(true)
-        
+
         try {
             await onSave(template.id, { name: name.trim(), description: description.trim() })
             onClose()
@@ -133,7 +134,9 @@ function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps
         }
     }
 
-    if (!template) return null
+    if (!template) {
+return null
+}
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -229,7 +232,7 @@ export function TemplatesPage() {
             const body = await response.json() as { templates: EventTemplate[] }
             return body.templates || []
         },
-        enabled: !!user,
+        enabled: Boolean(user),
     })
 
     const templates = templatesData || []
@@ -325,7 +328,7 @@ export function TemplatesPage() {
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold text-gray-900">Event Templates</h1>
                         <p className="mt-2 text-gray-600">
-                            Create and manage reusable event templates. Create an event and check "Save as template" to add it here.
+                            Create and manage reusable event templates. Create an event and check &quot;Save as template&quot; to add it here.
                         </p>
                     </div>
 

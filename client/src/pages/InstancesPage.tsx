@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceList } from '../components/InstanceList'
-import { Container } from '../components/layout/Container'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Card } from '../components/ui/Card'
-import { useAuth } from '../contexts/AuthContext'
-import { useInstances, useInstanceSearch } from '../hooks/queries'
-import { queryKeys } from '../hooks/queries/keys'
+import { Container, Stack } from '@/components/layout'
+import { Button, Input, Card } from '@/components/ui'
+import { useAuth } from '../hooks/useAuth'
+import { useInstances, useInstanceSearch, queryKeys } from '@/hooks/queries'
 import { setSEOMetadata } from '../lib/seo'
-import type { InstanceWithStats } from '../types'
+import type { InstanceWithStats } from '@/types'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 
 type SortOption = 'activity' | 'users' | 'created'
 
@@ -20,6 +18,7 @@ export function InstancesPage() {
     const [sortBy, setSortBy] = useState<SortOption>('activity')
     const [limit] = useState(50)
     const [offset, setOffset] = useState(0)
+    const [blockDomain, setBlockDomain] = useState<string | null>(null)
 
     // Set SEO metadata
     useEffect(() => {
@@ -45,7 +44,7 @@ export function InstancesPage() {
 
     // Mutations for admin actions
     const queryClient = useQueryClient()
-    
+
     const blockMutation = useMutation({
         mutationFn: async (domain: string) => {
             const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/block`, {
@@ -105,8 +104,13 @@ export function InstancesPage() {
     })
 
     const handleBlock = (domain: string) => {
-        if (confirm(`Are you sure you want to block ${domain}?`)) {
-            blockMutation.mutate(domain)
+        setBlockDomain(domain)
+    }
+
+    const confirmBlock = () => {
+        if (blockDomain) {
+            blockMutation.mutate(blockDomain)
+            setBlockDomain(null)
         }
     }
 
@@ -146,7 +150,7 @@ export function InstancesPage() {
 
                 {/* Filters */}
                 <Card className="p-6 mb-6">
-                    <div className="flex flex-col md:flex-row gap-4">
+                    <Stack direction="column" directionMd="row" gap="md">
                         {/* Search */}
                         <div className="flex-1">
                             <Input
@@ -183,7 +187,7 @@ export function InstancesPage() {
                                 </Button>
                             </div>
                         )}
-                    </div>
+                    </Stack>
                 </Card>
 
                 {/* Stats */}
@@ -204,7 +208,7 @@ export function InstancesPage() {
                 {!isLoading && instances.length === 0 && searchQuery && (
                     <div className="text-center py-12">
                         <p className="text-gray-600 dark:text-gray-400">
-                            No instances found matching "{searchQuery}"
+                            No instances found matching &quot;{searchQuery}&quot;
                         </p>
                     </div>
                 )}
@@ -252,6 +256,19 @@ export function InstancesPage() {
                     </div>
                 )}
             </Container>
+
+            {/* Block Confirmation */}
+            <ConfirmationModal
+                isOpen={blockDomain !== null}
+                title="Block Instance"
+                message={`Are you sure you want to block ${blockDomain}?`}
+                confirmLabel="Block"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmBlock}
+                onCancel={() => setBlockDomain(null)}
+                isPending={blockMutation.isPending}
+            />
         </div>
     )
 }

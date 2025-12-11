@@ -4,10 +4,8 @@ import {
     useNotifications,
     useMarkNotificationRead,
     useMarkAllNotificationsRead,
-} from '../hooks/queries/notifications'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
+} from '@/hooks/queries'
+import { Badge, Button, Card, CardHeader, CardTitle, CardContent } from './ui'
 import { NotificationItem } from './NotificationItem'
 
 interface NotificationBellProps {
@@ -35,7 +33,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement | null>(null)
     const navigate = useNavigate()
-    const { data, isLoading, error, isError } = useNotifications(10, { enabled: !!userId })
+    const { data, isLoading, error, isError } = useNotifications(10, { enabled: Boolean(userId) })
     const { mutate: markNotificationRead } = useMarkNotificationRead()
     const { mutate: markAllNotificationsRead, isPending: markAllPending } = useMarkAllNotificationsRead()
 
@@ -188,4 +186,3 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         </div>
     )
 }
-

@@ -4,23 +4,18 @@ import { Navbar } from '../components/Navbar'
 import { EventCard } from '../components/EventCard'
 import { EventFilters, type FilterFormState } from '../components/EventFilters'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
-import { Card } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
-import { ToggleGroup, ToggleButton } from '../components/ui/ToggleGroup'
-import { Select } from '../components/ui/Select'
-import { Container } from '../components/layout/Container'
-import { Grid } from '../components/layout/Grid'
-import { useAuth } from '../contexts/AuthContext'
-import { useUIStore } from '../stores'
-import { useEventSearch, type EventSearchFilters } from '../hooks/queries'
-import { GridViewIcon, ListViewIcon } from '../components/icons'
-import { 
-    parseCommaList, 
-    isoToInputDate, 
-    inputDateToISO, 
-    isBackendDateRange, 
-    formatDateLabel 
+import { Card, Button, Badge, ToggleGroup, ToggleButton, Select } from '@/components/ui'
+import { Container, Grid, Stack } from '@/components/layout'
+import { useAuth } from '../hooks/useAuth'
+import { useUIStore } from '@/stores'
+import { useEventSearch, type EventSearchFilters } from '@/hooks/queries'
+import { GridViewIcon, ListViewIcon } from '@/components/icons'
+import {
+    parseCommaList,
+    isoToInputDate,
+    inputDateToISO,
+    isBackendDateRange,
+    formatDateLabel,
 } from '../lib/searchUtils'
 
 type ViewMode = 'grid' | 'list'
@@ -269,7 +264,7 @@ export function EventDiscoveryPage() {
     return (
         <div className="min-h-screen bg-background-secondary">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-            
+
             <Container className="py-6">
                 <div className="mb-6">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Discover Events</h1>
@@ -293,12 +288,14 @@ export function EventDiscoveryPage() {
                     <div className="lg:col-span-8 space-y-4">
                         {/* Results Header */}
                         <Card className="p-4">
-                            <div className="flex flex-col gap-3">
+                            <Stack gap="sm">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                     <div>
                                         <h2 className="text-xl font-semibold text-gray-900">
                                             {(() => {
-                                                if (isFetching) return 'Updating results…'
+                                                if (isFetching) {
+return 'Updating results…'
+}
                                                 const eventText = totalResults === 1 ? 'event' : 'events'
                                                 return `${totalResults} ${eventText} found`
                                             })()}
@@ -368,7 +365,7 @@ export function EventDiscoveryPage() {
                                         </button>
                                     </div>
                                 )}
-                            </div>
+                            </Stack>
                         </Card>
 
                         {/* Results */}
@@ -384,7 +381,7 @@ export function EventDiscoveryPage() {
                                 <p className="text-sm text-gray-500 mt-3">Looking for matching events…</p>
                             </Card>
                         )}
-                        
+
                         {!isLoading && sortedEvents.length === 0 && (
                             <Card className="p-10 text-center text-gray-500">
                                 <p className="font-medium">No events match these filters just yet.</p>
@@ -393,7 +390,7 @@ export function EventDiscoveryPage() {
                                 </p>
                             </Card>
                         )}
-                        
+
                         {!isLoading && sortedEvents.length > 0 && viewMode === 'grid' && (
                             <Grid cols={1} colsMd={2} gap="md">
                                 {sortedEvents.map((event) => (
@@ -401,12 +398,12 @@ export function EventDiscoveryPage() {
                                         key={event.id}
                                         event={event}
                                         variant="full"
-                                        isAuthenticated={!!user}
+                                        isAuthenticated={Boolean(user)}
                                     />
                                 ))}
                             </Grid>
                         )}
-                        
+
                         {!isLoading && sortedEvents.length > 0 && viewMode === 'list' && (
                             <div className="space-y-4">
                                 {sortedEvents.map((event) => (
@@ -414,7 +411,7 @@ export function EventDiscoveryPage() {
                                         key={event.id}
                                         event={event}
                                         variant="compact"
-                                        isAuthenticated={!!user}
+                                        isAuthenticated={Boolean(user)}
                                     />
                                 ))}
                             </div>

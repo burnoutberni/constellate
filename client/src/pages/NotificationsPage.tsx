@@ -1,20 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
-import { Container } from '../components/layout/Container'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
-import { Card } from '../components/ui/Card'
+import { Container, Stack } from '@/components/layout'
+import { Button, Badge, Card } from '@/components/ui'
 import { NotificationItem } from '../components/NotificationItem'
 import { NotificationSettings } from '../components/NotificationSettings'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import {
     useNotifications,
     useMarkNotificationRead,
     useMarkAllNotificationsRead,
-} from '../hooks/queries/notifications'
-import { useUIStore } from '../stores'
-import type { NotificationType } from '../types/notification'
+} from '@/hooks/queries'
+import { useUIStore } from '@/stores'
+import type { NotificationType } from '@/types'
 
 export function NotificationsPage() {
     const { user, logout } = useAuth()
@@ -24,19 +22,21 @@ export function NotificationsPage() {
     const [filterType, setFilterType] = useState<NotificationType | 'ALL'>('ALL')
     const [showSettings, setShowSettings] = useState(false)
 
-    const { data, isLoading, isFetching, error, isError } = useNotifications(50, { enabled: !!user })
+    const { data, isLoading, isFetching, error, isError } = useNotifications(50, { enabled: Boolean(user) })
     const { mutate: markNotificationRead } = useMarkNotificationRead()
     const { mutate: markAllNotificationsRead, isPending: markAllPending } = useMarkAllNotificationsRead()
 
-    const notifications = data?.notifications ?? []
     const unreadCount = data?.unreadCount ?? 0
 
     const sortedNotifications = useMemo(() => {
-        return [...notifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    }, [notifications])
+        const notifs = data?.notifications ?? []
+        return [...notifs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    }, [data?.notifications])
 
     const filteredNotifications = useMemo(() => {
-        if (filterType === 'ALL') return sortedNotifications
+        if (filterType === 'ALL') {
+return sortedNotifications
+}
         return sortedNotifications.filter((n) => n.type === filterType)
     }, [sortedNotifications, filterType])
 
@@ -87,8 +87,8 @@ export function NotificationsPage() {
                         {filterType === 'ALL' ? "You're all caught up!" : `No ${filterType.toLowerCase()} notifications`}
                     </p>
                     <p className="text-text-secondary">
-                        {filterType === 'ALL' 
-                            ? "We'll let you know as soon as something new happens." 
+                        {filterType === 'ALL'
+                            ? "We'll let you know as soon as something new happens."
                             : 'Try selecting a different filter.'}
                     </p>
                 </Card>
@@ -109,7 +109,7 @@ export function NotificationsPage() {
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
 
             <Container size="lg" className="py-10 space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <Stack direction="column" directionSm="row" alignSm="center" justifySm="between" gap="md">
                     <div>
                         <p className="text-sm uppercase tracking-wide text-text-tertiary">Inbox</p>
                         <h1 className="text-3xl font-bold text-text-primary">Notifications</h1>
@@ -137,7 +137,7 @@ export function NotificationsPage() {
                             {showSettings ? 'Hide Settings' : 'Settings'}
                         </Button>
                     </div>
-                </div>
+                </Stack>
 
                 {!user && (
                     <Card variant="elevated" padding="lg" className="text-center">
@@ -157,8 +157,7 @@ export function NotificationsPage() {
                 {user && showSettings && (
                     <NotificationSettings
                         preferences={{}}
-                        onUpdate={(prefs) => {
-                            console.log('Notification preferences updated:', prefs)
+                        onUpdate={(_prefs) => {
                             // Note: API endpoint for saving preferences not yet implemented in backend
                         }}
                     />
@@ -187,4 +186,3 @@ export function NotificationsPage() {
         </div>
     )
 }
-

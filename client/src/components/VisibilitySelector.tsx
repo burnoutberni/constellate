@@ -1,4 +1,4 @@
-import { EventVisibility } from '../types'
+import { EventVisibility } from '@/types'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
 
 interface VisibilitySelectorProps {

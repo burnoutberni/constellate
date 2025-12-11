@@ -1,11 +1,12 @@
-import React from 'react'
+import { type ChangeEvent } from 'react'
+import { REMINDER_OPTIONS } from './reminderConstants'
 
 export interface ReminderOption {
     label: string
     value: number | null
 }
 
-export interface ReminderSelectorProps {
+interface ReminderSelectorProps {
     /**
      * Currently selected reminder value in minutes
      */
@@ -36,16 +37,6 @@ export interface ReminderSelectorProps {
     options?: ReminderOption[]
 }
 
-export const REMINDER_OPTIONS: ReminderOption[] = [
-    { label: 'No reminder', value: null },
-    { label: '5 minutes before', value: 5 },
-    { label: '15 minutes before', value: 15 },
-    { label: '30 minutes before', value: 30 },
-    { label: '1 hour before', value: 60 },
-    { label: '2 hours before', value: 120 },
-    { label: '1 day before', value: 1440 },
-]
-
 const DEFAULT_REMINDER_OPTIONS = REMINDER_OPTIONS
 
 /**
@@ -66,7 +57,7 @@ export function ReminderSelector({
         return null
     }
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
         const nextValue = e.target.value === '' ? null : Number(e.target.value)
         onChange(nextValue)
     }

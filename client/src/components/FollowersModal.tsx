@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import type { User } from '../types'
+import type { User } from '@/types'
+import { useThemeColors } from '@/design-system'
 
 interface FollowersModalProps {
     isOpen: boolean
@@ -10,6 +11,7 @@ interface FollowersModalProps {
 }
 
 export function FollowersModal({ isOpen, onClose, username, type }: FollowersModalProps) {
+    const colors = useThemeColors()
     const { data, isLoading } = useQuery<{ followers?: User[]; following?: User[] }>({
         queryKey: ['user', type, username],
         queryFn: async () => {
@@ -17,19 +19,21 @@ export function FollowersModal({ isOpen, onClose, username, type }: FollowersMod
                 `/api/user-search/profile/${encodeURIComponent(username)}/${type}`,
                 {
                     credentials: 'include',
-                }
+                },
             )
             if (!response.ok) {
                 throw new Error('Failed to fetch')
             }
             return response.json()
         },
-        enabled: isOpen && !!username,
+        enabled: isOpen && Boolean(username),
     })
 
     const users = type === 'followers' ? data?.followers : data?.following
 
-    if (!isOpen) return null
+    if (!isOpen) {
+return null
+}
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -79,7 +83,7 @@ export function FollowersModal({ isOpen, onClose, username, type }: FollowersMod
                                         ) : (
                                             <div
                                                 className="avatar w-12 h-12"
-                                                style={{ backgroundColor: user.displayColor || '#3b82f6' }}
+                                                style={{ backgroundColor: user.displayColor || colors.info[500] }}
                                             >
                                                 {(user.name || user.username)[0].toUpperCase()}
                                             </div>
@@ -105,4 +109,3 @@ export function FollowersModal({ isOpen, onClose, username, type }: FollowersMod
         </div>
     )
 }
-

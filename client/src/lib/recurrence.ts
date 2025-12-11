@@ -1,4 +1,4 @@
-import { Event, RecurrencePattern } from '../types'
+import { Event, RecurrencePattern } from '@/types'
 
 const MAX_OCCURRENCES = 1000
 
@@ -23,7 +23,7 @@ function advanceDate(date: Date, pattern: RecurrencePattern, originalDayOfMonth?
         const targetMonth = month + 1
         next.setMonth(targetMonth)
         next.setDate(targetDay)
-        
+
         // If the day rolled over (e.g., trying to set Feb 31 results in Mar 3),
         // it means we went past the end of the target month.
         // Clamp to the last valid day of the target month.
@@ -50,7 +50,7 @@ function createOccurrence(
     eventStart: Date,
     durationMs: number,
     baseEnd: Date | null,
-    originId: string
+    originId: string,
 ): Event {
     const startIso = currentStart.toISOString()
     const occurrenceEndIso =
@@ -58,7 +58,7 @@ function createOccurrence(
             ? new Date(currentStart.getTime() + durationMs).toISOString()
             : undefined
     const isBaseOccurrence = currentStart.getTime() === eventStart.getTime()
-    
+
     return {
         ...event,
         id: isBaseOccurrence ? event.id : `${event.id}::${startIso}`,
@@ -73,7 +73,7 @@ function processNonRecurringEvent(
     eventStart: Date,
     safeStart: Date,
     safeEnd: Date,
-    originId: string
+    originId: string,
 ): Event | null {
     if (eventStart >= safeStart && eventStart <= safeEnd) {
         return {
@@ -91,9 +91,13 @@ function processRecurringEvent(
     safeEnd: Date,
     originId: string,
     baseEnd: Date | null,
-    durationMs: number
+    durationMs: number,
 ): Event[] {
-    const recurrenceEnd = new Date(event.recurrenceEndDate!)
+    if (!event.recurrenceEndDate || !event.recurrencePattern) {
+        return []
+    }
+    
+    const recurrenceEnd = new Date(event.recurrenceEndDate)
     if (Number.isNaN(recurrenceEnd.getTime()) || recurrenceEnd < safeStart) {
         return []
     }
@@ -108,7 +112,7 @@ function processRecurringEvent(
             results.push(createOccurrence(event, currentStart, eventStart, durationMs, baseEnd, originId))
         }
 
-        currentStart = advanceDate(currentStart, event.recurrencePattern!, originalDayOfMonth)
+        currentStart = advanceDate(currentStart, event.recurrencePattern, originalDayOfMonth)
         iterations++
     }
 

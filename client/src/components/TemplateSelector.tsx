@@ -1,4 +1,4 @@
-import { Button } from './ui/Button'
+import { Button } from './ui'
 
 export interface EventTemplate {
   id: string
@@ -13,6 +13,12 @@ export interface EventTemplate {
     url?: string
     startTime?: string
     endTime?: string
+    headerImage?: string
+    timezone?: string
+    visibility?: string
+    recurrencePattern?: string
+    recurrenceEndDate?: string
+    tags?: string[]
   }
 }
 

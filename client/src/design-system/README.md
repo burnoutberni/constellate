@@ -301,15 +301,10 @@ import type {
 Helper functions are available to validate token values:
 
 ```typescript
-import {
-  isValidSpacing,
-  isValidBorderRadius,
-  isValidShadow,
-  isValidTheme,
-} from './design-system'
+import { isValidTheme } from './design-system'
 
-if (isValidSpacing(value)) {
-  // value is a valid spacing token
+if (isValidTheme(value)) {
+  // value is a valid theme ('light' or 'dark')
 }
 ```
 

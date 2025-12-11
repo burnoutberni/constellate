@@ -53,7 +53,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [imageError, setImageError] = React.useState(false)
     const showImage = src && !imageError
@@ -94,7 +94,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       sizeStyles[size],
       rounded ? 'rounded-full' : 'rounded-lg',
       bordered && 'ring-2 ring-border-default',
-      className
+      className,
     )
 
     const handleImageError = () => {
@@ -118,7 +118,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             alt=""
             className={cn(
               'w-full h-full object-cover',
-              rounded ? 'rounded-full' : 'rounded-lg'
+              rounded ? 'rounded-full' : 'rounded-lg',
             )}
             onError={handleImageError}
             aria-hidden="true"
@@ -128,7 +128,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             className={cn(
               'flex items-center justify-center w-full h-full',
               'font-semibold',
-              rounded ? 'rounded-full' : 'rounded-lg'
+              rounded ? 'rounded-full' : 'rounded-lg',
             )}
             aria-hidden="true"
           >
@@ -141,14 +141,14 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
               'absolute bottom-0 right-0',
               'rounded-full border-2 border-background-primary',
               statusSizeStyles[size],
-              statusColors[status]
+              statusColors[status],
             )}
             aria-label={`Status: ${status}`}
           />
         )}
       </div>
     )
-  }
+  },
 )
 
 Avatar.displayName = 'Avatar'
@@ -188,7 +188,7 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
       >
         {visibleAvatars.map((avatar, index) => (
           <Avatar
-            key={index}
+            key={avatar.src || avatar.alt || avatar.fallback || `avatar-${index}`}
             src={avatar.src}
             alt={avatar.alt}
             fallback={avatar.fallback}
@@ -208,7 +208,7 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
               size === 'sm' && 'w-8 h-8 text-sm',
               size === 'md' && 'w-10 h-10 text-base',
               size === 'lg' && 'w-12 h-12 text-lg',
-              size === 'xl' && 'w-16 h-16 text-xl'
+              size === 'xl' && 'w-16 h-16 text-xl',
             )}
             aria-label={`${remainingCount} more avatars`}
           >
@@ -217,7 +217,7 @@ export const AvatarGroup = React.forwardRef<HTMLDivElement, AvatarGroupProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 AvatarGroup.displayName = 'AvatarGroup'

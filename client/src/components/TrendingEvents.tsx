@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useTrendingEvents } from '../hooks/queries/events'
-import { Card } from './ui/Card'
-import { Badge } from './ui/Badge'
-import type { Event } from '../types'
+import { useTrendingEvents } from '@/hooks/queries'
+import { Card, Badge } from './ui'
+import type { Event } from '@/types'
 
 interface TrendingEventsProps {
   limit?: number
@@ -23,10 +22,10 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
         <div className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">🔥 Trending Events</h3>
           <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+            {['first', 'second', 'third'].map((position) => (
+              <div key={`trending-skeleton-${position}`} className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
               </div>
             ))}
           </div>
@@ -45,9 +44,15 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
     const diff = date.getTime() - now.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    if (days > 1 && days < 7) return `In ${days} days`
+    if (days === 0) {
+return 'Today'
+}
+    if (days === 1) {
+return 'Tomorrow'
+}
+    if (days > 1 && days < 7) {
+return `In ${days} days`
+}
 
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -62,7 +67,7 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
           <h3 className="text-lg font-semibold text-gray-900">🔥 Trending Events</h3>
           <span className="text-xs text-gray-500">Last {data.windowDays} days</span>
         </div>
-        
+
         <div className="space-y-3">
           {data.events.map((event: Event) => (
             <TrendingEventItem key={event.id} event={event} formatDate={formatEventDate} />
@@ -85,7 +90,9 @@ function TrendingEventItem({ event, formatDate }: { event: Event; formatDate: (d
     ? `/@${event.user.username}/${event.originalEventId || event.id}`
     : undefined
 
-  if (!eventPath) return null
+  if (!eventPath) {
+return null
+}
 
   const engagementCount = (event._count?.likes || 0) + (event._count?.comments || 0) + (event._count?.attendance || 0)
 

@@ -5,9 +5,9 @@ import { FollowersModal } from '../components/FollowersModal'
 import { UserProfileHeader } from '../components/UserProfileHeader'
 import { UserEventList } from '../components/UserEventList'
 import { SignUpPrompt } from '../components/SignUpPrompt'
-import { useAuth } from '../contexts/AuthContext'
-import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '../hooks/queries/users'
-import { useUIStore } from '../stores/uiStore'
+import { useAuth } from '../hooks/useAuth'
+import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
 
 export function UserProfilePage() {
     const location = useLocation()
@@ -44,30 +44,34 @@ export function UserProfilePage() {
     const followMutation = useFollowUser(username)
     const unfollowMutation = useUnfollowUser(username)
     const { followersModalOpen, followersModalUsername, followersModalType, openFollowersModal, closeFollowersModal } = useUIStore()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
 
     const isOwnProfile = currentUser?.id === profileData?.user.id
-    const isAuthenticated = !!currentUser
+    const isAuthenticated = Boolean(currentUser)
 
     const handleFollow = async () => {
-        if (!currentUser || !profileData) return
+        if (!currentUser || !profileData) {
+return
+}
         try {
             await followMutation.mutateAsync()
         } catch (err) {
             console.error('Error following user:', err)
-            alert('Failed to follow user')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to follow user' })
         }
     }
 
     const handleUnfollow = async () => {
-        if (!currentUser || !profileData) return
+        if (!currentUser || !profileData) {
+return
+}
         try {
             await unfollowMutation.mutateAsync()
         } catch (err) {
             console.error('Error unfollowing user:', err)
-            alert('Failed to unfollow user')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to unfollow user' })
         }
     }
-
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -80,7 +84,7 @@ export function UserProfilePage() {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {isLoading && (
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
                     </div>
                 )}
 

@@ -1,4 +1,4 @@
-import type { EventVisibility } from '../types'
+import type { EventVisibility } from '@/types'
 
 export const VISIBILITY_OPTIONS: Array<{
     value: EventVisibility

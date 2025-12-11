@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, type ChangeEvent, type KeyboardEvent, type FormEvent } from 'react'
 import { Button } from './ui/Button'
 import { MentionAutocomplete, MentionSuggestion } from './MentionAutocomplete'
 
@@ -61,7 +61,7 @@ export function CommentForm({
 
             resetMentionState()
         },
-        [resetMentionState]
+        [resetMentionState],
     )
 
     const applyMentionSuggestion = useCallback(
@@ -89,17 +89,17 @@ export function CommentForm({
 
             resetMentionState()
         },
-        [mentionRange, resetMentionState]
+        [mentionRange, resetMentionState],
     )
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const value = e.target.value
+    const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+        const { value } = e.target
         setContent(value)
         const caret = e.target.selectionStart ?? value.length
         updateMentionState(value, caret)
     }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (!showMentionSuggestions || mentionSuggestions.length === 0) {
             return
         }
@@ -110,7 +110,7 @@ export function CommentForm({
         } else if (e.key === 'ArrowUp') {
             e.preventDefault()
             setActiveMentionIndex((prev) =>
-                prev === 0 ? mentionSuggestions.length - 1 : prev - 1
+                prev === 0 ? mentionSuggestions.length - 1 : prev - 1,
             )
         } else if (e.key === 'Enter') {
             e.preventDefault()
@@ -123,9 +123,11 @@ export function CommentForm({
         }
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        if (!content.trim() || isSubmitting) return
+        if (!content.trim() || isSubmitting) {
+return
+}
 
         await onSubmit(content)
         setContent('')
@@ -148,7 +150,7 @@ export function CommentForm({
                     {
                         credentials: 'include',
                         signal: controller.signal,
-                    }
+                    },
                 )
 
                 if (!response.ok) {
@@ -185,7 +187,7 @@ export function CommentForm({
                         if (textareaRef.current) {
                             updateMentionState(
                                 textareaRef.current.value,
-                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                textareaRef.current.selectionStart ?? textareaRef.current.value.length,
                             )
                         }
                     }}
@@ -193,7 +195,7 @@ export function CommentForm({
                         if (textareaRef.current) {
                             updateMentionState(
                                 textareaRef.current.value,
-                                textareaRef.current.selectionStart ?? textareaRef.current.value.length
+                                textareaRef.current.selectionStart ?? textareaRef.current.value.length,
                             )
                         }
                     }}

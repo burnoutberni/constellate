@@ -21,4 +21,3 @@ export interface Notification {
     updatedAt: string
     actor: NotificationActor | null
 }
-

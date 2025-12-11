@@ -1,7 +1,7 @@
 import { CommentThread } from './CommentThread'
 import { CommentForm } from './CommentForm'
 import { SignUpPrompt } from './SignUpPrompt'
-import type { CommentWithMentions } from '../types'
+import type { CommentWithMentions } from '@/types'
 
 interface CommentListProps {
     comments: CommentWithMentions[]

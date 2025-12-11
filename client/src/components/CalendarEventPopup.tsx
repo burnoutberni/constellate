@@ -1,7 +1,8 @@
 import { useRef, useEffect } from 'react'
-import { Event } from '../types/event'
-import { Button } from './ui/Button'
-import { Badge } from './ui/Badge'
+import type { Event } from '@/types'
+import { Button, Badge } from './ui'
+import { Stack } from './layout'
+import { tokens } from '@/design-system'
 
 interface CalendarEventPopupProps {
   event: Event
@@ -47,6 +48,8 @@ export function CalendarEventPopup({
   }, [onClose])
 
   // Adjust position if popup goes off screen
+  // Use spacing[5] (1.25rem = 20px) for viewport edge padding
+  const viewportPadding = parseFloat(tokens.spacing[5]) * 16 // Convert rem to px
   const adjustedPosition = { ...position }
   if (popupRef.current) {
     const rect = popupRef.current.getBoundingClientRect()
@@ -54,10 +57,10 @@ export function CalendarEventPopup({
     const viewportHeight = window.innerHeight
 
     if (rect.right > viewportWidth) {
-      adjustedPosition.x = viewportWidth - rect.width - 20
+      adjustedPosition.x = viewportWidth - rect.width - viewportPadding
     }
     if (rect.bottom > viewportHeight) {
-      adjustedPosition.y = viewportHeight - rect.height - 20
+      adjustedPosition.y = viewportHeight - rect.height - viewportPadding
     }
   }
 
@@ -77,7 +80,7 @@ export function CalendarEventPopup({
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      
+
       {/* Popup */}
       <div
         ref={popupRef}
@@ -165,7 +168,7 @@ export function CalendarEventPopup({
           )}
 
           {/* Actions */}
-          <div className="flex flex-col gap-2">
+          <Stack gap="sm">
             <Button
               variant="primary"
               size="sm"
@@ -174,7 +177,7 @@ export function CalendarEventPopup({
             >
               View Full Details
             </Button>
-            
+
             <div className="flex gap-2">
               <Button
                 variant="secondary"
@@ -193,7 +196,7 @@ export function CalendarEventPopup({
                 Add to Google
               </Button>
             </div>
-          </div>
+          </Stack>
         </div>
       </div>
     </>

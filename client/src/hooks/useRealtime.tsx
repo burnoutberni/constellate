@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Event } from '../types'
+import { Event } from '@/types'
 
 interface BaseEvent {
     timestamp: string
@@ -29,8 +29,6 @@ interface MentionReceived extends BaseEvent {
     type: 'mention:received'
     data: Record<string, unknown>
 }
-
-
 
 export type RealtimeEvent = EventCreated | EventUpdated | EventDeleted | MentionReceived
 
@@ -71,8 +69,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
         eventSourceRef.current = eventSource
 
         // Connection opened
-        eventSource.addEventListener('connected', (e) => {
-            console.log('✅ SSE connected:', JSON.parse(e.data))
+        eventSource.addEventListener('connected', (_e) => {
             setIsConnected(true)
             onConnectRef.current?.()
         })
@@ -195,4 +192,3 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
         },
     }
 }
-

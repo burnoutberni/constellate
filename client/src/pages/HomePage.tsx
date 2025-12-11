@@ -1,18 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEvents, useRecommendedEvents, useTrendingEvents, usePlatformStats } from '../hooks/queries/events'
-import { useUIStore } from '../stores'
+import { useEvents, useRecommendedEvents, useTrendingEvents, usePlatformStats } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { HomeHero } from '../components/HomeHero'
 import { EventStats } from '../components/EventStats'
 import { EventCard } from '../components/EventCard'
-import { Container } from '../components/layout/Container'
-import { Section } from '../components/layout/Section'
-import { Button } from '../components/ui/Button'
-import { primaryColors } from '../design-system/tokens'
+import { Container, Section } from '@/components/layout'
+import { Button } from '@/components/ui'
+import { useThemeColors } from '@/design-system'
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 
 export function HomePage() {
+    const colors = useThemeColors()
     const { user, logout } = useAuth()
     const { data, isLoading } = useEvents(100)
     const {
@@ -83,7 +83,7 @@ export function HomePage() {
 
     // formatTime and formatRelativeDate are now imported from formatUtils
 
-    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate)
+    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate)
     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
     // Get featured/trending events
@@ -116,7 +116,7 @@ export function HomePage() {
                                     Popular events happening soon in the network
                                 </p>
                             </div>
-                            
+
                             {trendingLoading ? (
                                 <div className="flex items-center justify-center py-12">
                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
@@ -124,8 +124,8 @@ export function HomePage() {
                             ) : (
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {trendingEvents.slice(0, 6).map((event) => (
-                                        <EventCard 
-                                            key={event.id} 
+                                        <EventCard
+                                            key={event.id}
                                             event={event}
                                             isAuthenticated={Boolean(user)}
                                         />
@@ -160,7 +160,7 @@ export function HomePage() {
                                     </span>
                                 )}
                             </div>
-                            
+
                             {recommendationsLoading ? (
                                 <div className="flex items-center justify-center py-12">
                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
@@ -168,8 +168,8 @@ export function HomePage() {
                             ) : (
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {recommendations.slice(0, 6).map((item) => (
-                                        <EventCard 
-                                            key={item.event.id} 
+                                        <EventCard
+                                            key={item.event.id}
                                             event={item.event}
                                             isAuthenticated={Boolean(user)}
                                         />
@@ -243,9 +243,13 @@ export function HomePage() {
                                         {/* Calendar days */}
                                         <div className="grid grid-cols-7 gap-2">
                                             {/* Empty cells for days before month starts */}
-                                            {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                                                <div key={`empty-${i}`} className="aspect-square" />
-                                            ))}
+                                            {Array.from({ length: startingDayOfWeek }).map((_, i) => {
+                                                const prevMonth = month === 0 ? 11 : month - 1
+                                                const prevYear = month === 0 ? year - 1 : year
+                                                const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate()
+                                                const dayNumber = lastDayOfPrevMonth - startingDayOfWeek + i + 1
+                                                return <div key={`empty-${prevYear}-${prevMonth}-${dayNumber}`} className="aspect-square" />
+                                            })}
 
                                             {/* Days of the month */}
                                             {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -256,7 +260,7 @@ export function HomePage() {
                                                     new Date(
                                                         currentDate.getFullYear(),
                                                         currentDate.getMonth(),
-                                                        day
+                                                        day,
                                                     ).toDateString()
 
                                                 return (
@@ -311,7 +315,7 @@ export function HomePage() {
                             />
                             {/* Today's Events */}
                             <div className="card p-6">
-                                <h2 className="text-xl font-bold text-text-primary mb-4">Today's Events</h2>
+                                <h2 className="text-xl font-bold text-text-primary mb-4">Today&apos;s Events</h2>
                                 {isLoading ? (
                                     <div className="flex items-center justify-center py-8">
                                         <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent" />
@@ -392,7 +396,7 @@ export function HomePage() {
                                             >
                                                 <div
                                                     className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                    style={{ backgroundColor: event.user?.displayColor || primaryColors[600] }}
+                                                    style={{ backgroundColor: event.user?.displayColor || colors.info[500] }}
                                                 >
                                                     {new Date(event.startTime).getDate()}
                                                 </div>
@@ -420,4 +424,3 @@ export function HomePage() {
         </div>
     )
 }
-

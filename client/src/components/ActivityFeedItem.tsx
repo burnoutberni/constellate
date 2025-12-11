@@ -1,10 +1,7 @@
 import { Link } from 'react-router-dom'
-import type { Activity } from '../types/activity'
-import type { EventVisibility } from '../types'
+import type { Activity, EventVisibility } from '@/types'
 import { getVisibilityMeta } from '../lib/visibility'
-import { Avatar } from './ui/Avatar'
-import { Badge } from './ui/Badge'
-import { Card } from './ui/Card'
+import { Avatar, Badge, Card } from './ui'
 import { FollowButton } from './FollowButton'
 
 interface ActivityFeedItemProps {
@@ -12,9 +9,15 @@ interface ActivityFeedItemProps {
 }
 
 function getBadgeVariant(badgeClass: string): 'success' | 'warning' | 'error' | 'default' {
-    if (badgeClass.includes('success')) return 'success'
-    if (badgeClass.includes('warning')) return 'warning'
-    if (badgeClass.includes('error')) return 'error'
+    if (badgeClass.includes('success')) {
+return 'success'
+}
+    if (badgeClass.includes('warning')) {
+return 'warning'
+}
+    if (badgeClass.includes('error')) {
+return 'error'
+}
     return 'default'
 }
 
@@ -94,10 +97,18 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
         const hours = Math.floor(diff / (1000 * 60 * 60))
         const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-        if (minutes < 1) return 'just now'
-        if (minutes < 60) return `${minutes}m ago`
-        if (hours < 24) return `${hours}h ago`
-        if (days < 7) return `${days}d ago`
+        if (minutes < 1) {
+return 'just now'
+}
+        if (minutes < 60) {
+return `${minutes}m ago`
+}
+        if (hours < 24) {
+return `${hours}h ago`
+}
+        if (days < 7) {
+return `${days}d ago`
+}
 
         return date.toLocaleDateString('en-US', {
             month: 'short',
@@ -129,7 +140,7 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
                                 </p>
                                 {activity.type === 'comment' && activity.data?.commentContent && (
                                     <p className="text-sm text-text-secondary mt-1 italic">
-                                        "{activity.data.commentContent}"
+                                        &quot;{activity.data.commentContent}&quot;
                                     </p>
                                 )}
                                 {activity.type === 'event_shared' && activity.sharedEvent?.summary && (
@@ -196,4 +207,3 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
         </Card>
     )
 }
-

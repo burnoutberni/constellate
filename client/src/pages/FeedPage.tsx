@@ -6,30 +6,36 @@ import { MiniCalendar } from '../components/MiniCalendar'
 import { ActivityFeedItem } from '../components/ActivityFeedItem'
 import { ActivityFilters, type ActivityFilterType } from '../components/ActivityFilters'
 import { LocationDiscoveryCard } from '../components/LocationDiscoveryCard'
-import { useAuth } from '../contexts/AuthContext'
-import { useEvents, useActivityFeed, useRecommendedEvents, useTrendingEvents } from '../hooks/queries'
-import { useUIStore } from '../stores'
+import { useAuth } from '../hooks/useAuth'
+import { useEvents, useActivityFeed, useRecommendedEvents, useTrendingEvents, queryKeys } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
 import { useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '../hooks/queries/keys'
-import type { EventVisibility } from '../types'
-import type { Activity } from '../types/activity'
+import type { EventVisibility, Activity } from '@/types'
 import { getVisibilityMeta } from '../lib/visibility'
 import { eventsWithinRange } from '../lib/recurrence'
-import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { Container } from '../components/layout/Container'
+import { Button, Card, Badge } from '@/components/ui'
+import { Container, Stack } from '@/components/layout'
 
 function getEmptyActivityMessage(filter: ActivityFilterType): string {
-    if (filter === 'all') return 'No activity yet'
-    if (filter === 'events') return 'No event activities'
+    if (filter === 'all') {
+return 'No activity yet'
+}
+    if (filter === 'events') {
+return 'No event activities'
+}
     return 'No interactions yet'
 }
 
 function getBadgeVariant(badgeClass: string): 'success' | 'warning' | 'error' | 'default' {
-    if (badgeClass.includes('success')) return 'success'
-    if (badgeClass.includes('warning')) return 'warning'
-    if (badgeClass.includes('error')) return 'error'
+    if (badgeClass.includes('success')) {
+return 'success'
+}
+    if (badgeClass.includes('warning')) {
+return 'warning'
+}
+    if (badgeClass.includes('error')) {
+return 'error'
+}
     return 'default'
 }
 
@@ -57,8 +63,8 @@ export function FeedPage() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
 
-    const events = eventsData?.events || []
-    const allActivities = activityData?.activities || []
+    const events = useMemo(() => eventsData?.events || [], [eventsData?.events])
+    const allActivities = useMemo(() => activityData?.activities || [], [activityData?.activities])
     const recommendedEvents = recommendedData?.recommendations || []
 
     // Filter activities based on selected filter
@@ -80,53 +86,60 @@ export function FeedPage() {
     const trendingEvents = trendingData?.events || []
 
     // Get events for selected date
-    const selectedDateStart = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        0,
-        0,
-        0,
-        0
+    const selectedDateStart = useMemo(
+        () => new Date(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+        [selectedDate],
     )
-    const selectedDateEnd = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        23,
-        59,
-        59,
-        999
+    const selectedDateEnd = useMemo(
+        () => new Date(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate(),
+            23,
+            59,
+            59,
+            999,
+        ),
+        [selectedDate],
     )
     const selectedDateEvents = useMemo(
         () => eventsWithinRange(events, selectedDateStart, selectedDateEnd),
-        [events, selectedDateStart.getTime(), selectedDateEnd.getTime()]
+        [events, selectedDateStart, selectedDateEnd],
     )
 
     // Get today's events
-    const now = new Date()
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    const todayStart = useMemo(() => {
+        const now = new Date()
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    }, [])
+    const todayEnd = useMemo(() => {
+        const now = new Date()
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    }, [])
     const todayEvents = useMemo(
         () => eventsWithinRange(events, todayStart, todayEnd),
-        [events, todayStart.getTime(), todayEnd.getTime()]
+        [events, todayStart, todayEnd],
     )
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
+    const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
         })
-    }
 
-    const formatDateTime = (dateString: string) => {
-        return new Date(dateString).toLocaleString('en-US', {
+    const formatDateTime = (dateString: string) => new Date(dateString).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
         })
-    }
 
     // Handle template from location state
     useEffect(() => {
@@ -200,7 +213,7 @@ export function FeedPage() {
             return (
                 <Card variant="default" padding="lg" className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-warning-500 border-t-transparent mx-auto" />
-                    <p className="mt-3 text-sm text-text-secondary">Surfacing trending events…</p>
+                    <p className="mt-3 text-sm text-text-secondary">Surfacing trending events�</p>
                 </Card>
             )
         }
@@ -253,7 +266,7 @@ export function FeedPage() {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 text-sm text-text-tertiary mb-1">
                                 <span className="font-semibold">
-                                    #{event.trendingRank ?? '—'}
+                                    #{event.trendingRank ?? '�'}
                                 </span>
                                 <span>{formatDateTime(event.startTime)}</span>
                             </div>
@@ -268,7 +281,7 @@ export function FeedPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                             <Badge variant="warning" size="md" className="font-semibold">
-                                🔥 {event.trendingScore?.toFixed(1) ?? '—'}
+                                ?? {event.trendingScore?.toFixed(1) ?? '�'}
                             </Badge>
                             <div className="mt-2">
                                 <Badge
@@ -281,9 +294,9 @@ export function FeedPage() {
                         </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-4 text-xs text-text-secondary">
-                        <span>👍 {event.trendingMetrics?.likes ?? 0} likes</span>
-                        <span>💬 {event.trendingMetrics?.comments ?? 0} comments</span>
-                        <span>👥 {event.trendingMetrics?.attendance ?? 0} RSVPs</span>
+                        <span>?? {event.trendingMetrics?.likes ?? 0} likes</span>
+                        <span>?? {event.trendingMetrics?.comments ?? 0} comments</span>
+                        <span>?? {event.trendingMetrics?.attendance ?? 0} RSVPs</span>
                     </div>
                     {event.tags?.length ? (
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -311,7 +324,7 @@ export function FeedPage() {
     return (
         <div className="min-h-screen bg-background-primary">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-            
+
             <Container size="xl" className="py-4">
                 {/* Create Event Button */}
                 <div className="flex justify-end mb-4">
@@ -329,7 +342,7 @@ export function FeedPage() {
                     {/* Main Feed - Activity Feed */}
                     <div className="lg:col-span-2 space-y-4">
                         {/* Tab Navigation */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                        <Stack direction="column" directionSm="row" alignSm="center" justifySm="between" gap="md" className="mb-4">
                             <div className="flex items-center gap-2" role="tablist">
                                 <Button
                                     variant={activeTab === 'activity' ? 'primary' : 'ghost'}
@@ -352,7 +365,7 @@ export function FeedPage() {
                                     Trending
                                 </Button>
                             </div>
-                            
+
                             {/* Right side info/actions */}
                             <div className="flex items-center gap-3 text-sm text-text-secondary">
                                 {activeTab === 'activity' ? (
@@ -373,7 +386,7 @@ export function FeedPage() {
                                                     minute: '2-digit',
                                                 })}`
                                                 : 'Awaiting data'}{' '}
-                                            · {trendingWindowLabel}
+                                            � {trendingWindowLabel}
                                         </span>
                                         <Button
                                             variant="ghost"
@@ -381,14 +394,14 @@ export function FeedPage() {
                                             onClick={() => refetchTrending()}
                                             loading={trendingFetching}
                                             disabled={trendingFetching}
-                                            aria-label={trendingFetching ? "Refreshing trending events" : "Refresh trending events"}
+                                            aria-label={trendingFetching ? 'Refreshing trending events' : 'Refresh trending events'}
                                         >
                                             Refresh
                                         </Button>
                                     </>
                                 )}
                             </div>
-                        </div>
+                        </Stack>
 
                         {/* Activity Filters - Only show for activity tab */}
                         {activeTab === 'activity' && user && (
@@ -454,7 +467,7 @@ export function FeedPage() {
                                                             month: 'short',
                                                             day: 'numeric',
                                                         })}
-                                                        {item.event.location && ` • ${item.event.location}`}
+                                                        {item.event.location && ` � ${item.event.location}`}
                                                     </div>
                                                     {item.reasons.length > 0 && (
                                                         <div className="text-[11px] text-success-700 mt-1">
@@ -471,7 +484,7 @@ export function FeedPage() {
 
                         {/* Today's Events */}
                         <Card variant="default" padding="md">
-                            <h2 className="font-bold text-lg text-text-primary mb-4">Today's Events</h2>
+                            <h2 className="font-bold text-lg text-text-primary mb-4">Today&apos;s Events</h2>
                             {eventsLoading ? (
                                 <div className="flex items-center justify-center py-4">
                                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" />
@@ -498,7 +511,7 @@ export function FeedPage() {
                                                 </div>
                                                 <div className="text-xs text-text-secondary">
                                                     {formatTime(event.startTime)}
-                                                    {event.location && ` • ${event.location}`}
+                                                    {event.location && ` � ${event.location}`}
                                                 </div>
                                             </button>
                                         ))}
@@ -550,7 +563,7 @@ export function FeedPage() {
                                                         </div>
                                                         <div className="text-xs text-text-secondary">
                                                             {formatTime(event.startTime)}
-                                                            {event.location && ` • ${event.location}`}
+                                                            {event.location && ` � ${event.location}`}
                                                         </div>
                                                         {event.user && (
                                                             <div className="text-xs text-text-tertiary mt-1">
@@ -607,5 +620,4 @@ export function FeedPage() {
             />
         </div>
     )
-
 }

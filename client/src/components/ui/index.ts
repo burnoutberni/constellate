@@ -1,6 +1,6 @@
 /**
  * Base Component Library
- * 
+ *
  * Reusable UI components built with design tokens, accessibility,
  * and dark mode support.
  */
@@ -32,7 +32,7 @@ export { Textarea, type TextareaProps, type TextareaSize } from './Textarea'
 export {
   ToggleGroup,
   ToggleButton,
-  useToggleGroup,
   type ToggleGroupProps,
   type ToggleButtonProps,
 } from './ToggleGroup'
+export { Select, type SelectProps, type SelectSize } from './Select'

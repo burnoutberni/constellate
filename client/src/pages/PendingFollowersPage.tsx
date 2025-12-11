@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '../hooks/queries/keys'
-import type { User } from '../types'
+import { queryKeys } from '@/hooks/queries'
+import type { User } from '@/types'
+import { useThemeColors } from '@/design-system'
 
 interface PendingFollower extends User {
     followerId: string
@@ -11,6 +12,7 @@ interface PendingFollower extends User {
 }
 
 export function PendingFollowersPage() {
+    const colors = useThemeColors()
     const { user, logout } = useAuth()
     const queryClient = useQueryClient()
 
@@ -60,13 +62,11 @@ export function PendingFollowersPage() {
         },
     })
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+    const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
         })
-    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -76,7 +76,7 @@ export function PendingFollowersPage() {
 
                 {isLoading && (
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
                     </div>
                 )}
 
@@ -87,14 +87,13 @@ export function PendingFollowersPage() {
                 )}
 
                 {data && (
-                    <>
-                        {data.followers.length === 0 ? (
-                            <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
-                                No pending follow requests
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {data.followers.map((follower) => (
+                    data.followers.length === 0 ? (
+                        <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+                            No pending follow requests
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {data.followers.map((follower) => (
                                     <div
                                         key={follower.followerId}
                                         className="bg-white rounded-lg shadow-sm p-6"
@@ -109,7 +108,7 @@ export function PendingFollowersPage() {
                                             ) : (
                                                 <div
                                                     className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-semibold"
-                                                    style={{ backgroundColor: follower.displayColor || '#3b82f6' }}
+                                                    style={{ backgroundColor: follower.displayColor || colors.info[500] }}
                                                 >
                                                     {(follower.name || follower.username)
                                                         .charAt(0)
@@ -164,11 +163,9 @@ export function PendingFollowersPage() {
                                     </div>
                                 ))}
                             </div>
-                        )}
-                    </>
+                        )
                 )}
             </div>
         </div>
     )
 }
-

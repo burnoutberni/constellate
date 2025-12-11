@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 import { Button } from './ui/Button'
+import { Stack } from './layout'
 
 interface CalendarNavigationProps {
   view: 'month' | 'week' | 'day'
@@ -62,7 +63,7 @@ export function CalendarNavigation({
     setShowDatePicker(false)
   }
 
-  const handleDatePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDatePickerChange = (e: ChangeEvent<HTMLInputElement>) => {
     const date = new Date(e.target.value)
     if (!Number.isNaN(date.getTime())) {
       onDateChange(date)
@@ -78,7 +79,7 @@ export function CalendarNavigation({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <Stack direction="column" directionSm="row" justify="between" align="start" alignSm="center" gap="md" className="mb-6">
       {/* View Switcher */}
       <div
         className="flex gap-1 bg-background-primary rounded-lg p-1 border border-border-default"
@@ -128,7 +129,7 @@ export function CalendarNavigation({
         >
           <span className="sr-only">Previous {view}</span>
         </Button>
-        
+
         {/* Date Display with Picker */}
         <div className="relative" ref={datePickerRef}>
           <button
@@ -138,7 +139,7 @@ export function CalendarNavigation({
           >
             {displayText}
           </button>
-          
+
           {showDatePicker && (
             <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-background-primary border border-border-default rounded-lg shadow-lg p-4 z-50 min-w-[280px]">
               <label className="block text-sm font-medium text-text-primary mb-2">
@@ -173,6 +174,6 @@ export function CalendarNavigation({
           <span className="sr-only">Next {view}</span>
         </Button>
       </div>
-    </div>
+    </Stack>
   )
 }

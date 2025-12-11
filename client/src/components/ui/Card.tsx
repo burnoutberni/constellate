@@ -40,7 +40,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       onKeyDown,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Base styles
     const baseStyles = [
@@ -89,7 +89,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       variantStyles[variant],
       paddingStyles[padding],
       interactiveStyles,
-      className
+      className,
     )
 
     // Handle keyboard events for accessibility
@@ -119,7 +119,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
         {children}
       </div>
     )
-  }
+  },
 )
 
 Card.displayName = 'Card'
@@ -132,8 +132,7 @@ export interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
-  ({ children, className, ...props }, ref) => {
-    return (
+  ({ children, className, ...props }, ref) => (
       <div
         ref={ref}
         className={cn('flex items-center justify-between mb-4', className)}
@@ -141,8 +140,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
       >
         {children}
       </div>
-    )
-  }
+    ),
 )
 
 CardHeader.displayName = 'CardHeader'
@@ -156,20 +154,18 @@ export interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement>
 }
 
 export const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
-  ({ as: Component = 'h3', children, className, ...props }, ref) => {
-    return (
+  ({ as: Component = 'h3', children, className, ...props }, ref) => (
       <Component
         ref={ref}
         className={cn(
           'text-lg font-semibold text-text-primary',
-          className
+          className,
         )}
         {...props}
       >
         {children}
       </Component>
-    )
-  }
+    ),
 )
 
 CardTitle.displayName = 'CardTitle'
@@ -182,8 +178,7 @@ export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
-  ({ children, className, ...props }, ref) => {
-    return (
+  ({ children, className, ...props }, ref) => (
       <div
         ref={ref}
         className={cn('text-text-secondary', className)}
@@ -191,8 +186,7 @@ export const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
       >
         {children}
       </div>
-    )
-  }
+    ),
 )
 
 CardContent.displayName = 'CardContent'
@@ -205,8 +199,7 @@ export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
-  ({ children, className, ...props }, ref) => {
-    return (
+  ({ children, className, ...props }, ref) => (
       <div
         ref={ref}
         className={cn('flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border-default', className)}
@@ -214,8 +207,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
       >
         {children}
       </div>
-    )
-  }
+    ),
 )
 
 CardFooter.displayName = 'CardFooter'

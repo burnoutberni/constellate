@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Avatar } from './ui/Avatar'
+import { Avatar } from './ui'
 import { EventActions } from './EventActions'
 
-export interface EventHeaderProps {
+interface EventHeaderProps {
   /**
    * Event organizer/owner information
    */
@@ -42,7 +42,7 @@ export interface EventHeaderProps {
 /**
  * EventHeader component displays the event organizer information
  * and provides event management actions for the owner.
- * 
+ *
  * Used on the event detail page to show who created the event.
  */
 export function EventHeader({

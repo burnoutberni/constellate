@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { Badge } from './ui/Badge'
+import { Badge } from './ui'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
 import { formatDate, formatTime } from '../lib/formatUtils'
-import type { EventVisibility, RecurrencePattern } from '../types'
+import type { EventVisibility, RecurrencePattern } from '@/types'
 
-export interface EventInfoProps {
+interface EventInfoProps {
   /**
    * Event details to display
    */
@@ -35,7 +35,7 @@ export interface EventInfoProps {
 /**
  * EventInfo component displays all event details including
  * date, time, location, recurrence, and tags.
- * 
+ *
  * Handles timezone display and formatting.
  */
 export function EventInfo({
@@ -45,30 +45,22 @@ export function EventInfo({
 }: EventInfoProps) {
   const visibilityMeta = useMemo(
     () => getVisibilityMeta(event.visibility),
-    [event.visibility]
+    [event.visibility],
   )
 
-  const formatDateWithTimezone = useMemo(() => {
-    return (dateString: string) => {
-      return formatDate(dateString, {
+  const formatDateWithTimezone = useMemo(() => (dateString: string) => formatDate(dateString, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         timeZone: viewerTimezone,
-      })
-    }
-  }, [viewerTimezone])
+      }), [viewerTimezone])
 
-  const formatTimeWithTimezone = useMemo(() => {
-    return (dateString: string) => {
-      return formatTime(dateString, {
+  const formatTimeWithTimezone = useMemo(() => (dateString: string) => formatTime(dateString, {
         hour: 'numeric',
         minute: '2-digit',
         timeZone: viewerTimezone,
-      })
-    }
-  }, [viewerTimezone])
+      }), [viewerTimezone])
 
   return (
     <div className="space-y-6">

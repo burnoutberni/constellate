@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Avatar } from './ui/Avatar'
-import { Button } from './ui/Button'
-import type { CommentWithMentions } from '../types'
+import { Avatar, Button } from './ui'
+import type { CommentWithMentions } from '@/types'
 
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
@@ -39,10 +38,15 @@ export function CommentItem({
             mentionMap.set(mention.user.username.toLowerCase(), mention)
         })
 
-        return text.split(mentionSplitRegex).map((part, index) => {
+        let charOffset = 0
+        return text.split(mentionSplitRegex).map((part) => {
             if (!part) {
                 return null
             }
+
+            const startOffset = charOffset
+            charOffset += part.length
+            const partKey = `${comment.id}-${startOffset}-${part.slice(0, 20)}`
 
             if (part.startsWith('@')) {
                 const normalized = part.slice(1).toLowerCase()
@@ -51,7 +55,7 @@ export function CommentItem({
                 if (mention) {
                     return (
                         <Link
-                            key={`${comment.id}-mention-${index}`}
+                            key={`mention-${partKey}`}
                             to={`/@${mention.user.username}`}
                             className="text-blue-600 font-medium hover:underline"
                         >
@@ -61,7 +65,7 @@ export function CommentItem({
                 }
             }
 
-            return <span key={`${comment.id}-text-${index}`}>{part}</span>
+            return <span key={`text-${partKey}`}>{part}</span>
         })
     }
 

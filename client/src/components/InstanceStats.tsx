@@ -1,4 +1,4 @@
-import type { InstanceWithStats } from '../types'
+import type { InstanceWithStats } from '@/types'
 
 interface InstanceStatsProps {
     instance: InstanceWithStats

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { ReminderWithEvent } from '../../types'
+import type { ReminderWithEvent } from '@/types'
 
 interface UserRemindersResponse {
     reminders: ReminderWithEvent[]

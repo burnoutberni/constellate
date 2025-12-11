@@ -58,7 +58,7 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
                     const statusCode = response.status
                     const isClientError = statusCode >= 400 && statusCode < 500
                     const isServerError = statusCode >= 500
-                    
+
                     let errorMessage: string
                     if (isClientError) {
                         errorMessage = `Location lookup failed (${statusCode}): Please check your search query.`

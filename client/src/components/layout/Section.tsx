@@ -81,7 +81,7 @@ export const Section = React.forwardRef<
     baseStyles,
     variantStyles[variant],
     paddingStyles[padding],
-    className
+    className,
   )
 
   // Determine content - wrap in Container if contained
@@ -107,7 +107,7 @@ export const Section = React.forwardRef<
       {content}
     </Component>
   )
-  }
+  },
 )
 
 Section.displayName = 'Section'

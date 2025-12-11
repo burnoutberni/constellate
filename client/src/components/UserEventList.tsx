@@ -1,7 +1,8 @@
-import { Card, CardContent } from './ui/Card'
-import type { Event } from '../types'
+import { Card, CardContent } from './ui'
+import type { Event } from '@/types'
 import { formatDate, formatTime } from '../lib/formatUtils'
 import { CalendarIcon, LocationIcon, AttendeesIcon, LikeIcon, CommentIcon } from './icons'
+import { tokens } from '@/design-system'
 
 interface UserEventListProps {
     events: Event[]
@@ -42,7 +43,7 @@ export function UserEventList({ events, onEventClick }: UserEventListProps) {
                             src={event.headerImage}
                             alt={event.title}
                             className="w-full h-48 object-cover rounded-lg mb-4 -mt-6 -mx-6"
-                            style={{ width: 'calc(100% + 3rem)' }}
+                            style={{ width: `calc(100% + ${tokens.spacing[12]})` }}
                         />
                     )}
 

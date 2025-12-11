@@ -38,18 +38,27 @@ export function useEventDraft() {
     }
   }, [])
 
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY)
+      localStorage.removeItem(DRAFT_TIMESTAMP_KEY)
+    } catch (error) {
+      console.error('Failed to clear draft:', error)
+    }
+  }, [])
+
   const loadDraft = useCallback((): EventDraft | null => {
     try {
       const draftStr = localStorage.getItem(DRAFT_KEY)
       const timestampStr = localStorage.getItem(DRAFT_TIMESTAMP_KEY)
-      
+
       if (!draftStr || !timestampStr) {
         return null
       }
 
       const timestamp = parseInt(timestampStr, 10)
       const now = Date.now()
-      
+
       // Check if draft has expired
       if (now - timestamp > DRAFT_EXPIRY_MS) {
         clearDraft()
@@ -62,29 +71,20 @@ export function useEventDraft() {
       console.error('Failed to load draft:', error)
       return null
     }
-  }, [])
-
-  const clearDraft = useCallback(() => {
-    try {
-      localStorage.removeItem(DRAFT_KEY)
-      localStorage.removeItem(DRAFT_TIMESTAMP_KEY)
-    } catch (error) {
-      console.error('Failed to clear draft:', error)
-    }
-  }, [])
+  }, [clearDraft])
 
   const hasDraft = useCallback((): boolean => {
     try {
       const draftStr = localStorage.getItem(DRAFT_KEY)
       const timestampStr = localStorage.getItem(DRAFT_TIMESTAMP_KEY)
-      
+
       if (!draftStr || !timestampStr) {
         return false
       }
 
       const timestamp = parseInt(timestampStr, 10)
       const now = Date.now()
-      
+
       // Check if draft has expired
       if (now - timestamp > DRAFT_EXPIRY_MS) {
         clearDraft()

@@ -59,14 +59,14 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Main content wrapper
     const mainContent = (
       <main
         className={cn(
           'flex-1 min-w-0', // min-w-0 prevents flex items from overflowing
-          contentClassName
+          contentClassName,
         )}
       >
         {contained ? (
@@ -100,9 +100,9 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
             {header}
           </header>
         )}
-        
+
         {sidebarContent}
-        
+
         {footer && (
           <footer className="flex-shrink-0">
             {footer}
@@ -110,7 +110,7 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 PageLayout.displayName = 'PageLayout'

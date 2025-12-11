@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useRecommendedEvents } from '../hooks/queries/events'
-import { Card } from './ui/Card'
-import { Badge } from './ui/Badge'
-import type { EventRecommendationPayload } from '../types'
+import { useRecommendedEvents } from '@/hooks/queries'
+import { Card, Badge } from './ui'
+import type { EventRecommendationPayload } from '@/types'
 
 interface RecommendedEventsProps {
   limit?: number
@@ -23,10 +22,10 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
         <div className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">✨ Recommended for You</h3>
           <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+            {['first', 'second', 'third'].map((position) => (
+              <div key={`recommended-skeleton-${position}`} className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
               </div>
             ))}
           </div>
@@ -45,9 +44,15 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
     const diff = date.getTime() - now.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    if (days > 1 && days < 7) return `In ${days} days`
+    if (days === 0) {
+return 'Today'
+}
+    if (days === 1) {
+return 'Tomorrow'
+}
+    if (days > 1 && days < 7) {
+return `In ${days} days`
+}
 
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -79,7 +84,7 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
             </span>
           )}
         </div>
-        
+
         <div className="space-y-3">
           {data.recommendations.map((recommendation) => (
             <RecommendedEventItem
@@ -114,7 +119,9 @@ function RecommendedEventItem({ recommendation, formatDate, reasonLabel }: Recom
     ? `/@${event.user.username}/${event.originalEventId || event.id}`
     : undefined
 
-  if (!eventPath) return null
+  if (!eventPath) {
+return null
+}
 
   return (
     <Link

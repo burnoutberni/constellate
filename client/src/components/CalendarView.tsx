@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Event } from '../types/event'
+import type { Event } from '@/types'
 
 interface CalendarViewProps {
     view: 'month' | 'week' | 'day'
@@ -12,9 +12,15 @@ interface CalendarViewProps {
 }
 
 function formatHourLabel(hour: number): string {
-    if (hour === 0) return '12 AM'
-    if (hour < 12) return `${hour} AM`
-    if (hour === 12) return '12 PM'
+    if (hour === 0) {
+return '12 AM'
+}
+    if (hour < 12) {
+return `${hour} AM`
+}
+    if (hour === 12) {
+return '12 PM'
+}
     return `${hour - 12} PM`
 }
 
@@ -22,57 +28,56 @@ function formatHourLabel(hour: number): string {
  * Shared event click handler for all calendar views
  */
 function createEventClickHandler(
-    onEventClick?: (event: Event, position: { x: number; y: number }) => void
+    onEventClick?: (event: Event, position: { x: number; y: number }) => void,
 ) {
     return (event: Event, e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation()
         if (onEventClick) {
             const rect = e.currentTarget.getBoundingClientRect()
-            onEventClick(event, { 
-                x: rect.left + rect.width / 2, 
-                y: rect.bottom + 5 
+            onEventClick(event, {
+                x: rect.left + rect.width / 2,
+                y: rect.bottom + 5,
             })
         }
     }
 }
 
-export function CalendarView({ 
-    view, 
-    currentDate, 
-    events, 
-    loading, 
-    userAttendingEventIds, 
-    onEventClick, 
-    onEventHover 
+export function CalendarView({
+    view,
+    currentDate,
+    events,
+    loading,
+    userAttendingEventIds,
+    onEventClick,
+    onEventHover,
 }: CalendarViewProps) {
     if (view === 'month') {
-        return <MonthView 
-            currentDate={currentDate} 
-            events={events} 
+        return <MonthView
+            currentDate={currentDate}
+            events={events}
             loading={loading}
             userAttendingEventIds={userAttendingEventIds}
             onEventClick={onEventClick}
             onEventHover={onEventHover}
         />
-    } else if (view === 'week') {
-        return <WeekView 
-            currentDate={currentDate} 
-            events={events} 
-            loading={loading}
-            userAttendingEventIds={userAttendingEventIds}
-            onEventClick={onEventClick}
-            onEventHover={onEventHover}
-        />
-    } else {
-        return <DayView 
-            currentDate={currentDate} 
-            events={events} 
+    } if (view === 'week') {
+        return <WeekView
+            currentDate={currentDate}
+            events={events}
             loading={loading}
             userAttendingEventIds={userAttendingEventIds}
             onEventClick={onEventClick}
             onEventHover={onEventHover}
         />
     }
+        return <DayView
+            currentDate={currentDate}
+            events={events}
+            loading={loading}
+            userAttendingEventIds={userAttendingEventIds}
+            onEventClick={onEventClick}
+            onEventHover={onEventHover}
+        />
 }
 
 interface ViewProps {
@@ -102,8 +107,8 @@ function MonthEventButton({ event, isAttending, onEventClick, onEventHover, titl
         <button
             key={event.id}
             className={`text-xs px-2 py-1 rounded truncate w-full text-left transition-colors ${
-                isAttending 
-                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
+                isAttending
+                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500'
                     : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
             }`}
             title={title || event.title}
@@ -126,18 +131,18 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
         const lastDay = new Date(year, month + 1, 0)
         const daysInMonth = lastDay.getDate()
         const startingDayOfWeek = firstDay.getDay()
-        
+
         return { daysInMonth, startingDayOfWeek, year, month }
     }, [currentDate])
 
     const eventsByDay = useMemo(() => {
         const map = new Map<number, Event[]>()
         const { year, month, daysInMonth } = monthMetadata
-        
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dayStart = new Date(year, month, day, 0, 0, 0, 0)
             const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
-            
+
             const filtered = events.filter((event) => {
                 const eventDate = new Date(event.startTime)
                 return eventDate >= dayStart && eventDate <= dayEnd
@@ -147,7 +152,7 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
         return map
     }, [events, monthMetadata])
 
-    const { daysInMonth, startingDayOfWeek } = monthMetadata
+    const { daysInMonth, startingDayOfWeek, year, month } = monthMetadata
 
     return (
         <div>
@@ -171,9 +176,13 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
             ) : (
                 <div className="grid grid-cols-7 gap-2">
                     {/* Empty cells for days before month starts */}
-                    {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                        <div key={`empty-${i}`} className="aspect-square" />
-                    ))}
+                    {Array.from({ length: startingDayOfWeek }).map((_, i) => {
+                        const prevMonth = month === 0 ? 11 : month - 1
+                        const prevYear = month === 0 ? year - 1 : year
+                        const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate()
+                        const dayNumber = lastDayOfPrevMonth - startingDayOfWeek + i + 1
+                        return <div key={`empty-${prevYear}-${prevMonth}-${dayNumber}`} className="aspect-square" />
+                    })}
 
                     {/* Days of the month */}
                     {(() => {
@@ -186,7 +195,7 @@ function MonthView({ currentDate, events, loading, userAttendingEventIds, onEven
                             const dayDate = new Date(
                                 currentDate.getFullYear(),
                                 currentDate.getMonth(),
-                                day
+                                day,
                             )
                             const isToday = dayDate.toDateString() === todayStr
 
@@ -237,8 +246,8 @@ function WeekEventButton({ event, isAttending, onEventClick, onEventHover, title
         <button
             key={event.id}
             className={`text-xs px-2 py-1 mb-1 rounded truncate w-full text-left transition-colors ${
-                isAttending 
-                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500' 
+                isAttending
+                    ? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500'
                     : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
             }`}
             title={title || event.title}
@@ -263,7 +272,7 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
             currentDate.getFullYear(),
             currentDate.getMonth(),
             currentDate.getDate() - dayOfWeek,
-            0, 0, 0, 0
+            0, 0, 0, 0,
         )
 
         const days = []
@@ -272,7 +281,7 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
                 startOfWeek.getFullYear(),
                 startOfWeek.getMonth(),
                 startOfWeek.getDate() + i,
-                0, 0, 0, 0
+                0, 0, 0, 0,
             )
             days.push(day)
         }
@@ -283,13 +292,13 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
 
     const eventsByDayAndHour = useMemo(() => {
         const map = new Map<string, Event[]>()
-        
+
         for (const day of weekDays) {
             for (const hour of hours) {
                 const key = `${day.toISOString()}-${hour}`
                 const hourStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0)
                 const hourEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 59, 59, 999)
-                
+
                 const filtered = events.filter((event) => {
                     const eventDate = new Date(event.startTime)
                     return eventDate >= hourStart && eventDate <= hourEnd
@@ -312,7 +321,7 @@ function WeekView({ currentDate, events, loading, userAttendingEventIds, onEvent
                 <div className="min-w-[800px]">
                     {/* Day headers */}
                     <div className="grid grid-cols-8 gap-2 mb-2 sticky top-0 bg-white z-10">
-                        <div className="text-sm font-semibold text-gray-600 py-2"></div>
+                        <div className="text-sm font-semibold text-gray-600 py-2" />
                         {weekDays.map((day) => {
                             const isToday = day.toDateString() === today.toDateString()
                             return (
@@ -374,8 +383,8 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
         <button
             key={event.id}
             className={`p-3 rounded border w-full text-left transition-colors ${
-                isAttending 
-                    ? 'bg-primary-50 border-primary-300 hover:bg-primary-100' 
+                isAttending
+                    ? 'bg-primary-50 border-primary-300 hover:bg-primary-100'
                     : 'bg-blue-50 border-blue-100 hover:bg-blue-100'
             }`}
             onClick={handleClick}
@@ -404,11 +413,11 @@ function DayView({ currentDate, events, loading, userAttendingEventIds, onEventC
 
     const eventsByHour = useMemo(() => {
         const map = new Map<number, Event[]>()
-        
+
         for (const hour of hours) {
             const hourStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0)
             const hourEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 59, 59, 999)
-            
+
             const filtered = events.filter((event) => {
                 const eventDate = new Date(event.startTime)
                 return eventDate >= hourStart && eventDate <= hourEnd

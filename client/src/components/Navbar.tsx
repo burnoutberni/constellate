@@ -3,7 +3,7 @@ import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
 import { NotificationBell } from './NotificationBell'
 import { ThemeToggle } from './ThemeToggle'
-import { queryKeys } from '../hooks/queries/keys'
+import { queryKeys } from '@/hooks/queries'
 
 export function Navbar({ isConnected, user, onLogout }: {
   isConnected?: boolean
@@ -14,14 +14,18 @@ export function Navbar({ isConnected, user, onLogout }: {
   const { data: currentUserProfile } = useQuery({
     queryKey: queryKeys.users.currentProfile(user?.id),
     queryFn: async () => {
-      if (!user?.id) return null
+      if (!user?.id) {
+return null
+}
       const response = await fetch(`/api/users/me/profile`, {
         credentials: 'include',
       })
-      if (!response.ok) return null
+      if (!response.ok) {
+return null
+}
       return response.json()
     },
-    enabled: !!user?.id,
+    enabled: Boolean(user?.id),
   })
 
   const isAdmin = currentUserProfile?.isAdmin || false
@@ -30,7 +34,7 @@ export function Navbar({ isConnected, user, onLogout }: {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link to={user ? "/feed" : "/"} className="text-2xl font-bold text-blue-600">
+            <Link to={user ? '/feed' : '/'} className="text-2xl font-bold text-blue-600">
               Constellate
             </Link>
             <div className="hidden md:flex items-center gap-1">

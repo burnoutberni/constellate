@@ -1,4 +1,4 @@
-import type { NotificationType } from '../types/notification'
+import type { NotificationType } from '@/types'
 
 interface NotificationTypeMeta {
     label: string
@@ -59,4 +59,3 @@ export function getNotificationTypeMeta(type: NotificationType | string | undefi
     }
     return typeMeta[type as NotificationType] ?? fallbackMeta
 }
-

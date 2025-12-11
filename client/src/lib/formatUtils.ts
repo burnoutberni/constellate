@@ -11,7 +11,7 @@
  */
 export function formatDate(
     dateString: string,
-    options?: Intl.DateTimeFormatOptions
+    options?: Intl.DateTimeFormatOptions,
 ): string {
     const defaultOptions: Intl.DateTimeFormatOptions = {
         year: 'numeric',
@@ -20,7 +20,7 @@ export function formatDate(
     }
     return new Date(dateString).toLocaleDateString(
         navigator.language || 'en-US',
-        options || defaultOptions
+        options || defaultOptions,
     )
 }
 
@@ -32,7 +32,7 @@ export function formatDate(
  */
 export function formatTime(
     dateString: string,
-    options?: Intl.DateTimeFormatOptions
+    options?: Intl.DateTimeFormatOptions,
 ): string {
     const defaultOptions: Intl.DateTimeFormatOptions = {
         hour: 'numeric',
@@ -40,7 +40,7 @@ export function formatTime(
     }
     return new Date(dateString).toLocaleTimeString(
         navigator.language || 'en-US',
-        options || defaultOptions
+        options || defaultOptions,
     )
 }
 
@@ -59,18 +59,24 @@ export function formatRelativeDate(dateString: string): string {
     const dateStart = new Date(Date.UTC(
         date.getUTCFullYear(),
         date.getUTCMonth(),
-        date.getUTCDate()
+        date.getUTCDate(),
     ))
     const nowStart = new Date(Date.UTC(
         now.getUTCFullYear(),
         now.getUTCMonth(),
-        now.getUTCDate()
+        now.getUTCDate(),
     ))
     const days = Math.floor((dateStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    if (days > 1 && days < 7) return `In ${days} days`
+    if (days === 0) {
+return 'Today'
+}
+    if (days === 1) {
+return 'Tomorrow'
+}
+    if (days > 1 && days < 7) {
+return `In ${days} days`
+}
 
     return date.toLocaleDateString(navigator.language || 'en-US', {
         month: 'short',

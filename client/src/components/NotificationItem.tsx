@@ -1,15 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent } from './ui/Card'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
-import { Avatar } from './ui/Avatar'
+import { Card, CardContent, Badge, Button, Avatar } from './ui'
+import { Stack } from './layout'
 import { formatRelativeTime } from '../lib/datetime'
 import { getNotificationTypeMeta } from '../lib/notifications'
 import { safeNavigate } from '../lib/urlValidation'
-import type { Notification } from '../types'
+import type { Notification } from '@/types'
 
-export interface NotificationItemProps {
+interface NotificationItemProps {
     notification: Notification
     onMarkRead?: (notificationId: string) => void
     compact?: boolean
@@ -47,7 +45,9 @@ export function NotificationItem({
     }
 
     const getInitial = () => {
-        if (!notification.actor) return '?'
+        if (!notification.actor) {
+return '?'
+}
         return (
             notification.actor.name?.[0] ??
             notification.actor.username?.[0] ??
@@ -101,7 +101,7 @@ export function NotificationItem({
             className={notification.read ? '' : 'bg-primary-50 border-primary-200'}
         >
             <CardContent>
-                <div className="flex flex-col gap-4 md:flex-row">
+                <Stack direction="column" directionMd="row" gap="md">
                     <div
                         className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-2xl ${meta.iconClass}`}
                         aria-hidden="true"
@@ -181,7 +181,7 @@ export function NotificationItem({
                             )}
                         </div>
                     </div>
-                </div>
+                </Stack>
             </CardContent>
         </Card>
     )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useNearbyEvents } from '../hooks/queries'
+import { useNearbyEvents } from '@/hooks/queries'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 
 // Radius options for nearby event discovery (in kilometers)
@@ -46,7 +46,7 @@ export function LocationDiscoveryCard() {
             setGeoError('Geolocation is not supported in this browser.')
             return
         }
-        
+
         // Show permission explanation before requesting location
         setShowPermissionPrompt(true)
     }
@@ -57,7 +57,6 @@ export function LocationDiscoveryCard() {
         setGeoError(null)
         // Geolocation is necessary here to enable users to discover events near their current
         // location, which is a core feature of the location-based event discovery system.
-        // eslint-disable-next-line sonarjs/no-intrusive-permissions
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setSelectedLocation({

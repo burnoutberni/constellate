@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { authClient } from '../lib/auth-client'
 
 interface User {
@@ -18,17 +18,14 @@ interface AuthContextType {
     logout: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | null>(null)
+// eslint-disable-next-line react-refresh/only-export-components
+export const AuthContext = createContext<AuthContextType | null>(null)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        checkAuth()
-    }, [])
-
-    const checkAuth = async () => {
+    const checkAuth = useCallback(async () => {
         try {
             const { data: session } = await authClient.getSession()
             setUser(session?.user || null)
@@ -38,7 +35,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
+
+    useEffect(() => {
+        checkAuth()
+    }, [checkAuth])
 
     const login = async (email: string, password: string) => {
         const { data, error } = await authClient.signIn.email({
@@ -93,12 +94,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             {children}
         </AuthContext.Provider>
     )
-}
-
-export function useAuth() {
-    const context = useContext(AuthContext)
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider')
-    }
-    return context
 }

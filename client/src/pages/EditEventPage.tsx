@@ -1,31 +1,28 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useEventDetail, useUpdateEvent } from '../hooks/queries/events'
+import { useAuth } from '../hooks/useAuth'
+import { useEventDetail, useUpdateEvent } from '@/hooks/queries'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload } from '../lib/eventFormUtils'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
-import { Button } from '../components/ui/Button'
-import { Card, CardContent } from '../components/ui/Card'
-import { Container } from '../components/layout/Container'
+import { Button, Card, CardContent } from '@/components/ui'
+import { Container } from '@/components/layout'
 import { Navbar } from '../components/Navbar'
-import { useUIStore } from '../stores'
-import type { EventVisibility } from '../types'
+import { useUIStore } from '@/stores'
+import type { EventVisibility } from '@/types'
 
 const MAX_TAG_LENGTH = 50
 const COORDINATE_DECIMAL_PLACES = 6
 const GEO_TIMEOUT_MS = 10000
 
-const normalizeTagInput = (input: string): string => {
-    return input.trim().replace(/^#+/, '').trim().toLowerCase()
-}
+const normalizeTagInput = (input: string): string => input.trim().replace(/^#+/, '').trim().toLowerCase()
 
 export function EditEventPage() {
     const { user } = useAuth()
     const location = useLocation()
     const navigate = useNavigate()
     const addErrorToast = useUIStore((state) => state.addErrorToast)
-    
+
     const [username, setUsername] = useState('')
     const [eventId, setEventId] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -83,7 +80,9 @@ export function EditEventPage() {
 
     // Populate form when event loads
     useEffect(() => {
-        if (!event) return
+        if (!event) {
+return
+}
 
         // Check if user is owner
         if (user?.id !== event.user?.id) {
@@ -99,12 +98,12 @@ export function EditEventPage() {
             locationLatitude: event.locationLatitude?.toString() || '',
             locationLongitude: event.locationLongitude?.toString() || '',
             url: event.url || '',
-            startTime: event.startTime.slice(0, 16), // Format for datetime-local input
+            startTime: event.startTime ? event.startTime.slice(0, 16) : '', // Format for datetime-local input
             endTime: event.endTime ? event.endTime.slice(0, 16) : '',
             visibility: event.visibility as EventVisibility || 'PUBLIC',
             recurrencePattern: event.recurrencePattern || '',
             recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.slice(0, 10) : '',
-            tags: event.tags.map(t => t.tag),
+            tags: event.tags?.map((t) => t.tag) || [],
         })
     }, [event, user, username, eventId, navigate, addErrorToast])
 
@@ -113,32 +112,31 @@ export function EditEventPage() {
         if (!tagInput.trim()) {
             return
         }
-        
+
         const tag = normalizeTagInput(tagInput)
-        
+
         if (!tag) {
             setTagError('Tag cannot be empty after normalization')
             return
         }
-        
+
         if (tag.length > MAX_TAG_LENGTH) {
             setTagError(`Tag must be ${MAX_TAG_LENGTH} characters or less after normalization (currently ${tag.length} characters)`)
             return
         }
-        
-        setFormData(prev => {
+
+        setFormData((prev) => {
             if (!prev.tags.includes(tag)) {
                 setTagInput('')
                 return { ...prev, tags: [...prev.tags, tag] }
-            } else {
+            }
                 setTagError('This tag has already been added')
                 return prev
-            }
         })
     }, [tagInput])
 
     const removeTag = (tag: string) => {
-        setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))
+        setFormData((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }))
     }
 
     const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
@@ -167,7 +165,6 @@ export function EditEventPage() {
         setGeoLoading(true)
         // Geolocation is necessary here to allow users to quickly set event coordinates
         // for location-based features like map display and nearby event discovery.
-        // eslint-disable-next-line sonarjs/no-intrusive-permissions
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setFormData((prev) => ({
@@ -186,7 +183,7 @@ export function EditEventPage() {
         )
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError(null)
 
@@ -220,15 +217,15 @@ export function EditEventPage() {
                 formData,
                 locationLatitude,
                 locationLongitude,
-                true // isUpdate
+                true, // isUpdate
             )
-            
+
             if (formData.tags.length > 0) {
                 payload.tags = formData.tags
             }
 
             await updateMutation.mutateAsync(payload)
-            
+
             // Navigate back to event detail page
             navigate(`/@${username}/${eventId}`)
         } catch (err) {
@@ -259,7 +256,7 @@ export function EditEventPage() {
             <>
                 <Navbar />
                 <Container size="md" className="py-8">
-                    <div className="text-center text-text-secondary">Event not found or you don't have permission to edit it.</div>
+                    <div className="text-center text-text-secondary">Event not found or you don&apos;t have permission to edit it.</div>
                 </Container>
             </>
         )
@@ -272,7 +269,7 @@ export function EditEventPage() {
                 <Card variant="elevated" padding="lg">
                     <CardContent>
                         <h1 className="text-2xl font-bold text-text-primary mb-6">Edit Event</h1>
-                        
+
                         {error && (
                             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
                                 {error}
@@ -353,9 +350,9 @@ export function EditEventPage() {
                                 />
                                 {locationSearch.length >= MIN_QUERY_LENGTH && locationSuggestions.length > 0 && (
                                     <div className="mt-2 border border-border-default rounded-lg bg-background-primary shadow-lg">
-                                        {locationSuggestions.map((suggestion, idx) => (
+                                        {locationSuggestions.map((suggestion) => (
                                             <button
-                                                key={idx}
+                                                key={suggestion.id}
                                                 type="button"
                                                 onClick={() => handleSuggestionSelect(suggestion)}
                                                 className="w-full px-3 py-2 text-left hover:bg-background-tertiary text-text-primary"
@@ -441,7 +438,7 @@ export function EditEventPage() {
                                     onChange={(e) => setFormData({ ...formData, visibility: e.target.value as EventVisibility })}
                                     className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
                                 >
-                                    {VISIBILITY_OPTIONS.map(option => (
+                                    {VISIBILITY_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>
                                             {option.label} - {option.description}
                                         </option>
@@ -477,7 +474,7 @@ export function EditEventPage() {
                                         value={formData.recurrenceEndDate}
                                         onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
                                         className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                        required={!!formData.recurrencePattern}
+                                        required={Boolean(formData.recurrencePattern)}
                                     />
                                 </div>
                             )}
@@ -510,7 +507,7 @@ export function EditEventPage() {
                                 )}
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
-                                        {formData.tags.map(tag => (
+                                        {formData.tags.map((tag) => (
                                             <span
                                                 key={tag}
                                                 className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 text-primary-700 rounded text-sm"

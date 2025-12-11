@@ -1,37 +1,40 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceStats } from '../components/InstanceStats'
-import { Container } from '../components/layout/Container'
-import { Card } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
-import { Avatar } from '../components/ui/Avatar'
-import { useAuth } from '../contexts/AuthContext'
-import { useInstanceDetail, useBlockInstance, useUnblockInstance, useRefreshInstance } from '../hooks/queries'
-import { queryKeys } from '../hooks/queries/keys'
+import { Container } from '@/components/layout'
+import { Card, Button, Badge, Avatar } from '@/components/ui'
+import { useAuth } from '../hooks/useAuth'
+import { useInstanceDetail, useBlockInstance, useUnblockInstance, useRefreshInstance, queryKeys } from '@/hooks/queries'
 import { setSEOMetadata } from '../lib/seo'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 
 export function InstanceDetailPage() {
     const { domain } = useParams<{ domain: string }>()
     const navigate = useNavigate()
     const { user, logout } = useAuth()
-    
+    const [showBlockConfirm, setShowBlockConfirm] = useState(false)
+    const [showUnblockConfirm, setShowUnblockConfirm] = useState(false)
+
     // Fetch user profile to check admin status
     const { data: userProfile } = useQuery({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            if (!user?.id) return null
+            if (!user?.id) {
+return null
+}
             const response = await fetch('/api/users/me/profile', {
                 credentials: 'include',
             })
-            if (!response.ok) return null
+            if (!response.ok) {
+return null
+}
             return response.json()
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
     })
-    
+
     const isAdmin = userProfile?.isAdmin || false
 
     const { data: instance, isLoading, error } = useInstanceDetail(domain || '')
@@ -49,7 +52,9 @@ export function InstanceDetailPage() {
     }, [instance])
 
     const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Never'
+        if (!dateString) {
+return 'Never'
+}
         const date = new Date(dateString)
         return date.toLocaleDateString('en-US', {
             month: 'long',
@@ -61,19 +66,25 @@ export function InstanceDetailPage() {
     }
 
     const handleBlock = () => {
-        if (confirm(`Are you sure you want to block ${domain}?`)) {
-            blockMutation.mutate(undefined, {
-                onSuccess: () => {
-                    navigate('/instances')
-                },
-            })
-        }
+        setShowBlockConfirm(true)
+    }
+
+    const confirmBlock = () => {
+        setShowBlockConfirm(false)
+        blockMutation.mutate(undefined, {
+            onSuccess: () => {
+                navigate('/instances')
+            },
+        })
     }
 
     const handleUnblock = () => {
-        if (confirm(`Are you sure you want to unblock ${domain}?`)) {
-            unblockMutation.mutate(undefined)
-        }
+        setShowUnblockConfirm(true)
+    }
+
+    const confirmUnblock = () => {
+        setShowUnblockConfirm(false)
+        unblockMutation.mutate(undefined)
     }
 
     const handleRefresh = () => {
@@ -255,6 +266,32 @@ export function InstanceDetailPage() {
                     </Card>
                 )}
             </Container>
+
+            {/* Block Confirmation */}
+            <ConfirmationModal
+                isOpen={showBlockConfirm}
+                title="Block Instance"
+                message={`Are you sure you want to block ${domain}?`}
+                confirmLabel="Block"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmBlock}
+                onCancel={() => setShowBlockConfirm(false)}
+                isPending={blockMutation.isPending}
+            />
+
+            {/* Unblock Confirmation */}
+            <ConfirmationModal
+                isOpen={showUnblockConfirm}
+                title="Unblock Instance"
+                message={`Are you sure you want to unblock ${domain}?`}
+                confirmLabel="Unblock"
+                cancelLabel="Cancel"
+                variant="default"
+                onConfirm={confirmUnblock}
+                onCancel={() => setShowUnblockConfirm(false)}
+                isPending={unblockMutation.isPending}
+            />
         </div>
     )
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useState, type FormEvent } from 'react'
+import { useAuth } from '../hooks/useAuth'
 
 interface SignupModalProps {
     isOpen: boolean
@@ -19,7 +19,9 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
     const { login, signup } = useAuth()
     const submitLabel = isLogin ? 'Sign In' : 'Create Account'
 
-    if (!isOpen) return null
+    if (!isOpen) {
+return null
+}
 
     const getActionText = () => {
         switch (action) {
@@ -34,7 +36,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
         }
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError('')
         setLoading(true)
@@ -190,4 +192,3 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
         </div>
     )
 }
-

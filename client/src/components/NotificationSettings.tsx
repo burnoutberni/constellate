@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { Button } from './ui/Button'
-import type { NotificationType } from '../types/notification'
+import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
+import type { NotificationType } from '@/types'
 
 interface NotificationPreferences {
     [key: string]: boolean
@@ -40,7 +39,7 @@ const notificationTypes: Array<{ type: NotificationType; label: string; descript
     },
 ]
 
-export interface NotificationSettingsProps {
+interface NotificationSettingsProps {
     /** Current notification preferences */
     preferences?: NotificationPreferences
     /** Callback when preferences are updated */
@@ -66,7 +65,7 @@ export function NotificationSettings({
                 defaults[type] = preferences[type] ?? true
             })
             return defaults
-        }
+        },
     )
 
     const [hasChanges, setHasChanges] = useState(false)
@@ -134,7 +133,7 @@ export function NotificationSettings({
             <CardContent>
                 <div className="space-y-4">
                     <p className="text-sm text-text-secondary mb-6">
-                        Choose which notifications you'd like to receive. You can always change
+                        Choose which notifications you&apos;d like to receive. You can always change
                         these settings later.
                     </p>
 

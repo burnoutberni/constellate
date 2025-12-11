@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { Notification } from '../../types'
+import type { Notification } from '@/types'
 
 export interface NotificationsResponse {
     notifications: Notification[]
@@ -59,7 +59,7 @@ export function useMarkNotificationRead() {
 
                 const wasUnread = data.notifications.some((item) => item.id === notification.id && !item.read)
                 const updatedNotifications = data.notifications.map((item) =>
-                    item.id === notification.id ? notification : item
+                    item.id === notification.id ? notification : item,
                 )
 
                 queryClient.setQueryData(queryKey, {
@@ -111,4 +111,3 @@ export function useMarkAllNotificationsRead() {
         },
     })
 }
-

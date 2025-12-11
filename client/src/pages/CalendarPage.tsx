@@ -2,16 +2,20 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRealtime, type RealtimeEvent } from '../hooks/useRealtime'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../contexts/AuthContext'
-import { Event } from '../types/event'
+import { useAuth } from '../hooks/useAuth'
+import type { Event } from '@/types'
 import { eventsWithinRange } from '../lib/recurrence'
 import { CalendarView } from '../components/CalendarView'
 import { CalendarNavigation } from '../components/CalendarNavigation'
 import { CalendarEventPopup } from '../components/CalendarEventPopup'
-import { Card } from '../components/ui/Card'
+import { Card } from '@/components/ui'
+import { useThemeColors } from '@/design-system'
+import { useUIStore } from '@/stores'
 
 export function CalendarPage() {
+    const colors = useThemeColors()
     const navigate = useNavigate()
+    const addErrorToast = useUIStore((state) => state.addErrorToast)
     const [events, setEvents] = useState<Event[]>([])
     const [currentDate, setCurrentDate] = useState(new Date())
     const [view, setView] = useState<'month' | 'week' | 'day'>('month')
@@ -21,7 +25,7 @@ export function CalendarPage() {
 
     const dateRange = useMemo(() => {
         let start: Date, end: Date
-        
+
         if (view === 'month') {
             start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
             end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -33,7 +37,7 @@ export function CalendarPage() {
             start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0, 0)
             end = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59, 999)
         }
-        
+
         return {
             start,
             end,
@@ -47,7 +51,9 @@ export function CalendarPage() {
     // Fetch user's attendance data
     useEffect(() => {
         const fetchAttendance = async () => {
-            if (!user) return
+            if (!user) {
+return
+}
             try {
                 const response = await fetch('/api/user/attendance')
                 if (response.ok) {
@@ -61,9 +67,7 @@ export function CalendarPage() {
         fetchAttendance()
     }, [user])
 
-    const userAttendingEventIds = useMemo(() => {
-        return new Set(userAttendance.map((a) => a.eventId))
-    }, [userAttendance])
+    const userAttendingEventIds = useMemo(() => new Set(userAttendance.map((a) => a.eventId)), [userAttendance])
 
     // Real-time updates
     const isEventRelevant = useCallback(
@@ -74,14 +78,14 @@ export function CalendarPage() {
             }
             if (event.recurrencePattern && event.recurrenceEndDate) {
                 const recurrenceEndMs = new Date(event.recurrenceEndDate).getTime()
-                return !Number.isNaN(recurrenceEndMs) && 
+                return !Number.isNaN(recurrenceEndMs) &&
                        !Number.isNaN(eventStartMs) &&
-                       eventStartMs <= dateRange.endMs && 
+                       eventStartMs <= dateRange.endMs &&
                        recurrenceEndMs >= dateRange.startMs
             }
             return false
         },
-        [dateRange.startMs, dateRange.endMs]
+        [dateRange.startMs, dateRange.endMs],
     )
 
     const handleRealtimeEvent = useCallback((eventMessage: RealtimeEvent) => {
@@ -139,12 +143,12 @@ export function CalendarPage() {
         }
 
         fetchEvents()
-    }, [dateRange.startMs, dateRange.endMs, view])
+    }, [dateRange.start, dateRange.end, dateRange.startMs, dateRange.endMs, view])
 
     // Calendar helpers
     const rangeEvents = useMemo(
         () => eventsWithinRange(events, dateRange.start, dateRange.end),
-        [events, dateRange.startMs, dateRange.endMs]
+        [events, dateRange.start, dateRange.end],
     )
 
     const upcomingEvents = useMemo(() => {
@@ -153,22 +157,20 @@ export function CalendarPage() {
         return withinRange
             .filter((event) => new Date(event.startTime) >= now)
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    }, [events, dateRange.endMs])
+    }, [events, dateRange.end])
 
     const getDisplayText = () => {
         if (view === 'month') {
             return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-        } else if (view === 'week') {
+        } if (view === 'week') {
             const { start: startOfWeek, end: endOfWeek } = dateRange
-            
+
             if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
                 return `${startOfWeek.toLocaleDateString('en-US', { month: 'long' })} ${startOfWeek.getDate()} - ${endOfWeek.getDate()}, ${startOfWeek.getFullYear()}`
-            } else {
-                return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`
             }
-        } else {
-            return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`
         }
+            return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     }
 
     const handleEventClick = useCallback((event: Event, position: { x: number; y: number }) => {
@@ -196,9 +198,9 @@ export function CalendarPage() {
             document.body.removeChild(a)
         } catch (error) {
             console.error('Error exporting event:', error)
-            alert('Failed to export event. Please try again.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to export event. Please try again.' })
         }
-    }, [])
+    }, [addErrorToast])
 
     const handleExportGoogle = useCallback(async (eventId: string) => {
         try {
@@ -214,14 +216,14 @@ export function CalendarPage() {
             }
         } catch (error) {
             console.error('Error exporting to Google Calendar:', error)
-            alert('Failed to export to Google Calendar. Please try again.')
+            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to export to Google Calendar. Please try again.' })
         }
-    }, [])
+    }, [addErrorToast])
 
     return (
         <div className="min-h-screen bg-background-primary">
             <Navbar isConnected={isConnected} user={user} onLogout={logout} />
-            
+
             {/* Calendar Controls */}
             <div className="max-w-6xl mx-auto px-4 py-4">
                 <CalendarNavigation
@@ -270,7 +272,7 @@ export function CalendarPage() {
                                             >
                                                 <div
                                                     className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                    style={{ backgroundColor: event.user?.displayColor || '#3b82f6' }}
+                                                    style={{ backgroundColor: event.user?.displayColor || colors.info[500] }}
                                                 >
                                                     {new Date(event.startTime).getDate()}
                                                 </div>

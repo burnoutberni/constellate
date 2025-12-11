@@ -56,8 +56,12 @@ jobs:
       - name: Install client dependencies
         run: npm ci --prefix client
 
-      - name: Run knip (tree-shaking analysis)
+      - name: Run knip (server-side analysis)
         run: npm run analyze:unused
+
+      - name: Run knip (client-side analysis)
+        working-directory: client
+        run: npx knip
 
   test:
     name: Test

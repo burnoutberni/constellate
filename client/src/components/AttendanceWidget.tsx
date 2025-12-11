@@ -1,7 +1,7 @@
-import { Button } from './ui/Button'
+import { Button } from './ui'
 import { SignUpPrompt } from './SignUpPrompt'
 
-export interface AttendanceWidgetProps {
+interface AttendanceWidgetProps {
     /**
      * Current user's attendance status
      */
@@ -91,8 +91,12 @@ export function AttendanceWidget({
     }
 
     const getShareButtonText = () => {
-        if (isSharePending) return 'Sharing...'
-        if (userHasShared) return '✅ Shared'
+        if (isSharePending) {
+return 'Sharing...'
+}
+        if (userHasShared) {
+return '✅ Shared'
+}
         return '🔁 Share'
     }
 

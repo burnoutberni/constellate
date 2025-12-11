@@ -1,6 +1,6 @@
 /**
  * Layout Component Library
- * 
+ *
  * Layout primitives for consistent page structure and spacing.
  * All components are responsive and use design tokens.
  */
@@ -38,4 +38,3 @@ export {
   PageLayout,
   type PageLayoutProps,
 } from './PageLayout'
-

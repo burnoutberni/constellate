@@ -1,6 +1,6 @@
-import { Button } from './ui/Button'
+import { Button } from './ui'
 
-export interface CalendarExportProps {
+interface CalendarExportProps {
     /**
      * Event title
      */
@@ -36,7 +36,7 @@ export interface CalendarExportProps {
  */
 function formatICalDate(dateString: string): string {
     const date = new Date(dateString)
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    return `${date.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`
 }
 
 /**

@@ -36,4 +36,3 @@ export const queryKeys = {
         detail: (domain: string) => ['instances', 'detail', domain] as const,
     },
 } as const
-

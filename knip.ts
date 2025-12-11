@@ -1,48 +1,30 @@
 import type { KnipConfig } from 'knip';
 
+/**
+ * Knip configuration for the server-side codebase.
+ * 
+ * Client-side configuration is handled separately in client/knip.ts
+ */
 const config: KnipConfig = {
     ignoreExportsUsedInFile: true, // Allow exports that are only used in the same file
-    workspaces: {
-        '.': {
-            entry: ['src/server.ts', 'prisma/seed.ts'],
-            project: ['src/**/*.ts'],
-            ignore: [
-                '**/*.d.ts', 
-                'src/tests/**/*.ts',
-                // Public API types that may be used externally (ActivityPub types, Session type)
-                'src/lib/activitypubSchemas.ts',
-                'src/auth.ts',
-                'src/constants/activitypub.ts',
-            ],
-            ignoreDependencies: [
-                'eslint-config-love',
-            ],
-        },
-        'client': {
-            entry: ['index.html', 'src/main.tsx'],
-            project: ['src/**/*.{ts,tsx}'],
-            ignore: [
-                '**/*.d.ts',
-                // Design system public API - exported for external use as design system is built
-                'src/design-system/**/*.ts',
-                // Type definitions that are part of public API
-                'src/types/**/*.ts',
-                // UI component barrel export - public API entry point
-                'src/components/ui/index.ts',
-                // Layout component barrel export - public API entry point
-                'src/components/layout/index.ts',
-            ],
-            // Reinclude barrel files in treeshaking analysis
-            includeEntryExports: true,
-            ignoreDependencies: [
-                // ESLint plugins are used by root ESLint config
-                '@typescript-eslint/eslint-plugin',
-                '@typescript-eslint/parser',
-                'eslint-plugin-react-hooks',
-                'eslint-plugin-react-refresh',
-            ],
-        }
-    }
+    
+    entry: ['src/server.ts', 'prisma/seed.ts'],
+    project: ['src/**/*.ts'],
+    
+    ignore: [
+        '**/*.d.ts', 
+        'src/tests/**/*.ts',
+        // Exclude client directory - it has its own knip.ts config
+        'client/**/*',
+        // Public API types that may be used externally (ActivityPub types, Session type)
+        'src/lib/activitypubSchemas.ts',
+        'src/auth.ts',
+        'src/constants/activitypub.ts',
+    ],
+    
+    ignoreDependencies: [
+        'eslint-config-love',
+    ],
 };
 
 export default config;

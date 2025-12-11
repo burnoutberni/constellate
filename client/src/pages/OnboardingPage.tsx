@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 
 export function OnboardingPage() {
     const navigate = useNavigate()
@@ -17,8 +17,8 @@ export function OnboardingPage() {
     // Check if setup is actually needed
     useEffect(() => {
         fetch('/api/setup/status')
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 if (!data.setupRequired) {
                     navigate('/')
                 }
@@ -26,7 +26,7 @@ export function OnboardingPage() {
             .catch(console.error)
     }, [navigate])
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
@@ -67,7 +67,7 @@ export function OnboardingPage() {
                         Welcome to Constellate
                     </h2>
                     <p className="mt-2 text-center text-sm text-gray-600">
-                        Let's set up your admin account to get started.
+                        Let&apos;s set up your admin account to get started.
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

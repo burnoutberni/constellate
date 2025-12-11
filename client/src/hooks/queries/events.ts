@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { Event, EventDetail, EventRecommendationPayload } from '../../types'
+import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
 
 interface EventsResponse {
     events: Event[]
@@ -89,14 +89,14 @@ export function useEventDetail(username: string, eventId: string) {
                 `/api/events/by-user/${encodeURIComponent(username)}/${encodeURIComponent(eventId)}`,
                 {
                     credentials: 'include',
-                }
+                },
             )
             if (!response.ok) {
                 throw new Error('Failed to fetch event')
             }
             return response.json()
         },
-        enabled: !!username && !!eventId,
+        enabled: Boolean(username) && Boolean(eventId),
     })
 }
 
@@ -208,7 +208,7 @@ export function useRSVP(eventId: string, userId?: string) {
                     throw new Error('Failed to remove attendance')
                 }
                 return response.json()
-            } else {
+            }
                 // Set attendance
                 const payload: Record<string, unknown> = { status: input.status }
                 if (input.reminderMinutesBeforeStart !== undefined) {
@@ -226,7 +226,6 @@ export function useRSVP(eventId: string, userId?: string) {
                     throw new Error('Failed to set attendance')
                 }
                 return response.json()
-            }
         },
         onMutate: async (input) => {
             // Cancel outgoing queries
@@ -250,7 +249,7 @@ export function useRSVP(eventId: string, userId?: string) {
                     if (input === null) {
                         // Remove attendance
                         const updatedAttendance = eventDetail.attendance?.filter(
-                            (a: { user?: { id?: string } }) => userId && a.user?.id !== userId
+                            (a: { user?: { id?: string } }) => userId && a.user?.id !== userId,
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -313,7 +312,7 @@ export function useLikeEvent(eventId: string, userId?: string) {
                     throw new Error('Failed to unlike event')
                 }
                 return response.json()
-            } else {
+            }
                 // Like
                 const response = await fetch(`/api/events/${eventId}/like`, {
                     method: 'POST',
@@ -326,7 +325,6 @@ export function useLikeEvent(eventId: string, userId?: string) {
                     throw new Error('Failed to like event')
                 }
                 return response.json()
-            }
         },
         onMutate: async (liked) => {
             // Cancel outgoing queries
@@ -350,7 +348,7 @@ export function useLikeEvent(eventId: string, userId?: string) {
                     if (liked) {
                         // Remove like
                         const updatedLikes = eventDetail.likes?.filter(
-                            (l: { user?: { id?: string } }) => userId && l.user?.id !== userId
+                            (l: { user?: { id?: string } }) => userId && l.user?.id !== userId,
                         ) || []
                         queryClient.setQueryData(queryKey, {
                             ...eventDetail,
@@ -483,7 +481,7 @@ export function useAddComment(eventId: string) {
 export function useTrendingEvents(
     limit: number = 5,
     windowDays: number = 7,
-    options?: UseTrendingEventsOptions
+    options?: UseTrendingEventsOptions,
 ) {
     return useQuery<TrendingEventsResponse>({
         queryKey: queryKeys.events.trending(limit, windowDays),
@@ -559,5 +557,3 @@ export function usePlatformStats() {
         staleTime: 60_000, // Cache for 1 minute
     })
 }
-
-

@@ -56,7 +56,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       required,
       ...props
     },
-    ref
+    ref,
   ) => {
     const generatedId = React.useId()
     const textareaId = id || `textarea-${generatedId}`
@@ -107,7 +107,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
               'block text-sm font-medium mb-1.5',
               'text-text-secondary',
               error && 'text-error-600 dark:text-error-400',
-              required && "after:content-['*'] after:ml-0.5 after:text-error-500"
+              required && "after:content-['*'] after:ml-0.5 after:text-error-500",
             )}
           >
             {label}
@@ -144,7 +144,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 Textarea.displayName = 'Textarea'

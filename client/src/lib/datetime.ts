@@ -37,4 +37,3 @@ export function formatRelativeTime(value: string | number | Date) {
         day: 'numeric',
     })
 }
-

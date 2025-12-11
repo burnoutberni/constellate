@@ -1,6 +1,6 @@
 /**
  * Design System Tokens
- * 
+ *
  * Centralized design tokens for the Constellate application.
  * These tokens define the visual language and ensure consistency
  * across all components and pages.
@@ -13,7 +13,7 @@
 /**
  * Primary color palette - Blue tones for main actions and branding
  */
-export const primaryColors = {
+const primaryColors = {
   50: '#f0f9ff',
   100: '#e0f2fe',
   200: '#bae6fd',
@@ -30,7 +30,7 @@ export const primaryColors = {
 /**
  * Secondary color palette - Purple/Accent tones for highlights
  */
-export const secondaryColors = {
+const secondaryColors = {
   50: '#fdf4ff',
   100: '#fae8ff',
   200: '#f5d0fe',
@@ -47,7 +47,7 @@ export const secondaryColors = {
 /**
  * Neutral color palette - Grays for text, backgrounds, and borders
  */
-export const neutralColors = {
+const neutralColors = {
   50: '#f9fafb',
   100: '#f3f4f6',
   200: '#e5e7eb',
@@ -64,7 +64,7 @@ export const neutralColors = {
 /**
  * Semantic colors - Success, Warning, Error, Info
  */
-export const semanticColors = {
+const semanticColors = {
   success: {
     50: '#f0fdf4',
     100: '#dcfce7',
@@ -122,20 +122,20 @@ export const semanticColors = {
 /**
  * Light theme color mappings
  */
-export const lightThemeColors = {
+const lightThemeColors = {
   // Brand colors
   primary: primaryColors,
   secondary: secondaryColors,
-  
+
   // Neutral colors
   neutral: neutralColors,
-  
+
   // Semantic colors
   success: semanticColors.success,
   warning: semanticColors.warning,
   error: semanticColors.error,
   info: semanticColors.info,
-  
+
   // Background colors
   background: {
     primary: '#ffffff',
@@ -143,7 +143,7 @@ export const lightThemeColors = {
     tertiary: neutralColors[100],
     inverse: neutralColors[900],
   },
-  
+
   // Text colors
   text: {
     primary: neutralColors[900],
@@ -154,7 +154,7 @@ export const lightThemeColors = {
     link: primaryColors[600],
     linkHover: primaryColors[700],
   },
-  
+
   // Border colors
   border: {
     default: neutralColors[200],
@@ -168,20 +168,20 @@ export const lightThemeColors = {
 /**
  * Dark theme color mappings
  */
-export const darkThemeColors = {
+const darkThemeColors = {
   // Brand colors (same as light)
   primary: primaryColors,
   secondary: secondaryColors,
-  
+
   // Neutral colors (same as light)
   neutral: neutralColors,
-  
+
   // Semantic colors (same as light)
   success: semanticColors.success,
   warning: semanticColors.warning,
   error: semanticColors.error,
   info: semanticColors.info,
-  
+
   // Background colors (inverted)
   background: {
     primary: neutralColors[950],
@@ -189,7 +189,7 @@ export const darkThemeColors = {
     tertiary: neutralColors[800],
     inverse: neutralColors[50],
   },
-  
+
   // Text colors (inverted)
   text: {
     primary: neutralColors[50],
@@ -200,7 +200,7 @@ export const darkThemeColors = {
     link: primaryColors[400],
     linkHover: primaryColors[300],
   },
-  
+
   // Border colors
   border: {
     default: neutralColors[800],
@@ -218,7 +218,7 @@ export const darkThemeColors = {
 /**
  * Font families
  */
-export const fontFamilies = {
+const fontFamilies = {
   sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
   mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'monospace'],
 } as const
@@ -226,7 +226,7 @@ export const fontFamilies = {
 /**
  * Font sizes
  */
-export const fontSizes = {
+const fontSizes = {
   xs: '0.75rem',    // 12px
   sm: '0.875rem',   // 14px
   base: '1rem',     // 16px
@@ -242,7 +242,7 @@ export const fontSizes = {
 /**
  * Font weights
  */
-export const fontWeights = {
+const fontWeights = {
   light: 300,
   normal: 400,
   medium: 500,
@@ -254,7 +254,7 @@ export const fontWeights = {
 /**
  * Line heights
  */
-export const lineHeights = {
+const lineHeights = {
   none: 1,
   tight: 1.25,
   snug: 1.375,
@@ -266,7 +266,7 @@ export const lineHeights = {
 /**
  * Letter spacing
  */
-export const letterSpacing = {
+const letterSpacing = {
   tighter: '-0.05em',
   tight: '-0.025em',
   normal: '0em',
@@ -278,7 +278,7 @@ export const letterSpacing = {
 /**
  * Typography scale - Predefined text styles
  */
-export const typography = {
+const typography = {
   h1: {
     fontSize: fontSizes['5xl'],
     fontWeight: fontWeights.bold,
@@ -348,7 +348,7 @@ export const typography = {
 /**
  * Spacing scale - Consistent spacing units (4px base)
  */
-export const spacing = {
+const spacing = {
   0: '0',
   1: '0.25rem',   // 4px
   2: '0.5rem',    // 8px
@@ -375,7 +375,7 @@ export const spacing = {
 /**
  * Border radius scale
  */
-export const borderRadius = {
+const borderRadius = {
   none: '0',
   sm: '0.125rem',   // 2px
   base: '0.25rem',  // 4px
@@ -394,7 +394,7 @@ export const borderRadius = {
 /**
  * Shadow scale - Elevation system
  */
-export const shadows = {
+const shadows = {
   none: 'none',
   xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
   sm: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
@@ -409,7 +409,7 @@ export const shadows = {
 /**
  * Dark mode shadows (higher opacity shadows for dark backgrounds)
  */
-export const darkShadows = {
+const darkShadows = {
   none: 'none',
   xs: '0 1px 2px 0 rgb(0 0 0 / 0.3)',
   sm: '0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4)',
@@ -428,7 +428,7 @@ export const darkShadows = {
 /**
  * Responsive breakpoints
  */
-export const breakpoints = {
+const breakpoints = {
   xs: '0px',
   sm: '640px',
   md: '768px',
@@ -444,7 +444,7 @@ export const breakpoints = {
 /**
  * Z-index scale for layering
  */
-export const zIndex = {
+const zIndex = {
   base: 0,
   dropdown: 1000,
   sticky: 1020,
@@ -463,7 +463,7 @@ export const zIndex = {
 /**
  * Transition durations
  */
-export const transitionDuration = {
+const transitionDuration = {
   fast: '150ms',
   base: '200ms',
   slow: '300ms',
@@ -473,7 +473,7 @@ export const transitionDuration = {
 /**
  * Transition timing functions
  */
-export const transitionTiming = {
+const transitionTiming = {
   linear: 'linear',
   easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
   easeOut: 'cubic-bezier(0, 0, 0.2, 1)',
@@ -483,7 +483,7 @@ export const transitionTiming = {
 /**
  * Common transitions
  */
-export const transitions = {
+const transitions = {
   default: `${transitionDuration.base} ${transitionTiming.easeInOut}`,
   fast: `${transitionDuration.fast} ${transitionTiming.easeInOut}`,
   slow: `${transitionDuration.slow} ${transitionTiming.easeInOut}`,
@@ -495,6 +495,12 @@ export const transitions = {
 
 export const tokens = {
   colors: {
+    // Color palettes (for Tailwind and direct access)
+    primary: primaryColors,
+    secondary: secondaryColors,
+    neutral: neutralColors,
+    semantic: semanticColors,
+    // Theme-specific color mappings
     light: lightThemeColors,
     dark: darkThemeColors,
   },
@@ -508,6 +514,8 @@ export const tokens = {
   breakpoints,
   zIndex,
   transitions,
+  transitionDuration,
+  transitionTiming,
   fontFamilies,
   fontSizes,
   fontWeights,

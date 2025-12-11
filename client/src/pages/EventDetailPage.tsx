@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import {
     useEventDetail,
     useRSVP,
@@ -10,8 +10,8 @@ import {
     useDeleteEvent,
     useShareEvent,
     useEventReminder,
-} from '../hooks/queries/events'
-import { queryKeys } from '../hooks/queries/keys'
+    queryKeys,
+} from '@/hooks/queries'
 import { SignupModal } from '../components/SignupModal'
 import { EventHeader } from '../components/EventHeader'
 import { EventInfo } from '../components/EventInfo'
@@ -20,12 +20,12 @@ import { AttendeeList } from '../components/AttendeeList'
 import { ReminderSelector } from '../components/ReminderSelector'
 import { CalendarExport } from '../components/CalendarExport'
 import { CommentList } from '../components/CommentList'
-import { Button } from '../components/ui/Button'
-import { Card, CardContent } from '../components/ui/Card'
-import { Container } from '../components/layout/Container'
+import { Button, Card, CardContent } from '@/components/ui'
+import { Container } from '@/components/layout'
+import { ConfirmationModal } from '../components/ConfirmationModal'
 import { setSEOMetadata } from '../lib/seo'
 import { getDefaultTimezone } from '../lib/timezones'
-import { useUIStore } from '../stores'
+import { useUIStore } from '@/stores'
 import { formatDate } from '../lib/formatUtils'
 
 export function EventDetailPage() {
@@ -37,6 +37,8 @@ export function EventDetailPage() {
     const [eventId, setEventId] = useState<string>('')
     const [signupModalOpen, setSignupModalOpen] = useState(false)
     const [pendingAction, setPendingAction] = useState<'rsvp' | 'like' | 'comment' | 'share' | null>(null)
+    const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null)
+    const [showDeleteEventConfirm, setShowDeleteEventConfirm] = useState(false)
     const [selectedReminder, setSelectedReminder] = useState<number | null>(null)
     const [hasShared, setHasShared] = useState(false)
 
@@ -57,7 +59,9 @@ export function EventDetailPage() {
     const { data: viewerProfile } = useQuery({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            if (!user?.id) return null
+            if (!user?.id) {
+return null
+}
             const response = await fetch('/api/users/me/profile', {
                 credentials: 'include',
             })
@@ -66,7 +70,7 @@ export function EventDetailPage() {
             }
             return response.json()
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
         staleTime: 5 * 60 * 1000,
     })
 
@@ -81,24 +85,28 @@ export function EventDetailPage() {
 
     // Derive user's attendance and like status from event data
     const userAttendance = useMemo(() => {
-        if (!event || !user) return null
+        if (!event || !user) {
+return null
+}
         return event.attendance?.find((a) => a.user.id === user.id)?.status || null
     }, [event, user])
 
     const userLiked = useMemo(() => {
-        if (!event || !user) return false
-        return !!event.likes?.find((l) => l.user.id === user.id)
+        if (!event || !user) {
+return false
+}
+        return Boolean(event.likes?.find((l) => l.user.id === user.id))
     }, [event, user])
-    
+
     // Check if user has already shared this event
     // This checks if the current event is a share by this user, or if the user has shared the original event
-    const displayedEventId = useMemo(() => {
-        return event?.sharedEvent?.id ?? event?.id
-    }, [event])
+    const displayedEventId = useMemo(() => event?.sharedEvent?.id ?? event?.id, [event])
 
     const userHasShared = useMemo(() => {
-        if (!event || !user || !displayedEventId) return false
-        return (event.userId === user.id && !!event.sharedEvent) || (event.userHasShared === true)
+        if (!event || !user || !displayedEventId) {
+return false
+}
+        return (event.userId === user.id && Boolean(event.sharedEvent)) || (event.userHasShared === true)
     }, [event, user, displayedEventId])
 
     // Note: viewerReminders is an array from the API, but the schema enforces a unique constraint
@@ -111,6 +119,16 @@ export function EventDetailPage() {
     useEffect(() => {
         setSelectedReminder(activeReminderMinutes)
     }, [activeReminderMinutes])
+
+    // Compute derived values before any early returns
+    const displayedEvent = useMemo(() => event?.sharedEvent ?? event, [event])
+    const eventTimezone = useMemo(() => displayedEvent?.timezone || getDefaultTimezone(), [displayedEvent])
+    const originalOwner = useMemo(() => event?.sharedEvent?.user, [event])
+    const attending = useMemo(() => event?.attendance?.filter((a) => a.status === 'attending').length || 0, [event])
+    const maybe = useMemo(() => event?.attendance?.filter((a) => a.status === 'maybe').length || 0, [event])
+    const eventStartDate = useMemo(() => displayedEvent ? new Date(displayedEvent.startTime) : null, [displayedEvent])
+    const eventHasStarted = useMemo(() => eventStartDate ? eventStartDate.getTime() <= Date.now() : false, [eventStartDate])
+    const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
 
     const handleRSVP = async (status: string) => {
         if (!user) {
@@ -214,10 +232,19 @@ export function EventDetailPage() {
         setPendingAction(null)
     }
 
-
     const handleDeleteComment = async (commentId: string) => {
-        if (!user) return
-        if (!confirm('Are you sure you want to delete this comment?')) return
+        if (!user) {
+return
+}
+        setDeleteCommentId(commentId)
+    }
+
+    const confirmDeleteComment = async () => {
+        if (!deleteCommentId) {
+return
+}
+        const commentId = deleteCommentId
+        setDeleteCommentId(null)
 
         try {
             const response = await fetch(`/api/events/comments/${commentId}`, {
@@ -239,10 +266,18 @@ export function EventDetailPage() {
         }
     }
 
-    const handleDeleteEvent = async () => {
-        if (!user) return
-        if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) return
+    const handleDeleteEvent = () => {
+        if (!user) {
+return
+}
+        setShowDeleteEventConfirm(true)
+    }
 
+    const confirmDeleteEvent = async () => {
+        if (!user) {
+return
+}
+        setShowDeleteEventConfirm(false)
         try {
             await deleteEventMutation.mutateAsync(user.id)
             // Redirect to feed after successful deletion
@@ -254,7 +289,9 @@ export function EventDetailPage() {
     }
 
     const handleDuplicateEvent = () => {
-        if (!event) return
+        if (!event) {
+return
+}
         // Navigate to edit page with duplicate intent - we'll handle this in EditEventPage
         // For now, just navigate to create event modal (would need to open modal with pre-filled data)
         addErrorToast({ id: crypto.randomUUID(), message: 'Duplicate functionality coming soon!' })
@@ -266,21 +303,21 @@ export function EventDetailPage() {
     // Set SEO metadata when event data is available
     useEffect(() => {
         if (event) {
-            const displayedEvent = event.sharedEvent ?? event
-            const eventDate = formatDate(displayedEvent.startTime)
-            
+            const eventForSEO = event.sharedEvent ?? event
+            const eventDate = formatDate(eventForSEO.startTime)
+
             let description: string
-            if (displayedEvent.summary) {
-                const summaryText = displayedEvent.summary.slice(0, 150)
-                const ellipsis = displayedEvent.summary.length > 150 ? '...' : ''
+            if (eventForSEO.summary) {
+                const summaryText = eventForSEO.summary.slice(0, 150)
+                const ellipsis = eventForSEO.summary.length > 150 ? '...' : ''
                 description = `${summaryText}${ellipsis}`
             } else {
-                const locationText = displayedEvent.location ? ` at ${displayedEvent.location}` : ''
+                const locationText = eventForSEO.location ? ` at ${eventForSEO.location}` : ''
                 description = `Event on ${eventDate}${locationText}`
             }
-            
+
             setSEOMetadata({
-                title: displayedEvent.title,
+                title: eventForSEO.title,
                 description,
                 ogType: 'event',
                 canonicalUrl: window.location.href,
@@ -311,14 +348,36 @@ export function EventDetailPage() {
         )
     }
 
-    const displayedEvent = useMemo(() => event.sharedEvent ?? event, [event])
-    const eventTimezone = useMemo(() => displayedEvent.timezone || getDefaultTimezone(), [displayedEvent])
-    const originalOwner = useMemo(() => event.sharedEvent?.user, [event])
-    const attending = useMemo(() => event.attendance?.filter((a) => a.status === 'attending').length || 0, [event])
-    const maybe = useMemo(() => event.attendance?.filter((a) => a.status === 'maybe').length || 0, [event])
-    const eventStartDate = useMemo(() => new Date(displayedEvent.startTime), [displayedEvent])
-    const eventHasStarted = useMemo(() => eventStartDate.getTime() <= Date.now(), [eventStartDate])
-    const canManageReminder = useMemo(() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')), [user, userAttendance])
+    if (!event.user) {
+        return (
+            <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+                <Card padding="lg" className="text-center">
+                    <CardContent>
+                        <h2 className="text-2xl font-bold mb-4 text-text-primary">Event data incomplete</h2>
+                        <Link to="/feed">
+                            <Button variant="primary">Back to Feed</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    // Ensure displayedEvent exists before rendering
+    if (!displayedEvent) {
+        return (
+            <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+                <Card padding="lg" className="text-center">
+                    <CardContent>
+                        <h2 className="text-2xl font-bold mb-4 text-text-primary">Event data incomplete</h2>
+                        <Link to="/feed">
+                            <Button variant="primary">Back to Feed</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-background-secondary">
@@ -366,14 +425,14 @@ export function EventDetailPage() {
                         {/* Event Header */}
                         <EventHeader
                             organizer={{
-                                id: event.user!.id,
-                                username: event.user!.username,
-                                name: event.user!.name,
-                                profileImage: event.user!.profileImage,
-                                displayColor: event.user!.displayColor,
+                                id: event.user.id,
+                                username: event.user.username,
+                                name: event.user.name,
+                                profileImage: event.user.profileImage,
+                                displayColor: event.user.displayColor,
                             }}
                             eventId={eventId}
-                            isOwner={user?.id === event.user!.id}
+                            isOwner={user?.id === event.user.id}
                             onDelete={handleDeleteEvent}
                             isDeleting={deleteEventMutation.isPending}
                             onDuplicate={handleDuplicateEvent}
@@ -409,7 +468,7 @@ export function EventDetailPage() {
                                 likeCount={event.likes?.length || 0}
                                 userLiked={userLiked}
                                 userHasShared={hasShared || userHasShared}
-                                isAuthenticated={!!user}
+                                isAuthenticated={Boolean(user)}
                                 isRSVPPending={rsvpMutation.isPending}
                                 isLikePending={likeMutation.isPending}
                                 isSharePending={shareMutation.isPending}
@@ -424,7 +483,7 @@ export function EventDetailPage() {
                         <ReminderSelector
                             value={selectedReminder}
                             onChange={handleReminderChange}
-                            isAuthenticated={!!user}
+                            isAuthenticated={Boolean(user)}
                             canManageReminder={canManageReminder}
                             isPending={reminderMutation.isPending}
                             eventHasStarted={eventHasStarted}
@@ -452,7 +511,7 @@ export function EventDetailPage() {
                         <CommentList
                             comments={event.comments || []}
                             currentUserId={user?.id}
-                            isAuthenticated={!!user}
+                            isAuthenticated={Boolean(user)}
                             onAddComment={handleAddComment}
                             onReply={handleReply}
                             onDelete={handleDeleteComment}
@@ -472,6 +531,31 @@ export function EventDetailPage() {
                 }}
                 action={pendingAction && pendingAction !== 'share' ? pendingAction : undefined}
                 onSuccess={handleSignupSuccess}
+            />
+
+            {/* Delete Comment Confirmation */}
+            <ConfirmationModal
+                isOpen={deleteCommentId !== null}
+                title="Delete Comment"
+                message="Are you sure you want to delete this comment?"
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmDeleteComment}
+                onCancel={() => setDeleteCommentId(null)}
+            />
+
+            {/* Delete Event Confirmation */}
+            <ConfirmationModal
+                isOpen={showDeleteEventConfirm}
+                title="Delete Event"
+                message="Are you sure you want to delete this event? This action cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmDeleteEvent}
+                onCancel={() => setShowDeleteEventConfirm(false)}
+                isPending={deleteEventMutation.isPending}
             />
         </div>
     )

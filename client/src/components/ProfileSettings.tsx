@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { Input } from './ui/Input'
-import { Textarea } from './ui/Textarea'
-import { Button } from './ui/Button'
-import { Avatar } from './ui/Avatar'
-import { queryKeys } from '../hooks/queries/keys'
+import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Button, Avatar } from './ui'
+import { queryKeys } from '@/hooks/queries'
+import { useThemeColors } from '@/design-system'
+import { useUIStore } from '@/stores'
 
 interface ProfileSettingsProps {
   profile: {
@@ -21,12 +19,15 @@ interface ProfileSettingsProps {
 }
 
 export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
+  const colors = useThemeColors()
   const queryClient = useQueryClient()
+  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const addSuccessToast = useUIStore((state) => state.addSuccessToast)
   const [name, setName] = useState(profile.name || '')
   const [bio, setBio] = useState(profile.bio || '')
   const [profileImageUrl, setProfileImageUrl] = useState(profile.profileImage || '')
   const [headerImageUrl, setHeaderImageUrl] = useState(profile.headerImage || '')
-  const [displayColor, setDisplayColor] = useState(profile.displayColor || '#3b82f6')
+  const [displayColor, setDisplayColor] = useState(profile.displayColor || colors.info[500])
 
   // Update local state when profile changes
   useEffect(() => {
@@ -72,10 +73,10 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
         headerImage: headerImageUrl.trim() || undefined,
         displayColor,
       })
-      alert('Profile updated successfully!')
+      addSuccessToast({ id: crypto.randomUUID(), message: 'Profile updated successfully!' })
     } catch (error) {
       console.error('Failed to update profile:', error)
-      alert('Failed to update profile. Please try again.')
+      addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update profile. Please try again.' })
     }
   }
 
@@ -109,7 +110,7 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
             </div>
             <div
               className="w-12 h-12 rounded-full"
-              style={{ backgroundColor: displayColor }}
+              style={{ backgroundColor: displayColor || colors.info[500] }}
               title="Calendar color"
             />
           </div>

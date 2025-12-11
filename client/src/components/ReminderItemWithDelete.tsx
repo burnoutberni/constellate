@@ -1,7 +1,7 @@
 import { ReminderItem } from './ReminderItem'
-import { useDeleteReminder } from '../hooks/queries/reminders'
-import { useUIStore } from '../stores'
-import type { ReminderWithEvent } from '../types'
+import { useDeleteReminder } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
+import type { ReminderWithEvent } from '@/types'
 
 interface ReminderItemWithDeleteProps {
     reminder: ReminderWithEvent

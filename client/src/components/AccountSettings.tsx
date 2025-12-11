@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { Button } from './ui/Button'
-import { Input } from './ui/Input'
-import { useAuth } from '../contexts/AuthContext'
+import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
+import { useAuth } from '../hooks/useAuth'
+import { useUIStore } from '@/stores'
 
 interface AccountSettingsProps {
   profile: {
@@ -13,6 +12,8 @@ interface AccountSettingsProps {
 
 export function AccountSettings({ profile }: AccountSettingsProps) {
   const { logout } = useAuth()
+  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const addSuccessToast = useUIStore((state) => state.addSuccessToast)
   const [showPasswordChange, setShowPasswordChange] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -64,7 +65,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
       }
 
       // Success
-      alert('Password changed successfully!')
+      addSuccessToast({ id: crypto.randomUUID(), message: 'Password changed successfully!' })
       setShowPasswordChange(false)
       setCurrentPassword('')
       setNewPassword('')
@@ -72,7 +73,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
     } catch (error) {
       console.error('Failed to change password:', error)
       setPasswordError(
-        error instanceof Error ? error.message : 'Failed to change password. Please try again.'
+        error instanceof Error ? error.message : 'Failed to change password. Please try again.',
       )
     } finally {
       setIsChangingPassword(false)
@@ -81,13 +82,12 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== profile.username) {
-      alert('Please type your username correctly to confirm deletion')
+      addErrorToast({ id: crypto.randomUUID(), message: 'Please type your username correctly to confirm deletion' })
       return
     }
 
-    if (!confirm('This action is irreversible. Are you absolutely sure?')) {
-      return
-    }
+    // Confirmation is already handled by the inline UI (showDeleteConfirm)
+    // No need for additional confirm() call
 
     try {
       // Note: This endpoint may need to be implemented in the backend
@@ -101,14 +101,15 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
       }
 
       // Log out and redirect
-      alert('Your account has been deleted.')
+      addSuccessToast({ id: crypto.randomUUID(), message: 'Your account has been deleted.' })
       await logout()
       window.location.href = '/'
     } catch (error) {
       console.error('Failed to delete account:', error)
-      alert(
-        'Failed to delete account. This feature may not be available yet. Please contact support.'
-      )
+      addErrorToast({
+        id: crypto.randomUUID(),
+        message: 'Failed to delete account. This feature may not be available yet. Please contact support.',
+      })
     }
   }
 

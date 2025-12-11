@@ -1,6 +1,6 @@
 import { ReminderItem } from './ReminderItem'
 import { ReminderItemWithDelete } from './ReminderItemWithDelete'
-import type { ReminderWithEvent } from '../types'
+import type { ReminderWithEvent } from '@/types'
 
 interface ReminderListProps {
     reminders: ReminderWithEvent[]
@@ -18,7 +18,7 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                 <div className="text-6xl mb-4">🔔</div>
                 <h3 className="text-lg font-semibold text-text-primary mb-2">No reminders yet</h3>
                 <p className="text-text-secondary">
-                    Set reminders on events you're attending to get notified before they start.
+                    Set reminders on events you&apos;re attending to get notified before they start.
                 </p>
             </div>
         )
@@ -29,7 +29,7 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
     const sentReminders = reminders.filter((r) => r.status === 'SENT')
     const failedReminders = reminders.filter((r) => r.status === 'FAILED')
     const otherReminders = reminders.filter(
-        (r) => r.status !== 'PENDING' && r.status !== 'SENT' && r.status !== 'FAILED'
+        (r) => r.status !== 'PENDING' && r.status !== 'SENT' && r.status !== 'FAILED',
     )
 
     return (
@@ -49,10 +49,12 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                                     reminder={reminder}
                                     onDelete={(id) => {
                                         const r = reminders.find((rem) => rem.id === id)
-                                        if (r) onDelete(id, r.event.id)
+                                        if (r) {
+onDelete(id, r.event.id)
+}
                                     }}
                                 />
-                            )
+                            ),
                         )}
                     </div>
                 </div>
@@ -73,10 +75,12 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                                     reminder={reminder}
                                     onDelete={(id) => {
                                         const r = reminders.find((rem) => rem.id === id)
-                                        if (r) onDelete(id, r.event.id)
+                                        if (r) {
+onDelete(id, r.event.id)
+}
                                     }}
                                 />
-                            )
+                            ),
                         )}
                     </div>
                 </div>
@@ -97,10 +101,12 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                                     reminder={reminder}
                                     onDelete={(id) => {
                                         const r = reminders.find((rem) => rem.id === id)
-                                        if (r) onDelete(id, r.event.id)
+                                        if (r) {
+onDelete(id, r.event.id)
+}
                                     }}
                                 />
-                            )
+                            ),
                         )}
                     </div>
                 </div>
@@ -121,10 +127,12 @@ export function ReminderList({ reminders, onDelete }: ReminderListProps) {
                                     reminder={reminder}
                                     onDelete={(id) => {
                                         const r = reminders.find((rem) => rem.id === id)
-                                        if (r) onDelete(id, r.event.id)
+                                        if (r) {
+onDelete(id, r.event.id)
+}
                                     }}
                                 />
-                            )
+                            ),
                         )}
                     </div>
                 </div>

@@ -1,10 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Card, CardContent } from './ui/Card'
-import { Button } from './ui/Button'
-import { Badge } from './ui/Badge'
-import { Avatar } from './ui/Avatar'
-import type { ReminderWithEvent, ReminderStatus } from '../types'
-import { REMINDER_OPTIONS } from './ReminderSelector'
+import { Card, CardContent, Button, Badge, Avatar } from './ui'
+import type { ReminderWithEvent, ReminderStatus } from '@/types'
+import { REMINDER_OPTIONS } from './reminderConstants'
 
 interface ReminderItemProps {
     reminder: ReminderWithEvent

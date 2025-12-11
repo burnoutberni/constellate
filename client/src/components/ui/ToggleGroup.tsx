@@ -43,7 +43,7 @@ export const ToggleGroup = React.forwardRef<HTMLDivElement, ToggleGroupProps>(
             'flex gap-1',
             'border border-border-default rounded-md p-1',
             'bg-background-primary',
-            className
+            className,
           )}
           role="group"
           {...props}
@@ -52,7 +52,7 @@ export const ToggleGroup = React.forwardRef<HTMLDivElement, ToggleGroupProps>(
         </div>
       </ToggleGroupContext.Provider>
     )
-  }
+  },
 )
 
 ToggleGroup.displayName = 'ToggleGroup'
@@ -60,7 +60,7 @@ ToggleGroup.displayName = 'ToggleGroup'
 /**
  * Hook to access ToggleGroup context
  */
-export function useToggleGroup(): ToggleGroupContextValue {
+function useToggleGroup(): ToggleGroupContextValue {
   const context = useContext(ToggleGroupContext)
   if (!context) {
     throw new Error('ToggleButton must be used within a ToggleGroup')
@@ -118,7 +118,7 @@ export const ToggleButton = React.forwardRef<HTMLButtonElement, ToggleButtonProp
                 'hover:bg-background-secondary',
                 'dark:hover:bg-background-tertiary',
               ],
-          className
+          className,
         )}
         aria-pressed={isSelected}
         {...props}
@@ -127,7 +127,7 @@ export const ToggleButton = React.forwardRef<HTMLButtonElement, ToggleButtonProp
         {children}
       </button>
     )
-  }
+  },
 )
 
 ToggleButton.displayName = 'ToggleButton'

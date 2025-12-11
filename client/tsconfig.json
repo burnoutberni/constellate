@@ -16,6 +16,21 @@
         "isolatedModules": true,
         "noEmit": true,
         "jsx": "react-jsx",
+        /* Path aliases - enforce barrel file imports */
+        "baseUrl": ".",
+        "paths": {
+            "@/components/ui": ["./src/components/ui/index.ts"],
+            "@/components/layout": ["./src/components/layout/index.ts"],
+            "@/components/icons": ["./src/components/icons/index.ts"],
+            "@/design-system": ["./src/design-system/index.ts"],
+            "@/types": ["./src/types/index.ts"],
+            "@/hooks/queries": ["./src/hooks/queries/index.ts"],
+            "@/stores": ["./src/stores/index.ts"],
+            "@/lib/*": ["./src/lib/*"],
+            "@/components/*": ["./src/components/*"],
+            "@/hooks/*": ["./src/hooks/*"],
+            "@/pages/*": ["./src/pages/*"]
+        },
         /* Linting */
         "strict": true,
         "noUnusedLocals": true,

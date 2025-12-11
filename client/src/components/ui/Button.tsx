@@ -56,7 +56,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       disabled,
       ...props
     },
-    ref
+    ref,
   ) => {
     const isDisabled = disabled || loading
 
@@ -114,7 +114,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variantStyles[variant],
       sizeStyles[size],
       fullWidth && 'w-full',
-      className
+      className,
     )
 
     return (
@@ -155,7 +155,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
       </button>
     )
-  }
+  },
 )
 
 Button.displayName = 'Button'

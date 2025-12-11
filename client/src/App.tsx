@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
@@ -23,9 +23,9 @@ import { RemindersPage } from './pages/RemindersPage'
 import { InstancesPage } from './pages/InstancesPage'
 import { InstanceDetailPage } from './pages/InstanceDetailPage'
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
 import { MentionNotifications } from './components/MentionNotifications'
 import { ErrorToasts } from './components/ErrorToasts'
+import { SuccessToasts } from './components/SuccessToasts'
 
 function AppContent() {
     // Global SSE connection
@@ -42,8 +42,8 @@ function AppContent() {
         }
 
         fetch('/api/setup/status')
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 if (data.setupRequired) {
                     navigate('/onboarding')
                 }
@@ -80,6 +80,7 @@ function AppContent() {
             </Routes>
             <MentionNotifications />
             <ErrorToasts />
+            <SuccessToasts />
         </>
     )
 }

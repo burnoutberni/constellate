@@ -31,7 +31,7 @@ export interface SEOMetadata {
 function setOrRemoveMetaTag(
   attributeName: 'name' | 'property',
   attributeValue: string,
-  content: string | undefined
+  content: string | undefined,
 ): void {
   if (content) {
     setOrUpdateMetaTag(attributeName, attributeValue, content)
@@ -54,7 +54,7 @@ function setOpenGraphTags(
   title: string | undefined,
   description: string | undefined,
   ogImage: string | undefined,
-  ogType: 'website' | 'article' | 'event'
+  ogType: 'website' | 'article' | 'event',
 ): void {
   setOrRemoveMetaTag('property', 'og:title', title)
   setOrRemoveMetaTag('property', 'og:description', description)
@@ -68,7 +68,7 @@ function setOpenGraphTags(
 function setTwitterCardTags(
   title: string | undefined,
   description: string | undefined,
-  ogImage: string | undefined
+  ogImage: string | undefined,
 ): void {
   setOrRemoveMetaTag('name', 'twitter:title', title)
   setOrRemoveMetaTag('name', 'twitter:description', description)
@@ -96,13 +96,13 @@ export function setSEOMetadata({
   setDocumentTitle(title)
   setOrRemoveMetaTag('name', 'description', description)
   setOpenGraphTags(title, description, ogImage, ogType)
-  
+
   if (canonicalUrl) {
     setOrUpdateLink('canonical', canonicalUrl)
   } else {
     removeLink('canonical')
   }
-  
+
   setTwitterCardTags(title, description, ogImage)
 }
 
@@ -112,10 +112,10 @@ export function setSEOMetadata({
 function setOrUpdateMetaTag(
   attributeName: 'name' | 'property',
   attributeValue: string,
-  content: string
+  content: string,
 ): void {
   let element = document.querySelector(
-    `meta[${attributeName}="${attributeValue}"]`
+    `meta[${attributeName}="${attributeValue}"]`,
   ) as HTMLMetaElement | null
 
   if (element) {
@@ -133,10 +133,10 @@ function setOrUpdateMetaTag(
  */
 function removeMetaTag(
   attributeName: 'name' | 'property',
-  attributeValue: string
+  attributeValue: string,
 ): void {
   const element = document.querySelector(
-    `meta[${attributeName}="${attributeValue}"]`
+    `meta[${attributeName}="${attributeValue}"]`,
   ) as HTMLMetaElement | null
 
   if (element) {
@@ -149,7 +149,7 @@ function removeMetaTag(
  */
 function setOrUpdateLink(rel: string, href: string): void {
   let element = document.querySelector(
-    `link[rel="${rel}"]`
+    `link[rel="${rel}"]`,
   ) as HTMLLinkElement | null
 
   if (element) {
@@ -167,7 +167,7 @@ function setOrUpdateLink(rel: string, href: string): void {
  */
 function removeLink(rel: string): void {
   const element = document.querySelector(
-    `link[rel="${rel}"]`
+    `link[rel="${rel}"]`,
   ) as HTMLLinkElement | null
 
   if (element) {
@@ -183,6 +183,6 @@ export function resetSEOMetadata(): void {
   setOrUpdateMetaTag(
     'name',
     'description',
-    'Constellate - Federated event management platform'
+    'Constellate - Federated event management platform',
   )
 }

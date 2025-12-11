@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Button } from './ui/Button'
-import { Section } from './layout/Section'
+import { Button } from './ui'
+import { Section, Stack } from './layout'
 
 interface HomeHeroProps {
   /**
@@ -15,9 +15,9 @@ interface HomeHeroProps {
  */
 export function HomeHero({ isAuthenticated }: HomeHeroProps) {
   return (
-    <Section 
-      as="header" 
-      variant="accent" 
+    <Section
+      as="header"
+      variant="accent"
       padding="xl"
       className="border-b border-border-default"
     >
@@ -31,7 +31,7 @@ export function HomeHero({ isAuthenticated }: HomeHeroProps) {
             </span>
           </h1>
           <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto">
-            A federated event platform built on ActivityPub. 
+            A federated event platform built on ActivityPub.
             Create, discover, and attend events across the decentralized web.
           </p>
         </div>
@@ -53,7 +53,7 @@ export function HomeHero({ isAuthenticated }: HomeHeroProps) {
         </div>
 
         {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+        <Stack direction="column" directionSm="row" gap="md" justify="center" align="center" className="pt-4">
           {!isAuthenticated ? (
             <>
               <Link to="/login">
@@ -81,13 +81,13 @@ export function HomeHero({ isAuthenticated }: HomeHeroProps) {
               </Link>
             </>
           )}
-        </div>
+        </Stack>
 
         {/* Learn More Link */}
         {!isAuthenticated && (
           <div className="pt-2">
-            <Link 
-              to="/about" 
+            <Link
+              to="/about"
               className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
             >
               Learn more about federation →

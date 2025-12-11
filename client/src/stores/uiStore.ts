@@ -24,32 +24,43 @@ export interface ErrorToast {
     createdAt?: string
 }
 
+export interface SuccessToast {
+    id: string
+    message: string
+    // createdAt is optional in input (ISO string format), but always set by addSuccessToast
+    // If not provided, it will be automatically set to the current time as an ISO string
+    createdAt?: string
+}
+
 // Stored error toasts always have createdAt set
 type StoredErrorToast = ErrorToast & { createdAt: string }
+// Stored success toasts always have createdAt set
+type StoredSuccessToast = SuccessToast & { createdAt: string }
 
 interface UIState {
     // Create Event Modal
     createEventModalOpen: boolean
-    
+
     // Calendar
     calendarView: 'month' | 'week' | 'day'
     calendarCurrentDate: Date
-    
+
     // Search
     searchQuery: string
     searchIsOpen: boolean
     searchSelectedIndex: number
-    
+
     // SSE Connection Status
     sseConnected: boolean
-    
+
     // Followers/Following Modal
     followersModalOpen: boolean
     followersModalUsername: string | null
     followersModalType: 'followers' | 'following' | null
     mentionNotifications: MentionNotification[]
     errorToasts: StoredErrorToast[]
-    
+    successToasts: StoredSuccessToast[]
+
     // Actions
     openCreateEventModal: () => void
     closeCreateEventModal: () => void
@@ -65,6 +76,8 @@ interface UIState {
     dismissMentionNotification: (id: string) => void
     addErrorToast: (toast: ErrorToast) => void
     dismissErrorToast: (id: string) => void
+    addSuccessToast: (toast: SuccessToast) => void
+    dismissSuccessToast: (id: string) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -81,7 +94,8 @@ export const useUIStore = create<UIState>((set) => ({
     followersModalType: null,
     mentionNotifications: [],
     errorToasts: [],
-    
+    successToasts: [],
+
     // Actions
     openCreateEventModal: () => set({ createEventModalOpen: true }),
     closeCreateEventModal: () => set({ createEventModalOpen: false }),
@@ -130,5 +144,20 @@ export const useUIStore = create<UIState>((set) => ({
     dismissErrorToast: (id) => set((state) => ({
         errorToasts: state.errorToasts.filter((item) => item.id !== id),
     })),
+    addSuccessToast: (toast) => set((state) => {
+        // Filter out any existing toast with the same ID to prevent duplicates
+        const existing = state.successToasts.filter((item) => item.id !== toast.id)
+        // Ensure createdAt is always set as an ISO string (never a number/timestamp)
+        const toastWithTimestamp: StoredSuccessToast = {
+            ...toast,
+            createdAt: toast.createdAt || new Date().toISOString(),
+        }
+        // Keep the most recent 5 toasts to balance visibility with memory usage
+        return {
+            successToasts: [toastWithTimestamp, ...existing].slice(0, 5),
+        }
+    }),
+    dismissSuccessToast: (id) => set((state) => ({
+        successToasts: state.successToasts.filter((item) => item.id !== id),
+    })),
 }))
-

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from './ui/Button'
-import { Card, CardContent } from './ui/Card'
+import { Button, Card, CardContent } from './ui'
 import { SignupModal } from './SignupModal'
 
 // Legacy API props - uses SignupModal
@@ -54,7 +53,7 @@ interface SignUpPromptPropsNew {
   onSuccess?: never
 }
 
-export type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
+type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
 
 /**
  * SignUpPrompt component displays a call-to-action for unauthenticated users
@@ -68,8 +67,8 @@ export function SignUpPrompt(props: SignUpPromptProps) {
   // Determine which API is being used
   const isLegacyAPI = 'onSuccess' in props || ('className' in props && !('variant' in props))
   const variant = isLegacyAPI ? undefined : (props.variant || 'inline')
-  const action = props.action
-  const message = props.message
+  const { action } = props
+  const { message } = props
 
   // Legacy API: uses SignupModal (always shows as card)
   if (isLegacyAPI) {
@@ -110,7 +109,9 @@ export function SignUpPrompt(props: SignUpPromptProps) {
 
   // New API: uses Link or onSignUp callback
   const getDefaultMessage = (): string => {
-    if (message) return message
+    if (message) {
+return message
+}
 
     if (typeof action === 'string' && !['rsvp', 'like', 'comment', 'share', 'follow'].includes(action)) {
       return `Sign up to ${action}`
@@ -138,8 +139,10 @@ export function SignUpPrompt(props: SignUpPromptProps) {
    * Helper function to get the action text for inline variant
    */
   const getActionText = (actionValue: string | undefined): string => {
-    if (!actionValue) return 'continue'
-    
+    if (!actionValue) {
+return 'continue'
+}
+
     if (typeof actionValue === 'string' && !['rsvp', 'like', 'comment', 'share', 'follow'].includes(actionValue)) {
       return actionValue
     }

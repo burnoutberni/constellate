@@ -39,7 +39,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Base styles
     const baseStyles = [
@@ -94,7 +94,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
       variantStyles[variant],
       sizeStyles[size],
       radiusStyles,
-      className
+      className,
     )
 
     return (
@@ -102,7 +102,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
         {children}
       </span>
     )
-  }
+  },
 )
 
 Badge.displayName = 'Badge'

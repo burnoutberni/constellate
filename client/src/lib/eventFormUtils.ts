@@ -30,7 +30,7 @@ export function validateRecurrence(formData: Pick<FormData, 'recurrencePattern' 
     }
     const startDate = new Date(formData.startTime)
     // Parse recurrence end date as end of day in UTC to avoid timezone issues
-    const recurrenceEnd = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z')
+    const recurrenceEnd = new Date(`${formData.recurrenceEndDate}T23:59:59.999Z`)
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(recurrenceEnd.getTime())) {
         return 'Please provide valid dates for recurring events.'
     }
@@ -48,7 +48,7 @@ export function validateRecurrence(formData: Pick<FormData, 'recurrencePattern' 
  * Parses and validates coordinate inputs
  * @returns A discriminated union: either an error object, a success object with coordinates, or an empty object if no coordinates provided
  */
-export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | 'locationLongitude'>): 
+export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | 'locationLongitude'>):
     | { error: string }
     | { latitude: number; longitude: number }
     | Record<string, never> {
@@ -79,36 +79,38 @@ export function parseCoordinates(formData: Pick<FormData, 'locationLatitude' | '
  * Helper function to add optional fields for update operations
  */
 function addOptionalFieldsForUpdate(
-    payload: Record<string, unknown>,
-    formData: Pick<FormData, 'summary' | 'location' | 'url'>
-): void {
+    formData: Pick<FormData, 'summary' | 'location' | 'url'>,
+): Record<string, unknown> {
+    const fields: Record<string, unknown> = {}
     if (formData.summary !== undefined) {
-        payload.summary = formData.summary.trim() || null
+        fields.summary = formData.summary.trim() || null
     }
     if (formData.location !== undefined) {
-        payload.location = formData.location.trim() || null
+        fields.location = formData.location.trim() || null
     }
     if (formData.url !== undefined) {
-        payload.url = formData.url.trim() || null
+        fields.url = formData.url.trim() || null
     }
+    return fields
 }
 
 /**
  * Helper function to add optional fields for create operations
  */
 function addOptionalFieldsForCreate(
-    payload: Record<string, unknown>,
-    formData: Pick<FormData, 'summary' | 'location' | 'url'>
-): void {
+    formData: Pick<FormData, 'summary' | 'location' | 'url'>,
+): Record<string, unknown> {
+    const fields: Record<string, unknown> = {}
     if (formData.summary && formData.summary.trim()) {
-        payload.summary = formData.summary
+        fields.summary = formData.summary
     }
     if (formData.location && formData.location.trim()) {
-        payload.location = formData.location
+        fields.location = formData.location
     }
     if (formData.url && formData.url.trim()) {
-        payload.url = formData.url
+        fields.url = formData.url
     }
+    return fields
 }
 
 /**
@@ -120,7 +122,7 @@ export function buildEventPayload(
     formData: Pick<FormData, 'title' | 'summary' | 'location' | 'url' | 'startTime' | 'endTime' | 'visibility' | 'recurrencePattern' | 'recurrenceEndDate'>,
     locationLatitude?: number,
     locationLongitude?: number,
-    isUpdate: boolean = false
+    isUpdate: boolean = false,
 ): Record<string, unknown> {
     const payload: Record<string, unknown> = {
         title: formData.title,
@@ -128,15 +130,15 @@ export function buildEventPayload(
         endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
         visibility: formData.visibility,
     }
-    
+
     // For updates, include fields even if empty (to allow clearing them)
     // For creates, only include fields with non-empty values
     if (isUpdate) {
-        addOptionalFieldsForUpdate(payload, formData)
+        Object.assign(payload, addOptionalFieldsForUpdate(formData))
     } else {
-        addOptionalFieldsForCreate(payload, formData)
+        Object.assign(payload, addOptionalFieldsForCreate(formData))
     }
-    
+
     if (locationLatitude !== undefined && locationLongitude !== undefined) {
         payload.locationLatitude = locationLatitude
         payload.locationLongitude = locationLongitude
@@ -144,7 +146,7 @@ export function buildEventPayload(
     if (formData.recurrencePattern) {
         payload.recurrencePattern = formData.recurrencePattern
         // Use the same end-of-day parsing logic as validation to ensure consistency (UTC)
-        payload.recurrenceEndDate = new Date(formData.recurrenceEndDate + 'T23:59:59.999Z').toISOString()
+        payload.recurrenceEndDate = new Date(`${formData.recurrenceEndDate}T23:59:59.999Z`).toISOString()
     }
     return payload
 }

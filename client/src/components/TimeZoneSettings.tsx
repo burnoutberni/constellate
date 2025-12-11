@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { queryKeys } from '../hooks/queries/keys'
+import { Card, CardHeader, CardTitle, CardContent } from './ui'
+import { Stack } from './layout'
+import { queryKeys } from '@/hooks/queries'
 import { getDefaultTimezone, getSupportedTimezones } from '../lib/timezones'
+import { useUIStore } from '@/stores'
 
 interface TimeZoneSettingsProps {
   profile: {
@@ -13,6 +15,7 @@ interface TimeZoneSettingsProps {
 
 export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
   const queryClient = useQueryClient()
+  const addErrorToast = useUIStore((state) => state.addErrorToast)
   const timezoneOptions = useMemo(() => getSupportedTimezones(), [])
   const [timezone, setTimezone] = useState(profile.timezone || getDefaultTimezone())
 
@@ -41,7 +44,7 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
     },
   })
 
-  const handleTimezoneChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleTimezoneChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const nextTimezone = event.target.value
     const previous = timezone
     setTimezone(nextTimezone)
@@ -54,7 +57,7 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
         error instanceof Error && error.message
           ? `Failed to update timezone preference: ${error.message}`
           : 'Failed to update timezone preference. Please try again.'
-      alert(errorMessage)
+      addErrorToast({ id: crypto.randomUUID(), message: errorMessage })
     }
   }
 
@@ -65,7 +68,7 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex flex-col gap-2">
+          <Stack gap="sm">
             <label className="font-medium text-text-primary" htmlFor="timezone-select">
               Preferred timezone
             </label>
@@ -88,7 +91,7 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
             <p className="text-sm text-text-tertiary">
               Times currently shown in <span className="font-semibold">{timezone}</span>.
             </p>
-          </div>
+          </Stack>
         </div>
       </CardContent>
     </Card>

@@ -8,12 +8,12 @@
  * Only allows:
  * - http:// and https:// for external URLs
  * - Relative paths (starting with /) for internal navigation
- * 
+ *
  * Blocks:
  * - javascript: URLs
  * - data: URLs
  * - Other non-HTTP schemes
- * 
+ *
  * @param url - The URL to validate
  * @returns True if the URL is safe for navigation, false otherwise
  */
@@ -68,7 +68,7 @@ export function isSafeNavigationUrl(url: string): boolean {
  */
 export function safeNavigate(
     url: string,
-    navigate: (path: string) => void
+    navigate: (path: string) => void,
 ): boolean {
     if (!isSafeNavigationUrl(url)) {
         console.warn('[URL Validation] Blocked unsafe URL:', url)

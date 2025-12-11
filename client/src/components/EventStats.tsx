@@ -1,4 +1,4 @@
-import { Card, CardContent } from './ui/Card'
+import { Card, CardContent } from './ui'
 
 interface EventStatsProps {
   /**
@@ -27,21 +27,21 @@ interface EventStatsProps {
  * EventStats component - Displays event statistics
  * Shows total events, upcoming events, and other relevant metrics
  */
-export function EventStats({ 
-  totalEvents, 
-  upcomingEvents, 
+export function EventStats({
+  totalEvents,
+  upcomingEvents,
   todayEvents,
   activeUsers,
-  isLoading = false 
+  isLoading = false,
 }: EventStatsProps) {
   const stats = [
-    { 
-      label: 'Total Events', 
+    {
+      label: 'Total Events',
       value: totalEvents,
       icon: '📊',
     },
-    { 
-      label: 'Upcoming', 
+    {
+      label: 'Upcoming',
       value: upcomingEvents,
       icon: '🗓️',
     },
@@ -76,7 +76,7 @@ export function EventStats({
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {stats.map((stat) => (
-              <div 
+              <div
                 key={stat.label}
                 className="flex flex-col items-center justify-center p-4 rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors"
               >

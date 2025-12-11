@@ -135,7 +135,7 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Base grid styles
     const baseStyles = ['grid', 'w-full']
@@ -160,7 +160,7 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       colStyles,
       gapStyles[gap],
       equalHeightStyles,
-      className
+      className,
     )
 
     return (
@@ -172,7 +172,7 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
         {children}
       </div>
     )
-  }
+  },
 )
 
 Grid.displayName = 'Grid'

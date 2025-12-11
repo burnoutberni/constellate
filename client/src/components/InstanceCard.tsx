@@ -1,12 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Card } from './ui/Card'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
-import { Avatar } from './ui/Avatar'
-import type { InstanceWithStats } from '../types'
-import { useAuth } from '../contexts/AuthContext'
-import { queryKeys } from '../hooks/queries/keys'
+import { Card, Badge, Button, Avatar } from './ui'
+import type { InstanceWithStats } from '@/types'
+import { useAuth } from '../hooks/useAuth'
+import { queryKeys } from '@/hooks/queries'
 
 interface InstanceCardProps {
     instance: InstanceWithStats
@@ -18,25 +15,31 @@ interface InstanceCardProps {
 export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: InstanceCardProps) {
     const navigate = useNavigate()
     const { user } = useAuth()
-    
+
     // Fetch user profile to check admin status
     const { data: userProfile } = useQuery({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
-            if (!user?.id) return null
+            if (!user?.id) {
+return null
+}
             const response = await fetch('/api/users/me/profile', {
                 credentials: 'include',
             })
-            if (!response.ok) return null
+            if (!response.ok) {
+return null
+}
             return response.json()
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
     })
-    
+
     const isAdmin = userProfile?.isAdmin || false
 
     const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Never'
+        if (!dateString) {
+return 'Never'
+}
         const date = new Date(dateString)
         return date.toLocaleDateString('en-US', {
             month: 'short',
@@ -46,17 +49,29 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
     }
 
     const formatRelativeTime = (dateString?: string) => {
-        if (!dateString) return 'Never'
+        if (!dateString) {
+return 'Never'
+}
         const date = new Date(dateString)
         const now = new Date()
         const diffMs = now.getTime() - date.getTime()
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-        if (diffDays === 0) return 'Today'
-        if (diffDays === 1) return 'Yesterday'
-        if (diffDays < 7) return `${diffDays} days ago`
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+        if (diffDays === 0) {
+return 'Today'
+}
+        if (diffDays === 1) {
+return 'Yesterday'
+}
+        if (diffDays < 7) {
+return `${diffDays} days ago`
+}
+        if (diffDays < 30) {
+return `${Math.floor(diffDays / 7)} weeks ago`
+}
+        if (diffDays < 365) {
+return `${Math.floor(diffDays / 30)} months ago`
+}
         return `${Math.floor(diffDays / 365)} years ago`
     }
 
@@ -75,7 +90,7 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                            <h3 
+                            <h3
                                 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
                                 onClick={() => navigate(`/instances/${encodeURIComponent(instance.domain)}`)}
                             >

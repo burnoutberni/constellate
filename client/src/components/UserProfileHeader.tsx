@@ -1,8 +1,6 @@
-import { Avatar } from './ui/Avatar'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
-import { Card } from './ui/Card'
-import type { UserProfile } from '../types'
+import { Avatar, Badge, Button, Card } from './ui'
+import { Stack } from './layout'
+import type { UserProfile } from '@/types'
 import { formatDate } from '../lib/formatUtils'
 
 interface UserProfileHeaderProps {
@@ -44,7 +42,9 @@ export function UserProfileHeader({
 }: UserProfileHeaderProps) {
     // Extract instance hostname from external actor URL
     const getInstanceHostname = () => {
-        if (!user.isRemote || !user.externalActorUrl) return null
+        if (!user.isRemote || !user.externalActorUrl) {
+return null
+}
         try {
             return new URL(user.externalActorUrl).hostname
         } catch {
@@ -69,7 +69,7 @@ export function UserProfileHeader({
 
             {/* Profile Info Card */}
             <Card variant="default" padding="lg" className="mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <Stack direction="column" directionSm="row" alignSm="start" gap="md">
                     {/* Avatar */}
                     <Avatar
                         src={user.profileImage || undefined}
@@ -84,7 +84,7 @@ export function UserProfileHeader({
 
                     {/* User Info */}
                     <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                        <Stack direction="column" directionSm="row" alignSm="start" justifySm="between" gap="sm" className="mb-3">
                             <div className="min-w-0 flex-1">
                                 <h1 className="text-2xl font-bold text-text-primary truncate">
                                     {user.name || user.username}
@@ -134,7 +134,7 @@ export function UserProfileHeader({
                                     )}
                                 </div>
                             )}
-                        </div>
+                        </Stack>
 
                         {/* Bio */}
                         {user.bio && (
@@ -182,7 +182,7 @@ export function UserProfileHeader({
                             </p>
                         )}
                     </div>
-                </div>
+                </Stack>
             </Card>
         </>
     )

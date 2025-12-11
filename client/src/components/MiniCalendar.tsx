@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useEvents } from '../hooks/queries/events'
+import { useEvents } from '@/hooks/queries'
 import { eventsWithinRange } from '../lib/recurrence'
 
 interface MiniCalendarProps {
@@ -9,7 +9,7 @@ interface MiniCalendarProps {
 
 export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) {
     const { data } = useEvents(100)
-    const events = data?.events || []
+    const events = useMemo(() => data?.events || [], [data?.events])
 
     const monthRange = useMemo(() => {
         const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
@@ -24,7 +24,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 
     const monthlyEvents = useMemo(
         () => eventsWithinRange(events, monthRange.start, monthRange.end),
-        [events, monthRange.startMs, monthRange.endMs]
+        [events, monthRange.start, monthRange.end],
     )
 
     const getDaysInMonth = (date: Date) => {
@@ -67,7 +67,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
         onDateSelect(new Date(year, month, day))
     }
 
-    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(selectedDate)
+    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(selectedDate)
     const monthName = selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     const today = new Date()
 
@@ -95,22 +95,31 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-1 mb-1">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                    <div
-                        key={`day-header-${index}`}
-                        className="text-center text-xs font-semibold text-gray-500 py-1"
-                    >
-                        {day}
-                    </div>
-                ))}
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => {
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                    return (
+                        <div
+                            key={`day-header-${dayNames[index]}`}
+                            className="text-center text-xs font-semibold text-gray-500 py-1"
+                        >
+                            {day}
+                        </div>
+                    )
+                })}
             </div>
 
             {/* Calendar days */}
             <div className="grid grid-cols-7 gap-1">
                 {/* Empty cells for days before month starts */}
-                {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                    <div key={`empty-${i}`} className="aspect-square" />
-                ))}
+                {Array.from({ length: startingDayOfWeek }).map((_, i) => {
+                    const prevMonth = month === 0 ? 11 : month - 1
+                    const prevYear = month === 0 ? year - 1 : year
+                    const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate()
+                    const dayNumber = lastDayOfPrevMonth - startingDayOfWeek + i + 1
+                    return (
+                        <div key={`empty-${prevYear}-${prevMonth}-${dayNumber}`} className="aspect-square" />
+                    )
+                })}
 
                 {/* Days of the month */}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -119,7 +128,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
                     const dayDate = new Date(
                         selectedDate.getFullYear(),
                         selectedDate.getMonth(),
-                        day
+                        day,
                     )
                     const isToday = dayDate.toDateString() === today.toDateString()
                     const isSelected =
@@ -158,4 +167,3 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
         </div>
     )
 }
-

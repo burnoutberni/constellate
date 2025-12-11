@@ -1,11 +1,8 @@
-import { useState, KeyboardEvent } from 'react'
-import { Button } from './ui/Button'
-import { Input } from './ui/Input'
-import { Badge } from './ui/Badge'
+import { useState, KeyboardEvent, type ReactNode } from 'react'
+import { Button, Input, Badge } from './ui'
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
-type DateRangeSelection = 'anytime' | 'custom' | 'today' | 'tomorrow' | 'this_weekend' | 'next_7_days' | 'next_30_days'
-
-export interface SearchFilters {
+interface SearchFilters {
   q: string
   location: string
   dateRange: DateRangeSelection
@@ -24,15 +21,15 @@ interface AdvancedSearchFiltersProps {
   className?: string
 }
 
-const DATE_RANGE_OPTIONS = [
-  { value: 'anytime', label: 'Any time' },
-  { value: 'today', label: 'Today' },
-  { value: 'tomorrow', label: 'Tomorrow' },
-  { value: 'this_weekend', label: 'This weekend' },
-  { value: 'next_7_days', label: 'Next 7 days' },
-  { value: 'next_30_days', label: 'Next 30 days' },
-  { value: 'custom', label: 'Custom range' },
-] as const
+const DATE_RANGE_OPTIONS: Array<{ value: DateRangeSelection; label: string }> = [
+  { value: 'anytime', label: DATE_RANGE_LABELS.anytime },
+  { value: 'today', label: DATE_RANGE_LABELS.today },
+  { value: 'tomorrow', label: DATE_RANGE_LABELS.tomorrow },
+  { value: 'this_weekend', label: DATE_RANGE_LABELS.this_weekend },
+  { value: 'next_7_days', label: DATE_RANGE_LABELS.next_7_days },
+  { value: 'next_30_days', label: DATE_RANGE_LABELS.next_30_days },
+  { value: 'custom', label: DATE_RANGE_LABELS.custom },
+]
 
 const ATTENDANCE_MODE_OPTIONS = [
   { value: '', label: 'Any' },
@@ -68,16 +65,20 @@ export function AdvancedSearchFilters({
   })
 
   const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
   }
 
   const handleCategoryKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Enter' && event.key !== ',') return
-    
+    if (event.key !== 'Enter' && event.key !== ',') {
+return
+}
+
     event.preventDefault()
     const normalized = categoryInput.trim().replace(/^#+/, '').toLowerCase()
-    if (!normalized) return
-    
+    if (!normalized) {
+return
+}
+
     if (!filters.categories.includes(normalized)) {
       onFiltersChange({
         ...filters,
@@ -90,7 +91,7 @@ export function AdvancedSearchFilters({
   const handleRemoveCategory = (category: string) => {
     onFiltersChange({
       ...filters,
-      categories: filters.categories.filter(c => c !== category),
+      categories: filters.categories.filter((c) => c !== category),
     })
   }
 
@@ -114,7 +115,9 @@ export function AdvancedSearchFilters({
               <h2 className="text-lg font-semibold text-gray-900">Advanced Filters</h2>
               <p className="text-sm text-gray-500 mt-1">
                 {(() => {
-                  if (activeFiltersCount === 0) return 'Refine your search'
+                  if (activeFiltersCount === 0) {
+return 'Refine your search'
+}
                   const filterWord = activeFiltersCount === 1 ? 'filter' : 'filters'
                   return `${activeFiltersCount} ${filterWord} applied`
                 })()}
@@ -138,7 +141,7 @@ export function AdvancedSearchFilters({
                 onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
                 placeholder="Search titles or descriptions"
               />
-              
+
               <Input
                 label="Location"
                 type="text"
@@ -165,7 +168,7 @@ export function AdvancedSearchFilters({
                   onChange={(e) => onFiltersChange({ ...filters, dateRange: e.target.value as DateRangeSelection })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {DATE_RANGE_OPTIONS.map(option => (
+                  {DATE_RANGE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -208,7 +211,7 @@ export function AdvancedSearchFilters({
                   onChange={(e) => onFiltersChange({ ...filters, mode: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {ATTENDANCE_MODE_OPTIONS.map(option => (
+                  {ATTENDANCE_MODE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -225,7 +228,7 @@ export function AdvancedSearchFilters({
                   onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {STATUS_OPTIONS.map(option => (
+                  {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -250,7 +253,7 @@ export function AdvancedSearchFilters({
                 onKeyDown={handleCategoryKeyDown}
                 placeholder="Press Enter to add"
               />
-              
+
               {filters.categories.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {filters.categories.map((category) => (
@@ -296,7 +299,7 @@ interface FilterSectionProps {
   title: string
   expanded: boolean
   onToggle: () => void
-  children: React.ReactNode
+  children: ReactNode
 }
 
 function FilterSection({ title, expanded, onToggle, children }: FilterSectionProps) {

@@ -61,7 +61,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       required,
       ...props
     },
-    ref
+    ref,
   ) => {
     const generatedId = React.useId()
     const inputId = id || `input-${generatedId}`
@@ -104,7 +104,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       stateStyles,
       leftIcon ? 'pl-10' : '',
       rightIcon ? 'pr-10' : '',
-      className
+      className,
     )
 
     const containerClasses = cn('w-full', fullWidth && 'w-full')
@@ -118,7 +118,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'block text-sm font-medium mb-1.5',
               'text-text-secondary',
               error && 'text-error-600 dark:text-error-400',
-              required && "after:content-['*'] after:ml-0.5 after:text-error-500"
+              required && "after:content-['*'] after:ml-0.5 after:text-error-500",
             )}
           >
             {label}
@@ -131,7 +131,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 'absolute left-3 top-1/2 -translate-y-1/2',
                 'text-text-disabled',
                 'pointer-events-none',
-                error && 'text-error-500 dark:text-error-400'
+                error && 'text-error-500 dark:text-error-400',
               )}
             >
               {leftIcon}
@@ -154,7 +154,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 'absolute right-3 top-1/2 -translate-y-1/2',
                 'text-text-disabled',
                 'pointer-events-none',
-                error && 'text-error-500 dark:text-error-400'
+                error && 'text-error-500 dark:text-error-400',
               )}
             >
               {rightIcon}
@@ -180,7 +180,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 Input.displayName = 'Input'

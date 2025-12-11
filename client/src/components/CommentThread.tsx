@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CommentItem } from './CommentItem'
 import { CommentForm } from './CommentForm'
-import type { CommentWithMentions } from '../types'
+import type { CommentWithMentions } from '@/types'
 
 interface CommentThreadProps {
     comment: CommentWithMentions
@@ -28,7 +28,9 @@ export function CommentThread({
     }
 
     const handleReplySubmit = async (content: string) => {
-        if (!onReply) return
+        if (!onReply) {
+return
+}
 
         setIsSubmitting(true)
         try {

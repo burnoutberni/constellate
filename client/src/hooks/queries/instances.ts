@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
-import type { InstanceListResponse, InstanceSearchResponse, InstanceWithStats } from '../../types'
+import type { InstanceListResponse, InstanceSearchResponse, InstanceWithStats } from '@/types'
 
 interface InstanceListParams {
     limit?: number
@@ -72,7 +72,7 @@ export function useInstanceDetail(domain: string) {
 
             return response.json()
         },
-        enabled: !!domain,
+        enabled: Boolean(domain),
     })
 }
 

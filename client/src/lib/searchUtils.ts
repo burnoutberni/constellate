@@ -20,7 +20,9 @@ export const parseCommaList = (value?: string | null): string[] =>
  * Convert ISO date string to input date format (YYYY-MM-DD)
  */
 export const isoToInputDate = (value?: string | null): string => {
-    if (!value) return ''
+    if (!value) {
+return ''
+}
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) {
         return ''
@@ -37,7 +39,9 @@ export const isoToInputDate = (value?: string | null): string => {
  * @param endOfDay - If true, sets time to 23:59:59.999, otherwise 00:00:00.000
  */
 export const inputDateToISO = (value: string, endOfDay = false): string | undefined => {
-    if (!value) return undefined
+    if (!value) {
+return undefined
+}
     const [yearStr, monthStr, dayStr] = value.split('-')
     const year = Number(yearStr)
     const month = Number(monthStr)
@@ -81,5 +85,5 @@ export const formatDateLabel = (isoString: string): string => {
 /**
  * Normalize a category/tag string by removing leading # symbols and converting to lowercase
  */
-export const normalizeCategory = (value: string): string => 
+export const normalizeCategory = (value: string): string =>
     value.trim().replace(/^#+/, '').toLowerCase()

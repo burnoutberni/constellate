@@ -11,7 +11,7 @@
 export async function buildErrorMessage(baseMessage: string, response: Response): Promise<string> {
     const statusCode = response.status
     let errorMessage = baseMessage
-    
+
     try {
         const errorBody = await response.json() as { error?: string }
         if (errorBody.error) {
@@ -25,8 +25,6 @@ export async function buildErrorMessage(baseMessage: string, response: Response)
             errorMessage = `${errorMessage} (${statusCode}): Server error. Please try again later.`
         }
     }
-    
+
     return errorMessage
 }
-
-
