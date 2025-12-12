@@ -4,6 +4,7 @@ import typescriptParser from '@typescript-eslint/parser'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import importPlugin from 'eslint-plugin-import'
 import globals from 'globals'
 import prettier from 'eslint-config-prettier'
 
@@ -52,10 +53,23 @@ export default [
 			react,
 			'react-hooks': reactHooks,
 			'react-refresh': reactRefresh,
+			import: importPlugin,
 		},
 		settings: {
 			react: {
 				version: 'detect',
+			},
+			'import/resolver': {
+				node: {
+					extensions: ['.js', '.jsx', '.ts', '.tsx'],
+				},
+				typescript: {
+					alwaysTryTypes: true,
+					project: './tsconfig.json',
+				},
+			},
+			'import/parsers': {
+				'@typescript-eslint/parser': ['.ts', '.tsx'],
 			},
 		},
 		rules: {
@@ -230,6 +244,31 @@ export default [
 			'require-await': 'off', // TypeScript handles this
 			'use-isnan': 'error',
 			'valid-typeof': 'error',
+
+			// Import/export rules
+			'import/order': [
+				'error',
+				{
+					alphabetize: { order: 'asc', caseInsensitive: true },
+					groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+					'newlines-between': 'always',
+					pathGroups: [
+						{
+							pattern: '@/**',
+							group: 'internal',
+							position: 'before',
+						},
+					],
+					pathGroupsExcludedImportTypes: ['builtin'],
+				},
+			],
+			'import/no-unresolved': 'error',
+			'import/no-duplicates': 'error',
+			'import/no-cycle': ['error', { maxDepth: 10 }],
+			'import/no-self-import': 'error',
+			'import/no-useless-path-segments': ['error', { noUselessIndex: true }],
+			'import/no-unused-modules': 'off', // Can be slow, enable if needed
+			'import/no-deprecated': 'warn',
 
 			// ES6+ features
 			'no-duplicate-imports': 'error',
@@ -408,10 +447,23 @@ export default [
 			react,
 			'react-hooks': reactHooks,
 			'react-refresh': reactRefresh,
+			import: importPlugin,
 		},
 		settings: {
 			react: {
 				version: 'detect',
+			},
+			'import/resolver': {
+				node: {
+					extensions: ['.js', '.jsx', '.ts', '.tsx'],
+				},
+				typescript: {
+					alwaysTryTypes: true,
+					project: './tsconfig.json',
+				},
+			},
+			'import/parsers': {
+				'@typescript-eslint/parser': ['.ts', '.tsx'],
 			},
 		},
 		rules: {
@@ -493,6 +545,7 @@ export default [
 			react,
 			'react-hooks': reactHooks,
 			'react-refresh': reactRefresh,
+			import: importPlugin,
 		},
 		settings: {
 			react: {

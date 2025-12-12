@@ -1,7 +1,9 @@
-import { Avatar, Badge, Button, Card } from './ui'
-import { Stack } from './layout'
 import type { UserProfile } from '@/types'
+
 import { formatDate } from '../lib/formatUtils'
+
+import { Stack } from './layout'
+import { Avatar, Badge, Button, Card } from './ui'
 
 interface UserProfileHeaderProps {
 	user: UserProfile

@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from './keys'
-import type { Notification } from '@/types'
-import { api } from '@/lib/api-client'
+
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
+import type { Notification } from '@/types'
+
+import { queryKeys } from './keys'
 
 export interface NotificationsResponse {
 	notifications: Notification[]

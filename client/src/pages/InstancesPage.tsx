@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Navbar } from '../components/Navbar'
-import { InstanceList } from '../components/InstanceList'
+import { useState, useEffect } from 'react'
+
 import { Container, Stack } from '@/components/layout'
 import { Button, Input, Card, Spinner } from '@/components/ui'
-import { useAuth } from '../hooks/useAuth'
 import { useInstances, useInstanceSearch, queryKeys } from '@/hooks/queries'
-import { setSEOMetadata } from '../lib/seo'
-import type { InstanceWithStats } from '@/types'
-import { ConfirmationModal } from '../components/ConfirmationModal'
 import { api } from '@/lib/api-client'
+import type { InstanceWithStats } from '@/types'
+
+import { ConfirmationModal } from '../components/ConfirmationModal'
+import { InstanceList } from '../components/InstanceList'
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
+import { setSEOMetadata } from '../lib/seo'
 
 type SortOption = 'activity' | 'users' | 'created'
 

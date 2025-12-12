@@ -1,6 +1,7 @@
+import type { ReminderWithEvent } from '@/types'
+
 import { ReminderItem } from './ReminderItem'
 import { ReminderItemWithDelete } from './ReminderItemWithDelete'
-import type { ReminderWithEvent } from '@/types'
 
 interface ReminderListProps {
 	reminders: ReminderWithEvent[]

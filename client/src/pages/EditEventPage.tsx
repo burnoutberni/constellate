@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+
+import { Container } from '@/components/layout'
+import { Button, Card, CardContent, Input, Spinner } from '@/components/ui'
 import { useEventDetail, useUpdateEvent } from '@/hooks/queries'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import type { EventVisibility } from '@/types'
+
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
 import {
 	useLocationSuggestions,
 	LocationSuggestion,
@@ -9,12 +17,9 @@ import {
 } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload } from '../lib/eventFormUtils'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
-import { Button, Card, CardContent, Input, Spinner } from '@/components/ui'
-import { Container } from '@/components/layout'
-import { Navbar } from '../components/Navbar'
-import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { extractErrorMessage } from '@/lib/errorHandling'
-import type { EventVisibility } from '@/types'
+
+
+
 
 const MAX_TAG_LENGTH = 50
 const COORDINATE_DECIMAL_PLACES = 6
@@ -73,8 +78,11 @@ export function EditEventPage() {
 		if (pathParts.length >= 3 && pathParts[0] === 'edit' && pathParts[1].startsWith('@')) {
 			const extractedUsername = pathParts[1].slice(1) // Remove @
 			const extractedEventId = pathParts[2]
-			setUsername(extractedUsername)
-			setEventId(extractedEventId)
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => {
+				setUsername(extractedUsername)
+				setEventId(extractedEventId)
+			}, 0)
 		}
 	}, [location.pathname])
 
@@ -99,20 +107,23 @@ export function EditEventPage() {
 			return
 		}
 
-		setFormData({
-			title: event.title,
-			summary: event.summary || '',
-			location: event.location || '',
-			locationLatitude: event.locationLatitude?.toString() || '',
-			locationLongitude: event.locationLongitude?.toString() || '',
-			url: event.url || '',
-			startTime: event.startTime ? event.startTime.slice(0, 16) : '', // Format for datetime-local input
-			endTime: event.endTime ? event.endTime.slice(0, 16) : '',
-			visibility: (event.visibility as EventVisibility) || 'PUBLIC',
-			recurrencePattern: event.recurrencePattern || '',
-			recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.slice(0, 10) : '',
-			tags: event.tags?.map((t) => t.tag) || [],
-		})
+		// Use setTimeout to avoid synchronous setState in effect
+		setTimeout(() => {
+			setFormData({
+				title: event.title,
+				summary: event.summary || '',
+				location: event.location || '',
+				locationLatitude: event.locationLatitude?.toString() || '',
+				locationLongitude: event.locationLongitude?.toString() || '',
+				url: event.url || '',
+				startTime: event.startTime ? event.startTime.slice(0, 16) : '', // Format for datetime-local input
+				endTime: event.endTime ? event.endTime.slice(0, 16) : '',
+				visibility: (event.visibility as EventVisibility | undefined) ?? 'PUBLIC',
+				recurrencePattern: event.recurrencePattern || '',
+				recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.slice(0, 10) : '',
+				tags: event.tags.map((t) => t.tag),
+			})
+		}, 0)
 	}, [event, user, username, eventId, navigate, handleError])
 
 	const addTag = useCallback(() => {
@@ -168,7 +179,8 @@ export function EditEventPage() {
 	}
 
 	const handleUseCurrentLocation = () => {
-		if (!navigator.geolocation) {
+		// navigator.geolocation is always defined in TypeScript's DOM types
+		if (!('geolocation' in navigator) || !navigator.geolocation) {
 			handleError(
 				new Error('Geolocation is not supported in this browser.'),
 				'Geolocation not available',

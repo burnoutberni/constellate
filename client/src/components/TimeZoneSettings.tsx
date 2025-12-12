@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from './ui'
-import { Stack } from './layout'
+import { useState, useEffect, useMemo, type ChangeEvent } from 'react'
+
 import { queryKeys } from '@/hooks/queries'
-import { getDefaultTimezone, getSupportedTimezones } from '../lib/timezones'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { extractErrorMessage } from '@/lib/errorHandling'
 import { api } from '@/lib/api-client'
+import { extractErrorMessage } from '@/lib/errorHandling'
+
+import { getDefaultTimezone, getSupportedTimezones } from '../lib/timezones'
+
+import { Stack } from './layout'
+import { Card, CardHeader, CardTitle, CardContent } from './ui'
 
 interface TimeZoneSettingsProps {
 	profile: {
@@ -23,8 +26,12 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
 
 	// Update local state when profile changes
 	useEffect(() => {
-		setTimezone(profile.timezone || getDefaultTimezone())
-	}, [profile.timezone])
+		const newTimezone = profile.timezone || getDefaultTimezone()
+		if (timezone !== newTimezone) {
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setTimezone(newTimezone), 0)
+		}
+	}, [profile.timezone, timezone])
 
 	const updateProfileMutation = useMutation({
 		mutationFn: async (data: { timezone?: string }) => {

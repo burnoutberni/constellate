@@ -1,16 +1,18 @@
-import { useState, type FormEvent } from 'react'
-import { Navbar } from '../components/Navbar'
-import { useAuth } from '../hooks/useAuth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { queryKeys } from '@/hooks/queries'
-import { useUIStore } from '@/stores'
-import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { ConfirmationModal } from '../components/ConfirmationModal'
+
 import { Input, Button, Textarea, Modal, Spinner } from '@/components/ui'
+import { queryKeys } from '@/hooks/queries'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
+
+import { ConfirmationModal } from '../components/ConfirmationModal'
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
 
 interface User {
 	id: string
@@ -458,7 +460,7 @@ export function AdminPage() {
 													</div>
 												</td>
 												<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-													{key.user?.username}
+													{key.user.username}
 												</td>
 												<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-neutral-500">
 													{key.prefix}...
@@ -699,8 +701,8 @@ export function AdminPage() {
 							<Button
 								onClick={async () => {
 									try {
-										// Try modern clipboard API first
-										if (navigator.clipboard && navigator.clipboard.writeText) {
+										// navigator.clipboard is always defined in TypeScript's DOM types
+										if ('clipboard' in navigator && navigator.clipboard.writeText) {
 											await navigator.clipboard.writeText(newApiKey)
 											addSuccessToast({
 												id: crypto.randomUUID(),

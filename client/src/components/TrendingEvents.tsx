@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
+
 import { useTrendingEvents } from '@/hooks/queries'
-import { Card, Badge } from './ui'
 import type { Event } from '@/types'
+
+import { Card, Badge } from './ui'
 
 interface TrendingEventsProps {
 	limit?: number

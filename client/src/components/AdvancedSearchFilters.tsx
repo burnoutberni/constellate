@@ -1,6 +1,8 @@
 import { useState, KeyboardEvent, type ReactNode } from 'react'
-import { Button, Input, Badge, Select } from './ui'
+
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
+
+import { Button, Input, Badge, Select } from './ui'
 
 interface SearchFilters {
 	q: string

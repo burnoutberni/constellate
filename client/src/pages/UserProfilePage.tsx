@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Navbar } from '../components/Navbar'
-import { FollowersModal } from '../components/FollowersModal'
-import { UserProfileHeader } from '../components/UserProfileHeader'
-import { UserEventList } from '../components/UserEventList'
-import { SignUpPrompt } from '../components/SignUpPrompt'
-import { useAuth } from '../hooks/useAuth'
-import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
-import { useUIStore } from '@/stores'
-import { useErrorHandler } from '@/hooks/useErrorHandler'
+
 import { Spinner } from '@/components/ui'
+import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { useUIStore } from '@/stores'
+
+import { FollowersModal } from '../components/FollowersModal'
+import { Navbar } from '../components/Navbar'
+import { SignUpPrompt } from '../components/SignUpPrompt'
+import { UserEventList } from '../components/UserEventList'
+import { UserProfileHeader } from '../components/UserProfileHeader'
+import { useAuth } from '../hooks/useAuth'
+
 
 export function UserProfilePage() {
 	const location = useLocation()
@@ -37,7 +40,8 @@ export function UserProfilePage() {
 		const handle = location.pathname.slice(2)
 
 		if (handle) {
-			setUsername(handle)
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setUsername(handle), 0)
 		}
 	}, [location.pathname])
 

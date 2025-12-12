@@ -4,8 +4,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Event } from '@/types'
+
 import { logger } from '@/lib/logger'
+import { Event } from '@/types'
 
 interface BaseEvent {
 	timestamp: string

@@ -1,12 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Navbar } from '../components/Navbar'
-import { CreateEventModal } from '../components/CreateEventModal'
-import { MiniCalendar } from '../components/MiniCalendar'
-import { ActivityFeedItem } from '../components/ActivityFeedItem'
-import { ActivityFilters, type ActivityFilterType } from '../components/ActivityFilters'
-import { LocationDiscoveryCard } from '../components/LocationDiscoveryCard'
-import { useAuth } from '../hooks/useAuth'
+
+import { Container, Stack } from '@/components/layout'
+import { Button, Card, Badge, Spinner } from '@/components/ui'
 import {
 	useEvents,
 	useActivityFeed,
@@ -15,13 +12,18 @@ import {
 	queryKeys,
 } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
-import { useQueryClient } from '@tanstack/react-query'
 import type { EventVisibility, Activity } from '@/types'
-import { getVisibilityMeta } from '../lib/visibility'
-import { eventsWithinRange } from '../lib/recurrence'
-import { Button, Card, Badge, Spinner } from '@/components/ui'
-import { Container, Stack } from '@/components/layout'
+
+import { ActivityFeedItem } from '../components/ActivityFeedItem'
+import { ActivityFilters, type ActivityFilterType } from '../components/ActivityFilters'
+import { CreateEventModal } from '../components/CreateEventModal'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { LocationDiscoveryCard } from '../components/LocationDiscoveryCard'
+import { MiniCalendar } from '../components/MiniCalendar'
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
+import { eventsWithinRange } from '../lib/recurrence'
+import { getVisibilityMeta } from '../lib/visibility'
 
 function getEmptyActivityMessage(filter: ActivityFilterType): string {
 	if (filter === 'all') {
@@ -84,12 +86,10 @@ export function FeedPage() {
 				(a: Activity) => a.type === 'event_created' || a.type === 'event_shared'
 			)
 		}
-		if (activityFilter === 'interactions') {
-			return allActivities.filter(
-				(a: Activity) => a.type === 'like' || a.type === 'rsvp' || a.type === 'comment'
-			)
-		}
-		return allActivities
+		// activityFilter must be 'interactions' at this point
+		return allActivities.filter(
+			(a: Activity) => a.type === 'like' || a.type === 'rsvp' || a.type === 'comment'
+		)
 	}, [allActivities, activityFilter])
 	const trendingWindowLabel = trendingData
 		? `Last ${trendingData.windowDays} days`
@@ -162,11 +162,15 @@ export function FeedPage() {
 	// Handle template from location state
 	useEffect(() => {
 		const state = location.state as { useTemplate?: { id: string } } | null
-		if (state?.useTemplate?.id) {
-			setTemplateIdToUse(state.useTemplate.id)
-			openCreateEventModal()
-			// Clear the state so it doesn't reopen on navigation
-			navigate('/feed', { replace: true, state: {} })
+		const templateId = state?.useTemplate?.id
+		if (templateId) {
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => {
+				setTemplateIdToUse(templateId)
+				openCreateEventModal()
+				// Clear the state so it doesn't reopen on navigation
+				navigate('/feed', { replace: true, state: {} })
+			}, 0)
 		}
 	}, [location.state, navigate, openCreateEventModal])
 
@@ -312,7 +316,7 @@ export function FeedPage() {
 						<span>?? {event.trendingMetrics?.comments ?? 0} comments</span>
 						<span>?? {event.trendingMetrics?.attendance ?? 0} RSVPs</span>
 					</div>
-					{event.tags?.length ? (
+					{event.tags.length > 0 ? (
 						<div className="mt-3 flex flex-wrap gap-2">
 							{event.tags.slice(0, 4).map((tag) => (
 								<Badge key={tag.id} variant="primary" size="sm">

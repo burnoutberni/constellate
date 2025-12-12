@@ -1,16 +1,19 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Navbar } from '../components/Navbar'
+
 import { PageLayout, Container } from '@/components/layout'
 import { Button, Input, Textarea, Modal } from '@/components/ui'
+import { queryKeys } from '@/hooks/queries'
+import { api } from '@/lib/api-client'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { useUIStore } from '@/stores'
+
+import { Navbar } from '../components/Navbar'
+import type { EventTemplate } from '../components/TemplateCard'
 import { TemplateList } from '../components/TemplateList'
 import { useAuth } from '../hooks/useAuth'
-import { useUIStore } from '@/stores'
-import { extractErrorMessage } from '@/lib/errorHandling'
-import { queryKeys } from '@/hooks/queries'
-import type { EventTemplate } from '../components/TemplateCard'
-import { api } from '@/lib/api-client'
+
 
 interface TemplatePreviewModalProps {
 	template: EventTemplate | null

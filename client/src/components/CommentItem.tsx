@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Avatar, Button } from './ui'
+
 import type { CommentWithMentions } from '@/types'
+
+import { Avatar, Button } from './ui'
 
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
 
@@ -31,7 +33,7 @@ export function CommentItem({
 
 		const mentionMap = new Map<string, (typeof mentions)[0]>()
 		mentions.forEach((mention) => {
-			const normalizedHandle = mention.handle?.startsWith('@')
+			const normalizedHandle = mention.handle.startsWith('@')
 				? mention.handle.slice(1).toLowerCase()
 				: mention.handle.toLowerCase()
 			mentionMap.set(normalizedHandle, mention)

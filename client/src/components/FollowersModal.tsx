@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import type { User } from '@/types'
+
 import { useThemeColors } from '@/design-system'
 import { queryKeys } from '@/hooks/queries'
-import { Modal, Button, Spinner } from './ui'
 import { api } from '@/lib/api-client'
+import type { User } from '@/types'
+
+import { Modal, Button, Spinner } from './ui'
 
 interface FollowersModalProps {
 	isOpen: boolean

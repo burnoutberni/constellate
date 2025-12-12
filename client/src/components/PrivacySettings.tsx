@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
+import { useState, useEffect } from 'react'
+
+
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+
+import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 
 interface PrivacySettingsProps {
 	profile: {
@@ -15,14 +18,19 @@ interface PrivacySettingsProps {
 export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
+	// Derive initial state from profile prop
 	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(
-		profile.autoAcceptFollowers ?? true
+		profile.autoAcceptFollowers
 	)
 
 	// Update local state when profile changes
 	useEffect(() => {
-		setAutoAcceptFollowers(profile.autoAcceptFollowers ?? true)
-	}, [profile.autoAcceptFollowers])
+		const newValue = profile.autoAcceptFollowers
+		if (autoAcceptFollowers !== newValue) {
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setAutoAcceptFollowers(newValue), 0)
+		}
+	}, [profile.autoAcceptFollowers, autoAcceptFollowers])
 
 	const updateProfileMutation = useMutation({
 		mutationFn: async (data: { autoAcceptFollowers?: boolean }) => {

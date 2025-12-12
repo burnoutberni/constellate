@@ -52,15 +52,6 @@ vi.mock('../../lib/formatUtils', () => ({
 	}),
 }))
 
-const mockFormatter = new Intl.DateTimeFormat('en-US', {
-	weekday: 'short',
-	month: 'short',
-	day: 'numeric',
-	hour: 'numeric',
-	minute: '2-digit',
-	timeZone: 'UTC',
-})
-
 const createMockEvent = (overrides?: Partial<Event>): Event => ({
 	id: '1',
 	title: 'Test Event',
@@ -108,158 +99,7 @@ describe('EventCard Component', () => {
 		})
 	})
 
-	describe('Legacy API - List View', () => {
-		it('user can see event details and navigate to event', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			// User can see event information
-			expect(screen.getByText('Test Event')).toBeInTheDocument()
-			expect(screen.getByText('This is a test event summary')).toBeInTheDocument()
-			expect(screen.getByText(/Test Location/)).toBeInTheDocument()
-			expect(screen.getByText(/Hosted by @testuser/)).toBeInTheDocument()
-
-			// User can navigate to event
-			const viewButton = screen.getByRole('button', { name: 'View event' })
-			expect(viewButton).toBeInTheDocument()
-			expect(viewButton.closest('a')).toHaveAttribute('href', '/@testuser/1')
-		})
-
-		it('user can see event engagement stats', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			expect(screen.getByText(/10 attending/)).toBeInTheDocument()
-			expect(screen.getByText(/5 likes/)).toBeInTheDocument()
-			expect(screen.getByText(/3 comments/)).toBeInTheDocument()
-		})
-
-		it('user can see event tags', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			expect(screen.getByText('#test')).toBeInTheDocument()
-			expect(screen.getByText('#event')).toBeInTheDocument()
-		})
-
-		it('user sees sign up CTA when not authenticated', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			const signupButton = screen.getByRole('button', { name: 'Sign up to RSVP' })
-			expect(signupButton).toBeInTheDocument()
-			expect(signupButton.closest('a')).toHaveAttribute('href', '/login')
-		})
-
-		it('user does not see sign up CTA when authenticated', () => {
-			mockUseAuth.mockReturnValue({
-				user: { id: 'user1', username: 'authenticated' },
-				loading: false,
-			})
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			expect(
-				screen.queryByRole('button', { name: 'Sign up to RSVP' })
-			).not.toBeInTheDocument()
-		})
-
-		it('renders gracefully when optional fields are missing', () => {
-			const event = createMockEvent({
-				summary: undefined,
-				location: undefined,
-				tags: [],
-				_count: undefined,
-				user: undefined,
-			})
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			expect(screen.getByText('Test Event')).toBeInTheDocument()
-			expect(screen.queryByText('This is a test event summary')).not.toBeInTheDocument()
-		})
-
-		it('user can see visibility badge', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'list' })
-
-			expect(screen.getByText(/Public/)).toBeInTheDocument()
-		})
-	})
-
-	describe('Legacy API - Grid View', () => {
-		it('user can see event details and navigate to event', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			expect(screen.getByText('Test Event')).toBeInTheDocument()
-			expect(screen.getByText('This is a test event summary')).toBeInTheDocument()
-			expect(screen.getByText(/Test Location/)).toBeInTheDocument()
-
-			const viewButton = screen.getByRole('button', { name: 'View event' })
-			expect(viewButton).toBeInTheDocument()
-			expect(viewButton.closest('a')).toHaveAttribute('href', '/@testuser/1')
-		})
-
-		it('user can see event header image when available', () => {
-			const event = createMockEvent({
-				headerImage: 'https://example.com/image.jpg',
-			})
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			const image = screen.getByAltText('Test Event')
-			expect(image).toBeInTheDocument()
-			expect(image).toHaveAttribute('src', 'https://example.com/image.jpg')
-		})
-
-		it('user can see engagement stats in grid view', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			expect(screen.getByText('10')).toBeInTheDocument() // attendance count
-			expect(screen.getByText('5')).toBeInTheDocument() // likes count
-		})
-
-		it('user sees sign up CTA when not authenticated', () => {
-			const event = createMockEvent()
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			const signupButton = screen.getByRole('button', { name: 'Sign up to RSVP' })
-			expect(signupButton).toBeInTheDocument()
-			expect(signupButton.closest('a')).toHaveAttribute('href', '/login')
-		})
-
-		it('renders gracefully when optional fields are missing', () => {
-			const event = createMockEvent({
-				summary: undefined,
-				location: undefined,
-				headerImage: undefined,
-				tags: [],
-				_count: undefined,
-			})
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			expect(screen.getByText('Test Event')).toBeInTheDocument()
-		})
-
-		it('user can see limited tags with overflow indicator', () => {
-			const event = createMockEvent({
-				tags: [
-					{ id: '1', tag: 'tag1' },
-					{ id: '2', tag: 'tag2' },
-					{ id: '3', tag: 'tag3' },
-					{ id: '4', tag: 'tag4' },
-				],
-			})
-			renderEventCard({ event, formatter: mockFormatter, viewMode: 'grid' })
-
-			expect(screen.getByText('#tag1')).toBeInTheDocument()
-			expect(screen.getByText('#tag2')).toBeInTheDocument()
-			expect(screen.getByText('#tag3')).toBeInTheDocument()
-			expect(screen.getByLabelText('1 more tags')).toBeInTheDocument()
-		})
-	})
-
-	describe('New API - Full Variant', () => {
+	describe('Full Variant', () => {
 		it('user can see complete event information', () => {
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
@@ -376,7 +216,7 @@ describe('EventCard Component', () => {
 		})
 	})
 
-	describe('New API - Compact Variant', () => {
+	describe('Compact Variant', () => {
 		it('user can see essential event information', () => {
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'compact', isAuthenticated: false })

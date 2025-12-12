@@ -1,22 +1,25 @@
+import { useQuery } from '@tanstack/react-query'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Navbar } from '../components/Navbar'
+
 import { Stack } from '@/components/layout'
-import { useAuth } from '../hooks/useAuth'
+import { Button, Badge, Spinner } from '@/components/ui'
+import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import { useUIStore } from '@/stores'
-import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
-import { getVisibilityMeta } from '../lib/visibility'
-import { getDefaultTimezone } from '../lib/timezones'
 import type { Event, UserProfile } from '@/types'
+
 import { AdvancedSearchFilters } from '../components/AdvancedSearchFilters'
-import { addRecentSearch } from '../lib/recentSearches'
-import { TrendingEvents } from '../components/TrendingEvents'
+import { Navbar } from '../components/Navbar'
 import { RecommendedEvents } from '../components/RecommendedEvents'
-import { Button, Badge, Spinner } from '@/components/ui'
+import { TrendingEvents } from '../components/TrendingEvents'
+import { useAuth } from '../hooks/useAuth'
+import { addRecentSearch } from '../lib/recentSearches'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 import { isBackendDateRange } from '../lib/searchUtils'
+import { getDefaultTimezone } from '../lib/timezones'
+import { getVisibilityMeta } from '../lib/visibility'
+
 
 interface FormState {
 	q: string
@@ -126,13 +129,13 @@ const buildFormStateFromParams = (params: URLSearchParams): FormState => {
 	const dateRangeParam = params.get('dateRange') as DateRangeSelection | null
 
 	let dateRange: DateRangeSelection = 'anytime'
-	if (
-		dateRangeParam &&
-		(isBackendDateRange(dateRangeParam) ||
-			dateRangeParam === 'anytime' ||
-			dateRangeParam === 'custom')
-	) {
-		dateRange = dateRangeParam
+	if (dateRangeParam) {
+		if (isBackendDateRange(dateRangeParam) || dateRangeParam === 'anytime') {
+			dateRange = dateRangeParam
+		} else {
+			// dateRangeParam must be 'custom' at this point
+			dateRange = 'custom'
+		}
 	} else if (startDateParam || endDateParam) {
 		dateRange = 'custom'
 	}

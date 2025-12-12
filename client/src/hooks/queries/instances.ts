@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from './keys'
-import type { InstanceListResponse, InstanceSearchResponse, InstanceWithStats } from '@/types'
-import { api } from '@/lib/api-client'
+
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
+import type { InstanceListResponse, InstanceSearchResponse, InstanceWithStats } from '@/types'
+
+import { queryKeys } from './keys'
 
 interface InstanceListParams {
 	limit?: number

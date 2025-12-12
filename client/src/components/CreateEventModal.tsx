@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { useAuth } from '../hooks/useAuth'
+
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
+import { isApiError } from '@/lib/errorHandling'
+import { logger } from '@/lib/logger'
 import type { EventVisibility } from '@/types'
+
+import { useAuth } from '../hooks/useAuth'
+import { useEventDraft } from '../hooks/useEventDraft'
 import {
 	useLocationSuggestions,
 	LocationSuggestion,
@@ -11,15 +18,14 @@ import {
 	parseCoordinates,
 	buildEventPayload as buildEventPayloadUtil,
 } from '../lib/eventFormUtils'
-import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { useEventDraft } from '../hooks/useEventDraft'
-import { Button, Input, Textarea, Card, Modal } from './ui'
+
+
+
 import { RecurrenceSelector } from './RecurrenceSelector'
-import { VisibilitySelector } from './VisibilitySelector'
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
-import { api } from '@/lib/api-client'
-import { logger } from '@/lib/logger'
-import { isApiError } from '@/lib/errorHandling'
+import { Button, Input, Textarea, Card, Modal } from './ui'
+import { VisibilitySelector } from './VisibilitySelector'
+
 
 interface CreateEventModalProps {
 	isOpen: boolean
@@ -281,7 +287,7 @@ export function CreateEventModal({
 					template.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
 				startTime: template.data.startTime || '',
 				endTime: template.data.endTime || '',
-				visibility: (template.data.visibility as EventVisibility) || 'PUBLIC',
+				visibility: (template.data.visibility as EventVisibility | undefined) ?? 'PUBLIC',
 				recurrencePattern: template.data.recurrencePattern || 'none',
 				recurrenceEndDate: template.data.recurrenceEndDate || '',
 				tags: template.data.tags || [],
@@ -319,7 +325,8 @@ export function CreateEventModal({
 	}
 
 	const handleUseCurrentLocation = () => {
-		if (!navigator.geolocation) {
+		// navigator.geolocation is always defined in TypeScript's DOM types
+		if (!('geolocation' in navigator) || !navigator.geolocation) {
 			handleError(
 				new Error('Geolocation is not supported in this browser.'),
 				'Geolocation not available',

@@ -1,5 +1,7 @@
 import React from 'react'
+
 import { cn } from '../../lib/utils'
+
 import { Container, type ContainerSize } from './Container'
 
 export type SectionPadding = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'

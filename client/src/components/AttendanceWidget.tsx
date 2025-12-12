@@ -1,5 +1,5 @@
-import { Button } from './ui'
 import { SignUpPrompt } from './SignUpPrompt'
+import { Button } from './ui'
 
 interface AttendanceWidgetProps {
 	/**

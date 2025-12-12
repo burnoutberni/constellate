@@ -1,9 +1,13 @@
 import { useMemo } from 'react'
-import { Badge } from './ui'
+
+import type { EventVisibility, RecurrencePattern } from '@/types'
+
+import { formatDate, formatTime } from '../lib/formatUtils'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
-import { formatDate, formatTime } from '../lib/formatUtils'
-import type { EventVisibility, RecurrencePattern } from '@/types'
+
+import { Badge } from './ui'
+
 
 interface EventInfoProps {
 	/**
@@ -39,7 +43,10 @@ interface EventInfoProps {
  * Handles timezone display and formatting.
  */
 export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoProps) {
-	const visibilityMeta = useMemo(() => getVisibilityMeta(event.visibility), [event.visibility])
+	const visibilityMeta = useMemo(() => {
+		// Ensure we always have a valid visibility meta, defaulting to PUBLIC
+		return getVisibilityMeta(event.visibility || 'PUBLIC')
+	}, [event.visibility])
 
 	const formatDateWithTimezone = useMemo(
 		() => (dateString: string) =>
@@ -69,13 +76,11 @@ export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoPro
 			<div>
 				<div className="flex flex-wrap items-center gap-3 mb-2">
 					<h1 className="text-3xl font-bold text-text-primary">{event.title}</h1>
-					{visibilityMeta && (
-						<Badge variant="secondary" size="md">
-							{visibilityMeta.icon} {visibilityMeta.label}
-						</Badge>
-					)}
+					<Badge variant="secondary" size="md">
+						{visibilityMeta.icon} {visibilityMeta.label}
+					</Badge>
 				</div>
-				{visibilityMeta?.helper && (
+				{visibilityMeta.helper && (
 					<p className="text-sm text-text-secondary">{visibilityMeta.helper}</p>
 				)}
 			</div>

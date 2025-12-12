@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
-import { useAuth } from '../hooks/useAuth'
-import { useUIStore } from '@/stores'
+
 import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { extractErrorMessage } from '@/lib/errorHandling'
 import { api } from '@/lib/api-client'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { useUIStore } from '@/stores'
+
+import { useAuth } from '../hooks/useAuth'
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
 
 interface AccountSettingsProps {
 	profile: {

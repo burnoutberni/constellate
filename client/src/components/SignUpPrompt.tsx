@@ -1,32 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import { Button, Card, CardContent } from './ui'
-import { SignupModal } from './SignupModal'
 
-// Legacy API props - uses SignupModal
-interface SignUpPromptPropsLegacy {
-	/**
-	 * The action context for the prompt (e.g., "follow this user", "RSVP", etc.)
-	 */
-	action?: string
-	/**
-	 * Optional custom message
-	 */
-	message?: string
-	/**
-	 * Callback after successful signup/login
-	 */
-	onSuccess?: () => void
-	/**
-	 * Custom className for the card
-	 */
-	className?: string
-	variant?: never
-	onSignUp?: never
-}
-
-// New API props - uses Link or onSignUp callback
-interface SignUpPromptPropsNew {
+interface SignUpPromptProps {
 	/**
 	 * The action the user wants to perform
 	 */
@@ -50,10 +26,7 @@ interface SignUpPromptPropsNew {
 	 * Additional CSS classes to apply to the component
 	 */
 	className?: string
-	onSuccess?: never
 }
-
-type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
 
 /**
  * SignUpPrompt component displays a call-to-action for unauthenticated users
@@ -62,49 +35,9 @@ type SignUpPromptProps = SignUpPromptPropsLegacy | SignUpPromptPropsNew
  * Used throughout the app to encourage sign-ups for specific actions.
  */
 export function SignUpPrompt(props: SignUpPromptProps) {
-	const [showSignupModal, setShowSignupModal] = useState(false)
-
-	// Determine which API is being used
-	const isLegacyAPI = 'onSuccess' in props || ('className' in props && !('variant' in props))
-	const variant = isLegacyAPI ? undefined : props.variant || 'inline'
+	const variant = props.variant || 'inline'
 	const { action } = props
 	const { message } = props
-
-	// Legacy API: uses SignupModal (always shows as card)
-	if (isLegacyAPI) {
-		const defaultMessage = `Sign up to ${action || 'continue'}`
-
-		return (
-			<>
-				<Card variant="outlined" className={props.className}>
-					<CardContent className="text-center py-6">
-						<div className="text-4xl mb-3">👋</div>
-						<h3 className="text-lg font-semibold text-text-primary mb-2">
-							Join Constellate
-						</h3>
-						<p className="text-text-secondary mb-4">{message || defaultMessage}</p>
-						<Button
-							variant="primary"
-							size="lg"
-							onClick={() => setShowSignupModal(true)}>
-							Sign Up
-						</Button>
-					</CardContent>
-				</Card>
-
-				<SignupModal
-					isOpen={showSignupModal}
-					onClose={() => setShowSignupModal(false)}
-					onSuccess={() => {
-						setShowSignupModal(false)
-						props.onSuccess?.()
-					}}
-				/>
-			</>
-		)
-	}
-
-	// New API: uses Link or onSignUp callback
 	const getDefaultMessage = (): string => {
 		if (message) {
 			return message

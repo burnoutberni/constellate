@@ -1,8 +1,10 @@
-import { useRef, useEffect } from 'react'
-import type { Event } from '@/types'
-import { Button, Badge } from './ui'
-import { Stack } from './layout'
+import { useRef, useEffect, useState } from 'react'
+
 import { tokens } from '@/design-system'
+import type { Event } from '@/types'
+
+import { Stack } from './layout'
+import { Button, Badge } from './ui'
 
 interface CalendarEventPopupProps {
 	event: Event
@@ -50,19 +52,28 @@ export function CalendarEventPopup({
 	// Adjust position if popup goes off screen
 	// Use spacing[5] (1.25rem = 20px) for viewport edge padding
 	const viewportPadding = parseFloat(tokens.spacing[5]) * 16 // Convert rem to px
-	const adjustedPosition = { ...position }
-	if (popupRef.current) {
-		const rect = popupRef.current.getBoundingClientRect()
-		const viewportWidth = window.innerWidth
-		const viewportHeight = window.innerHeight
+	const [adjustedPosition, setAdjustedPosition] = useState(position)
 
-		if (rect.right > viewportWidth) {
-			adjustedPosition.x = viewportWidth - rect.width - viewportPadding
+	useEffect(() => {
+		if (popupRef.current) {
+			const rect = popupRef.current.getBoundingClientRect()
+			const viewportWidth = window.innerWidth
+			const viewportHeight = window.innerHeight
+			const newPosition = { ...position }
+
+			if (rect.right > viewportWidth) {
+				newPosition.x = viewportWidth - rect.width - viewportPadding
+			}
+			if (rect.bottom > viewportHeight) {
+				newPosition.y = viewportHeight - rect.height - viewportPadding
+			}
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setAdjustedPosition(newPosition), 0)
+		} else {
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setAdjustedPosition(position), 0)
 		}
-		if (rect.bottom > viewportHeight) {
-			adjustedPosition.y = viewportHeight - rect.height - viewportPadding
-		}
-	}
+	}, [position, viewportPadding])
 
 	const formatDateTime = (dateString: string) => {
 		const date = new Date(dateString)
@@ -137,7 +148,7 @@ export function CalendarEventPopup({
 					)}
 
 					{/* Tags */}
-					{event.tags && event.tags.length > 0 && (
+					{event.tags.length > 0 && (
 						<div className="flex flex-wrap gap-1 mb-3">
 							{event.tags.map((tag) => (
 								<Badge key={tag.id} variant="secondary" size="sm">

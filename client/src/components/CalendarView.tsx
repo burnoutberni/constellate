@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react'
+
 import type { Event } from '@/types'
+
 import { Button, Spinner } from './ui'
 
 interface CalendarViewProps {

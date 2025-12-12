@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from './keys'
-import type { UserProfile, FollowStatus, Event } from '@/types'
-import { api } from '@/lib/api-client'
+
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
+import type { UserProfile, FollowStatus, Event } from '@/types'
+
+import { queryKeys } from './keys'
 
 interface UserProfileResponse {
 	user: UserProfile

@@ -1,19 +1,21 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRealtime, type RealtimeEvent } from '../hooks/useRealtime'
-import { Navbar } from '../components/Navbar'
-import { useAuth } from '../hooks/useAuth'
-import type { Event } from '@/types'
-import { eventsWithinRange } from '../lib/recurrence'
-import { CalendarView } from '../components/CalendarView'
-import { CalendarNavigation } from '../components/CalendarNavigation'
-import { CalendarEventPopup } from '../components/CalendarEventPopup'
+
 import { Card, Button } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { ErrorBoundary } from '../components/ErrorBoundary'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import type { Event } from '@/types'
+
+import { CalendarEventPopup } from '../components/CalendarEventPopup'
+import { CalendarNavigation } from '../components/CalendarNavigation'
+import { CalendarView } from '../components/CalendarView'
+import { ErrorBoundary } from '../components/ErrorBoundary'
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
+import { useRealtime, type RealtimeEvent } from '../hooks/useRealtime'
+import { eventsWithinRange } from '../lib/recurrence'
 
 export function CalendarPage() {
 	const colors = useThemeColors()
@@ -107,7 +109,7 @@ export function CalendarPage() {
 					undefined,
 					'Failed to fetch attendance'
 				)
-				setUserAttendance((data.attendance || []).map((eventId) => ({ eventId })))
+				setUserAttendance(data.attendance.map((eventId) => ({ eventId })))
 			} catch (error) {
 				logger.error('Error fetching user attendance:', error)
 			}
@@ -197,7 +199,7 @@ export function CalendarPage() {
 					undefined,
 					'Failed to fetch events'
 				)
-				setEvents(data.events || [])
+				setEvents(data.events)
 			} catch (error) {
 				logger.error('Error fetching events:', error)
 			} finally {
@@ -287,7 +289,7 @@ export function CalendarPage() {
 					undefined,
 					'Failed to generate Google Calendar link'
 				)
-				if (data?.url) {
+				if (data.url) {
 					window.open(data.url, '_blank', 'noopener,noreferrer')
 				} else {
 					throw new Error('No URL returned from server')

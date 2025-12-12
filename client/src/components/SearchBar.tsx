@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Event } from '@/types'
+
 import { useThemeColors } from '@/design-system'
-import { createLogger } from '@/lib/logger'
-import { Button, Input, Spinner } from './ui'
 import { api } from '@/lib/api-client'
+import { createLogger } from '@/lib/logger'
+import { User, Event } from '@/types'
+
+import { Button, Input, Spinner } from './ui'
+
 
 const log = createLogger('[SearchBar]')
 
@@ -128,7 +131,8 @@ export function SearchBar() {
 			if (username) {
 				navigate(`/@${username}/${event.id}`)
 			}
-		} else if (item.type === 'remote') {
+		} else {
+			// item.type must be 'remote' at this point
 			const suggestion = item.data as RemoteAccountSuggestion
 			resolveRemoteAccount(suggestion.handle)
 		}

@@ -1,15 +1,17 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Navbar } from '../components/Navbar'
+
+import { GridViewIcon, ListViewIcon } from '@/components/icons'
+import { Container, Grid, Stack } from '@/components/layout'
+import { Card, Button, Badge, ToggleGroup, ToggleButton, Select, Spinner } from '@/components/ui'
+import { useEventSearch, type EventSearchFilters } from '@/hooks/queries'
+import { useUIStore } from '@/stores'
+
 import { EventCard } from '../components/EventCard'
 import { EventFilters, type FilterFormState } from '../components/EventFilters'
-import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
-import { Card, Button, Badge, ToggleGroup, ToggleButton, Select, Spinner } from '@/components/ui'
-import { Container, Grid, Stack } from '@/components/layout'
+import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
-import { useUIStore } from '@/stores'
-import { useEventSearch, type EventSearchFilters } from '@/hooks/queries'
-import { GridViewIcon, ListViewIcon } from '@/components/icons'
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 import {
 	parseCommaList,
 	isoToInputDate,
@@ -68,13 +70,13 @@ const buildFormStateFromParams = (params: URLSearchParams): FilterFormState => {
 	const dateRangeParam = params.get('dateRange') as DateRangeSelection | null
 
 	let dateRange: DateRangeSelection = 'anytime'
-	if (
-		dateRangeParam &&
-		(isBackendDateRange(dateRangeParam) ||
-			dateRangeParam === 'anytime' ||
-			dateRangeParam === 'custom')
-	) {
-		dateRange = dateRangeParam
+	if (dateRangeParam) {
+		if (isBackendDateRange(dateRangeParam) || dateRangeParam === 'anytime') {
+			dateRange = dateRangeParam
+		} else {
+			// dateRangeParam must be 'custom' at this point
+			dateRange = 'custom'
+		}
 	} else if (startDateParam || endDateParam) {
 		dateRange = 'custom'
 	}

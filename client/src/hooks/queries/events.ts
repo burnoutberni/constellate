@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from './keys'
-import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
-import { api } from '@/lib/api-client'
+
 import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
 import { isApiError } from '@/lib/errorHandling'
+import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
+
+import { queryKeys } from './keys'
 
 interface EventsResponse {
 	events: Event[]
@@ -222,10 +224,9 @@ export function useRSVP(eventId: string, userId?: string) {
 
 					if (input === null) {
 						// Remove attendance
-						const updatedAttendance =
-							eventDetail.attendance?.filter(
-								(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
-							) || []
+						const updatedAttendance = eventDetail.attendance.filter(
+							(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
+						)
 						queryClient.setQueryData(queryKey, {
 							...eventDetail,
 							attendance: updatedAttendance,
@@ -237,9 +238,9 @@ export function useRSVP(eventId: string, userId?: string) {
 					} else {
 						// Add or update attendance
 						const existingIndex = userId
-							? (eventDetail.attendance?.findIndex(
+							? eventDetail.attendance.findIndex(
 									(a: { user?: { id?: string } }) => a.user?.id === userId
-								) ?? -1)
+								)
 							: -1
 
 						// We'll wait for SSE to add the actual attendance with full user data
@@ -312,10 +313,9 @@ export function useLikeEvent(eventId: string, userId?: string) {
 
 					if (liked) {
 						// Remove like
-						const updatedLikes =
-							eventDetail.likes?.filter(
-								(l: { user?: { id?: string } }) => userId && l.user?.id !== userId
-							) || []
+						const updatedLikes = eventDetail.likes.filter(
+							(l: { user?: { id?: string } }) => userId && l.user?.id !== userId
+						)
 						queryClient.setQueryData(queryKey, {
 							...eventDetail,
 							likes: updatedLikes,

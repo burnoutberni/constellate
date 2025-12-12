@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom'
+
 import type { Activity, EventVisibility } from '@/types'
+
 import { getVisibilityMeta } from '../lib/visibility'
-import { Avatar, Badge, Card } from './ui'
+
 import { FollowButton } from './FollowButton'
+import { Avatar, Badge, Card } from './ui'
 
 interface ActivityFeedItemProps {
 	activity: Activity
@@ -174,8 +177,8 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
 							</span>
 						</div>
 
-						{/* Event Tags */}
-						{activity.event.tags && activity.event.tags.length > 0 && (
+					{/* Event Tags */}
+					{activity.event.tags.length > 0 && (
 							<div className="flex flex-wrap gap-1 mt-2">
 								{activity.event.tags.slice(0, 3).map((tag) => (
 									<Badge key={tag.id} variant="primary" size="sm">

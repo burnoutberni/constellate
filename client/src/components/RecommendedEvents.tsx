@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
+
 import { useRecommendedEvents } from '@/hooks/queries'
-import { Card, Badge } from './ui'
 import type { EventRecommendationPayload } from '@/types'
+
+import { Card, Badge } from './ui'
 
 interface RecommendedEventsProps {
 	limit?: number
@@ -82,7 +84,7 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
 					<h3 className="text-lg font-semibold text-neutral-900">
 						✨ Recommended for You
 					</h3>
-					{data.metadata && (
+					{data.metadata ? (
 						<span className="text-xs text-neutral-500">
 							Based on{' '}
 							{data.metadata.signals.tags +
@@ -90,7 +92,7 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
 								data.metadata.signals.followed}{' '}
 							signals
 						</span>
-					)}
+					) : null}
 				</div>
 
 				<div className="space-y-3">

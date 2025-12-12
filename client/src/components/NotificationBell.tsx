@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import {
 	useNotifications,
 	useMarkNotificationRead,
 	useMarkAllNotificationsRead,
 } from '@/hooks/queries'
-import { Badge, Button, Card, CardHeader, CardTitle, CardContent, Spinner } from './ui'
+
 import { NotificationItem } from './NotificationItem'
+import { Badge, Button, Card, CardHeader, CardTitle, CardContent, Spinner } from './ui'
 
 interface NotificationBellProps {
 	userId?: string

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Button } from './ui'
+
 import { Section, Stack } from './layout'
+import { Button } from './ui'
 
 interface HomeHeroProps {
 	/**

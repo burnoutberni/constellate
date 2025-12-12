@@ -1,8 +1,9 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../hooks/useAuth'
-import { api } from '@/lib/api-client'
+
+import { Container } from '@/components/layout'
+import { Button, Card, CardContent, Spinner } from '@/components/ui'
 import {
 	useEventDetail,
 	useRSVP,
@@ -13,23 +14,27 @@ import {
 	useEventReminder,
 	queryKeys,
 } from '@/hooks/queries'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
+import { createLogger } from '@/lib/logger'
 import type { UserProfile } from '@/types'
-import { SignupModal } from '../components/SignupModal'
-import { EventHeader } from '../components/EventHeader'
-import { EventInfo } from '../components/EventInfo'
+
+
+
 import { AttendanceWidget } from '../components/AttendanceWidget'
 import { AttendeeList } from '../components/AttendeeList'
-import { ReminderSelector } from '../components/ReminderSelector'
 import { CalendarExport } from '../components/CalendarExport'
 import { CommentList } from '../components/CommentList'
-import { Button, Card, CardContent, Spinner } from '@/components/ui'
-import { Container } from '@/components/layout'
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { EventHeader } from '../components/EventHeader'
+import { EventInfo } from '../components/EventInfo'
+import { ReminderSelector } from '../components/ReminderSelector'
+import { SignupModal } from '../components/SignupModal'
+import { useAuth } from '../hooks/useAuth'
+import { formatDate } from '../lib/formatUtils'
 import { setSEOMetadata } from '../lib/seo'
 import { getDefaultTimezone } from '../lib/timezones'
-import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { createLogger } from '@/lib/logger'
-import { formatDate } from '../lib/formatUtils'
+
 
 const log = createLogger('[EventDetailPage]')
 
@@ -98,14 +103,14 @@ export function EventDetailPage() {
 		if (!event || !user) {
 			return null
 		}
-		return event.attendance?.find((a) => a.user.id === user.id)?.status || null
+		return event.attendance.find((a) => a.user.id === user.id)?.status || null
 	}, [event, user])
 
 	const userLiked = useMemo(() => {
 		if (!event || !user) {
 			return false
 		}
-		return Boolean(event.likes?.find((l) => l.user.id === user.id))
+		return Boolean(event.likes.find((l) => l.user.id === user.id))
 	}, [event, user])
 
 	// Check if user has already shared this event
@@ -143,20 +148,29 @@ export function EventDetailPage() {
 	)
 	const originalOwner = useMemo(() => event?.sharedEvent?.user, [event])
 	const attending = useMemo(
-		() => event?.attendance?.filter((a) => a.status === 'attending').length || 0,
+		() => (event ? event.attendance.filter((a) => a.status === 'attending').length : 0),
 		[event]
 	)
 	const maybe = useMemo(
-		() => event?.attendance?.filter((a) => a.status === 'maybe').length || 0,
+		() => (event ? event.attendance.filter((a) => a.status === 'maybe').length : 0),
 		[event]
 	)
 	const eventStartDate = useMemo(
 		() => (displayedEvent ? new Date(displayedEvent.startTime) : null),
 		[displayedEvent]
 	)
+	const [currentTime, setCurrentTime] = useState(() => Date.now())
+	
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setCurrentTime(Date.now())
+		}, 1000)
+		return () => clearInterval(interval)
+	}, [])
+
 	const eventHasStarted = useMemo(
-		() => (eventStartDate ? eventStartDate.getTime() <= Date.now() : false),
-		[eventStartDate]
+		() => (eventStartDate ? eventStartDate.getTime() <= currentTime : false),
+		[eventStartDate, currentTime]
 	)
 	const canManageReminder = useMemo(
 		() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')),
@@ -206,7 +220,8 @@ export function EventDetailPage() {
 		try {
 			await reminderMutation.mutateAsync(nextValue)
 		} catch (error) {
-			setSelectedReminder(previousValue !== undefined ? previousValue : null)
+			// previousValue is always number | null, never undefined
+			setSelectedReminder(previousValue)
 			handleError(error, 'Failed to update reminder. Please try again.', {
 				context: 'EventDetailPage.handleReminderChange',
 			})
@@ -450,12 +465,12 @@ export function EventDetailPage() {
 										@{originalOwner.username}
 									</Link>
 								</div>
-								{event.user && (
+								{event.user ? (
 									<p className="mt-1 text-xs text-primary-800">
 										{event.user.name || event.user.username} reshared this
 										event.
 									</p>
-								)}
+								) : null}
 							</CardContent>
 						</Card>
 					)}
@@ -509,7 +524,7 @@ export function EventDetailPage() {
 								userAttendance={userAttendance}
 								attendingCount={attending}
 								maybeCount={maybe}
-								likeCount={event.likes?.length || 0}
+								likeCount={event.likes.length}
 								userLiked={userLiked}
 								userHasShared={hasShared || userHasShared}
 								isAuthenticated={Boolean(user)}
@@ -545,7 +560,7 @@ export function EventDetailPage() {
 						/>
 
 						{/* Attendee List */}
-						<AttendeeList attendees={event.attendance || []} />
+						<AttendeeList attendees={event.attendance} />
 					</CardContent>
 				</Card>
 
@@ -553,7 +568,7 @@ export function EventDetailPage() {
 				<Card variant="elevated" padding="lg">
 					<CardContent>
 						<CommentList
-							comments={event.comments || []}
+							comments={event.comments}
 							currentUserId={user?.id}
 							isAuthenticated={Boolean(user)}
 							onAddComment={handleAddComment}

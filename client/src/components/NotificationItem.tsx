@@ -1,11 +1,15 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent, Badge, Button, Avatar } from './ui'
-import { Stack } from './layout'
+
+import type { Notification } from '@/types'
+
 import { formatRelativeTime } from '../lib/datetime'
 import { getNotificationTypeMeta } from '../lib/notifications'
 import { safeNavigate } from '../lib/urlValidation'
-import type { Notification } from '@/types'
+
+import { Stack } from './layout'
+import { Card, CardContent, Badge, Button, Avatar } from './ui'
+
 
 interface NotificationItemProps {
 	notification: Notification

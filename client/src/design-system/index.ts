@@ -12,4 +12,6 @@ export * from './types'
 
 // Theme Context
 export { ThemeProvider, ThemeContext, type ThemeContextType } from './ThemeContext'
-export { useTheme, useThemeColors } from '../hooks/useTheme'
+
+// Theme Hooks
+export { useTheme, useThemeColors } from './useTheme'

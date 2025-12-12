@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+
 import { logger } from '@/lib/logger'
 
 const DRAFT_KEY = 'event-creation-draft'

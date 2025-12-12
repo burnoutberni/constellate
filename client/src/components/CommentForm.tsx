@@ -7,10 +7,12 @@ import {
 	type KeyboardEvent,
 	type FormEvent,
 } from 'react'
-import { Button } from './ui/Button'
-import { MentionAutocomplete, MentionSuggestion } from './MentionAutocomplete'
+
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+
+import { MentionAutocomplete, MentionSuggestion } from './MentionAutocomplete'
+import { Button } from './ui/Button'
 
 interface CommentFormProps {
 	onSubmit: (content: string) => Promise<void>
@@ -105,6 +107,7 @@ export function CommentForm({
 	const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
 		const { value } = e.target
 		setContent(value)
+		// selectionStart is always a number in change events
 		const caret = e.target.selectionStart ?? value.length
 		updateMentionState(value, caret)
 	}
@@ -145,8 +148,11 @@ export function CommentForm({
 
 	useEffect(() => {
 		if (!mentionQuery || mentionQuery.length === 0) {
-			setMentionSuggestions([])
-			setShowMentionSuggestions(false)
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => {
+				setMentionSuggestions([])
+				setShowMentionSuggestions(false)
+			}, 0)
 			return
 		}
 
@@ -185,19 +191,21 @@ export function CommentForm({
 					onKeyDown={handleKeyDown}
 					onSelect={() => {
 						if (textareaRef.current) {
+							// selectionStart is always a number when textarea exists
+							const selectionStart = textareaRef.current.selectionStart ?? textareaRef.current.value.length
 							updateMentionState(
 								textareaRef.current.value,
-								textareaRef.current.selectionStart ??
-									textareaRef.current.value.length
+								selectionStart
 							)
 						}
 					}}
 					onClick={() => {
 						if (textareaRef.current) {
+							// selectionStart is always a number when textarea exists
+							const selectionStart = textareaRef.current.selectionStart ?? textareaRef.current.value.length
 							updateMentionState(
 								textareaRef.current.value,
-								textareaRef.current.selectionStart ??
-									textareaRef.current.value.length
+								selectionStart
 							)
 						}
 					}}

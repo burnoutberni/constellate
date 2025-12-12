@@ -1,6 +1,8 @@
 import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import { authClient } from '../lib/auth-client'
+
 import { logger } from '@/lib/logger'
+
+import { authClient } from '../lib/auth-client'
 
 interface User {
 	id: string
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}
 
 	const signup = async (email: string, password: string, name: string, username: string) => {
-		const { data, error } = await authClient.signUp.email({
+		const { error } = await authClient.signUp.email({
 			email,
 			password,
 			name,
@@ -80,9 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			throw error
 		}
 
-		if (data) {
-			await checkAuth()
-		}
+		await checkAuth()
 	}
 
 	const logout = async () => {

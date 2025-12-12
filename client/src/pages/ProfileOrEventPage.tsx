@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
-import { UserProfilePage } from './UserProfilePage'
+
 import { EventDetailPage } from './EventDetailPage'
+import { UserProfilePage } from './UserProfilePage'
 
 /**
  * Smart router that determines whether to show a user profile or event detail

@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '../useAuth'
-import type { Activity } from '@/types'
+
 import { api } from '@/lib/api-client'
+import type { Activity } from '@/types'
+
+import { useAuth } from '../useAuth'
+
 import { queryKeys } from './keys'
 
 interface ActivityFeedResponse {

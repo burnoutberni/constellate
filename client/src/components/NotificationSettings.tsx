@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
+
 import type { NotificationType } from '@/types'
+
+import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 
 interface NotificationPreferences {
 	[key: string]: boolean
