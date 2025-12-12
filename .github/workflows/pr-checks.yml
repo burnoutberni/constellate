@@ -6,8 +6,8 @@ on:
             - main
 
 jobs:
-    lint:
-        name: Lint
+    lint-and-analysis:
+        name: Lint, Type-Check & Prune
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -19,47 +19,55 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
+            - name: Cache client node_modules
+              id: cache-client-deps
+              uses: actions/cache@v4
+              with:
+                  path: client/node_modules
+                  key: client-deps-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+                  restore-keys: |
+                      client-deps-${{ runner.os }}-
+
             - name: Install root dependencies
               run: npm ci
 
             - name: Install client dependencies
+              if: steps.cache-client-deps.outputs.cache-hit != 'true'
               run: npm ci --prefix client
 
-            - name: Type check root
+            - name: Cache Prisma Client
+              id: cache-prisma
+              uses: actions/cache@v4
+              with:
+                  path: node_modules/.prisma
+                  key: prisma-${{ runner.os }}-${{ hashFiles('prisma/schema.prisma') }}
+                  restore-keys: |
+                      prisma-${{ runner.os }}-
+
+            - name: Generate Prisma Client
+              if: steps.cache-prisma.outputs.cache-hit != 'true'
+              run: npm run db:generate
+              env:
+                DATABASE_URL: "file:./prisma/dummy.db"
+
+            - name: "[Server] Type-Check"
               run: npx tsc --noEmit
 
-            - name: Lint root
+            - name: "[Server] Lint"
               run: npm run lint
+            
+            - name: "[Server] Prune"
+              run: npm run analyze:unused
+              env:
+                DATABASE_URL: "file:./prisma/dummy.db"
 
-            - name: Type check client
+            - name: "[Client] Type-Check"
               run: npx tsc --noEmit --project client/tsconfig.json
 
-            - name: Lint client
+            - name: "[Client] Lint"
               run: npm run lint --prefix client
 
-    tree-shaking:
-        name: Tree-shaking Check
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'npm'
-
-            - name: Install root dependencies
-              run: npm ci
-
-            - name: Install client dependencies
-              run: npm ci --prefix client
-
-            - name: Run knip (server-side analysis)
-              run: npm run analyze:unused
-
-            - name: Run knip (client-side analysis)
+            - name: "[Client] Prune"
               working-directory: client
               run: npx knip
 
@@ -98,13 +106,33 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
+            - name: Cache client node_modules
+              id: cache-client-deps
+              uses: actions/cache@v4
+              with:
+                  path: client/node_modules
+                  key: client-deps-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+                  restore-keys: |
+                      client-deps-${{ runner.os }}-
+
             - name: Install root dependencies
               run: npm ci
 
             - name: Install client dependencies
+              if: steps.cache-client-deps.outputs.cache-hit != 'true'
               run: npm ci --prefix client
 
+            - name: Cache Prisma Client
+              id: cache-prisma
+              uses: actions/cache@v4
+              with:
+                  path: node_modules/.prisma
+                  key: prisma-${{ runner.os }}-${{ hashFiles('prisma/schema.prisma') }}
+                  restore-keys: |
+                      prisma-${{ runner.os }}-
+
             - name: Generate Prisma Client
+              if: steps.cache-prisma.outputs.cache-hit != 'true'
               run: npm run db:generate
 
             - name: Run database migrations
@@ -142,7 +170,17 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
+            - name: Cache client node_modules
+              id: cache-client-deps
+              uses: actions/cache@v4
+              with:
+                  path: client/node_modules
+                  key: client-deps-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+                  restore-keys: |
+                      client-deps-${{ runner.os }}-
+
             - name: Install client dependencies
+              if: steps.cache-client-deps.outputs.cache-hit != 'true'
               run: npm ci --prefix client
 
             - name: Run frontend tests with coverage
@@ -202,17 +240,39 @@ jobs:
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
 
+            - name: Cache client node_modules
+              id: cache-client-deps
+              uses: actions/cache@v4
+              with:
+                  path: client/node_modules
+                  key: client-deps-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+                  restore-keys: |
+                      client-deps-${{ runner.os }}-
+              if: steps.base_cache.outputs.cache-hit != 'true'
+
             - name: Install root dependencies
               run: npm ci
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
+              if: steps.base_cache.outputs.cache-hit != 'true' && steps.cache-client-deps.outputs.cache-hit != 'true'
               run: npm ci --prefix client
+
+            - name: Cache Prisma Client
+              id: cache-prisma
+              uses: actions/cache@v4
+              with:
+                  path: node_modules/.prisma
+                  key: prisma-${{ runner.os }}-${{ hashFiles('prisma/schema.prisma') }}
+                  restore-keys: |
+                      prisma-${{ runner.os }}-
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Generate Prisma Client
+              if: steps.base_cache.outputs.cache-hit != 'true' && steps.cache-prisma.outputs.cache-hit != 'true'
               run: npm run db:generate
-              if: steps.base_cache.outputs.cache-hit != 'true'
+              env:
+                DATABASE_URL: "file:./prisma/dummy.db"
 
             - name: Run database migrations
               run: npx prisma migrate deploy
@@ -275,9 +335,19 @@ jobs:
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
 
-            - name: Install client dependencies
-              run: npm ci --prefix client
+            - name: Cache client node_modules
+              id: cache-client-deps
+              uses: actions/cache@v4
+              with:
+                  path: client/node_modules
+                  key: client-deps-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+                  restore-keys: |
+                      client-deps-${{ runner.os }}-
               if: steps.base_cache.outputs.cache-hit != 'true'
+
+            - name: Install client dependencies
+              if: steps.base_cache.outputs.cache-hit != 'true' && steps.cache-client-deps.outputs.cache-hit != 'true'
+              run: npm ci --prefix client
 
             - name: Run frontend tests with coverage
               run: npm run test:coverage --prefix client
@@ -430,18 +500,14 @@ jobs:
     all-checks:
         name: All Checks Passed
         runs-on: ubuntu-latest
-        needs: [lint, tree-shaking, test, test-frontend, coverage-check, coverage-check-frontend]
+        needs: [lint-and-analysis, test, test-frontend, coverage-check, coverage-check-frontend]
         if: always()
         steps:
             - name: Check all jobs
               run: |
                   # Required checks (must pass)
-                  if [ "${{ needs.lint.result }}" != "success" ]; then
-                    echo "❌ Lint check failed"
-                    exit 1
-                  fi
-                  if [ "${{ needs.tree-shaking.result }}" != "success" ]; then
-                    echo "❌ Tree-shaking check failed"
+                  if [ "${{ needs.lint-and-analysis.result }}" != "success" ]; then
+                    echo "❌ Lint & Analysis check failed"
                     exit 1
                   fi
                   if [ "${{ needs.test.result }}" != "success" ]; then

@@ -1,4 +1,7 @@
 import { defineConfig } from 'vitest/config'
+import { resolve, dirname } from 'path'
+import { existsSync } from 'fs'
+import type { Plugin } from 'vite'
 
 const junitReporter: ['junit', { outputFile: string }] = [
 	'junit',
@@ -7,7 +10,57 @@ const junitReporter: ['junit', { outputFile: string }] = [
 	},
 ]
 
+// Plugin to handle TypeScript imports in generated Prisma client
+// This resolves relative imports like "./enums" to "./enums.ts"
+const prismaClientResolver: Plugin = {
+	name: 'prisma-client-resolver',
+	enforce: 'pre',
+	resolveId(id, importer) {
+		// Only handle relative imports from generated prisma directory
+		if (!importer || !id.startsWith('.')) {
+			return null
+		}
+		
+		if (importer.includes('src/generated/prisma')) {
+			// Resolve the relative import
+			const importerDir = dirname(importer)
+			const resolvedPath = resolve(importerDir, id)
+			
+			// Check if .ts file exists
+			if (existsSync(`${resolvedPath}.ts`)) {
+				return `${resolvedPath}.ts`
+			}
+			
+			// Check if it's a directory with index.ts
+			if (existsSync(resolvedPath) && existsSync(resolve(resolvedPath, 'index.ts'))) {
+				return resolve(resolvedPath, 'index.ts')
+			}
+		}
+		
+		return null
+	},
+}
+
 export default defineConfig({
+	plugins: [prismaClientResolver],
+	resolve: {
+		alias: {
+			// Workaround for prismock compatibility with Prisma 7
+			// Prismock expects @prisma/client/runtime/library but Prisma 7 uses @prisma/client/runtime/client
+			'@prisma/client/runtime/library': '@prisma/client/runtime/client',
+			// Redirect .prisma/client to our custom generated location
+			// This helps with module resolution when @prisma/client tries to require .prisma/client/default
+			'.prisma/client': resolve(process.cwd(), 'src/generated/prisma'),
+		},
+		// Ensure TypeScript extensions are resolved for generated prisma files
+		extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+	},
+	server: {
+		fs: {
+			// Allow access to the generated prisma directory
+			allow: [process.cwd(), resolve(process.cwd(), 'src/generated')],
+		},
+	},
 	test: {
 		setupFiles: ['./src/tests/setupVitest.ts'],
 		exclude: ['node_modules/**', 'dist/**', 'client/**', 'prisma/**', 'scripts/**'],
@@ -30,7 +83,12 @@ export default defineConfig({
 			reportsDirectory: './coverage',
 			reportOnFailure: true,
 		},
-		threads: false,
+		pool: 'forks',
+		poolOptions: {
+			forks: {
+				singleFork: true,
+			},
+		},
 		globals: true,
 		environment: 'node',
 		testTimeout: 30_000,

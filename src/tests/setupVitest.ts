@@ -1,68 +1,243 @@
+// Patch require BEFORE importing prismock
+// This redirects @prisma/client to our custom generated location
+import './patchPrismaRequire.js'
+
 import { beforeEach, vi } from 'vitest'
-import createPrismaMock from 'prisma-mock/client'
-import { Prisma, PrismaClient } from '../generated/prisma/client.js'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { mockDeep } from 'vitest-mock-extended'
-
-// Get the datamodel using Prisma's getDMMF function
-// We need to read the schema and generate the DMMF
-import { readFileSync } from 'fs'
+import { generatePrismock } from 'prismock'
+import { PrismaClient } from '../generated/prisma/client.js'
 import { join } from 'path'
+import { existsSync, symlinkSync, mkdirSync } from 'fs'
 
-let datamodel: any
+// Create symlink from .prisma/client to our custom generated location
+// This allows @prisma/client/default.js to find the generated client
+const prismaClientPath = join(process.cwd(), 'node_modules', '.prisma', 'client')
+const generatedPrismaPath = join(process.cwd(), 'src', 'generated', 'prisma')
 
-try {
-	// Try to use Prisma CLI to get DMMF
-	// This is a workaround for Prisma 7 with custom output paths
-	const schemaPath = join(process.cwd(), 'prisma', 'schema.prisma')
-	const schema = readFileSync(schemaPath, 'utf-8')
-	
-	// Use dynamic import to get getDMMF from @prisma/internals
-	// We'll try importing it, but if it fails, we'll use a fallback
-	const prismaInternals = await import('@prisma/internals').catch(() => null)
-	
-	if (prismaInternals?.getDMMF) {
-		const dmmf = await prismaInternals.getDMMF({ datamodel: schema })
-		datamodel = dmmf.datamodel
-	} else {
-		// Fallback: try to access from PrismaClient
-		// This might not work, but it's worth trying
-		const mockAdapter = new PrismaPg({ connectionString: 'postgresql://user:pass@localhost:5432/test' })
-		const tempClient = new PrismaClient({ adapter: mockAdapter })
-		datamodel = (tempClient as any).$dmmf?.datamodel
-		void tempClient.$disconnect().catch(() => {})
+if (!existsSync(prismaClientPath)) {
+	try {
+		// Ensure the .prisma directory exists
+		mkdirSync(join(process.cwd(), 'node_modules', '.prisma'), { recursive: true })
+		// Create symlink
+		symlinkSync(generatedPrismaPath, prismaClientPath, 'dir')
+	} catch (error) {
+		// If symlink fails (e.g., already exists or permission issue), continue
+		// The require patch should handle the resolution
+		console.warn('Could not create symlink for .prisma/client:', error)
 	}
-} catch (error) {
-	console.error('Error getting datamodel:', error)
-	throw new Error(
-		'Could not access Prisma datamodel. This might be a compatibility issue with Prisma 7 and prisma-mock.'
-	)
 }
 
-if (!datamodel) {
-	throw new Error(
-		'Could not access Prisma datamodel. Make sure Prisma client is generated with `npm run db:generate`'
-	)
-}
+// Get the Prisma schema path
+const schemaPath = join(process.cwd(), 'prisma', 'schema.prisma')
 
-// Create a vitest mock first using mockDeep
-// This makes it compatible with vi.mocked()
-const vitestMock = mockDeep<PrismaClient>()
-
-// Create the prisma mock instance using prisma-mock
-// Pass the vitest mock as mockClient so prisma-mock uses it as the base
-// This gives us both the in-memory database functionality and vitest mocking compatibility
-// Note: createPrismaMock modifies the mockClient in place, so prismaMock and vitestMock
-// reference the same object with prisma-mock functionality added
-const prismaMock = createPrismaMock<PrismaClient, typeof Prisma>(Prisma, {
-	datamodel,
-	mockClient: vitestMock as any, // Cast to any to satisfy type requirements
-	enableIndexes: true, // Explicitly enable indexes for better query performance and unique constraint enforcement
+// Create the prismock instance
+// Note: generatePrismock is deprecated but works with custom paths
+// The deprecation warning can be ignored for now
+const prismaMock = await generatePrismock({ 
+	schemaPath,
 })
 
-// Mock the prisma module
+// Fix Prismock's handling of @default(now()) and @updatedAt fields
+// Prismock doesn't automatically set these, so we need to wrap create/update operations
+// This applies to models with timestamp fields: Event, EventTemplate, User, Notification, etc.
+const wrapPrismockWithTimestamps = (mock: any): any => {
+	const originalEventCreate = mock.event.create.bind(mock.event)
+	const originalEventUpdate = mock.event.update.bind(mock.event)
+	const originalEventFindUnique = mock.event.findUnique.bind(mock.event)
+	
+	// Also wrap EventTemplate methods
+	const originalEventTemplateCreate = mock.eventTemplate?.create?.bind(mock.eventTemplate)
+	const originalEventTemplateUpdate = mock.eventTemplate?.update?.bind(mock.eventTemplate)
+	const originalEventTemplateFindUnique = mock.eventTemplate?.findUnique?.bind(mock.eventTemplate)
+
+	// Helper to ensure timestamps on an event object
+	const ensureTimestamps = (event: any, preserveCreatedAt = false): any => {
+		if (!event) return event
+		const now = new Date()
+		// Create a new object to avoid mutating Prismock's internal state
+		return {
+			...event,
+			createdAt: event.createdAt || (preserveCreatedAt ? now : now),
+			updatedAt: event.updatedAt || now,
+			startTime: event.startTime || now,
+		}
+	}
+	
+	// Helper to ensure timestamps on models with createdAt/updatedAt (EventTemplate, User, etc.)
+	const ensureModelTimestamps = (model: any, preserveCreatedAt = false): any => {
+		if (!model) return model
+		const now = new Date()
+		return {
+			...model,
+			createdAt: model.createdAt || (preserveCreatedAt ? now : now),
+			updatedAt: model.updatedAt || now,
+		}
+	}
+
+	// Wrap create to ensure createdAt and updatedAt are set
+	mock.event.create = async (args: any) => {
+		const now = new Date()
+		if (args.data && !args.data.createdAt) {
+			args.data.createdAt = now
+		}
+		if (args.data && !args.data.updatedAt) {
+			args.data.updatedAt = now
+		}
+		const result = await originalEventCreate(args)
+		return ensureTimestamps(result)
+	}
+
+	// Wrap update to ensure updatedAt is set
+	mock.event.update = async (args: any) => {
+		const now = new Date()
+		// Get existing event to preserve createdAt
+		const existing = await originalEventFindUnique({ where: args.where })
+		const existingCreatedAt = existing?.createdAt
+
+		if (args.data && !args.data.updatedAt) {
+			args.data.updatedAt = now
+		}
+		const result = await originalEventUpdate(args)
+		// Ensure timestamps, preserving original createdAt
+		if (result) {
+			return {
+				...result,
+				createdAt: result.createdAt || existingCreatedAt || new Date(),
+				updatedAt: result.updatedAt || now,
+				startTime: result.startTime || existing?.startTime || new Date(),
+			}
+		}
+		return result
+	}
+
+	// Wrap findUnique to ensure timestamps are always present
+	mock.event.findUnique = async (args: any) => {
+		const result = await originalEventFindUnique(args)
+		return ensureTimestamps(result, true) // Preserve createdAt if it exists
+	}
+
+	// Also wrap findFirst and findMany to ensure timestamps
+	const originalEventFindFirst = mock.event.findFirst?.bind(mock.event)
+	const originalEventFindMany = mock.event.findMany?.bind(mock.event)
+
+	if (originalEventFindFirst) {
+		mock.event.findFirst = async (args: any) => {
+			const result = await originalEventFindFirst(args)
+			return ensureTimestamps(result, true)
+		}
+	}
+
+	if (originalEventFindMany) {
+		mock.event.findMany = async (args: any) => {
+			const results = await originalEventFindMany(args)
+			return Array.isArray(results) ? results.map((r: any) => ensureTimestamps(r, true)) : results
+		}
+	}
+
+	// Wrap EventTemplate methods to ensure createdAt/updatedAt are set
+	if (originalEventTemplateCreate) {
+		mock.eventTemplate.create = async (args: any) => {
+			const now = new Date()
+			if (args.data && !args.data.createdAt) {
+				args.data.createdAt = now
+			}
+			if (args.data && !args.data.updatedAt) {
+				args.data.updatedAt = now
+			}
+			const result = await originalEventTemplateCreate(args)
+			return ensureModelTimestamps(result)
+		}
+	}
+
+	if (originalEventTemplateUpdate) {
+		mock.eventTemplate.update = async (args: any) => {
+			const now = new Date()
+			// Get existing template to preserve createdAt
+			const existing = await originalEventTemplateFindUnique({ where: args.where })
+			const existingCreatedAt = existing?.createdAt
+
+			if (args.data && !args.data.updatedAt) {
+				args.data.updatedAt = now
+			}
+			const result = await originalEventTemplateUpdate(args)
+			if (result) {
+				return {
+					...result,
+					createdAt: result.createdAt || existingCreatedAt || new Date(),
+					updatedAt: result.updatedAt || now,
+				}
+			}
+			return result
+		}
+	}
+
+	if (originalEventTemplateFindUnique) {
+		mock.eventTemplate.findUnique = async (args: any) => {
+			const result = await originalEventTemplateFindUnique(args)
+			return ensureModelTimestamps(result, true)
+		}
+	}
+
+	return mock
+}
+
+// Apply the timestamp fixes BEFORE making spyable
+// This ensures the spies wrap the timestamp-fixed methods
+wrapPrismockWithTimestamps(prismaMock)
+
+// Make all prisma methods spyable so vi.mocked() and vi.spyOn() work
+// This allows tests to mock individual methods while using the real prismock instance
+// IMPORTANT: We need to preserve Prismock's internal structure, especially for $transaction
+// The key insight: Prismock's $transaction passes the client itself as tx, and that client
+// needs direct access to Prismock's delegates. We can't wrap tx with spies or it breaks.
+const makeSpyable = (obj: any, originalObj?: any): any => {
+	if (obj === null || obj === undefined || typeof obj !== 'object') {
+		return obj
+	}
+	
+	// Keep reference to original for $transaction
+	const original = originalObj || obj
+	
+	const result: any = {}
+	for (const key in obj) {
+		if (typeof obj[key] === 'function') {
+			// Special handling for $transaction to ensure it works with Prismock
+			if (key === '$transaction') {
+				// CRITICAL: Spy on the original $transaction without replacing it
+				// Prismock's $transaction has a closure that references the original client
+				// vi.spyOn wraps the original function and calls it by default, preserving the closure
+				// Tests can override with mockImplementation if needed, but by default it works
+				// Don't use mockImplementation here as it might break the closure
+				result[key] = vi.spyOn(original, key as any)
+			} else {
+				// Create a spy for other functions
+				result[key] = vi.spyOn(obj, key as any)
+			}
+		} else if (typeof obj[key] === 'object' && obj[key] !== null) {
+			// Recursively make nested objects spyable
+			// Pass original so nested $transaction calls work
+			result[key] = makeSpyable(obj[key], original)
+		} else {
+			result[key] = obj[key]
+		}
+	}
+	return result
+}
+
+// Create a spyable version of prismaMock
+let spyablePrisma = makeSpyable(prismaMock, prismaMock)
+
+// Function to get the current spyable prisma instance
+// This ensures we always get the latest version after reset/restore
+function getSpyablePrisma() {
+	return spyablePrisma
+}
+
+// Mock the prisma module with a factory that returns the current spyable version
+// This allows us to update spyablePrisma in beforeEach and have it reflected in the mock
 vi.mock('../lib/prisma.js', () => ({
-	prisma: prismaMock,
+	get prisma() {
+		return getSpyablePrisma()
+	},
 }))
 
 process.env.TZ = 'UTC'
@@ -70,56 +245,52 @@ process.env.NODE_ENV = 'test'
 process.env.VITEST = 'true'
 process.env.DATABASE_URL ??= 'file:./tests/dev.db'
 
-beforeEach(() => {
-	// Reset the mock state by clearing all data FIRST
-	// prisma-mock stores data in $getInternalState()
-	const state = (prismaMock as any).$getInternalState()
-	// Clear all data by resetting each model's data array
-	if (state) {
-		Object.keys(state).forEach((key) => {
-			if (Array.isArray(state[key as keyof typeof state])) {
-				;(state[key as keyof typeof state] as any[]).length = 0
-			}
-		})
+beforeEach(async () => {
+	// Clear Prismock's data state between tests to ensure test isolation
+	// Try reset() first (newer Prismock API), fall back to deleteMany() if not available
+	if (typeof prismaMock.reset === 'function') {
+		await prismaMock.reset()
+	} else {
+		// Manually delete all records in reverse dependency order
+		// This is more reliable than setData({}) which doesn't always work correctly
+		await prismaMock.eventTag.deleteMany({})
+		await prismaMock.eventReminder.deleteMany({})
+		await prismaMock.commentMention.deleteMany({})
+		await prismaMock.comment.deleteMany({})
+		await prismaMock.eventLike.deleteMany({})
+		await prismaMock.eventAttendance.deleteMany({})
+		await prismaMock.notification.deleteMany({})
+		await prismaMock.inboxItem.deleteMany({})
+		await prismaMock.processedActivity.deleteMany({})
+		await prismaMock.failedDelivery.deleteMany({})
+		await prismaMock.eventTemplate.deleteMany({})
+		await prismaMock.follower.deleteMany({})
+		await prismaMock.following.deleteMany({})
+		await prismaMock.report.deleteMany({})
+		await prismaMock.blockedDomain.deleteMany({})
+		await prismaMock.blockedUser.deleteMany({})
+		await prismaMock.apiKey.deleteMany({})
+		await prismaMock.verification.deleteMany({})
+		await prismaMock.account.deleteMany({})
+		await prismaMock.session.deleteMany({})
+		await prismaMock.instance.deleteMany({})
+		await prismaMock.event.deleteMany({})
+		await prismaMock.user.deleteMany({})
 	}
 	
-	// Manually restore prisma method spies to preserve prisma-mock functionality
-	// We restore spies on prisma models that might have been spied on in tests
-	// This is safer than vi.restoreAllMocks() which might restore to the wrong implementation
-	const prismaModels = ['event', 'user', 'eventTag', 'eventAttendance', 'eventLike', 'comment', 'eventReminder', 'eventTemplate', 'following']
-	for (const model of prismaModels) {
-		const modelObj = (prismaMock as any)[model]
-		if (modelObj) {
-			// Restore all methods on this model that might have been spied on
-			const methods = ['create', 'findMany', 'findUnique', 'update', 'delete', 'deleteMany', 'createMany', 'findFirst', 'findFirstOrThrow', 'findUniqueOrThrow', 'upsert', 'count', 'aggregate', 'groupBy']
-			for (const method of methods) {
-				if (modelObj[method] && typeof modelObj[method].mockRestore === 'function') {
-					try {
-						modelObj[method].mockRestore()
-					} catch (e) {
-						// Ignore errors if restore fails (e.g., not a spy)
-					}
-				}
-			}
-		}
-	}
-	
-	// Re-apply prisma-mock to ensure nested creates and other functionality work
-	// This is necessary because restoring spies might have broken the prisma-mock implementation
-	try {
-		createPrismaMock<PrismaClient, typeof Prisma>(Prisma, {
-			datamodel,
-			mockClient: vitestMock as any,
-		})
-	} catch (e) {
-		// If re-applying fails, that's okay - the original implementation should still work
-		// This can happen if the structure was already correct
-	}
-	
-	// Clear all mocks to ensure clean call history
+	// Clear all mock call history (keeps spy implementations in place)
 	vi.clearAllMocks()
+	
+	// Restore any existing spies before recreating to prevent nested spies
+	if (spyablePrisma?.$transaction?.mockRestore) {
+		spyablePrisma.$transaction.mockRestore()
+	}
+	
+	// Recreate the spyable wrapper after clearing data and mocks
+	// This ensures vi.mocked() continues to work and spies are properly connected
+	spyablePrisma = makeSpyable(prismaMock, prismaMock)
 })
 
 export function getPrismaMock(): PrismaClient {
-	return prismaMock
+	return prismaMock as unknown as PrismaClient
 }

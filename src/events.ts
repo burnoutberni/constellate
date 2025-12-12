@@ -1521,14 +1521,9 @@ async function updateEventAndTagsInTransaction(
 	normalizedTags: string[] | undefined
 ) {
 	return prisma.$transaction(async (tx) => {
-		// Explicitly set updatedAt to ensure it's updated (workaround for prisma-mock @updatedAt limitation)
-		// Get the current updatedAt and ensure the new one is at least 1ms later
-		const originalEvent = await tx.event.findUnique({ where: { id }, select: { updatedAt: true } })
-		const baseTime = originalEvent?.updatedAt ? originalEvent.updatedAt.getTime() : Date.now()
-		const now = new Date(baseTime + 1) // Ensure at least 1ms difference
 		await tx.event.update({
 			where: { id },
-			data: { ...updateData, updatedAt: now },
+			data: updateData,
 		})
 
 		if (normalizedTags !== undefined) {

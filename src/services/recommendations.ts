@@ -310,13 +310,8 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 	}
 
 	// Exclude events created by the user
-	// Use OR condition to handle both null userId (remote events) and non-matching userId
-	// This is a workaround for prisma-mock's handling of NOT queries with null values
 	filters.push({
-		OR: [
-			{ userId: null },
-			{ userId: { not: userId } },
-		],
+		NOT: { userId },
 	})
 
 	const candidateWhere = filters.length === 1 ? filters[0] : { AND: filters }
@@ -329,10 +324,7 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 				visibility: 'PUBLIC',
 				sharedEventId: null,
 				startTime: { gte: startTimeCutoff },
-				OR: [
-					{ userId: null },
-					{ userId: { not: userId } },
-				],
+				NOT: { userId },
 			},
 			safeLimit
 		)

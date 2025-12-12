@@ -99,7 +99,7 @@ app.post('/event-templates', async (c) => {
 
 		const sanitizedName = sanitizeText(payload.name)
 
-		// Check for duplicate template name manually (workaround for prisma-mock compound unique constraint limitation)
+		// Check for duplicate template name
 		const existing = await prisma.eventTemplate.findFirst({
 			where: {
 				userId,
