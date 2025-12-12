@@ -87,6 +87,7 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
 ```
 
 **Important Notes:**
+
 - Rate limiting is in-memory only (single-instance). Use Redis for multi-instance deployments.
 - Update `Caddyfile.prod` with your domain before deployment.
 - Migrations run automatically on container startup.
@@ -130,27 +131,30 @@ Key endpoints:
 ## To-Do
 
 ### High Priority
+
 - [ ] Implement Redis-based rate limiting for multi-instance deployments (currently in-memory only)
 - [ ] Implement missing backend endpoints:
-  - [ ] `PUT /api/notifications/preferences` - Notification preferences saving
-  - [ ] `DELETE /api/profile` - Account deletion endpoint
+    - [ ] `PUT /api/notifications/preferences` - Notification preferences saving
+    - [ ] `DELETE /api/profile` - Account deletion endpoint
 - [ ] Replace remaining direct `fetch()` call in `CalendarPage.tsx` (line 189) with API client
 
 ### Medium Priority
+
 - [ ] Consider React Hook Form + Zod for form validation
 - [ ] Run accessibility audit (axe-core, keyboard navigation, screen readers)
 - [ ] Performance optimization (bundle analysis, code splitting, lazy loading)
 - [ ] Design system improvements:
-  - [ ] Add more semantic color variants
-  - [ ] Expand typography scale
-  - [ ] Add animation tokens
-  - [ ] Add component-specific tokens
-  - [ ] Create Storybook documentation site
+    - [ ] Add more semantic color variants
+    - [ ] Expand typography scale
+    - [ ] Add animation tokens
+    - [ ] Add component-specific tokens
+    - [ ] Create Storybook documentation site
 - [ ] Add pre-commit git hooks (lint-staged/husky) for linting and formatting
 - [ ] Add bundle size monitoring to CI/CD to prevent regressions
 - [ ] Add automated accessibility checks (axe-core) to GitHub Actions workflow
 
 ### Low Priority
+
 - [ ] Add JSDoc comments and component documentation (partial - some components have docs)
 - [ ] Add integration and E2E tests for critical paths (Playwright/Cypress setup)
 - [ ] Enforce import organization with ESLint

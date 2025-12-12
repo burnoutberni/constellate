@@ -7,83 +7,80 @@
 export const ACTIVITYSTREAMS_CONTEXT = 'https://www.w3.org/ns/activitystreams'
 export const W3ID_SECURITY_CONTEXT = 'https://w3id.org/security/v1'
 
-export const ACTIVITYPUB_CONTEXTS = [
-    ACTIVITYSTREAMS_CONTEXT,
-    W3ID_SECURITY_CONTEXT,
-] as const
+export const ACTIVITYPUB_CONTEXTS = [ACTIVITYSTREAMS_CONTEXT, W3ID_SECURITY_CONTEXT] as const
 
 // Public addressing
 export const PUBLIC_COLLECTION = 'https://www.w3.org/ns/activitystreams#Public'
 
 // Activity Types
 export const ActivityType = {
-    CREATE: 'Create',
-    UPDATE: 'Update',
-    DELETE: 'Delete',
-    FOLLOW: 'Follow',
-    ACCEPT: 'Accept',
-    REJECT: 'Reject',
-    LIKE: 'Like',
-    UNDO: 'Undo',
-    ANNOUNCE: 'Announce',
-    TENTATIVE_ACCEPT: 'TentativeAccept',
-    BLOCK: 'Block',
-    FLAG: 'Flag',
-    ADD: 'Add',
-    REMOVE: 'Remove',
+	CREATE: 'Create',
+	UPDATE: 'Update',
+	DELETE: 'Delete',
+	FOLLOW: 'Follow',
+	ACCEPT: 'Accept',
+	REJECT: 'Reject',
+	LIKE: 'Like',
+	UNDO: 'Undo',
+	ANNOUNCE: 'Announce',
+	TENTATIVE_ACCEPT: 'TentativeAccept',
+	BLOCK: 'Block',
+	FLAG: 'Flag',
+	ADD: 'Add',
+	REMOVE: 'Remove',
 } as const
 
 // Object Types
 export const ObjectType = {
-    PERSON: 'Person',
-    EVENT: 'Event',
-    NOTE: 'Note',
-    PLACE: 'Place',
-    IMAGE: 'Image',
-    DOCUMENT: 'Document',
-    TOMBSTONE: 'Tombstone',
+	PERSON: 'Person',
+	EVENT: 'Event',
+	NOTE: 'Note',
+	PLACE: 'Place',
+	IMAGE: 'Image',
+	DOCUMENT: 'Document',
+	TOMBSTONE: 'Tombstone',
 } as const
 
 // Collection Types
 export const CollectionType = {
-    COLLECTION: 'Collection',
-    ORDERED_COLLECTION: 'OrderedCollection',
-    COLLECTION_PAGE: 'CollectionPage',
-    ORDERED_COLLECTION_PAGE: 'OrderedCollectionPage',
+	COLLECTION: 'Collection',
+	ORDERED_COLLECTION: 'OrderedCollection',
+	COLLECTION_PAGE: 'CollectionPage',
+	ORDERED_COLLECTION_PAGE: 'OrderedCollectionPage',
 } as const
 
 // Event Status (TypeScript enum for Zod v4 compatibility)
 export enum EventStatus {
-    SCHEDULED = 'EventScheduled',
-    CANCELLED = 'EventCancelled',
-    POSTPONED = 'EventPostponed',
+	SCHEDULED = 'EventScheduled',
+	CANCELLED = 'EventCancelled',
+	POSTPONED = 'EventPostponed',
 }
 
 // Event Attendance Mode (TypeScript enum for Zod v4 compatibility)
 export enum EventAttendanceMode {
-    OFFLINE = 'OfflineEventAttendanceMode',
-    ONLINE = 'OnlineEventAttendanceMode',
-    MIXED = 'MixedEventAttendanceMode',
+	OFFLINE = 'OfflineEventAttendanceMode',
+	ONLINE = 'OnlineEventAttendanceMode',
+	MIXED = 'MixedEventAttendanceMode',
 }
 
 // Attendance Status (internal)
 export const AttendanceStatus = {
-    ATTENDING: 'attending',
-    MAYBE: 'maybe',
-    NOT_ATTENDING: 'not_attending',
+	ATTENDING: 'attending',
+	MAYBE: 'maybe',
+	NOT_ATTENDING: 'not_attending',
 } as const
 
 // Content Types
 export const ContentType = {
-    ACTIVITY_JSON: 'application/activity+json',
-    LD_JSON: 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
-    JSON: 'application/json',
+	ACTIVITY_JSON: 'application/activity+json',
+	LD_JSON: 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
+	JSON: 'application/json',
 } as const
 
 // Pagination
 export const PAGINATION = {
-    DEFAULT_PAGE_SIZE: 20,
-    MAX_PAGE_SIZE: 100,
+	DEFAULT_PAGE_SIZE: 20,
+	MAX_PAGE_SIZE: 100,
 } as const
 
 // Note: ACTIVITY_TTL_DAYS and RATE_LIMITS were removed as unused

@@ -7,13 +7,13 @@ import { ThemeContext, tokens, type ThemeContextType } from '@/design-system'
  * @throws Error if used outside ThemeProvider
  */
 export function useTheme(): ThemeContextType {
-  const context = useContext(ThemeContext)
+	const context = useContext(ThemeContext)
 
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
+	if (context === undefined) {
+		throw new Error('useTheme must be used within a ThemeProvider')
+	}
 
-  return context
+	return context
 }
 
 /**
@@ -34,6 +34,6 @@ export function useTheme(): ThemeContextType {
  * ```
  */
 export function useThemeColors() {
-  const { theme } = useTheme()
-  return tokens.colors[theme as 'light' | 'dark']
+	const { theme } = useTheme()
+	return tokens.colors[theme as 'light' | 'dark']
 }

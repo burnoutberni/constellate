@@ -2,10 +2,10 @@ import React from 'react'
 import { cn } from '../../lib/utils'
 
 export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
-  /**
-   * Additional CSS classes to apply
-   */
-  className?: string
+	/**
+	 * Additional CSS classes to apply
+	 */
+	className?: string
 }
 
 /**
@@ -14,14 +14,11 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
  * Supports dark mode and custom styling.
  */
 export function Skeleton({ className, ...props }: SkeletonProps) {
-  return (
-    <div
-      className={cn(
-        'animate-pulse bg-neutral-200 dark:bg-neutral-800 rounded',
-        className
-      )}
-      aria-hidden="true"
-      {...props}
-    />
-  )
+	return (
+		<div
+			className={cn('animate-pulse bg-neutral-200 dark:bg-neutral-800 rounded', className)}
+			aria-hidden="true"
+			{...props}
+		/>
+	)
 }

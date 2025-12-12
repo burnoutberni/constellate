@@ -113,13 +113,13 @@ model Event {
   updatedAt DateTime @updatedAt
 
   // Basic event info
-  title       String
-  summary     String? // Description
-  location    String?
-  locationLatitude Float? // Decimal degrees
+  title             String
+  summary           String? // Description
+  location          String?
+  locationLatitude  Float? // Decimal degrees
   locationLongitude Float? // Decimal degrees
-  headerImage String? // Event banner image
-  url         String? // External URL for more info
+  headerImage       String? // Event banner image
+  url               String? // External URL for more info
 
   // Timing
   startTime  DateTime
@@ -383,7 +383,7 @@ model FailedDelivery {
   // Activity details
   activityId   String // The ActivityPub activity ID
   activityType String // Type of activity (Create, Update, etc.)
-  activity     Json   // Full activity payload
+  activity     Json // Full activity payload
 
   // Delivery details
   inboxUrl String // Target inbox URL
@@ -395,14 +395,14 @@ model FailedDelivery {
   lastAttemptAt DateTime? // Last delivery attempt
 
   // Retry management
-  attemptCount Int                   @default(0)
-  maxAttempts  Int                   @default(3)
+  attemptCount Int                  @default(0)
+  maxAttempts  Int                  @default(3)
   nextRetryAt  DateTime? // When to retry next (exponential backoff)
-  status       FailedDeliveryStatus  @default(PENDING)
+  status       FailedDeliveryStatus @default(PENDING)
 
   // Resolution
-  resolvedAt   DateTime? // When the delivery succeeded or was discarded
-  resolvedBy   String?   // Admin user who resolved it (if manual)
+  resolvedAt DateTime? // When the delivery succeeded or was discarded
+  resolvedBy String? // Admin user who resolved it (if manual)
 
   @@index([status, nextRetryAt])
   @@index([userId])
@@ -555,7 +555,7 @@ model EventReminder {
   // Delivery tracking
   deliveredAt   DateTime? // When reminder was successfully delivered
   lastAttemptAt DateTime? // Last time we attempted to send
-  failureReason String?   // Error message if delivery failed
+  failureReason String? // Error message if delivery failed
 
   @@unique([eventId, userId])
   @@index([userId])
@@ -570,10 +570,10 @@ model Instance {
   updatedAt DateTime @updatedAt
 
   // Instance identification
-  domain      String  @unique // Domain name (e.g., mastodon.social)
-  baseUrl     String  @unique // Full base URL (e.g., https://mastodon.social)
-  software    String? // Software name (e.g., Mastodon, Constellate)
-  version     String? // Software version
+  domain   String  @unique // Domain name (e.g., mastodon.social)
+  baseUrl  String  @unique // Full base URL (e.g., https://mastodon.social)
+  software String? // Software name (e.g., Mastodon, Constellate)
+  version  String? // Software version
 
   // Instance metadata
   title       String? // Instance name/title
@@ -582,15 +582,15 @@ model Instance {
   contact     String? // Contact information (email or URL)
 
   // Statistics (cached from remote instance)
-  userCount       Int?      // Total users on instance
-  eventCount      Int?      // Total events on instance
-  lastActivityAt  DateTime? // Last time we saw activity from this instance
+  userCount      Int? // Total users on instance
+  eventCount     Int? // Total events on instance
+  lastActivityAt DateTime? // Last time we saw activity from this instance
 
   // Health tracking
-  isBlocked      Boolean @default(false) // Admin blocked this instance
-  lastFetchedAt  DateTime? // Last successful fetch of instance metadata
-  lastErrorAt    DateTime? // Last error when trying to reach instance
-  lastError      String?   // Last error message
+  isBlocked     Boolean   @default(false) // Admin blocked this instance
+  lastFetchedAt DateTime? // Last successful fetch of instance metadata
+  lastErrorAt   DateTime? // Last error when trying to reach instance
+  lastError     String? // Last error message
 
   @@index([domain])
   @@index([isBlocked])

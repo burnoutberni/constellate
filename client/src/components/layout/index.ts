@@ -5,36 +5,19 @@
  * All components are responsive and use design tokens.
  */
 
-export {
-  Container,
-  type ContainerProps,
-  type ContainerSize,
-} from './Container'
+export { Container, type ContainerProps, type ContainerSize } from './Container'
+
+export { Grid, type GridProps, type GridCols, type GridGap } from './Grid'
 
 export {
-  Grid,
-  type GridProps,
-  type GridCols,
-  type GridGap,
-} from './Grid'
-
-export {
-  Stack,
-  type StackProps,
-  type StackDirection,
-  type StackAlign,
-  type StackJustify,
-  type StackGap,
+	Stack,
+	type StackProps,
+	type StackDirection,
+	type StackAlign,
+	type StackJustify,
+	type StackGap,
 } from './Stack'
 
-export {
-  Section,
-  type SectionProps,
-  type SectionPadding,
-  type SectionVariant,
-} from './Section'
+export { Section, type SectionProps, type SectionPadding, type SectionVariant } from './Section'
 
-export {
-  PageLayout,
-  type PageLayoutProps,
-} from './PageLayout'
+export { PageLayout, type PageLayoutProps } from './PageLayout'

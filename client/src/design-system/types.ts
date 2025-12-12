@@ -32,10 +32,10 @@ export type ThemeColors = typeof tokens.colors.light
  * custom typography styles or extending the typography system.
  */
 export type TypographyStyle = {
-  fontSize: string
-  fontWeight: number
-  lineHeight: number
-  letterSpacing: string
+	fontSize: string
+	fontWeight: number
+	lineHeight: number
+	letterSpacing: string
 }
 
 /**
@@ -114,7 +114,7 @@ export type LetterSpacingValue = keyof typeof tokens.letterSpacing
  * ```
  */
 export interface Themeable {
-  theme?: Theme
+	theme?: Theme
 }
 
 /**
@@ -132,7 +132,7 @@ export interface Themeable {
  * ```
  */
 export interface ColorVariant {
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
+	variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
 }
 
 /**
@@ -150,7 +150,7 @@ export interface ColorVariant {
  * ```
  */
 export interface SizeVariant {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+	size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }
 
 // ============================================================================
@@ -170,11 +170,9 @@ export interface SizeVariant {
  * ```
  */
 export type GetColorValue<
-  TColor extends keyof ThemeColors,
-  TShade extends keyof ThemeColors[TColor]
-> = ThemeColors[TColor][TShade] extends string
-  ? ThemeColors[TColor][TShade]
-  : never
+	TColor extends keyof ThemeColors,
+	TShade extends keyof ThemeColors[TColor],
+> = ThemeColors[TColor][TShade] extends string ? ThemeColors[TColor][TShade] : never
 
 /**
  * Extract all color keys from a theme
@@ -203,5 +201,5 @@ export type ColorShadeKeys<TColor extends ThemeColorKeys> = keyof ThemeColors[TC
  * Validates that a value is a valid theme
  */
 export function isValidTheme(value: string): value is Theme {
-  return value === 'light' || value === 'dark'
+	return value === 'light' || value === 'dark'
 }

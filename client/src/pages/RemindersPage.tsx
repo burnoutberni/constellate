@@ -7,67 +7,68 @@ import { Container, PageLayout } from '@/components/layout'
 import { Button, Spinner } from '@/components/ui'
 
 export function RemindersPage() {
-    const navigate = useNavigate()
-    const { user, loading: authLoading } = useAuth()
-    const { data, isLoading, error } = useUserReminders()
+	const navigate = useNavigate()
+	const { user, loading: authLoading } = useAuth()
+	const { data, isLoading, error } = useUserReminders()
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate('/login')
-        }
-    }, [user, authLoading, navigate])
+	// Redirect to login if not authenticated
+	useEffect(() => {
+		if (!authLoading && !user) {
+			navigate('/login')
+		}
+	}, [user, authLoading, navigate])
 
-    if (authLoading || isLoading) {
-        return (
-            <PageLayout>
-                <Container>
-                    <div className="py-12 flex flex-col items-center justify-center min-h-[200px]">
-                        <Spinner size="lg" />
-                        <p className="mt-4 text-text-secondary">Loading reminders...</p>
-                    </div>
-                </Container>
-            </PageLayout>
-        )
-    }
+	if (authLoading || isLoading) {
+		return (
+			<PageLayout>
+				<Container>
+					<div className="py-12 flex flex-col items-center justify-center min-h-[200px]">
+						<Spinner size="lg" />
+						<p className="mt-4 text-text-secondary">Loading reminders...</p>
+					</div>
+				</Container>
+			</PageLayout>
+		)
+	}
 
-    if (error) {
-        return (
-            <PageLayout>
-                <Container>
-                    <div className="py-12 text-center">
-                        <div className="text-6xl mb-4">⚠️</div>
-                        <h2 className="text-xl font-semibold text-text-primary mb-2">
-                            Failed to load reminders
-                        </h2>
-                        <p className="text-text-secondary mb-4">
-                            {error instanceof Error ? error.message : 'An error occurred'}
-                        </p>
-                        <Button onClick={() => window.location.reload()}>Try Again</Button>
-                    </div>
-                </Container>
-            </PageLayout>
-        )
-    }
+	if (error) {
+		return (
+			<PageLayout>
+				<Container>
+					<div className="py-12 text-center">
+						<div className="text-6xl mb-4">⚠️</div>
+						<h2 className="text-xl font-semibold text-text-primary mb-2">
+							Failed to load reminders
+						</h2>
+						<p className="text-text-secondary mb-4">
+							{error instanceof Error ? error.message : 'An error occurred'}
+						</p>
+						<Button onClick={() => window.location.reload()}>Try Again</Button>
+					</div>
+				</Container>
+			</PageLayout>
+		)
+	}
 
-    if (!user) {
-        return null
-    }
+	if (!user) {
+		return null
+	}
 
-    return (
-        <PageLayout>
-            <Container>
-                <div className="py-8">
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-bold text-text-primary mb-2">My Reminders</h1>
-                        <p className="text-text-secondary">
-                            Manage your event reminder notifications. You&apos;ll be notified before events start.
-                        </p>
-                    </div>
+	return (
+		<PageLayout>
+			<Container>
+				<div className="py-8">
+					<div className="mb-6">
+						<h1 className="text-3xl font-bold text-text-primary mb-2">My Reminders</h1>
+						<p className="text-text-secondary">
+							Manage your event reminder notifications. You&apos;ll be notified before
+							events start.
+						</p>
+					</div>
 
-                    <ReminderList reminders={data?.reminders || []} />
-                </div>
-            </Container>
-        </PageLayout>
-    )
+					<ReminderList reminders={data?.reminders || []} />
+				</div>
+			</Container>
+		</PageLayout>
+	)
 }

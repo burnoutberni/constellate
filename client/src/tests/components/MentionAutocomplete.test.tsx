@@ -4,108 +4,107 @@ import userEvent from '@testing-library/user-event'
 import { MentionAutocomplete, MentionSuggestion } from '../../components/MentionAutocomplete'
 
 const mockSuggestions: MentionSuggestion[] = [
-    {
-        id: '1',
-        username: 'alice',
-        name: 'Alice Smith',
-        profileImage: null,
-        displayColor: null,
-    },
-    {
-        id: '2',
-        username: 'bob',
-        name: 'Bob Jones',
-        profileImage: null,
-        displayColor: null,
-    },
+	{
+		id: '1',
+		username: 'alice',
+		name: 'Alice Smith',
+		profileImage: null,
+		displayColor: null,
+	},
+	{
+		id: '2',
+		username: 'bob',
+		name: 'Bob Jones',
+		profileImage: null,
+		displayColor: null,
+	},
 ]
 
 describe('MentionAutocomplete Component', () => {
-    it('should not render when visible is false', () => {
-        const { container } = render(
-            <MentionAutocomplete
-                suggestions={mockSuggestions}
-                activeIndex={0}
-                onSelect={vi.fn()}
-                visible={false}
-            />
-        )
+	it('should not render when visible is false', () => {
+		const { container } = render(
+			<MentionAutocomplete
+				suggestions={mockSuggestions}
+				activeIndex={0}
+				onSelect={vi.fn()}
+				visible={false}
+			/>
+		)
 
-        expect(container).toBeEmptyDOMElement()
-    })
+		expect(container).toBeEmptyDOMElement()
+	})
 
-    it('should not render when suggestions array is empty', () => {
-        const { container } = render(
-            <MentionAutocomplete
-                suggestions={[]}
-                activeIndex={0}
-                onSelect={vi.fn()}
-                visible={true}
-            />
-        )
+	it('should not render when suggestions array is empty', () => {
+		const { container } = render(
+			<MentionAutocomplete
+				suggestions={[]}
+				activeIndex={0}
+				onSelect={vi.fn()}
+				visible={true}
+			/>
+		)
 
-        expect(container).toBeEmptyDOMElement()
-    })
+		expect(container).toBeEmptyDOMElement()
+	})
 
-    it('should render suggestions when visible', () => {
-        render(
-            <MentionAutocomplete
-                suggestions={mockSuggestions}
-                activeIndex={0}
-                onSelect={vi.fn()}
-                visible={true}
-            />
-        )
+	it('should render suggestions when visible', () => {
+		render(
+			<MentionAutocomplete
+				suggestions={mockSuggestions}
+				activeIndex={0}
+				onSelect={vi.fn()}
+				visible={true}
+			/>
+		)
 
-        expect(screen.getByText('Alice Smith')).toBeInTheDocument()
-        expect(screen.getByText('@alice')).toBeInTheDocument()
-        expect(screen.getByText('Bob Jones')).toBeInTheDocument()
-        expect(screen.getByText('@bob')).toBeInTheDocument()
-    })
+		expect(screen.getByText('Alice Smith')).toBeInTheDocument()
+		expect(screen.getByText('@alice')).toBeInTheDocument()
+		expect(screen.getByText('Bob Jones')).toBeInTheDocument()
+		expect(screen.getByText('@bob')).toBeInTheDocument()
+	})
 
+	it('should call onSelect when suggestion is clicked', async () => {
+		const user = userEvent.setup()
+		const mockSelect = vi.fn()
+		render(
+			<MentionAutocomplete
+				suggestions={mockSuggestions}
+				activeIndex={0}
+				onSelect={mockSelect}
+				visible={true}
+			/>
+		)
 
-    it('should call onSelect when suggestion is clicked', async () => {
-        const user = userEvent.setup()
-        const mockSelect = vi.fn()
-        render(
-            <MentionAutocomplete
-                suggestions={mockSuggestions}
-                activeIndex={0}
-                onSelect={mockSelect}
-                visible={true}
-            />
-        )
+		const firstButton = screen.getByText('Alice Smith').closest('button')
+		expect(firstButton).toBeTruthy()
+		if (firstButton) {
+			await user.click(firstButton)
+		}
 
-        const firstButton = screen.getByText('Alice Smith').closest('button')
-        expect(firstButton).toBeTruthy()
-        if (firstButton) {
-            await user.click(firstButton)
-        }
+		expect(mockSelect).toHaveBeenCalledWith(mockSuggestions[0])
+	})
 
-        expect(mockSelect).toHaveBeenCalledWith(mockSuggestions[0])
-    })
+	it('should show username when name is not available', () => {
+		const suggestionsWithoutName: MentionSuggestion[] = [
+			{
+				id: '1',
+				username: 'noname',
+				name: null,
+				profileImage: null,
+				displayColor: null,
+			},
+		]
 
-    it('should show username when name is not available', () => {
-        const suggestionsWithoutName: MentionSuggestion[] = [
-            {
-                id: '1',
-                username: 'noname',
-                name: null,
-                profileImage: null,
-                displayColor: null,
-            },
-        ]
+		render(
+			<MentionAutocomplete
+				suggestions={suggestionsWithoutName}
+				activeIndex={0}
+				onSelect={vi.fn()}
+				visible={true}
+			/>
+		)
 
-        render(
-            <MentionAutocomplete
-                suggestions={suggestionsWithoutName}
-                activeIndex={0}
-                onSelect={vi.fn()}
-                visible={true}
-            />
-        )
-
-        expect(screen.getByText('noname')).toBeInTheDocument()
-        expect(screen.getByText('@noname')).toBeInTheDocument()
-    })
+		expect(screen.getByText('noname')).toBeInTheDocument()
+		expect(screen.getByText('@noname')).toBeInTheDocument()
+	})
 })

@@ -32,80 +32,80 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { PageLoader } from './components/ui'
 
 function AppContent() {
-    // Global SSE connection
-    useRealtimeSSE()
-    const navigate = useNavigate()
-    const location = useLocation()
-    const [checkingSetup, setCheckingSetup] = useState(true)
+	// Global SSE connection
+	useRealtimeSSE()
+	const navigate = useNavigate()
+	const location = useLocation()
+	const [checkingSetup, setCheckingSetup] = useState(true)
 
-    useEffect(() => {
-        // Don't check setup if we're already on the onboarding page
-        if (location.pathname === '/onboarding') {
-            setCheckingSetup(false)
-            return
-        }
+	useEffect(() => {
+		// Don't check setup if we're already on the onboarding page
+		if (location.pathname === '/onboarding') {
+			setCheckingSetup(false)
+			return
+		}
 
-        api.get<{ setupRequired: boolean }>('/setup/status')
-            .then((data) => {
-                if (data.setupRequired) {
-                    navigate('/onboarding')
-                }
-            })
-            .catch((error) => logger.error('Failed to check setup status:', error))
-            .finally(() => setCheckingSetup(false))
-    }, [navigate, location.pathname])
+		api.get<{ setupRequired: boolean }>('/setup/status')
+			.then((data) => {
+				if (data.setupRequired) {
+					navigate('/onboarding')
+				}
+			})
+			.catch((error) => logger.error('Failed to check setup status:', error))
+			.finally(() => setCheckingSetup(false))
+	}, [navigate, location.pathname])
 
-    if (checkingSetup) {
-        return <PageLoader />
-    }
+	if (checkingSetup) {
+		return <PageLoader />
+	}
 
-    return (
-        <ErrorBoundary resetKeys={[location.pathname]}>
-            <Routes>
-                <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/" element={<HomePage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/feed" element={<FeedPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/events" element={<EventDiscoveryPage />} />
-                <Route path="/templates" element={<TemplatesPage />} />
-                <Route path="/instances" element={<InstancesPage />} />
-                <Route path="/instances/:domain" element={<InstanceDetailPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/followers/pending" element={<PendingFollowersPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/reminders" element={<RemindersPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/edit/*" element={<EditEventPage />} />
-                <Route path="/*" element={<ProfileOrEventPage />} />
-            </Routes>
-            <MentionNotifications />
-            <ErrorToasts />
-            <SuccessToasts />
-        </ErrorBoundary>
-    )
+	return (
+		<ErrorBoundary resetKeys={[location.pathname]}>
+			<Routes>
+				<Route path="/onboarding" element={<OnboardingPage />} />
+				<Route path="/" element={<HomePage />} />
+				<Route path="/about" element={<AboutPage />} />
+				<Route path="/login" element={<LoginPage />} />
+				<Route path="/feed" element={<FeedPage />} />
+				<Route path="/calendar" element={<CalendarPage />} />
+				<Route path="/search" element={<SearchPage />} />
+				<Route path="/events" element={<EventDiscoveryPage />} />
+				<Route path="/templates" element={<TemplatesPage />} />
+				<Route path="/instances" element={<InstancesPage />} />
+				<Route path="/instances/:domain" element={<InstanceDetailPage />} />
+				<Route path="/settings" element={<SettingsPage />} />
+				<Route path="/followers/pending" element={<PendingFollowersPage />} />
+				<Route path="/notifications" element={<NotificationsPage />} />
+				<Route path="/reminders" element={<RemindersPage />} />
+				<Route path="/admin" element={<AdminPage />} />
+				<Route path="/edit/*" element={<EditEventPage />} />
+				<Route path="/*" element={<ProfileOrEventPage />} />
+			</Routes>
+			<MentionNotifications />
+			<ErrorToasts />
+			<SuccessToasts />
+		</ErrorBoundary>
+	)
 }
 
 function App() {
-    // Configure logger based on environment
-    useEffect(() => {
-        configureLogger({
-            minLevel: import.meta.env.DEV ? 'debug' : 'warn',
-            enableInProduction: false,
-        })
-    }, [])
+	// Configure logger based on environment
+	useEffect(() => {
+		configureLogger({
+			minLevel: import.meta.env.DEV ? 'debug' : 'warn',
+			enableInProduction: false,
+		})
+	}, [])
 
-    return (
-        <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-                <AuthProvider>
-                    <AppContent />
-                </AuthProvider>
-            </ThemeProvider>
-        </QueryClientProvider>
-    )
+	return (
+		<QueryClientProvider client={queryClient}>
+			<ThemeProvider>
+				<AuthProvider>
+					<AppContent />
+				</AuthProvider>
+			</ThemeProvider>
+		</QueryClientProvider>
+	)
 }
 
 export default App

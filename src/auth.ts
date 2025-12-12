@@ -16,79 +16,82 @@ import { sendEmail } from './lib/email.js'
  * Returns 'postgresql' for PostgreSQL URLs, 'sqlite' for SQLite URLs
  */
 function detectDatabaseProvider(): 'postgresql' {
-    return 'postgresql'
+	return 'postgresql'
 }
 
 // Helper function to generate keys for users
 export async function generateUserKeys(userId: string, username: string) {
-    const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-        modulusLength: 2048,
-        publicKeyEncoding: {
-            type: 'spki',
-            format: 'pem',
-        },
-        privateKeyEncoding: {
-            type: 'pkcs8',
-            format: 'pem',
-        },
-    })
+	const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+		modulusLength: 2048,
+		publicKeyEncoding: {
+			type: 'spki',
+			format: 'pem',
+		},
+		privateKeyEncoding: {
+			type: 'pkcs8',
+			format: 'pem',
+		},
+	})
 
-    // Encrypt private key before storing
-    const encryptedPrivateKey = encryptPrivateKey(privateKey)
+	// Encrypt private key before storing
+	const encryptedPrivateKey = encryptPrivateKey(privateKey)
 
-    await prisma.user.update({
-        where: { id: userId },
-        data: {
-            publicKey,
-            privateKey: encryptedPrivateKey,
-        },
-    })
+	await prisma.user.update({
+		where: { id: userId },
+		data: {
+			publicKey,
+			privateKey: encryptedPrivateKey,
+		},
+	})
 
-    console.log(`✅ Generated and encrypted keys for user: ${username}`)
+	console.log(`✅ Generated and encrypted keys for user: ${username}`)
 }
 
 export const auth = betterAuth({
-    database: prismaAdapter(prisma, {
-        provider: detectDatabaseProvider(),
-    }),
-    baseURL: config.betterAuthUrl,
-    trustedOrigins: config.betterAuthTrustedOrigins,
-    emailAndPassword: {
-        enabled: true,
-    },
-    magicLink: {
-        enabled: true,
-        sendMagicLink: async ({ email, token: _token, url }: { email: string; token: string; url: string }, _request?: Request) => {
-            await sendEmail({
-                to: email,
-                subject: 'Login to Constellate',
-                text: `Click here to login: ${url}`,
-                html: `<a href="${url}">Click here to login</a>`,
-            })
-        },
-    },
-    session: {
-        expiresIn: 60 * 60 * 24 * 7, // 7 days
-        updateAge: 60 * 60 * 24, // Update session every 24 hours
-        cookieCache: {
-            enabled: true,
-            maxAge: 60 * 5, // 5 minutes
-        },
-    },
-    user: {
-        additionalFields: {
-            username: {
-                type: 'string',
-                unique: true,
-                required: true,
-            },
-            displayColor: {
-                type: 'string',
-                required: false,
-                defaultValue: '#3b82f6',
-            },
-        },
-    },
+	database: prismaAdapter(prisma, {
+		provider: detectDatabaseProvider(),
+	}),
+	baseURL: config.betterAuthUrl,
+	trustedOrigins: config.betterAuthTrustedOrigins,
+	emailAndPassword: {
+		enabled: true,
+	},
+	magicLink: {
+		enabled: true,
+		sendMagicLink: async (
+			{ email, token: _token, url }: { email: string; token: string; url: string },
+			_request?: Request
+		) => {
+			await sendEmail({
+				to: email,
+				subject: 'Login to Constellate',
+				text: `Click here to login: ${url}`,
+				html: `<a href="${url}">Click here to login</a>`,
+			})
+		},
+	},
+	session: {
+		expiresIn: 60 * 60 * 24 * 7, // 7 days
+		updateAge: 60 * 60 * 24, // Update session every 24 hours
+		cookieCache: {
+			enabled: true,
+			maxAge: 60 * 5, // 5 minutes
+		},
+	},
+	user: {
+		additionalFields: {
+			username: {
+				type: 'string',
+				unique: true,
+				required: true,
+			},
+			displayColor: {
+				type: 'string',
+				required: false,
+				defaultValue: '#3b82f6',
+			},
+		},
+	},
 })
 
 export type Session = typeof auth.$Infer.Session

@@ -4,11 +4,7 @@
  */
 
 import { safeFetch } from './ssrfProtection.js'
-import {
-    ACTIVITYPUB_CONTEXTS,
-    CollectionType,
-    ContentType,
-} from '../constants/activitypub.js'
+import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import type { Person } from './activitypubSchemas.js'
@@ -18,7 +14,7 @@ import type { Person } from './activitypubSchemas.js'
  * @returns Base URL (e.g., http://localhost:3000)
  */
 export function getBaseUrl(): string {
-    return config.baseUrl
+	return config.baseUrl
 }
 
 /**
@@ -27,41 +23,44 @@ export function getBaseUrl(): string {
  * @returns Actor URL
  */
 export async function resolveWebFinger(resource: string): Promise<string | null> {
-    try {
-        // Parse resource (acct:username@domain)
-        const match = resource.match(/^acct:([^@]+)@(.+)$/)
-        if (!match) {
-            return null
-        }
+	try {
+		// Parse resource (acct:username@domain)
+		const match = resource.match(/^acct:([^@]+)@(.+)$/)
+		if (!match) {
+			return null
+		}
 
-        const [, , domain] = match
+		const [, , domain] = match
 
-        // Use http:// for .local domains in development, https:// otherwise
-        const protocol = (process.env.NODE_ENV === 'development' && domain.endsWith('.local')) ? 'http' : 'https'
-        const webfingerUrl = `${protocol}://${domain}/.well-known/webfinger?resource=${encodeURIComponent(resource)}`
+		// Use http:// for .local domains in development, https:// otherwise
+		const protocol =
+			process.env.NODE_ENV === 'development' && domain.endsWith('.local') ? 'http' : 'https'
+		const webfingerUrl = `${protocol}://${domain}/.well-known/webfinger?resource=${encodeURIComponent(resource)}`
 
-        const response = await safeFetch(webfingerUrl, {
-            headers: {
-                Accept: ContentType.JSON,
-            },
-        })
+		const response = await safeFetch(webfingerUrl, {
+			headers: {
+				Accept: ContentType.JSON,
+			},
+		})
 
-        if (!response.ok) {
-            return null
-        }
+		if (!response.ok) {
+			return null
+		}
 
-        const data = await response.json() as { links?: Array<{ rel: string; type?: string; href?: string }> }
+		const data = (await response.json()) as {
+			links?: Array<{ rel: string; type?: string; href?: string }>
+		}
 
-        // Find the ActivityPub link
-        const apLink = data.links?.find(
-            (link) => link.rel === 'self' && link.type === ContentType.ACTIVITY_JSON
-        )
+		// Find the ActivityPub link
+		const apLink = data.links?.find(
+			(link) => link.rel === 'self' && link.type === ContentType.ACTIVITY_JSON
+		)
 
-        return apLink?.href || null
-    } catch (error) {
-        console.error('WebFinger resolution error:', error)
-        return null
-    }
+		return apLink?.href || null
+	} catch (error) {
+		console.error('WebFinger resolution error:', error)
+		return null
+	}
 }
 
 /**
@@ -70,22 +69,22 @@ export async function resolveWebFinger(resource: string): Promise<string | null>
  * @returns Actor object
  */
 export async function fetchActor(actorUrl: string): Promise<Record<string, unknown> | null> {
-    try {
-        const response = await safeFetch(actorUrl, {
-            headers: {
-                Accept: ContentType.ACTIVITY_JSON,
-            },
-        })
+	try {
+		const response = await safeFetch(actorUrl, {
+			headers: {
+				Accept: ContentType.ACTIVITY_JSON,
+			},
+		})
 
-        if (!response.ok) {
-            return null
-        }
+		if (!response.ok) {
+			return null
+		}
 
-        return await response.json() as Record<string, unknown>
-    } catch (error) {
-        console.error('Error fetching actor:', error)
-        return null
-    }
+		return (await response.json()) as Record<string, unknown>
+	} catch (error) {
+		console.error('Error fetching actor:', error)
+		return null
+	}
 }
 
 /**
@@ -94,45 +93,45 @@ export async function fetchActor(actorUrl: string): Promise<Record<string, unkno
  * @returns User record
  */
 export async function cacheRemoteUser(actor: Person) {
-    const actorUrl = actor.id
+	const actorUrl = actor.id
 
-    // Extract username from actor URL or preferredUsername
-    const username = actor.preferredUsername || new URL(actorUrl).pathname.split('/').pop()
+	// Extract username from actor URL or preferredUsername
+	const username = actor.preferredUsername || new URL(actorUrl).pathname.split('/').pop()
 
-    // Extract inbox URLs
-    const inboxUrl = actor.inbox
-    const sharedInboxUrl = actor.endpoints?.sharedInbox || null
+	// Extract inbox URLs
+	const inboxUrl = actor.inbox
+	const sharedInboxUrl = actor.endpoints?.sharedInbox || null
 
-    // Extract public key
-    const publicKey = actor.publicKey?.publicKeyPem || null
+	// Extract public key
+	const publicKey = actor.publicKey?.publicKeyPem || null
 
-    // Upsert user
-    return await prisma.user.upsert({
-        where: { externalActorUrl: actorUrl },
-        update: {
-            name: actor.name || username,
-            publicKey,
-            inboxUrl,
-            sharedInboxUrl,
-            profileImage: actor.icon?.url || null,
-            headerImage: actor.image?.url || null,
-            bio: actor.summary || null,
-            displayColor: actor.displayColor || '#3b82f6',
-        },
-        create: {
-            username: `${username}@${new URL(actorUrl).hostname}`,
-            name: actor.name || username,
-            externalActorUrl: actorUrl,
-            isRemote: true,
-            publicKey,
-            inboxUrl,
-            sharedInboxUrl,
-            profileImage: actor.icon?.url || null,
-            headerImage: actor.image?.url || null,
-            bio: actor.summary || null,
-            displayColor: actor.displayColor || '#3b82f6',
-        },
-    })
+	// Upsert user
+	return await prisma.user.upsert({
+		where: { externalActorUrl: actorUrl },
+		update: {
+			name: actor.name || username,
+			publicKey,
+			inboxUrl,
+			sharedInboxUrl,
+			profileImage: actor.icon?.url || null,
+			headerImage: actor.image?.url || null,
+			bio: actor.summary || null,
+			displayColor: actor.displayColor || '#3b82f6',
+		},
+		create: {
+			username: `${username}@${new URL(actorUrl).hostname}`,
+			name: actor.name || username,
+			externalActorUrl: actorUrl,
+			isRemote: true,
+			publicKey,
+			inboxUrl,
+			sharedInboxUrl,
+			profileImage: actor.icon?.url || null,
+			headerImage: actor.image?.url || null,
+			bio: actor.summary || null,
+			displayColor: actor.displayColor || '#3b82f6',
+		},
+	})
 }
 
 /**
@@ -142,18 +141,14 @@ export async function cacheRemoteUser(actor: Person) {
  * @param totalItems - Total number of items
  * @returns OrderedCollection object
  */
-export function createOrderedCollection(
-    id: string,
-    items: unknown[],
-    totalItems?: number
-) {
-    return {
-        '@context': ACTIVITYPUB_CONTEXTS,
-        id,
-        type: CollectionType.ORDERED_COLLECTION,
-        totalItems: totalItems ?? items.length,
-        orderedItems: items,
-    }
+export function createOrderedCollection(id: string, items: unknown[], totalItems?: number) {
+	return {
+		'@context': ACTIVITYPUB_CONTEXTS,
+		id,
+		type: CollectionType.ORDERED_COLLECTION,
+		totalItems: totalItems ?? items.length,
+		orderedItems: items,
+	}
 }
 
 /**
@@ -166,24 +161,24 @@ export function createOrderedCollection(
  * @returns OrderedCollectionPage object
  */
 export function createOrderedCollectionPage(
-    id: string,
-    items: unknown[],
-    partOf: string,
-    next?: string,
-    prev?: string
+	id: string,
+	items: unknown[],
+	partOf: string,
+	next?: string,
+	prev?: string
 ) {
-    const page: Record<string, unknown> = {
-        '@context': ACTIVITYPUB_CONTEXTS,
-        id,
-        type: CollectionType.ORDERED_COLLECTION_PAGE,
-        partOf,
-        orderedItems: items,
-    }
+	const page: Record<string, unknown> = {
+		'@context': ACTIVITYPUB_CONTEXTS,
+		id,
+		type: CollectionType.ORDERED_COLLECTION_PAGE,
+		partOf,
+		orderedItems: items,
+	}
 
-    if (next) page.next = next
-    if (prev) page.prev = prev
+	if (next) page.next = next
+	if (prev) page.prev = prev
 
-    return page
+	return page
 }
 
 /**
@@ -192,20 +187,20 @@ export function createOrderedCollectionPage(
  * @returns Parsed components
  */
 export function parseActivityId(id: string): {
-    domain: string
-    path: string
-    protocol: string
+	domain: string
+	path: string
+	protocol: string
 } | null {
-    try {
-        const url = new URL(id)
-        return {
-            domain: url.hostname,
-            path: url.pathname,
-            protocol: url.protocol,
-        }
-    } catch {
-        return null
-    }
+	try {
+		const url = new URL(id)
+		return {
+			domain: url.hostname,
+			path: url.pathname,
+			protocol: url.protocol,
+		}
+	} catch {
+		return null
+	}
 }
 
 /**
@@ -214,10 +209,10 @@ export function parseActivityId(id: string): {
  * @returns True if already processed
  */
 export async function isActivityProcessed(activityId: string): Promise<boolean> {
-    const processed = await prisma.processedActivity.findUnique({
-        where: { activityId },
-    })
-    return processed !== null
+	const processed = await prisma.processedActivity.findUnique({
+		where: { activityId },
+	})
+	return processed !== null
 }
 
 /**
@@ -225,28 +220,28 @@ export async function isActivityProcessed(activityId: string): Promise<boolean> 
  * @param activityId - Activity ID
  */
 export async function markActivityProcessed(activityId: string): Promise<void> {
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 30) // 30 days TTL
+	const expiresAt = new Date()
+	expiresAt.setDate(expiresAt.getDate() + 30) // 30 days TTL
 
-    await prisma.processedActivity.create({
-        data: {
-            activityId,
-            expiresAt,
-        },
-    })
+	await prisma.processedActivity.create({
+		data: {
+			activityId,
+			expiresAt,
+		},
+	})
 }
 
 /**
  * Cleans up expired processed activities
  */
 export async function cleanupProcessedActivities(): Promise<void> {
-    await prisma.processedActivity.deleteMany({
-        where: {
-            expiresAt: {
-                lt: new Date(),
-            },
-        },
-    })
+	await prisma.processedActivity.deleteMany({
+		where: {
+			expiresAt: {
+				lt: new Date(),
+			},
+		},
+	})
 }
 
 /**
@@ -255,19 +250,16 @@ export async function cleanupProcessedActivities(): Promise<void> {
  * @param blockedUserId - Potentially blocked user ID
  * @returns True if blocked
  */
-export async function isUserBlocked(
-    userId: string,
-    blockedUserId: string
-): Promise<boolean> {
-    const block = await prisma.blockedUser.findUnique({
-        where: {
-            blockingUserId_blockedUserId: {
-                blockingUserId: userId,
-                blockedUserId,
-            },
-        },
-    })
-    return block !== null
+export async function isUserBlocked(userId: string, blockedUserId: string): Promise<boolean> {
+	const block = await prisma.blockedUser.findUnique({
+		where: {
+			blockingUserId_blockedUserId: {
+				blockingUserId: userId,
+				blockedUserId,
+			},
+		},
+	})
+	return block !== null
 }
 
 /**
@@ -276,10 +268,10 @@ export async function isUserBlocked(
  * @returns True if blocked
  */
 export async function isDomainBlocked(domain: string): Promise<boolean> {
-    const block = await prisma.blockedDomain.findUnique({
-        where: { domain },
-    })
-    return block !== null
+	const block = await prisma.blockedDomain.findUnique({
+		where: { domain },
+	})
+	return block !== null
 }
 
 /**
@@ -288,31 +280,33 @@ export async function isDomainBlocked(domain: string): Promise<boolean> {
  * @returns Follower count, or null if unable to fetch
  */
 export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number | null> {
-    try {
-        // Construct followers collection URL
-        const followersUrl = `${actorUrl}/followers`
+	try {
+		// Construct followers collection URL
+		const followersUrl = `${actorUrl}/followers`
 
-        const response = await safeFetch(followersUrl, {
-            headers: {
-                Accept: ContentType.ACTIVITY_JSON,
-            },
-        })
+		const response = await safeFetch(followersUrl, {
+			headers: {
+				Accept: ContentType.ACTIVITY_JSON,
+			},
+		})
 
-        if (!response.ok) {
-            console.error(`Failed to fetch followers collection: ${response.status}`)
-            return null
-        }
+		if (!response.ok) {
+			console.error(`Failed to fetch followers collection: ${response.status}`)
+			return null
+		}
 
-        const collection = await response.json() as { totalItems?: number | string }
+		const collection = (await response.json()) as { totalItems?: number | string }
 
-        // Extract totalItems from the collection
-        if (collection.totalItems !== undefined) {
-            return typeof collection.totalItems === 'number' ? collection.totalItems : parseInt(collection.totalItems, 10)
-        }
+		// Extract totalItems from the collection
+		if (collection.totalItems !== undefined) {
+			return typeof collection.totalItems === 'number'
+				? collection.totalItems
+				: parseInt(collection.totalItems, 10)
+		}
 
-        return null
-    } catch (error) {
-        console.error('Error fetching remote follower count:', error)
-        return null
-    }
+		return null
+	} catch (error) {
+		console.error('Error fetching remote follower count:', error)
+		return null
+	}
 }

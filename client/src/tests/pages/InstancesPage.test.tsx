@@ -8,17 +8,17 @@ import { createTestWrapper, clearQueryClient } from '../testUtils'
 // Mock dependencies
 const mockUser = { id: 'user1', username: 'testuser', name: 'Test User' }
 const mockInstance: InstanceWithStats = {
-    id: 'instance1',
-    domain: 'example.com',
-    title: 'Example Instance',
-    description: 'An example federated instance',
-    blocked: false,
-    lastSeen: new Date('2024-01-15T10:00:00Z'),
-    stats: {
-        remoteUsers: 100,
-        remoteEvents: 50,
-        localFollowing: 10,
-    },
+	id: 'instance1',
+	domain: 'example.com',
+	title: 'Example Instance',
+	description: 'An example federated instance',
+	blocked: false,
+	lastSeen: new Date('2024-01-15T10:00:00Z'),
+	stats: {
+		remoteUsers: 100,
+		remoteEvents: 50,
+		localFollowing: 10,
+	},
 }
 
 const mockUseInstances = vi.fn()
@@ -27,27 +27,27 @@ const mockUseMutation = vi.fn()
 const mockUseAuth = vi.fn()
 
 vi.mock('../../hooks/useAuth', () => ({
-    useAuth: () => mockUseAuth(),
+	useAuth: () => mockUseAuth(),
 }))
 
 vi.mock('../../hooks/queries', async () => {
-    const actual = await vi.importActual('../../hooks/queries')
-    return {
-        ...actual,
-        useInstances: () => mockUseInstances(),
-        useInstanceSearch: () => mockUseInstanceSearch(),
-    }
+	const actual = await vi.importActual('../../hooks/queries')
+	return {
+		...actual,
+		useInstances: () => mockUseInstances(),
+		useInstanceSearch: () => mockUseInstanceSearch(),
+	}
 })
 
 vi.mock('@tanstack/react-query', async () => {
-    const actual = await vi.importActual('@tanstack/react-query')
-    return {
-        ...actual,
-        useMutation: () => mockUseMutation(),
-        useQueryClient: () => ({
-            invalidateQueries: vi.fn(),
-        }),
-    }
+	const actual = await vi.importActual('@tanstack/react-query')
+	return {
+		...actual,
+		useMutation: () => mockUseMutation(),
+		useQueryClient: () => ({
+			invalidateQueries: vi.fn(),
+		}),
+	}
 })
 
 global.fetch = vi.fn()
@@ -55,325 +55,340 @@ global.fetch = vi.fn()
 const { wrapper, queryClient } = createTestWrapper(['/instances'])
 
 describe('InstancesPage', () => {
-    beforeEach(() => {
-        clearQueryClient(queryClient)
-        vi.clearAllMocks()
-        mockUseAuth.mockReturnValue({
-            user: mockUser,
-            logout: vi.fn(),
-        })
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [mockInstance],
-                total: 1,
-            },
-            isLoading: false,
-        })
-        mockUseInstanceSearch.mockReturnValue({
-            data: {
-                instances: [],
-            },
-            isLoading: false,
-        })
-        mockUseMutation.mockReturnValue({
-            mutate: vi.fn(),
-            mutateAsync: vi.fn().mockResolvedValue({}),
-        })
-        global.window.confirm = vi.fn(() => true)
-    })
+	beforeEach(() => {
+		clearQueryClient(queryClient)
+		vi.clearAllMocks()
+		mockUseAuth.mockReturnValue({
+			user: mockUser,
+			logout: vi.fn(),
+		})
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [mockInstance],
+				total: 1,
+			},
+			isLoading: false,
+		})
+		mockUseInstanceSearch.mockReturnValue({
+			data: {
+				instances: [],
+			},
+			isLoading: false,
+		})
+		mockUseMutation.mockReturnValue({
+			mutate: vi.fn(),
+			mutateAsync: vi.fn().mockResolvedValue({}),
+		})
+		global.window.confirm = vi.fn(() => true)
+	})
 
-    afterEach(() => {
-        clearQueryClient(queryClient)
-    })
+	afterEach(() => {
+		clearQueryClient(queryClient)
+	})
 
-    it('should render instances page', () => {
-        render(<InstancesPage />, { wrapper })
-        // Use getAllByText since "Federated Instances" appears in both title and description
-        expect(screen.getAllByText(/Federated Instances/i).length).toBeGreaterThan(0)
-    })
+	it('should render instances page', () => {
+		render(<InstancesPage />, { wrapper })
+		// Use getAllByText since "Federated Instances" appears in both title and description
+		expect(screen.getAllByText(/Federated Instances/i).length).toBeGreaterThan(0)
+	})
 
-    it('should display loading state', () => {
-        mockUseInstances.mockReturnValue({
-            data: undefined,
-            isLoading: true,
-        })
+	it('should display loading state', () => {
+		mockUseInstances.mockReturnValue({
+			data: undefined,
+			isLoading: true,
+		})
 
-        render(<InstancesPage />, { wrapper })
+		render(<InstancesPage />, { wrapper })
 
-        expect(screen.getByText(/Loading instances/i)).toBeInTheDocument()
-    })
+		expect(screen.getByText(/Loading instances/i)).toBeInTheDocument()
+	})
 
-    it('should display instances list', async () => {
-        render(<InstancesPage />, { wrapper })
+	it('should display instances list', async () => {
+		render(<InstancesPage />, { wrapper })
 
-        await waitFor(() => {
-            expect(screen.getByText('Example Instance')).toBeInTheDocument()
-        })
-    })
+		await waitFor(() => {
+			expect(screen.getByText('Example Instance')).toBeInTheDocument()
+		})
+	})
 
-    it('should show empty state when no instances', () => {
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [],
-                total: 0,
-            },
-            isLoading: false,
-        })
+	it('should show empty state when no instances', () => {
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [],
+				total: 0,
+			},
+			isLoading: false,
+		})
 
-        render(<InstancesPage />, { wrapper })
+		render(<InstancesPage />, { wrapper })
 
-        // When there are no instances, the page shows the count
-        expect(screen.getByText(/Showing.*0.*instances/i)).toBeInTheDocument()
-    })
+		// When there are no instances, the page shows the count
+		expect(screen.getByText(/Showing.*0.*instances/i)).toBeInTheDocument()
+	})
 
-    it('should handle search', async () => {
-        const user = userEvent.setup()
-        const searchResults = [{ ...mockInstance, domain: 'search.example.com', title: 'Search Instance' }]
-        
-        mockUseInstanceSearch.mockReturnValue({
-            data: {
-                instances: searchResults,
-            },
-            isLoading: false,
-        })
+	it('should handle search', async () => {
+		const user = userEvent.setup()
+		const searchResults = [
+			{ ...mockInstance, domain: 'search.example.com', title: 'Search Instance' },
+		]
 
-        render(<InstancesPage />, { wrapper })
+		mockUseInstanceSearch.mockReturnValue({
+			data: {
+				instances: searchResults,
+			},
+			isLoading: false,
+		})
 
-        await waitFor(() => {
-            expect(screen.getByPlaceholderText(/Search instances/i)).toBeInTheDocument()
-        })
+		render(<InstancesPage />, { wrapper })
 
-        const searchInput = screen.getByPlaceholderText(/Search instances/i)
-        await user.type(searchInput, 'example')
+		await waitFor(() => {
+			expect(screen.getByPlaceholderText(/Search instances/i)).toBeInTheDocument()
+		})
 
-        // Check that search results appear (user-visible behavior)
-        await waitFor(() => {
-            expect(screen.getByText('Search Instance')).toBeInTheDocument()
-        }, { timeout: 2000 })
-    })
+		const searchInput = screen.getByPlaceholderText(/Search instances/i)
+		await user.type(searchInput, 'example')
 
-    it('should handle sort options', async () => {
-        const user = userEvent.setup()
-        render(<InstancesPage />, { wrapper })
+		// Check that search results appear (user-visible behavior)
+		await waitFor(
+			() => {
+				expect(screen.getByText('Search Instance')).toBeInTheDocument()
+			},
+			{ timeout: 2000 }
+		)
+	})
 
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Recent Activity/i })).toBeInTheDocument()
-        })
+	it('should handle sort options', async () => {
+		const user = userEvent.setup()
+		render(<InstancesPage />, { wrapper })
 
-        const sortButton = screen.getByRole('button', { name: /Most Users/i })
-        expect(sortButton).toBeInTheDocument()
-        await user.click(sortButton)
-        
-        // After clicking, the button should still be present (user-visible behavior)
-        expect(screen.getByRole('button', { name: /Most Users/i })).toBeInTheDocument()
-    })
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /Recent Activity/i })).toBeInTheDocument()
+		})
 
-    it('should handle instance blocking', async () => {
-        const user = userEvent.setup()
-        const mockBlock = vi.fn()
-        mockUseMutation.mockReturnValue({
-            mutate: mockBlock,
-            mutateAsync: vi.fn().mockResolvedValue({}),
-        })
+		const sortButton = screen.getByRole('button', { name: /Most Users/i })
+		expect(sortButton).toBeInTheDocument()
+		await user.click(sortButton)
 
-        render(<InstancesPage />, { wrapper })
+		// After clicking, the button should still be present (user-visible behavior)
+		expect(screen.getByRole('button', { name: /Most Users/i })).toBeInTheDocument()
+	})
 
-        await waitFor(() => {
-            expect(screen.getByText('Example Instance')).toBeInTheDocument()
-        })
+	it('should handle instance blocking', async () => {
+		const user = userEvent.setup()
+		const mockBlock = vi.fn()
+		mockUseMutation.mockReturnValue({
+			mutate: mockBlock,
+			mutateAsync: vi.fn().mockResolvedValue({}),
+		})
 
-        // Look for block button
-        const blockButtons = screen.getAllByRole('button').filter(
-            (btn) => btn.textContent?.includes('Block')
-        )
+		render(<InstancesPage />, { wrapper })
 
-        if (blockButtons.length > 0) {
-            await user.click(blockButtons[0])
+		await waitFor(() => {
+			expect(screen.getByText('Example Instance')).toBeInTheDocument()
+		})
 
-            await waitFor(() => {
-                expect(global.window.confirm).toHaveBeenCalled()
-            })
-        }
-    })
+		// Look for block button
+		const blockButtons = screen
+			.getAllByRole('button')
+			.filter((btn) => btn.textContent?.includes('Block'))
 
-    it('should handle instance unblocking', async () => {
-        const user = userEvent.setup()
-        const blockedInstance = { ...mockInstance, blocked: true }
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [blockedInstance],
-                total: 1,
-            },
-            isLoading: false,
-        })
+		if (blockButtons.length > 0) {
+			await user.click(blockButtons[0])
 
-        const mockUnblock = vi.fn()
-        mockUseMutation.mockReturnValue({
-            mutate: mockUnblock,
-            mutateAsync: vi.fn().mockResolvedValue({}),
-        })
+			await waitFor(() => {
+				expect(global.window.confirm).toHaveBeenCalled()
+			})
+		}
+	})
 
-        render(<InstancesPage />, { wrapper })
+	it('should handle instance unblocking', async () => {
+		const user = userEvent.setup()
+		const blockedInstance = { ...mockInstance, blocked: true }
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [blockedInstance],
+				total: 1,
+			},
+			isLoading: false,
+		})
 
-        await waitFor(() => {
-            expect(screen.getByText('Example Instance')).toBeInTheDocument()
-        })
+		const mockUnblock = vi.fn()
+		mockUseMutation.mockReturnValue({
+			mutate: mockUnblock,
+			mutateAsync: vi.fn().mockResolvedValue({}),
+		})
 
-        // Look for unblock button
-        const unblockButtons = screen.getAllByRole('button').filter(
-            (btn) => btn.textContent?.includes('Unblock')
-        )
+		render(<InstancesPage />, { wrapper })
 
-        if (unblockButtons.length > 0) {
-            await user.click(unblockButtons[0])
+		await waitFor(() => {
+			expect(screen.getByText('Example Instance')).toBeInTheDocument()
+		})
 
-            await waitFor(() => {
-                expect(mockUnblock).toHaveBeenCalled()
-            })
-        }
-    })
+		// Look for unblock button
+		const unblockButtons = screen
+			.getAllByRole('button')
+			.filter((btn) => btn.textContent?.includes('Unblock'))
 
-    it('should handle instance refresh', async () => {
-        const user = userEvent.setup()
-        const mockRefresh = vi.fn()
-        mockUseMutation.mockReturnValue({
-            mutate: mockRefresh,
-            mutateAsync: vi.fn().mockResolvedValue({}),
-        })
+		if (unblockButtons.length > 0) {
+			await user.click(unblockButtons[0])
 
-        render(<InstancesPage />, { wrapper })
+			await waitFor(() => {
+				expect(mockUnblock).toHaveBeenCalled()
+			})
+		}
+	})
 
-        await waitFor(() => {
-            expect(screen.getByText('Example Instance')).toBeInTheDocument()
-        })
+	it('should handle instance refresh', async () => {
+		const user = userEvent.setup()
+		const mockRefresh = vi.fn()
+		mockUseMutation.mockReturnValue({
+			mutate: mockRefresh,
+			mutateAsync: vi.fn().mockResolvedValue({}),
+		})
 
-        // Look for refresh button
-        const refreshButtons = screen.getAllByRole('button').filter(
-            (btn) => btn.textContent?.includes('Refresh')
-        )
+		render(<InstancesPage />, { wrapper })
 
-        if (refreshButtons.length > 0) {
-            await user.click(refreshButtons[0])
+		await waitFor(() => {
+			expect(screen.getByText('Example Instance')).toBeInTheDocument()
+		})
 
-            await waitFor(() => {
-                expect(mockRefresh).toHaveBeenCalled()
-            })
-        }
-    })
+		// Look for refresh button
+		const refreshButtons = screen
+			.getAllByRole('button')
+			.filter((btn) => btn.textContent?.includes('Refresh'))
 
-    it('should handle pagination', async () => {
-        const user = userEvent.setup()
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [mockInstance],
-                total: 100,
-            },
-            isLoading: false,
-        })
+		if (refreshButtons.length > 0) {
+			await user.click(refreshButtons[0])
 
-        render(<InstancesPage />, { wrapper })
+			await waitFor(() => {
+				expect(mockRefresh).toHaveBeenCalled()
+			})
+		}
+	})
 
-        await waitFor(() => {
-            expect(screen.getByText(/Showing.*100/i)).toBeInTheDocument()
-        })
+	it('should handle pagination', async () => {
+		const user = userEvent.setup()
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [mockInstance],
+				total: 100,
+			},
+			isLoading: false,
+		})
 
-        const nextButton = screen.getByRole('button', { name: 'Next' })
-        expect(nextButton).toBeInTheDocument()
-        await user.click(nextButton)
-        
-        // After clicking, pagination should still be visible
-        expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
-    })
+		render(<InstancesPage />, { wrapper })
 
-    it('should disable previous button on first page', async () => {
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [mockInstance],
-                total: 100,
-            },
-            isLoading: false,
-        })
+		await waitFor(() => {
+			expect(screen.getByText(/Showing.*100/i)).toBeInTheDocument()
+		})
 
-        render(<InstancesPage />, { wrapper })
+		const nextButton = screen.getByRole('button', { name: 'Next' })
+		expect(nextButton).toBeInTheDocument()
+		await user.click(nextButton)
 
-        await waitFor(() => {
-            const prevButton = screen.getByRole('button', { name: 'Previous' })
-            expect(prevButton).toBeDisabled()
-        })
-    })
+		// After clicking, pagination should still be visible
+		expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
+	})
 
-    it('should disable next button on last page', async () => {
-        mockUseInstances.mockReturnValue({
-            data: {
-                instances: [mockInstance],
-                total: 50,
-            },
-            isLoading: false,
-        })
+	it('should disable previous button on first page', async () => {
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [mockInstance],
+				total: 100,
+			},
+			isLoading: false,
+		})
 
-        render(<InstancesPage />, { wrapper })
+		render(<InstancesPage />, { wrapper })
 
-        await waitFor(() => {
-            const nextButton = screen.getByRole('button', { name: 'Next' })
-            expect(nextButton).toBeDisabled()
-        })
-    })
+		await waitFor(() => {
+			const prevButton = screen.getByRole('button', { name: 'Previous' })
+			expect(prevButton).toBeDisabled()
+		})
+	})
 
-    it('should display instance statistics', async () => {
-        render(<InstancesPage />, { wrapper })
+	it('should disable next button on last page', async () => {
+		mockUseInstances.mockReturnValue({
+			data: {
+				instances: [mockInstance],
+				total: 50,
+			},
+			isLoading: false,
+		})
 
-        await waitFor(() => {
-            expect(screen.getByText('Example Instance')).toBeInTheDocument()
-        })
-    })
+		render(<InstancesPage />, { wrapper })
 
-    it('should set SEO metadata', () => {
-        render(<InstancesPage />, { wrapper })
+		await waitFor(() => {
+			const nextButton = screen.getByRole('button', { name: 'Next' })
+			expect(nextButton).toBeDisabled()
+		})
+	})
 
-        // Use getAllByText since "Federated Instances" appears in both title and description
-        expect(screen.getAllByText(/Federated Instances/i).length).toBeGreaterThan(0)
-    })
+	it('should display instance statistics', async () => {
+		render(<InstancesPage />, { wrapper })
 
-    it('should show search results when searching', async () => {
-        const user = userEvent.setup()
-        const searchResults = [{ ...mockInstance, domain: 'search.example.com', title: 'Search Instance' }]
+		await waitFor(() => {
+			expect(screen.getByText('Example Instance')).toBeInTheDocument()
+		})
+	})
 
-        mockUseInstanceSearch.mockReturnValue({
-            data: {
-                instances: searchResults,
-            },
-            isLoading: false,
-        })
+	it('should set SEO metadata', () => {
+		render(<InstancesPage />, { wrapper })
 
-        render(<InstancesPage />, { wrapper })
+		// Use getAllByText since "Federated Instances" appears in both title and description
+		expect(screen.getAllByText(/Federated Instances/i).length).toBeGreaterThan(0)
+	})
 
-        const searchInput = screen.getByPlaceholderText(/Search instances/i)
-        await user.type(searchInput, 'search')
+	it('should show search results when searching', async () => {
+		const user = userEvent.setup()
+		const searchResults = [
+			{ ...mockInstance, domain: 'search.example.com', title: 'Search Instance' },
+		]
 
-        // Wait for search results to appear - the hook is called with searchQuery state
-        // We can't easily track hook arguments, so instead verify the search results are displayed
-        await waitFor(() => {
-            // After typing "search", the search results should be displayed
-            expect(screen.getByText('Search Instance')).toBeInTheDocument()
-        }, { timeout: 2000 })
-    })
+		mockUseInstanceSearch.mockReturnValue({
+			data: {
+				instances: searchResults,
+			},
+			isLoading: false,
+		})
 
-    it('should show no results message when search returns empty', async () => {
-        const user = userEvent.setup()
-        mockUseInstanceSearch.mockReturnValue({
-            data: {
-                instances: [],
-            },
-            isLoading: false,
-        })
+		render(<InstancesPage />, { wrapper })
 
-        render(<InstancesPage />, { wrapper })
+		const searchInput = screen.getByPlaceholderText(/Search instances/i)
+		await user.type(searchInput, 'search')
 
-        const searchInput = screen.getByPlaceholderText(/Search instances/i)
-        await user.type(searchInput, 'nonexistent')
+		// Wait for search results to appear - the hook is called with searchQuery state
+		// We can't easily track hook arguments, so instead verify the search results are displayed
+		await waitFor(
+			() => {
+				// After typing "search", the search results should be displayed
+				expect(screen.getByText('Search Instance')).toBeInTheDocument()
+			},
+			{ timeout: 2000 }
+		)
+	})
 
-        await waitFor(() => {
-            expect(screen.getByText(/No instances found matching "nonexistent"/i)).toBeInTheDocument()
-        }, { timeout: 2000 })
-    })
+	it('should show no results message when search returns empty', async () => {
+		const user = userEvent.setup()
+		mockUseInstanceSearch.mockReturnValue({
+			data: {
+				instances: [],
+			},
+			isLoading: false,
+		})
+
+		render(<InstancesPage />, { wrapper })
+
+		const searchInput = screen.getByPlaceholderText(/Search instances/i)
+		await user.type(searchInput, 'nonexistent')
+
+		await waitFor(
+			() => {
+				expect(
+					screen.getByText(/No instances found matching "nonexistent"/i)
+				).toBeInTheDocument()
+			},
+			{ timeout: 2000 }
+		)
+	})
 })

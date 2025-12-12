@@ -4,200 +4,316 @@
 
 import { z } from '@hono/zod-openapi'
 import { isValidTimeZone } from './timezone.js'
+import { isUrlSafe } from './ssrfProtection.js'
 
 // Common response schemas
-export const ErrorSchema = z.object({
-    error: z.string().openapi({ example: 'VALIDATION_ERROR', description: 'Error code (e.g., VALIDATION_ERROR, UNAUTHORIZED, etc.)' }),
-    message: z.string().optional().openapi({ example: 'Invalid input data', description: 'Human-readable error message' }),
-    details: z.any().optional().openapi({ description: 'Additional error details (only included in development mode)' }),
-}).openapi('Error')
+export const ErrorSchema = z
+	.object({
+		error: z.string().openapi({
+			example: 'VALIDATION_ERROR',
+			description: 'Error code (e.g., VALIDATION_ERROR, UNAUTHORIZED, etc.)',
+		}),
+		message: z.string().optional().openapi({
+			example: 'Invalid input data',
+			description: 'Human-readable error message',
+		}),
+		details: z.any().optional().openapi({
+			description: 'Additional error details (only included in development mode)',
+		}),
+	})
+	.openapi('Error')
 
-export const SuccessSchema = z.object({
-    message: z.string().openapi({ example: 'Operation successful' }),
-}).openapi('Success')
+export const SuccessSchema = z
+	.object({
+		message: z.string().openapi({ example: 'Operation successful' }),
+	})
+	.openapi('Success')
 
 // User schemas
-export const UserSchema = z.object({
-    id: z.string().openapi({ example: 'user_123' }),
-    username: z.string().openapi({ example: 'alice' }),
-    name: z.string().nullable().openapi({ example: 'Alice Smith' }),
-    displayColor: z.string().nullable().openapi({ example: '#3b82f6' }),
-    profileImage: z.string().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
-    timezone: z.string().optional().openapi({ example: 'America/New_York' }),
-    isRemote: z.boolean().optional(),
-    externalActorUrl: z.string().nullable().optional(),
-}).openapi('User')
+export const UserSchema = z
+	.object({
+		id: z.string().openapi({ example: 'user_123' }),
+		username: z.string().openapi({ example: 'alice' }),
+		name: z.string().nullable().openapi({ example: 'Alice Smith' }),
+		displayColor: z.string().nullable().openapi({ example: '#3b82f6' }),
+		profileImage: z.string().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
+		timezone: z.string().optional().openapi({ example: 'America/New_York' }),
+		isRemote: z.boolean().optional(),
+		externalActorUrl: z.string().nullable().optional(),
+	})
+	.openapi('User')
 
 // Event schemas
 const EventVisibilitySchema = z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED'])
 
-export const EventInputSchema = z.object({
-    title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
-    summary: z.string().optional().openapi({ example: 'Weekly team sync' }),
-    location: z.string().optional().openapi({ example: 'Conference Room A' }),
-    locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
-    locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
-    headerImage: z.string().url().optional().openapi({ example: 'https://example.com/event.jpg' }),
-    url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
-    startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
-    endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
-    duration: z.string().optional().openapi({ example: 'PT1H' }),
-    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/New_York' }),
-    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
-    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
-    maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
-    visibility: EventVisibilitySchema.optional().openapi({ example: 'FOLLOWERS' }),
-    recurrencePattern: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).optional().openapi({ example: 'WEEKLY' }),
-    recurrenceEndDate: z.string().datetime().optional().openapi({ example: '2025-03-01T09:00:00Z' }),
-}).openapi('EventInput')
+export const EventInputSchema = z
+	.object({
+		title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
+		summary: z.string().optional().openapi({ example: 'Weekly team sync' }),
+		location: z.string().optional().openapi({ example: 'Conference Room A' }),
+		locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
+		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
+		headerImage: z
+			.string()
+			.url()
+			.optional()
+			.openapi({ example: 'https://example.com/event.jpg' }),
+		url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
+		startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
+		endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
+		duration: z.string().optional().openapi({ example: 'PT1H' }),
+		timezone: z
+			.string()
+			.optional()
+			.refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone')
+			.openapi({ example: 'America/New_York' }),
+		eventStatus: z
+			.enum(['EventScheduled', 'EventCancelled', 'EventPostponed'])
+			.optional()
+			.openapi({ example: 'EventScheduled' }),
+		eventAttendanceMode: z
+			.enum([
+				'OfflineEventAttendanceMode',
+				'OnlineEventAttendanceMode',
+				'MixedEventAttendanceMode',
+			])
+			.optional()
+			.openapi({ example: 'MixedEventAttendanceMode' }),
+		maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
+		visibility: EventVisibilitySchema.optional().openapi({ example: 'FOLLOWERS' }),
+		recurrencePattern: z
+			.enum(['DAILY', 'WEEKLY', 'MONTHLY'])
+			.optional()
+			.openapi({ example: 'WEEKLY' }),
+		recurrenceEndDate: z
+			.string()
+			.datetime()
+			.optional()
+			.openapi({ example: '2025-03-01T09:00:00Z' }),
+	})
+	.openapi('EventInput')
 
-export const EventSchema = z.object({
-    id: z.string().openapi({ example: 'event_123' }),
-    title: z.string().openapi({ example: 'Team Meeting' }),
-    summary: z.string().nullable(),
-    location: z.string().nullable(),
-    locationLatitude: z.number().nullable().optional(),
-    locationLongitude: z.number().nullable().optional(),
-    headerImage: z.string().nullable(),
-    url: z.string().nullable(),
-    startTime: z.string().datetime(),
-    endTime: z.string().datetime().nullable(),
-    duration: z.string().nullable(),
-    timezone: z.string().openapi({ example: 'America/New_York' }),
-    eventStatus: z.string().nullable(),
-    eventAttendanceMode: z.string().nullable(),
-    maximumAttendeeCapacity: z.number().nullable(),
-    recurrencePattern: z.string().nullable().optional(),
-    recurrenceEndDate: z.string().datetime().nullable().optional(),
-    userId: z.string().nullable(),
-    attributedTo: z.string(),
-    externalId: z.string().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
-    visibility: EventVisibilitySchema.default('PUBLIC'),
-    user: UserSchema.nullable(),
-    _count: z.object({
-        attendance: z.number(),
-        likes: z.number(),
-        comments: z.number(),
-    }).optional(),
-    distanceKm: z.number().optional(),
-}).openapi('Event')
+export const EventSchema = z
+	.object({
+		id: z.string().openapi({ example: 'event_123' }),
+		title: z.string().openapi({ example: 'Team Meeting' }),
+		summary: z.string().nullable(),
+		location: z.string().nullable(),
+		locationLatitude: z.number().nullable().optional(),
+		locationLongitude: z.number().nullable().optional(),
+		headerImage: z.string().nullable(),
+		url: z.string().nullable(),
+		startTime: z.string().datetime(),
+		endTime: z.string().datetime().nullable(),
+		duration: z.string().nullable(),
+		timezone: z.string().openapi({ example: 'America/New_York' }),
+		eventStatus: z.string().nullable(),
+		eventAttendanceMode: z.string().nullable(),
+		maximumAttendeeCapacity: z.number().nullable(),
+		recurrencePattern: z.string().nullable().optional(),
+		recurrenceEndDate: z.string().datetime().nullable().optional(),
+		userId: z.string().nullable(),
+		attributedTo: z.string(),
+		externalId: z.string().nullable(),
+		createdAt: z.string().datetime(),
+		updatedAt: z.string().datetime(),
+		visibility: EventVisibilitySchema.default('PUBLIC'),
+		user: UserSchema.nullable(),
+		_count: z
+			.object({
+				attendance: z.number(),
+				likes: z.number(),
+				comments: z.number(),
+			})
+			.optional(),
+		distanceKm: z.number().optional(),
+	})
+	.openapi('Event')
 
-export const EventListSchema = z.object({
-    events: z.array(EventSchema),
-    pagination: z.object({
-        page: z.number(),
-        limit: z.number(),
-        total: z.number(),
-        pages: z.number(),
-    }),
-}).openapi('EventList')
+export const EventListSchema = z
+	.object({
+		events: z.array(EventSchema),
+		pagination: z.object({
+			page: z.number(),
+			limit: z.number(),
+			total: z.number(),
+			pages: z.number(),
+		}),
+	})
+	.openapi('EventList')
 
-export const EventTemplateDataSchema = z.object({
-    title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
-    summary: z.string().optional().openapi({ example: 'Weekly sync-up' }),
-    location: z.string().optional().openapi({ example: 'Conference Room A' }),
-    locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
-    locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
-    headerImage: z.string().url().optional().openapi({ example: 'https://example.com/event.jpg' }),
-    url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
-    startTime: z.string().datetime().optional().openapi({ example: '2024-12-01T10:00:00Z' }),
-    endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
-    duration: z.string().optional().openapi({ example: 'PT1H' }),
-    eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional().openapi({ example: 'EventScheduled' }),
-    eventAttendanceMode: z.enum(['OfflineEventAttendanceMode', 'OnlineEventAttendanceMode', 'MixedEventAttendanceMode']).optional().openapi({ example: 'MixedEventAttendanceMode' }),
-    maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
-}).openapi('EventTemplateData')
+export const EventTemplateDataSchema = z
+	.object({
+		title: z.string().min(1).max(200).openapi({ example: 'Team Meeting' }),
+		summary: z.string().optional().openapi({ example: 'Weekly sync-up' }),
+		location: z.string().optional().openapi({ example: 'Conference Room A' }),
+		locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
+		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
+		headerImage: z
+			.string()
+			.url()
+			.optional()
+			.openapi({ example: 'https://example.com/event.jpg' }),
+		url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
+		startTime: z.string().datetime().optional().openapi({ example: '2024-12-01T10:00:00Z' }),
+		endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
+		duration: z.string().optional().openapi({ example: 'PT1H' }),
+		eventStatus: z
+			.enum(['EventScheduled', 'EventCancelled', 'EventPostponed'])
+			.optional()
+			.openapi({ example: 'EventScheduled' }),
+		eventAttendanceMode: z
+			.enum([
+				'OfflineEventAttendanceMode',
+				'OnlineEventAttendanceMode',
+				'MixedEventAttendanceMode',
+			])
+			.optional()
+			.openapi({ example: 'MixedEventAttendanceMode' }),
+		maximumAttendeeCapacity: z.number().int().positive().optional().openapi({ example: 50 }),
+	})
+	.openapi('EventTemplateData')
 
-export const EventTemplateInputSchema = z.object({
-    name: z.string().min(1).max(120).openapi({ example: 'Weekly Standup' }),
-    description: z.string().max(500).optional().openapi({ example: 'Use for recurring standups' }),
-    data: EventTemplateDataSchema,
-}).openapi('EventTemplateInput')
+export const EventTemplateInputSchema = z
+	.object({
+		name: z.string().min(1).max(120).openapi({ example: 'Weekly Standup' }),
+		description: z
+			.string()
+			.max(500)
+			.optional()
+			.openapi({ example: 'Use for recurring standups' }),
+		data: EventTemplateDataSchema,
+	})
+	.openapi('EventTemplateInput')
 
-export const EventTemplateUpdateSchema = z.object({
-    name: z.string().min(1).max(120).optional().openapi({ example: 'Weekly Standup' }),
-    description: z.string().max(500).optional().openapi({ example: 'Use for recurring standups' }),
-    data: EventTemplateDataSchema.partial().optional(),
-}).openapi('EventTemplateUpdate')
+export const EventTemplateUpdateSchema = z
+	.object({
+		name: z.string().min(1).max(120).optional().openapi({ example: 'Weekly Standup' }),
+		description: z
+			.string()
+			.max(500)
+			.optional()
+			.openapi({ example: 'Use for recurring standups' }),
+		data: EventTemplateDataSchema.partial().optional(),
+	})
+	.openapi('EventTemplateUpdate')
 
-export const EventTemplateSchema = z.object({
-    id: z.string().openapi({ example: 'tmpl_123' }),
-    name: z.string().openapi({ example: 'Weekly Standup' }),
-    description: z.string().nullable().openapi({ example: 'Use for recurring standups' }),
-    data: EventTemplateDataSchema,
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
-}).openapi('EventTemplate')
+export const EventTemplateSchema = z
+	.object({
+		id: z.string().openapi({ example: 'tmpl_123' }),
+		name: z.string().openapi({ example: 'Weekly Standup' }),
+		description: z.string().nullable().openapi({ example: 'Use for recurring standups' }),
+		data: EventTemplateDataSchema,
+		createdAt: z.string().datetime(),
+		updatedAt: z.string().datetime(),
+	})
+	.openapi('EventTemplate')
 
-export const EventTemplateListSchema = z.object({
-    templates: z.array(EventTemplateSchema),
-}).openapi('EventTemplateList')
+export const EventTemplateListSchema = z
+	.object({
+		templates: z.array(EventTemplateSchema),
+	})
+	.openapi('EventTemplateList')
 
 // Attendance schemas
-export const AttendanceInputSchema = z.object({
-    status: z.enum(['attending', 'maybe', 'not_attending']).openapi({ example: 'attending' }),
-}).openapi('AttendanceInput')
+export const AttendanceInputSchema = z
+	.object({
+		status: z.enum(['attending', 'maybe', 'not_attending']).openapi({ example: 'attending' }),
+	})
+	.openapi('AttendanceInput')
 
-export const AttendanceSchema = z.object({
-    id: z.string(),
-    status: z.string(),
-    userId: z.string(),
-    eventId: z.string(),
-    createdAt: z.string().datetime(),
-    user: UserSchema.nullable(),
-}).openapi('Attendance')
+export const AttendanceSchema = z
+	.object({
+		id: z.string(),
+		status: z.string(),
+		userId: z.string(),
+		eventId: z.string(),
+		createdAt: z.string().datetime(),
+		user: UserSchema.nullable(),
+	})
+	.openapi('Attendance')
 
 // Comment schemas
-export const CommentInputSchema = z.object({
-    content: z.string().min(1).max(5000).openapi({ example: 'Looking forward to this!' }),
-    inReplyToId: z.string().optional().openapi({ example: 'comment_123' }),
-}).openapi('CommentInput')
+export const CommentInputSchema = z
+	.object({
+		content: z.string().min(1).max(5000).openapi({ example: 'Looking forward to this!' }),
+		inReplyToId: z.string().optional().openapi({ example: 'comment_123' }),
+	})
+	.openapi('CommentInput')
 
-export const CommentMentionSchema = z.object({
-    id: z.string().openapi({ example: 'mention_123' }),
-    handle: z.string().openapi({ example: '@alice' }),
-    user: UserSchema,
-}).openapi('CommentMention')
+export const CommentMentionSchema = z
+	.object({
+		id: z.string().openapi({ example: 'mention_123' }),
+		handle: z.string().openapi({ example: '@alice' }),
+		user: UserSchema,
+	})
+	.openapi('CommentMention')
 
-export const CommentSchema = z.object({
-    id: z.string(),
-    content: z.string(),
-    authorId: z.string(),
-    eventId: z.string(),
-    inReplyToId: z.string().nullable(),
-    externalId: z.string().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
-    author: UserSchema,
-    replies: z.array(z.any()).optional(),
-    mentions: z.array(CommentMentionSchema).optional(),
-}).openapi('Comment')
+export const CommentSchema = z
+	.object({
+		id: z.string(),
+		content: z.string(),
+		authorId: z.string(),
+		eventId: z.string(),
+		inReplyToId: z.string().nullable(),
+		externalId: z.string().nullable(),
+		createdAt: z.string().datetime(),
+		updatedAt: z.string().datetime(),
+		author: UserSchema,
+		replies: z.array(z.any()).optional(),
+		mentions: z.array(CommentMentionSchema).optional(),
+	})
+	.openapi('Comment')
 
 // Profile schemas
-export const ProfileUpdateSchema = z.object({
-    name: z.string().min(1).max(100).optional(),
-    bio: z.string().max(500).optional(),
-    profileImage: z.string().url().optional(),
-    headerImage: z.string().url().optional(),
-    displayColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().openapi({ example: '#3b82f6' }),
-    timezone: z.string().optional().refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone').openapi({ example: 'America/Los_Angeles' }),
-}).openapi('ProfileUpdate')
+export const ProfileUpdateSchema = z
+	.object({
+		name: z.string().min(1).max(100).optional(),
+		bio: z.string().max(500).optional(),
+		profileImage: z
+			.string()
+			.url()
+			.optional()
+			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
+				message: 'Profile image URL is not safe (SSRF protection)',
+			}),
+		headerImage: z
+			.string()
+			.url()
+			.optional()
+			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
+				message: 'Header image URL is not safe (SSRF protection)',
+			}),
+		displayColor: z
+			.string()
+			.regex(/^#[0-9A-Fa-f]{6}$/)
+			.optional()
+			.openapi({ example: '#3b82f6' }),
+		timezone: z
+			.string()
+			.optional()
+			.refine((val) => val === undefined || isValidTimeZone(val), 'Invalid timezone')
+			.openapi({ example: 'America/Los_Angeles' }),
+	})
+	.openapi('ProfileUpdate')
 
-export const ProfileSchema = z.object({
-    id: z.string(),
-    username: z.string(),
-    name: z.string().nullable(),
-    email: z.string().nullable(),
-    bio: z.string().nullable(),
-    profileImage: z.string().nullable(),
-    headerImage: z.string().nullable(),
-    displayColor: z.string().nullable(),
-    timezone: z.string().openapi({ example: 'UTC' }),
-    createdAt: z.string().datetime(),
-    _count: z.object({
-        followers: z.number(),
-        following: z.number(),
-    }).optional(),
-}).openapi('Profile')
+export const ProfileSchema = z
+	.object({
+		id: z.string(),
+		username: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable(),
+		bio: z.string().nullable(),
+		profileImage: z.string().nullable(),
+		headerImage: z.string().nullable(),
+		displayColor: z.string().nullable(),
+		timezone: z.string().openapi({ example: 'UTC' }),
+		createdAt: z.string().datetime(),
+		_count: z
+			.object({
+				followers: z.number(),
+				following: z.number(),
+			})
+			.optional(),
+	})
+	.openapi('Profile')

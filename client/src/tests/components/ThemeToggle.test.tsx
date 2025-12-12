@@ -4,144 +4,144 @@ import { ThemeProvider } from '../../design-system'
 import { ThemeToggle } from '../../components/ThemeToggle'
 
 describe('ThemeToggle Component', () => {
-  let localStorageMock: {
-    getItem: ReturnType<typeof vi.fn>
-    setItem: ReturnType<typeof vi.fn>
-    removeItem: ReturnType<typeof vi.fn>
-    clear: ReturnType<typeof vi.fn>
-  }
+	let localStorageMock: {
+		getItem: ReturnType<typeof vi.fn>
+		setItem: ReturnType<typeof vi.fn>
+		removeItem: ReturnType<typeof vi.fn>
+		clear: ReturnType<typeof vi.fn>
+	}
 
-  beforeEach(() => {
-    localStorageMock = {
-      getItem: vi.fn(() => null),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-    }
-    global.localStorage = localStorageMock as unknown as Storage
-    document.documentElement.className = ''
-  })
+	beforeEach(() => {
+		localStorageMock = {
+			getItem: vi.fn(() => null),
+			setItem: vi.fn(),
+			removeItem: vi.fn(),
+			clear: vi.fn(),
+		}
+		global.localStorage = localStorageMock as unknown as Storage
+		document.documentElement.className = ''
+	})
 
-  it('should render ThemeToggle component', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should render ThemeToggle component', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    expect(button).toBeInTheDocument()
-  })
+		const button = screen.getByRole('button')
+		expect(button).toBeInTheDocument()
+	})
 
-  it('should display dark mode icon and label when theme is light', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should display dark mode icon and label when theme is light', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveTextContent('🌙')
-    expect(button).toHaveTextContent('Dark')
-    expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
-  })
+		const button = screen.getByRole('button')
+		expect(button).toHaveTextContent('🌙')
+		expect(button).toHaveTextContent('Dark')
+		expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
+	})
 
-  it('should display light mode icon and label when theme is dark', () => {
-    render(
-      <ThemeProvider defaultTheme="dark">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should display light mode icon and label when theme is dark', () => {
+		render(
+			<ThemeProvider defaultTheme="dark">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveTextContent('☀️')
-    expect(button).toHaveTextContent('Light')
-    expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
-  })
+		const button = screen.getByRole('button')
+		expect(button).toHaveTextContent('☀️')
+		expect(button).toHaveTextContent('Light')
+		expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
+	})
 
-  it('should have correct aria-label for light theme', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should have correct aria-label for light theme', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
-  })
+		const button = screen.getByRole('button')
+		expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
+	})
 
-  it('should have correct aria-label for dark theme', () => {
-    render(
-      <ThemeProvider defaultTheme="dark">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should have correct aria-label for dark theme', () => {
+		render(
+			<ThemeProvider defaultTheme="dark">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
-  })
+		const button = screen.getByRole('button')
+		expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
+	})
 
-  it('should toggle theme when button is clicked', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+	it('should toggle theme when button is clicked', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    const button = screen.getByRole('button')
-    
-    // Initially light theme
-    expect(button).toHaveTextContent('🌙')
-    expect(button).toHaveTextContent('Dark')
+		const button = screen.getByRole('button')
 
-    // Click to toggle
-    fireEvent.click(button)
+		// Initially light theme
+		expect(button).toHaveTextContent('🌙')
+		expect(button).toHaveTextContent('Dark')
 
-    // Should now be dark theme
-    expect(button).toHaveTextContent('☀️')
-    expect(button).toHaveTextContent('Light')
-  })
+		// Click to toggle
+		fireEvent.click(button)
 
-  it('should toggle from light to dark', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+		// Should now be dark theme
+		expect(button).toHaveTextContent('☀️')
+		expect(button).toHaveTextContent('Light')
+	})
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveTextContent('🌙')
+	it('should toggle from light to dark', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    fireEvent.click(button)
+		const button = screen.getByRole('button')
+		expect(button).toHaveTextContent('🌙')
 
-    expect(button).toHaveTextContent('☀️')
-  })
+		fireEvent.click(button)
 
-  it('should toggle from dark to light', () => {
-    render(
-      <ThemeProvider defaultTheme="dark">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+		expect(button).toHaveTextContent('☀️')
+	})
 
-    const button = screen.getByRole('button')
-    expect(button).toHaveTextContent('☀️')
+	it('should toggle from dark to light', () => {
+		render(
+			<ThemeProvider defaultTheme="dark">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    fireEvent.click(button)
+		const button = screen.getByRole('button')
+		expect(button).toHaveTextContent('☀️')
 
-    expect(button).toHaveTextContent('🌙')
-  })
+		fireEvent.click(button)
 
-  it('should persist theme change to localStorage', () => {
-    render(
-      <ThemeProvider defaultTheme="light">
-        <ThemeToggle />
-      </ThemeProvider>
-    )
+		expect(button).toHaveTextContent('🌙')
+	})
 
-    const button = screen.getByRole('button')
-    fireEvent.click(button)
+	it('should persist theme change to localStorage', () => {
+		render(
+			<ThemeProvider defaultTheme="light">
+				<ThemeToggle />
+			</ThemeProvider>
+		)
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('constellate-theme', 'dark')
-  })
+		const button = screen.getByRole('button')
+		fireEvent.click(button)
+
+		expect(localStorageMock.setItem).toHaveBeenCalledWith('constellate-theme', 'dark')
+	})
 })

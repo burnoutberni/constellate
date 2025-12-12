@@ -3,158 +3,158 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { CalendarExport } from '../../components/CalendarExport'
 
 describe('CalendarExport', () => {
-    const mockEvent = {
-        title: 'Test Event',
-        description: 'This is a test event',
-        location: 'Test Location',
-        startTime: '2024-12-15T10:00:00Z',
-        endTime: '2024-12-15T12:00:00Z',
-        timezone: 'UTC',
-        url: 'https://example.com/event/1',
-    }
+	const mockEvent = {
+		title: 'Test Event',
+		description: 'This is a test event',
+		location: 'Test Location',
+		startTime: '2024-12-15T10:00:00Z',
+		endTime: '2024-12-15T12:00:00Z',
+		timezone: 'UTC',
+		url: 'https://example.com/event/1',
+	}
 
-    // Mock window.open - return null to prevent jsdom navigation warnings
-    let originalOpen: typeof window.open
-    let originalBlob: typeof Blob
-    beforeEach(() => {
-        originalOpen = window.open
-        // Return null to prevent jsdom "Not implemented: navigation to another Document" warnings
-        window.open = vi.fn(() => null)
-        
-        // Mock Blob constructor
-        originalBlob = global.Blob
-        global.Blob = vi.fn((parts, options) => {
-            return { parts, options, type: options?.type || '' }
-        }) as unknown as typeof Blob
-    })
+	// Mock window.open - return null to prevent jsdom navigation warnings
+	let originalOpen: typeof window.open
+	let originalBlob: typeof Blob
+	beforeEach(() => {
+		originalOpen = window.open
+		// Return null to prevent jsdom "Not implemented: navigation to another Document" warnings
+		window.open = vi.fn(() => null)
 
-    afterEach(() => {
-        window.open = originalOpen
-        global.Blob = originalBlob
-    })
+		// Mock Blob constructor
+		originalBlob = global.Blob
+		global.Blob = vi.fn((parts, options) => {
+			return { parts, options, type: options?.type || '' }
+		}) as unknown as typeof Blob
+	})
 
-    // Mock URL.createObjectURL and URL.revokeObjectURL
-    beforeEach(() => {
-        global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-        global.URL.revokeObjectURL = vi.fn()
-    })
+	afterEach(() => {
+		window.open = originalOpen
+		global.Blob = originalBlob
+	})
 
-    it('renders calendar export buttons', () => {
-        render(<CalendarExport {...mockEvent} />)
+	// Mock URL.createObjectURL and URL.revokeObjectURL
+	beforeEach(() => {
+		global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+		global.URL.revokeObjectURL = vi.fn()
+	})
 
-        expect(screen.getByText('Add to Calendar')).toBeInTheDocument()
-        expect(screen.getByText('Download iCal')).toBeInTheDocument()
-        expect(screen.getByText('Google Calendar')).toBeInTheDocument()
-    })
+	it('renders calendar export buttons', () => {
+		render(<CalendarExport {...mockEvent} />)
 
-    it('generates iCal download on button click', () => {
-        const createElementSpy = vi.spyOn(document, 'createElement')
-        const appendChildSpy = vi.spyOn(document.body, 'appendChild')
-        const removeChildSpy = vi.spyOn(document.body, 'removeChild')
+		expect(screen.getByText('Add to Calendar')).toBeInTheDocument()
+		expect(screen.getByText('Download iCal')).toBeInTheDocument()
+		expect(screen.getByText('Google Calendar')).toBeInTheDocument()
+	})
 
-        render(<CalendarExport {...mockEvent} />)
+	it('generates iCal download on button click', () => {
+		const createElementSpy = vi.spyOn(document, 'createElement')
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild')
+		const removeChildSpy = vi.spyOn(document.body, 'removeChild')
 
-        const icalButton = screen.getByText('Download iCal')
-        fireEvent.click(icalButton)
+		render(<CalendarExport {...mockEvent} />)
 
-        // Verify link element was created
-        expect(createElementSpy).toHaveBeenCalledWith('a')
+		const icalButton = screen.getByText('Download iCal')
+		fireEvent.click(icalButton)
 
-        // Verify blob was created
-        expect(global.URL.createObjectURL).toHaveBeenCalled()
+		// Verify link element was created
+		expect(createElementSpy).toHaveBeenCalledWith('a')
 
-        // Verify link was appended and removed
-        expect(appendChildSpy).toHaveBeenCalled()
-        expect(removeChildSpy).toHaveBeenCalled()
+		// Verify blob was created
+		expect(global.URL.createObjectURL).toHaveBeenCalled()
 
-        // Verify URL was revoked
-        expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+		// Verify link was appended and removed
+		expect(appendChildSpy).toHaveBeenCalled()
+		expect(removeChildSpy).toHaveBeenCalled()
 
-        createElementSpy.mockRestore()
-        appendChildSpy.mockRestore()
-        removeChildSpy.mockRestore()
-    })
+		// Verify URL was revoked
+		expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
 
-    it('opens Google Calendar in new window', () => {
-        render(<CalendarExport {...mockEvent} />)
+		createElementSpy.mockRestore()
+		appendChildSpy.mockRestore()
+		removeChildSpy.mockRestore()
+	})
 
-        const googleButton = screen.getByText('Google Calendar')
-        fireEvent.click(googleButton)
+	it('opens Google Calendar in new window', () => {
+		render(<CalendarExport {...mockEvent} />)
 
-        expect(window.open).toHaveBeenCalled()
-        const call = (window.open as ReturnType<typeof vi.fn>).mock.calls[0]
-        const url = call[0] as string
+		const googleButton = screen.getByText('Google Calendar')
+		fireEvent.click(googleButton)
 
-        expect(url).toContain('calendar.google.com')
-        expect(url).toContain('Test+Event')
-    })
+		expect(window.open).toHaveBeenCalled()
+		const call = (window.open as ReturnType<typeof vi.fn>).mock.calls[0]
+		const url = call[0] as string
 
-    it('includes event details in iCal content', () => {
-        render(<CalendarExport {...mockEvent} />)
+		expect(url).toContain('calendar.google.com')
+		expect(url).toContain('Test+Event')
+	})
 
-        const icalButton = screen.getByText('Download iCal')
-        fireEvent.click(icalButton)
+	it('includes event details in iCal content', () => {
+		render(<CalendarExport {...mockEvent} />)
 
-        expect(global.Blob).toHaveBeenCalled()
-        const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		const icalButton = screen.getByText('Download iCal')
+		fireEvent.click(icalButton)
 
-        expect(blobContent).toContain('BEGIN:VCALENDAR')
-        expect(blobContent).toContain('SUMMARY:Test Event')
-        expect(blobContent).toContain('DESCRIPTION:This is a test event')
-        expect(blobContent).toContain('LOCATION:Test Location')
-        expect(blobContent).toContain('END:VCALENDAR')
-    })
+		expect(global.Blob).toHaveBeenCalled()
+		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
 
-    it('handles event without optional fields', () => {
-        const minimalEvent = {
-            title: 'Minimal Event',
-            startTime: '2024-12-15T10:00:00Z',
-        }
+		expect(blobContent).toContain('BEGIN:VCALENDAR')
+		expect(blobContent).toContain('SUMMARY:Test Event')
+		expect(blobContent).toContain('DESCRIPTION:This is a test event')
+		expect(blobContent).toContain('LOCATION:Test Location')
+		expect(blobContent).toContain('END:VCALENDAR')
+	})
 
-        render(<CalendarExport {...minimalEvent} />)
+	it('handles event without optional fields', () => {
+		const minimalEvent = {
+			title: 'Minimal Event',
+			startTime: '2024-12-15T10:00:00Z',
+		}
 
-        const icalButton = screen.getByText('Download iCal')
-        fireEvent.click(icalButton)
+		render(<CalendarExport {...minimalEvent} />)
 
-        const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		const icalButton = screen.getByText('Download iCal')
+		fireEvent.click(icalButton)
 
-        expect(blobContent).toContain('SUMMARY:Minimal Event')
-        expect(blobContent).not.toContain('DESCRIPTION:')
-        expect(blobContent).not.toContain('LOCATION:')
-    })
+		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
 
-    it('escapes special characters in iCal content', () => {
-        const eventWithSpecialChars = {
-            ...mockEvent,
-            title: 'Event, with; special\\chars',
-            description: 'Line 1\nLine 2',
-        }
+		expect(blobContent).toContain('SUMMARY:Minimal Event')
+		expect(blobContent).not.toContain('DESCRIPTION:')
+		expect(blobContent).not.toContain('LOCATION:')
+	})
 
-        render(<CalendarExport {...eventWithSpecialChars} />)
+	it('escapes special characters in iCal content', () => {
+		const eventWithSpecialChars = {
+			...mockEvent,
+			title: 'Event, with; special\\chars',
+			description: 'Line 1\nLine 2',
+		}
 
-        const icalButton = screen.getByText('Download iCal')
-        fireEvent.click(icalButton)
+		render(<CalendarExport {...eventWithSpecialChars} />)
 
-        const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		const icalButton = screen.getByText('Download iCal')
+		fireEvent.click(icalButton)
 
-        expect(blobContent).toContain('SUMMARY:Event\\, with\\; special\\\\chars')
-        expect(blobContent).toContain('Line 1\\nLine 2')
-    })
+		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
 
-    it('generates correct filename for iCal download', () => {
-        const createElementSpy = vi.spyOn(document, 'createElement')
+		expect(blobContent).toContain('SUMMARY:Event\\, with\\; special\\\\chars')
+		expect(blobContent).toContain('Line 1\\nLine 2')
+	})
 
-        render(<CalendarExport {...mockEvent} />)
+	it('generates correct filename for iCal download', () => {
+		const createElementSpy = vi.spyOn(document, 'createElement')
 
-        const icalButton = screen.getByText('Download iCal')
-        fireEvent.click(icalButton)
+		render(<CalendarExport {...mockEvent} />)
 
-        const linkElement = createElementSpy.mock.results.find(
-            (result) => result.value instanceof HTMLAnchorElement
-        )?.value as HTMLAnchorElement
+		const icalButton = screen.getByText('Download iCal')
+		fireEvent.click(icalButton)
 
-        expect(linkElement.download).toBe('test_event.ics')
+		const linkElement = createElementSpy.mock.results.find(
+			(result) => result.value instanceof HTMLAnchorElement
+		)?.value as HTMLAnchorElement
 
-        createElementSpy.mockRestore()
-    })
+		expect(linkElement.download).toBe('test_event.ics')
+
+		createElementSpy.mockRestore()
+	})
 })

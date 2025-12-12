@@ -14,352 +14,381 @@ type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
 const DEFAULT_BASE_URL = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
 const APP_HOSTNAME = (() => {
-    try {
-        return new URL(DEFAULT_BASE_URL).hostname
-    } catch {
-        return 'localhost'
-    }
+	try {
+		return new URL(DEFAULT_BASE_URL).hostname
+	} catch {
+		return 'localhost'
+	}
 })()
 
 function mapRecurrenceFrequency(freq: RecurrenceFrequency): ICalEventRepeatingFreq {
-    switch (freq) {
-        case 'DAILY':
-            return ICalEventRepeatingFreq.DAILY
-        case 'WEEKLY':
-            return ICalEventRepeatingFreq.WEEKLY
-        case 'MONTHLY':
-            return ICalEventRepeatingFreq.MONTHLY
-    }
+	switch (freq) {
+		case 'DAILY':
+			return ICalEventRepeatingFreq.DAILY
+		case 'WEEKLY':
+			return ICalEventRepeatingFreq.WEEKLY
+		case 'MONTHLY':
+			return ICalEventRepeatingFreq.MONTHLY
+	}
 }
 
 function resolveAppUrl(path: string): string {
-    try {
-        return new URL(path, DEFAULT_BASE_URL).toString()
-    } catch {
-        const normalizedBase = DEFAULT_BASE_URL.endsWith('/') ? DEFAULT_BASE_URL.slice(0, -1) : DEFAULT_BASE_URL
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`
-        return `${normalizedBase}${normalizedPath}`
-    }
+	try {
+		return new URL(path, DEFAULT_BASE_URL).toString()
+	} catch {
+		const normalizedBase = DEFAULT_BASE_URL.endsWith('/')
+			? DEFAULT_BASE_URL.slice(0, -1)
+			: DEFAULT_BASE_URL
+		const normalizedPath = path.startsWith('/') ? path : `/${path}`
+		return `${normalizedBase}${normalizedPath}`
+	}
 }
 
 function getEventPageUrl(eventId: string): string {
-    return resolveAppUrl(`/events/${eventId}`)
+	return resolveAppUrl(`/events/${eventId}`)
 }
 
-function getEventExportMetadata(event: { id: string; summary?: string | null; url?: string | null }) {
-    const pageUrl = event.url || getEventPageUrl(event.id)
-    const trimmedSummary = event.summary?.trim()
-    const description = trimmedSummary ? `${trimmedSummary}\n\n${pageUrl}` : pageUrl
-    return { pageUrl, description }
+function getEventExportMetadata(event: {
+	id: string
+	summary?: string | null
+	url?: string | null
+}) {
+	const pageUrl = event.url || getEventPageUrl(event.id)
+	const trimmedSummary = event.summary?.trim()
+	const description = trimmedSummary ? `${trimmedSummary}\n\n${pageUrl}` : pageUrl
+	return { pageUrl, description }
 }
 
 function formatDateForGoogle(date: Date | string | null | undefined): string {
-    if (!date) {
-        return ''
-    }
-    const dateObj = new Date(date)
-    if (Number.isNaN(dateObj.getTime())) {
-        return ''
-    }
-    return dateObj.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+	if (!date) {
+		return ''
+	}
+	const dateObj = new Date(date)
+	if (Number.isNaN(dateObj.getTime())) {
+		return ''
+	}
+	return dateObj
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}Z$/, 'Z')
 }
 
 function buildGoogleCalendarLink(event: {
-    id: string
-    title: string
-    startTime: Date
-    endTime?: Date | null
-    location?: string | null
-    summary?: string | null
-    url?: string | null
+	id: string
+	title: string
+	startTime: Date
+	endTime?: Date | null
+	location?: string | null
+	summary?: string | null
+	url?: string | null
 }) {
-    const { pageUrl, description } = getEventExportMetadata(event)
-    const start = formatDateForGoogle(event.startTime)
-    const end = formatDateForGoogle(event.endTime || event.startTime)
-    if (!start || !end) {
-        throw new Error(`Invalid event date: startTime=${event.startTime}, endTime=${event.endTime}`)
-    }
+	const { pageUrl, description } = getEventExportMetadata(event)
+	const start = formatDateForGoogle(event.startTime)
+	const end = formatDateForGoogle(event.endTime || event.startTime)
+	if (!start || !end) {
+		throw new Error(
+			`Invalid event date: startTime=${event.startTime}, endTime=${event.endTime}`
+		)
+	}
 
-    const googleUrl = new URL('https://calendar.google.com/calendar/render')
-    googleUrl.searchParams.set('action', 'TEMPLATE')
-    googleUrl.searchParams.set('text', event.title)
-    googleUrl.searchParams.set('dates', `${start}/${end}`)
-    googleUrl.searchParams.set('details', description)
-    if (event.location) {
-        googleUrl.searchParams.set('location', event.location)
-    }
-    googleUrl.searchParams.set('trp', 'false')
-    googleUrl.searchParams.set('sprop', pageUrl)
+	const googleUrl = new URL('https://calendar.google.com/calendar/render')
+	googleUrl.searchParams.set('action', 'TEMPLATE')
+	googleUrl.searchParams.set('text', event.title)
+	googleUrl.searchParams.set('dates', `${start}/${end}`)
+	googleUrl.searchParams.set('details', description)
+	if (event.location) {
+		googleUrl.searchParams.set('location', event.location)
+	}
+	googleUrl.searchParams.set('trp', 'false')
+	googleUrl.searchParams.set('sprop', pageUrl)
 
-    return googleUrl.toString()
+	return googleUrl.toString()
 }
 
 const app = new Hono()
 
 function ensureTimezone(calendar: ReturnType<typeof ical>, timezone: string, cache: Set<string>) {
-    if (cache.has(timezone)) {
-        return
-    }
+	if (cache.has(timezone)) {
+		return
+	}
 
-    calendar.timezone({
-        name: timezone,
-        generator: getVtimezoneComponent,
-    })
-    cache.add(timezone)
+	calendar.timezone({
+		name: timezone,
+		generator: getVtimezoneComponent,
+	})
+	cache.add(timezone)
 }
 
 // Export single event as ICS
 app.get('/:id/export.ics', async (c) => {
-    try {
-        const { id } = c.req.param()
+	try {
+		const { id } = c.req.param()
 
-        const event = await prisma.event.findUnique({
-            where: { id },
-            include: {
-                user: {
-                    select: {
-                        username: true,
-                        name: true,
-                    },
-                },
-            },
-        })
+		const event = await prisma.event.findUnique({
+			where: { id },
+			include: {
+				user: {
+					select: {
+						username: true,
+						name: true,
+					},
+				},
+			},
+		})
 
-        if (!event) {
-            return c.text('Event not found', 404)
-        }
+		if (!event) {
+			return c.text('Event not found', 404)
+		}
 
-        const viewerId = c.get('userId') as string | undefined
-        const canView = await canUserViewEvent(event, viewerId)
-        if (!canView) {
-            return c.text('Forbidden', 403)
-        }
+		const viewerId = c.get('userId') as string | undefined
+		const canView = await canUserViewEvent(event, viewerId)
+		if (!canView) {
+			return c.text('Forbidden', 403)
+		}
 
-        // Create calendar
-        const calendar = ical({ name: 'Constellate' })
-        const usedTimezones = new Set<string>()
+		// Create calendar
+		const calendar = ical({ name: 'Constellate' })
+		const usedTimezones = new Set<string>()
 
-        const { pageUrl, description } = getEventExportMetadata(event)
-        const organizer = event.user
-            ? {
-                name: event.user.name || event.user.username,
-                email: `${event.user.username}@${APP_HOSTNAME}`,
-            }
-            : undefined
+		const { pageUrl, description } = getEventExportMetadata(event)
+		const organizer = event.user
+			? {
+					name: event.user.name || event.user.username,
+					email: `${event.user.username}@${APP_HOSTNAME}`,
+				}
+			: undefined
 
-        // Add event
-        const eventTimezone = normalizeTimeZone(event.timezone)
-        ensureTimezone(calendar, eventTimezone, usedTimezones)
+		// Add event
+		const eventTimezone = normalizeTimeZone(event.timezone)
+		ensureTimezone(calendar, eventTimezone, usedTimezones)
 
-        calendar.createEvent({
-            start: event.startTime,
-            end: event.endTime || event.startTime,
-            summary: event.title,
-            description,
-            location: event.location || undefined,
-            url: pageUrl,
-            timezone: eventTimezone,
-            organizer,
-            status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
-            repeating: event.recurrencePattern && event.recurrenceEndDate
-                ? {
-                    freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
-                    until: event.recurrenceEndDate,
-                } as const
-                : undefined,
-        })
+		calendar.createEvent({
+			start: event.startTime,
+			end: event.endTime || event.startTime,
+			summary: event.title,
+			description,
+			location: event.location || undefined,
+			url: pageUrl,
+			timezone: eventTimezone,
+			organizer,
+			status:
+				event.eventStatus === 'EventCancelled'
+					? ICalEventStatus.CANCELLED
+					: ICalEventStatus.CONFIRMED,
+			repeating:
+				event.recurrencePattern && event.recurrenceEndDate
+					? ({
+							freq: mapRecurrenceFrequency(
+								event.recurrencePattern as RecurrenceFrequency
+							),
+							until: event.recurrenceEndDate,
+						} as const)
+					: undefined,
+		})
 
-        // Return ICS file
-        return c.text(calendar.toString(), 200, {
-            'Content-Type': 'text/calendar; charset=utf-8',
-            'Content-Disposition': `attachment; filename="${event.title.replace(/[^a-z0-9]/gi, '_')}.ics"`,
-        })
-    } catch (error) {
-        console.error('Error exporting event:', error)
-        return c.text('Internal server error', 500)
-    }
+		// Return ICS file
+		return c.text(calendar.toString(), 200, {
+			'Content-Type': 'text/calendar; charset=utf-8',
+			'Content-Disposition': `attachment; filename="${event.title.replace(/[^a-z0-9]/gi, '_')}.ics"`,
+		})
+	} catch (error) {
+		console.error('Error exporting event:', error)
+		return c.text('Internal server error', 500)
+	}
 })
 
 // Export user's events as ICS
 app.get('/user/:username/export.ics', async (c) => {
-    try {
-        const { username } = c.req.param()
+	try {
+		const { username } = c.req.param()
 
-        const user = await prisma.user.findUnique({
-            where: { username },
-            include: {
-                events: {
-                    orderBy: { startTime: 'asc' },
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                name: true,
-                                displayColor: true,
-                                profileImage: true,
-                            },
-                        },
-                    },
-                },
-            },
-        })
+		const user = await prisma.user.findUnique({
+			where: { username },
+			include: {
+				events: {
+					orderBy: { startTime: 'asc' },
+					include: {
+						user: {
+							select: {
+								id: true,
+								username: true,
+								name: true,
+								displayColor: true,
+								profileImage: true,
+							},
+						},
+					},
+				},
+			},
+		})
 
-        if (!user) {
-            return c.text('User not found', 404)
-        }
+		if (!user) {
+			return c.text('User not found', 404)
+		}
 
-        // Create calendar
-        const calendar = ical({
-            name: `${user.name || username}'s Events`,
-            description: 'Events from Constellate',
-        })
-        const usedTimezones = new Set<string>()
+		// Create calendar
+		const calendar = ical({
+			name: `${user.name || username}'s Events`,
+			description: 'Events from Constellate',
+		})
+		const usedTimezones = new Set<string>()
 
-        const viewerId = c.get('userId') as string | undefined
-        const filteredEvents = []
-        for (const event of user.events) {
-            if (await canUserViewEvent(event, viewerId)) {
-                filteredEvents.push(event)
-            }
-        }
+		const viewerId = c.get('userId') as string | undefined
+		const filteredEvents = []
+		for (const event of user.events) {
+			if (await canUserViewEvent(event, viewerId)) {
+				filteredEvents.push(event)
+			}
+		}
 
-        const organizer = {
-            name: user.name || username,
-            email: `${username}@${APP_HOSTNAME}`,
-        }
+		const organizer = {
+			name: user.name || username,
+			email: `${username}@${APP_HOSTNAME}`,
+		}
 
-        for (const event of filteredEvents) {
-            const { pageUrl, description } = getEventExportMetadata(event)
-            const eventTimezone = normalizeTimeZone(event.timezone)
-            ensureTimezone(calendar, eventTimezone, usedTimezones)
+		for (const event of filteredEvents) {
+			const { pageUrl, description } = getEventExportMetadata(event)
+			const eventTimezone = normalizeTimeZone(event.timezone)
+			ensureTimezone(calendar, eventTimezone, usedTimezones)
 
-            calendar.createEvent({
-                start: event.startTime,
-                end: event.endTime || event.startTime,
-                summary: event.title,
-                description,
-                location: event.location || undefined,
-                url: pageUrl,
-                timezone: eventTimezone,
-                organizer,
-                status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
-                repeating: event.recurrencePattern && event.recurrenceEndDate
-                    ? {
-                        freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
-                        until: event.recurrenceEndDate,
-                    } as const
-                    : undefined,
-            })
-        }
+			calendar.createEvent({
+				start: event.startTime,
+				end: event.endTime || event.startTime,
+				summary: event.title,
+				description,
+				location: event.location || undefined,
+				url: pageUrl,
+				timezone: eventTimezone,
+				organizer,
+				status:
+					event.eventStatus === 'EventCancelled'
+						? ICalEventStatus.CANCELLED
+						: ICalEventStatus.CONFIRMED,
+				repeating:
+					event.recurrencePattern && event.recurrenceEndDate
+						? ({
+								freq: mapRecurrenceFrequency(
+									event.recurrencePattern as RecurrenceFrequency
+								),
+								until: event.recurrenceEndDate,
+							} as const)
+						: undefined,
+			})
+		}
 
-        // Return ICS file
-        return c.text(calendar.toString(), 200, {
-            'Content-Type': 'text/calendar; charset=utf-8',
-            'Content-Disposition': `attachment; filename="${username}_calendar.ics"`,
-        })
-    } catch (error) {
-        console.error('Error exporting calendar:', error)
-        return c.text('Internal server error', 500)
-    }
+		// Return ICS file
+		return c.text(calendar.toString(), 200, {
+			'Content-Type': 'text/calendar; charset=utf-8',
+			'Content-Disposition': `attachment; filename="${username}_calendar.ics"`,
+		})
+	} catch (error) {
+		console.error('Error exporting calendar:', error)
+		return c.text('Internal server error', 500)
+	}
 })
 
 // Generate Google Calendar link for a single event
 app.get('/:id/export/google', async (c) => {
-    try {
-        const { id } = c.req.param()
+	try {
+		const { id } = c.req.param()
 
-        const event = await prisma.event.findUnique({
-            where: { id },
-        })
+		const event = await prisma.event.findUnique({
+			where: { id },
+		})
 
-        if (!event) {
-            return c.text('Event not found', 404)
-        }
+		if (!event) {
+			return c.text('Event not found', 404)
+		}
 
-        const viewerId = c.get('userId') as string | undefined
-        const canView = await canUserViewEvent(event, viewerId)
-        if (!canView) {
-            return c.text('Forbidden', 403)
-        }
+		const viewerId = c.get('userId') as string | undefined
+		const canView = await canUserViewEvent(event, viewerId)
+		if (!canView) {
+			return c.text('Forbidden', 403)
+		}
 
-        const googleLink = buildGoogleCalendarLink(event)
+		const googleLink = buildGoogleCalendarLink(event)
 
-        return c.json({ url: googleLink })
-    } catch (error) {
-        console.error('Error generating Google Calendar link:', error)
-        return c.text('Internal server error', 500)
-    }
+		return c.json({ url: googleLink })
+	} catch (error) {
+		console.error('Error generating Google Calendar link:', error)
+		return c.text('Internal server error', 500)
+	}
 })
 
 // Export all public events as ICS feed
 app.get('/feed.ics', async (c) => {
-    try {
-        const events = await prisma.event.findMany({
-            where: {
-                startTime: {
-                    gte: new Date(), // Only future events
-                },
-                visibility: 'PUBLIC',
-            },
-            include: {
-                user: {
-                    select: {
-                        username: true,
-                        name: true,
-                    },
-                },
-            },
-            orderBy: { startTime: 'asc' },
-            take: 100, // Limit to 100 events
-        })
+	try {
+		const events = await prisma.event.findMany({
+			where: {
+				startTime: {
+					gte: new Date(), // Only future events
+				},
+				visibility: 'PUBLIC',
+			},
+			include: {
+				user: {
+					select: {
+						username: true,
+						name: true,
+					},
+				},
+			},
+			orderBy: { startTime: 'asc' },
+			take: 100, // Limit to 100 events
+		})
 
-        // Create calendar
-        const calendar = ical({
-            name: 'Constellate - Public Events',
-            description: 'Public events from Constellate',
-            url: resolveAppUrl('/api/calendar/feed.ics'),
-        })
-        const usedTimezones = new Set<string>()
+		// Create calendar
+		const calendar = ical({
+			name: 'Constellate - Public Events',
+			description: 'Public events from Constellate',
+			url: resolveAppUrl('/api/calendar/feed.ics'),
+		})
+		const usedTimezones = new Set<string>()
 
-        // Add all events
-        for (const event of events) {
-            const { pageUrl, description } = getEventExportMetadata(event)
-            const eventTimezone = normalizeTimeZone(event.timezone)
-            ensureTimezone(calendar, eventTimezone, usedTimezones)
+		// Add all events
+		for (const event of events) {
+			const { pageUrl, description } = getEventExportMetadata(event)
+			const eventTimezone = normalizeTimeZone(event.timezone)
+			ensureTimezone(calendar, eventTimezone, usedTimezones)
 
-            calendar.createEvent({
-                start: event.startTime,
-                end: event.endTime || event.startTime,
-                summary: event.title,
-                description,
-                location: event.location || undefined,
-                url: pageUrl,
-                timezone: eventTimezone,
-                organizer: event.user
-                    ? {
-                        name: event.user.name || event.user.username,
-                        email: `${event.user.username}@${APP_HOSTNAME}`,
-                    }
-                    : undefined,
-                status: event.eventStatus === 'EventCancelled' ? ICalEventStatus.CANCELLED : ICalEventStatus.CONFIRMED,
-                repeating: event.recurrencePattern && event.recurrenceEndDate
-                    ? {
-                        freq: mapRecurrenceFrequency(event.recurrencePattern as RecurrenceFrequency),
-                        until: event.recurrenceEndDate,
-                    } as const
-                    : undefined,
-            })
-        }
+			calendar.createEvent({
+				start: event.startTime,
+				end: event.endTime || event.startTime,
+				summary: event.title,
+				description,
+				location: event.location || undefined,
+				url: pageUrl,
+				timezone: eventTimezone,
+				organizer: event.user
+					? {
+							name: event.user.name || event.user.username,
+							email: `${event.user.username}@${APP_HOSTNAME}`,
+						}
+					: undefined,
+				status:
+					event.eventStatus === 'EventCancelled'
+						? ICalEventStatus.CANCELLED
+						: ICalEventStatus.CONFIRMED,
+				repeating:
+					event.recurrencePattern && event.recurrenceEndDate
+						? ({
+								freq: mapRecurrenceFrequency(
+									event.recurrencePattern as RecurrenceFrequency
+								),
+								until: event.recurrenceEndDate,
+							} as const)
+						: undefined,
+			})
+		}
 
-        // Return ICS file
-        return c.text(calendar.toString(), 200, {
-            'Content-Type': 'text/calendar; charset=utf-8',
-        })
-    } catch (error) {
-        console.error('Error exporting feed:', error)
-        return c.text('Internal server error', 500)
-    }
+		// Return ICS file
+		return c.text(calendar.toString(), 200, {
+			'Content-Type': 'text/calendar; charset=utf-8',
+		})
+	} catch (error) {
+		console.error('Error exporting feed:', error)
+		return c.text('Internal server error', 500)
+	}
 })
 
 export default app

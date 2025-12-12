@@ -7,90 +7,90 @@ import { CommentForm } from '../../components/CommentForm'
 global.fetch = vi.fn()
 
 describe('CommentForm Component', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
 
-    it('should render with default placeholder', () => {
-        render(<CommentForm onSubmit={vi.fn()} />)
-        expect(screen.getByPlaceholderText('Add a comment...')).toBeInTheDocument()
-    })
+	it('should render with default placeholder', () => {
+		render(<CommentForm onSubmit={vi.fn()} />)
+		expect(screen.getByPlaceholderText('Add a comment...')).toBeInTheDocument()
+	})
 
-    it('should render with custom placeholder', () => {
-        render(<CommentForm onSubmit={vi.fn()} placeholder="Write a reply..." />)
-        expect(screen.getByPlaceholderText('Write a reply...')).toBeInTheDocument()
-    })
+	it('should render with custom placeholder', () => {
+		render(<CommentForm onSubmit={vi.fn()} placeholder="Write a reply..." />)
+		expect(screen.getByPlaceholderText('Write a reply...')).toBeInTheDocument()
+	})
 
-    it('should disable submit button when content is empty', () => {
-        render(<CommentForm onSubmit={vi.fn()} />)
-        const submitButton = screen.getByRole('button', { name: /Post Comment/i })
-        expect(submitButton).toBeDisabled()
-    })
+	it('should disable submit button when content is empty', () => {
+		render(<CommentForm onSubmit={vi.fn()} />)
+		const submitButton = screen.getByRole('button', { name: /Post Comment/i })
+		expect(submitButton).toBeDisabled()
+	})
 
-    it('should enable submit button when content is provided', async () => {
-        const user = userEvent.setup()
-        render(<CommentForm onSubmit={vi.fn()} />)
+	it('should enable submit button when content is provided', async () => {
+		const user = userEvent.setup()
+		render(<CommentForm onSubmit={vi.fn()} />)
 
-        const textarea = screen.getByPlaceholderText('Add a comment...')
-        await user.type(textarea, 'Test comment')
+		const textarea = screen.getByPlaceholderText('Add a comment...')
+		await user.type(textarea, 'Test comment')
 
-        const submitButton = screen.getByRole('button', { name: /Post Comment/i })
-        expect(submitButton).not.toBeDisabled()
-    })
+		const submitButton = screen.getByRole('button', { name: /Post Comment/i })
+		expect(submitButton).not.toBeDisabled()
+	})
 
-    it('should call onSubmit with content when form is submitted', async () => {
-        const user = userEvent.setup()
-        const mockSubmit = vi.fn().mockResolvedValue(undefined)
-        render(<CommentForm onSubmit={mockSubmit} />)
+	it('should call onSubmit with content when form is submitted', async () => {
+		const user = userEvent.setup()
+		const mockSubmit = vi.fn().mockResolvedValue(undefined)
+		render(<CommentForm onSubmit={mockSubmit} />)
 
-        const textarea = screen.getByPlaceholderText('Add a comment...')
-        await user.type(textarea, 'Test comment')
+		const textarea = screen.getByPlaceholderText('Add a comment...')
+		await user.type(textarea, 'Test comment')
 
-        const submitButton = screen.getByRole('button', { name: /Post Comment/i })
-        await user.click(submitButton)
+		const submitButton = screen.getByRole('button', { name: /Post Comment/i })
+		await user.click(submitButton)
 
-        await waitFor(() => {
-            expect(mockSubmit).toHaveBeenCalledWith('Test comment')
-        })
-    })
+		await waitFor(() => {
+			expect(mockSubmit).toHaveBeenCalledWith('Test comment')
+		})
+	})
 
-    it('should clear content after successful submission', async () => {
-        const user = userEvent.setup()
-        const mockSubmit = vi.fn().mockResolvedValue(undefined)
-        render(<CommentForm onSubmit={mockSubmit} />)
+	it('should clear content after successful submission', async () => {
+		const user = userEvent.setup()
+		const mockSubmit = vi.fn().mockResolvedValue(undefined)
+		render(<CommentForm onSubmit={mockSubmit} />)
 
-        const textarea = screen.getByPlaceholderText('Add a comment...')
-        await user.type(textarea, 'Test comment')
-        
-        const submitButton = screen.getByRole('button', { name: /Post Comment/i })
-        await user.click(submitButton)
+		const textarea = screen.getByPlaceholderText('Add a comment...')
+		await user.type(textarea, 'Test comment')
 
-        // After submission, textarea should be empty (user-visible behavior)
-        await waitFor(() => {
-            expect(screen.getByPlaceholderText('Add a comment...')).toHaveValue('')
-        })
-    })
+		const submitButton = screen.getByRole('button', { name: /Post Comment/i })
+		await user.click(submitButton)
 
-    it('should show cancel button when onCancel is provided', () => {
-        const mockCancel = vi.fn()
-        render(<CommentForm onSubmit={vi.fn()} onCancel={mockCancel} />)
+		// After submission, textarea should be empty (user-visible behavior)
+		await waitFor(() => {
+			expect(screen.getByPlaceholderText('Add a comment...')).toHaveValue('')
+		})
+	})
 
-        expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
-    })
+	it('should show cancel button when onCancel is provided', () => {
+		const mockCancel = vi.fn()
+		render(<CommentForm onSubmit={vi.fn()} onCancel={mockCancel} />)
 
-    it('should call onCancel when cancel button is clicked', async () => {
-        const user = userEvent.setup()
-        const mockCancel = vi.fn()
-        render(<CommentForm onSubmit={vi.fn()} onCancel={mockCancel} />)
+		expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
+	})
 
-        const cancelButton = screen.getByRole('button', { name: /Cancel/i })
-        await user.click(cancelButton)
+	it('should call onCancel when cancel button is clicked', async () => {
+		const user = userEvent.setup()
+		const mockCancel = vi.fn()
+		render(<CommentForm onSubmit={vi.fn()} onCancel={mockCancel} />)
 
-        expect(mockCancel).toHaveBeenCalled()
-    })
+		const cancelButton = screen.getByRole('button', { name: /Cancel/i })
+		await user.click(cancelButton)
 
-    it('should show custom submit label', () => {
-        render(<CommentForm onSubmit={vi.fn()} submitLabel="Reply" />)
-        expect(screen.getByRole('button', { name: /Reply/i })).toBeInTheDocument()
-    })
+		expect(mockCancel).toHaveBeenCalled()
+	})
+
+	it('should show custom submit label', () => {
+		render(<CommentForm onSubmit={vi.fn()} submitLabel="Reply" />)
+		expect(screen.getByRole('button', { name: /Reply/i })).toBeInTheDocument()
+	})
 })

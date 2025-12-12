@@ -123,9 +123,7 @@ const padding = tokens.spacing[4] // '1rem'
 Spacing is available in Tailwind's spacing utilities:
 
 ```tsx
-<div className="p-4 m-8 gap-2">
-  Spaced content
-</div>
+<div className="p-4 m-8 gap-2">Spaced content</div>
 ```
 
 ### Border Radius
@@ -184,9 +182,7 @@ Responsive breakpoints for media queries:
 #### Usage
 
 ```tsx
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-  Responsive grid
-</div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">Responsive grid</div>
 ```
 
 ### Z-Index
@@ -221,11 +217,7 @@ Wrap your application with `ThemeProvider`:
 import { ThemeProvider } from './design-system'
 
 function App() {
-  return (
-    <ThemeProvider>
-      {/* Your app */}
-    </ThemeProvider>
-  )
+	return <ThemeProvider>{/* Your app */}</ThemeProvider>
 }
 ```
 
@@ -235,13 +227,9 @@ function App() {
 import { useTheme } from './design-system'
 
 function MyComponent() {
-  const { theme, setTheme, toggleTheme } = useTheme()
-  
-  return (
-    <button onClick={toggleTheme}>
-      Current theme: {theme}
-    </button>
-  )
+	const { theme, setTheme, toggleTheme } = useTheme()
+
+	return <button onClick={toggleTheme}>Current theme: {theme}</button>
 }
 ```
 
@@ -259,9 +247,7 @@ Colors automatically adapt to the current theme:
 
 ```tsx
 // These classes automatically use the correct theme colors
-<div className="bg-background-primary text-text-primary">
-  Theme-aware content
-</div>
+<div className="bg-background-primary text-text-primary">Theme-aware content</div>
 ```
 
 For programmatic access:
@@ -270,13 +256,9 @@ For programmatic access:
 import { useThemeColors } from './design-system'
 
 function MyComponent() {
-  const colors = useThemeColors()
-  
-  return (
-    <div style={{ color: colors.text.primary }}>
-      Themed text
-    </div>
-  )
+	const colors = useThemeColors()
+
+	return <div style={{ color: colors.text.primary }}>Themed text</div>
 }
 ```
 
@@ -286,13 +268,13 @@ The design system includes comprehensive TypeScript types for type safety:
 
 ```typescript
 import type {
-  Theme,
-  ThemeColors,
-  TypographyStyle,
-  SpacingValue,
-  BorderRadiusValue,
-  ShadowValue,
-  // ... and more
+	Theme,
+	ThemeColors,
+	TypographyStyle,
+	SpacingValue,
+	BorderRadiusValue,
+	ShadowValue,
+	// ... and more
 } from './design-system'
 ```
 
@@ -304,7 +286,7 @@ Helper functions are available to validate token values:
 import { isValidTheme } from './design-system'
 
 if (isValidTheme(value)) {
-  // value is a valid theme ('light' or 'dark')
+	// value is a valid theme ('light' or 'dark')
 }
 ```
 
@@ -313,32 +295,37 @@ if (isValidTheme(value)) {
 ### 1. Use Tokens, Not Hardcoded Values
 
 ❌ **Don't:**
+
 ```tsx
 <div style={{ padding: '16px', color: '#0ea5e9' }}>
 ```
 
 ✅ **Do:**
+
 ```tsx
 <div className="p-4 text-primary-500">
 ```
 
 Or with tokens:
+
 ```tsx
 import { tokens } from './design-system'
-<div style={{ 
-  padding: tokens.spacing[4], 
-  color: tokens.colors.light.primary[500] 
+<div style={{
+  padding: tokens.spacing[4],
+  color: tokens.colors.light.primary[500]
 }}>
 ```
 
 ### 2. Use Semantic Color Names
 
 ❌ **Don't:**
+
 ```tsx
 <div className="bg-red-500">Error message</div>
 ```
 
 ✅ **Do:**
+
 ```tsx
 <div className="bg-error-500">Error message</div>
 ```
@@ -346,11 +333,13 @@ import { tokens } from './design-system'
 ### 3. Use Typography Styles
 
 ❌ **Don't:**
+
 ```tsx
 <h1 style={{ fontSize: '3rem', fontWeight: 700 }}>
 ```
 
 ✅ **Do:**
+
 ```tsx
 <h1 className="text-5xl font-bold">
 ```
@@ -358,11 +347,13 @@ import { tokens } from './design-system'
 ### 4. Use Spacing Scale
 
 ❌ **Don't:**
+
 ```tsx
 <div style={{ margin: '13px', padding: '7px' }}>
 ```
 
 ✅ **Do:**
+
 ```tsx
 <div className="m-3 p-2">
 ```
@@ -373,11 +364,11 @@ Always design components to work in both light and dark themes:
 
 ```tsx
 function Card({ children }) {
-  return (
-    <div className="bg-background-primary text-text-primary border-border-default rounded-lg shadow-md">
-      {children}
-    </div>
-  )
+	return (
+		<div className="bg-background-primary text-text-primary border-border-default rounded-lg shadow-md">
+			{children}
+		</div>
+	)
 }
 ```
 
@@ -386,15 +377,16 @@ function Card({ children }) {
 All design tokens are automatically integrated with Tailwind CSS through `tailwind.config.ts`. This means you can use tokens both:
 
 1. **Via Tailwind classes** (recommended for most cases):
-   ```tsx
-   <div className="bg-primary-500 p-4 rounded-lg shadow-md">
-   ```
+
+    ```tsx
+    <div className="bg-primary-500 p-4 rounded-lg shadow-md">
+    ```
 
 2. **Via token imports** (for dynamic values):
-   ```tsx
-   import { tokens } from './design-system'
-   <div style={{ backgroundColor: tokens.colors.light.primary[500] }}>
-   ```
+    ```tsx
+    import { tokens } from './design-system'
+    <div style={{ backgroundColor: tokens.colors.light.primary[500] }}>
+    ```
 
 ## Testing
 
