@@ -9,13 +9,7 @@ import { prisma } from '../lib/prisma.js'
 import { encryptPrivateKey } from '../lib/encryption.js'
 
 // Mock dependencies
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			update: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../lib/encryption.js', () => ({
 	encryptPrivateKey: vi.fn(),

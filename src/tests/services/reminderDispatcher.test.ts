@@ -9,19 +9,7 @@ import { prisma } from '../../lib/prisma.js'
 import { createNotification } from '../../services/notifications.js'
 import { sendEmail } from '../../lib/email.js'
 
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		eventReminder: {
-			findMany: vi.fn(),
-			updateMany: vi.fn(),
-			findUnique: vi.fn(),
-			update: vi.fn(),
-		},
-		$transaction: vi.fn(),
-		$queryRaw: vi.fn(),
-		$executeRaw: vi.fn(),
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../../services/notifications.js', () => ({
 	createNotification: vi.fn(),

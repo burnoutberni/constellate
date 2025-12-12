@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
-import { ReminderStatus } from '@prisma/client'
+import { ReminderStatus } from '../generated/prisma/enums.js'
 import remindersApp from '../reminders.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -13,13 +13,7 @@ import {
 	getReminderOptions,
 } from '../services/reminders.js'
 
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		event: {
-			findUnique: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../middleware/auth.js', () => ({
 	requireAuth: vi.fn(),

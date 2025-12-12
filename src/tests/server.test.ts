@@ -21,13 +21,7 @@ vi.mock('../auth.js', () => ({
 	generateUserKeys: vi.fn(),
 }))
 
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			findUnique: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('Server Setup', () => {
 	beforeEach(() => {

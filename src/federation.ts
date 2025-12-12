@@ -16,7 +16,7 @@ import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { trackInstance } from './lib/instanceHelpers.js'
-import type { Prisma, Event, User } from '@prisma/client'
+import type { Prisma, Event, User } from './generated/prisma/client.js'
 import type {
 	Activity,
 	FollowActivity,

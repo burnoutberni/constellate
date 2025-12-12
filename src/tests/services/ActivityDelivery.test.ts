@@ -25,16 +25,7 @@ vi.mock('../../lib/ssrfProtection.js')
 vi.mock('../../lib/activitypubHelpers.js')
 vi.mock('../../lib/audience.js')
 vi.mock('../../lib/encryption.js')
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			findUnique: vi.fn(),
-		},
-		follower: {
-			findMany: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('Activity Delivery Service', () => {
 	let mockUser: any

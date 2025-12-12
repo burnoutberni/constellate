@@ -1,4 +1,5 @@
-import type { EventVisibility, Prisma } from '@prisma/client'
+import { EventVisibility } from '../generated/prisma/enums.js'
+import type { Prisma } from '../generated/prisma/client.js'
 import { prisma } from './prisma.js'
 import { getBaseUrl } from './activitypubHelpers.js'
 

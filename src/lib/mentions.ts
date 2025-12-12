@@ -86,10 +86,10 @@ function splitCandidatesByDomain(candidates: MentionCandidate[], localDomain: st
 	return { localCandidates, remoteCandidates }
 }
 
-async function fetchLocalUsers(localUsernames: string[]) {
+async function fetchLocalUsers(localUsernames: string[]): Promise<MentionTarget['user'][]> {
 	if (localUsernames.length === 0) return []
 
-	return prisma.user.findMany({
+	const users = await prisma.user.findMany({
 		where: {
 			AND: [
 				{
@@ -107,12 +107,13 @@ async function fetchLocalUsers(localUsernames: string[]) {
 		},
 		select: userSelect,
 	})
+	return users || []
 }
 
-async function fetchRemoteUsers(remoteUsernames: string[]) {
+async function fetchRemoteUsers(remoteUsernames: string[]): Promise<MentionTarget['user'][]> {
 	if (remoteUsernames.length === 0) return []
 
-	return prisma.user.findMany({
+	const users = await prisma.user.findMany({
 		where: {
 			OR: remoteUsernames.map((username) => ({
 				username: {
@@ -123,11 +124,12 @@ async function fetchRemoteUsers(remoteUsernames: string[]) {
 		},
 		select: userSelect,
 	})
+	return users || []
 }
 
-function buildUserMaps(localUsers: MentionTarget['user'][], remoteUsers: MentionTarget['user'][]) {
-	const localUserMap = new Map(localUsers.map((user) => [user.username.toLowerCase(), user]))
-	const remoteUserMap = new Map(remoteUsers.map((user) => [user.username.toLowerCase(), user]))
+function buildUserMaps(localUsers: MentionTarget['user'][] | undefined, remoteUsers: MentionTarget['user'][] | undefined) {
+	const localUserMap = new Map((localUsers || []).map((user) => [user.username.toLowerCase(), user]))
+	const remoteUserMap = new Map((remoteUsers || []).map((user) => [user.username.toLowerCase(), user]))
 	return { localUserMap, remoteUserMap }
 }
 

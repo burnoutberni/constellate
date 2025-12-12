@@ -12,30 +12,7 @@ import {
 } from '../lib/instanceHelpers.js'
 import { prisma } from '../lib/prisma.js'
 
-// Mock dependencies
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		instance: {
-			findUnique: vi.fn(),
-			create: vi.fn(),
-			update: vi.fn(),
-			findMany: vi.fn(),
-			count: vi.fn(),
-		},
-		user: {
-			count: vi.fn(),
-			findMany: vi.fn(),
-		},
-		event: {
-			count: vi.fn(),
-			findMany: vi.fn(),
-		},
-		following: {
-			count: vi.fn(),
-			findMany: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),

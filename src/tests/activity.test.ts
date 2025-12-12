@@ -63,6 +63,8 @@ describe('Activity Feed API', () => {
 			},
 		})
 
+		vi.clearAllMocks()
+
 		// Mock auth
 		vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
 			user: {
@@ -75,8 +77,6 @@ describe('Activity Feed API', () => {
 				userId: testUser.id,
 			},
 		} as any)
-
-		vi.clearAllMocks()
 	})
 
 	afterEach(async () => {

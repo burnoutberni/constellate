@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import type { FailedDeliveryStatus } from '@prisma/client'
+import type { FailedDeliveryStatus } from '../generated/prisma/enums.js'
 
 // These helper functions are defined in admin.ts but not exported
 // We'll test them by duplicating the implementation for unit testing

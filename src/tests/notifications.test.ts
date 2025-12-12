@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
-import type { NotificationType } from '@prisma/client'
+import type { NotificationType } from '../generated/prisma/enums.js'
 import notificationsApp from '../notifications.js'
 import {
 	createNotification,

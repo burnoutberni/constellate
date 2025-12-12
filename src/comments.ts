@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import type { Comment, Event, User } from '@prisma/client'
+import type { Comment, Event, User } from './generated/prisma/client.js'
 import {
 	buildCreateCommentActivity,
 	buildDeleteCommentActivity,

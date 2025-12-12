@@ -8,22 +8,7 @@ import {
 } from '../../services/popularityUpdater.js'
 import { prisma } from '../../lib/prisma.js'
 
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		event: {
-			findMany: vi.fn(),
-			update: vi.fn(),
-		},
-		eventAttendance: {
-			count: vi.fn(),
-			groupBy: vi.fn(),
-		},
-		eventLike: {
-			count: vi.fn(),
-			groupBy: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('Popularity Updater Service', () => {
 	beforeEach(() => {

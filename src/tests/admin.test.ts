@@ -15,6 +15,9 @@ describe('Admin Routes', () => {
 	let testUser: any
 
 	const mockAuth = (user: any) => {
+		if (!user || !user.id) {
+			throw new Error('mockAuth called with invalid user')
+		}
 		vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
 			user: {
 				id: user.id,

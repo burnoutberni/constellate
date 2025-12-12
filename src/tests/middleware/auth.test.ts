@@ -11,13 +11,7 @@ import * as authModule from '../../auth.js'
 
 // Mock dependencies
 vi.mock('../../auth.js')
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			findUnique: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('Auth Middleware', () => {
 	let mockContext: Context

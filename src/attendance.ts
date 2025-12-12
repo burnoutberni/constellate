@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import type { Event, User, EventAttendance } from '@prisma/client'
+import type { Event, User, EventAttendance } from './generated/prisma/client.js'
 import {
 	buildAttendingActivity,
 	buildNotAttendingActivity,

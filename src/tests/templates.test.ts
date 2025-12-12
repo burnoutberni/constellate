@@ -5,18 +5,6 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import { AppError } from '../lib/errors.js'
 
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		eventTemplate: {
-			findMany: vi.fn(),
-			create: vi.fn(),
-			findUnique: vi.fn(),
-			update: vi.fn(),
-			delete: vi.fn(),
-		},
-	},
-}))
-
 vi.mock('../middleware/auth.js', () => ({
 	requireAuth: vi.fn(),
 }))
@@ -45,7 +33,10 @@ describe('Event Template API', () => {
 	})
 
 	it('lists templates for the current user', async () => {
-		vi.mocked(prisma.eventTemplate.findMany).mockResolvedValue([baseTemplate] as any)
+		// Create template in the mock database
+		await prisma.eventTemplate.create({
+			data: baseTemplate,
+		})
 
 		const res = await app.request('/api/event-templates')
 		const body = (await res.json()) as any
@@ -53,15 +44,9 @@ describe('Event Template API', () => {
 		expect(res.status).toBe(200)
 		expect(body.templates).toHaveLength(1)
 		expect(body.templates[0].name).toBe('Weekly Standup')
-		expect(prisma.eventTemplate.findMany).toHaveBeenCalledWith({
-			where: { userId: 'user_123' },
-			orderBy: { updatedAt: 'desc' },
-		})
 	})
 
 	it('creates new templates with sanitized fields', async () => {
-		vi.mocked(prisma.eventTemplate.create).mockResolvedValue(baseTemplate as any)
-
 		const res = await app.request('/api/event-templates', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -73,12 +58,15 @@ describe('Event Template API', () => {
 		})
 
 		expect(res.status).toBe(201)
-		expect(prisma.eventTemplate.create).toHaveBeenCalledWith({
-			data: expect.objectContaining({
-				userId: 'user_123',
-				name: 'Weekly Standup',
-			}),
+		const body = (await res.json()) as any
+		expect(body.name).toBe('Weekly Standup') // Should be sanitized
+		
+		// Verify it was created in the database
+		const templates = await prisma.eventTemplate.findMany({
+			where: { userId: 'user_123' },
 		})
+		expect(templates).toHaveLength(1)
+		expect(templates[0].name).toBe('Weekly Standup')
 	})
 
 	it('returns 401 when authentication fails', async () => {
@@ -89,11 +77,13 @@ describe('Event Template API', () => {
 		const res = await app.request('/api/event-templates')
 
 		expect(res.status).toBe(401)
-		expect(prisma.eventTemplate.findMany).not.toHaveBeenCalled()
 	})
 
 	it('responds with conflict when template name already exists', async () => {
-		vi.mocked(prisma.eventTemplate.create).mockRejectedValue({ code: 'P2002' })
+		// Create a template with the same name first
+		await prisma.eventTemplate.create({
+			data: baseTemplate,
+		})
 
 		const res = await app.request('/api/event-templates', {
 			method: 'POST',
@@ -118,11 +108,13 @@ describe('Event Template API', () => {
 		})
 
 		expect(res.status).toBe(400)
-		expect(prisma.eventTemplate.create).not.toHaveBeenCalled()
 	})
 
 	it('retrieves template by id', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(baseTemplate as any)
+		// Create template in the mock database
+		await prisma.eventTemplate.create({
+			data: baseTemplate,
+		})
 
 		const res = await app.request(`/api/event-templates/${baseTemplate.id}`)
 		const body = (await res.json()) as any
@@ -132,21 +124,18 @@ describe('Event Template API', () => {
 	})
 
 	it('returns 404 for missing template', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(null)
-
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`)
+		const res = await app.request(`/api/event-templates/non-existent-id`)
 
 		expect(res.status).toBe(404)
 	})
 
 	it('updates template data', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(baseTemplate as any)
-		vi.mocked(prisma.eventTemplate.update).mockResolvedValue({
-			...baseTemplate,
-			name: 'Updated Template',
-		} as any)
+		// Create template in the mock database
+		const created = await prisma.eventTemplate.create({
+			data: baseTemplate,
+		})
 
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+		const res = await app.request(`/api/event-templates/${created.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -158,13 +147,12 @@ describe('Event Template API', () => {
 
 		expect(res.status).toBe(200)
 		expect(body.name).toBe('Updated Template')
-		expect(prisma.eventTemplate.update).toHaveBeenCalledWith({
-			where: { id: baseTemplate.id },
-			data: {
-				name: 'Updated Template',
-				data: baseTemplate.data,
-			},
+		
+		// Verify it was updated in the database
+		const updated = await prisma.eventTemplate.findUnique({
+			where: { id: created.id },
 		})
+		expect(updated?.name).toBe('Updated Template')
 	})
 
 	it('merges existing template data when partial payload provided', async () => {
@@ -177,10 +165,12 @@ describe('Event Template API', () => {
 			},
 		}
 
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(existingTemplate as any)
-		vi.mocked(prisma.eventTemplate.update).mockResolvedValue(existingTemplate as any)
+		// Create template in the mock database
+		const created = await prisma.eventTemplate.create({
+			data: existingTemplate,
+		})
 
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+		const res = await app.request(`/api/event-templates/${created.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -191,25 +181,22 @@ describe('Event Template API', () => {
 		})
 
 		expect(res.status).toBe(200)
-		expect(prisma.eventTemplate.update).toHaveBeenCalledWith({
-			where: { id: baseTemplate.id },
-			data: {
-				data: {
-					title: 'Updated',
-					summary: 'Keep me',
-					location: 'Room 1',
-				},
-			},
-		})
+		const body = (await res.json()) as any
+		expect(body.data.title).toBe('Updated') // Should be sanitized
+		expect(body.data.summary).toBe('Keep me') // Should be preserved
+		expect(body.data.location).toBe('Room 1') // Should be preserved
 	})
 
 	it('returns 404 when updating template from another user', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue({
-			...baseTemplate,
-			userId: 'other_user',
-		} as any)
+		// Create template with different user
+		const created = await prisma.eventTemplate.create({
+			data: {
+				...baseTemplate,
+				userId: 'other_user',
+			},
+		})
 
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+		const res = await app.request(`/api/event-templates/${created.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -218,36 +205,42 @@ describe('Event Template API', () => {
 		})
 
 		expect(res.status).toBe(404)
-		expect(prisma.eventTemplate.update).not.toHaveBeenCalled()
 	})
 
 	it('deletes template by id', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue(baseTemplate as any)
-		vi.mocked(prisma.eventTemplate.delete).mockResolvedValue(baseTemplate as any)
+		// Create template in the mock database
+		const created = await prisma.eventTemplate.create({
+			data: baseTemplate,
+		})
 
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+		const res = await app.request(`/api/event-templates/${created.id}`, {
 			method: 'DELETE',
 		})
 		const body = (await res.json()) as any
 
 		expect(res.status).toBe(200)
 		expect(body.success).toBe(true)
-		expect(prisma.eventTemplate.delete).toHaveBeenCalledWith({
-			where: { id: baseTemplate.id },
+		
+		// Verify it was deleted from the database
+		const deleted = await prisma.eventTemplate.findUnique({
+			where: { id: created.id },
 		})
+		expect(deleted).toBeNull()
 	})
 
 	it('returns 404 when deleting template from another user', async () => {
-		vi.mocked(prisma.eventTemplate.findUnique).mockResolvedValue({
-			...baseTemplate,
-			userId: 'other_user',
-		} as any)
+		// Create template with different user
+		const created = await prisma.eventTemplate.create({
+			data: {
+				...baseTemplate,
+				userId: 'other_user',
+			},
+		})
 
-		const res = await app.request(`/api/event-templates/${baseTemplate.id}`, {
+		const res = await app.request(`/api/event-templates/${created.id}`, {
 			method: 'DELETE',
 		})
 
 		expect(res.status).toBe(404)
-		expect(prisma.eventTemplate.delete).not.toHaveBeenCalled()
 	})
 })

@@ -13,7 +13,9 @@ client/dist/
 # Database
 *.db
 *.db-journal
-# Note: prisma/migrations/ should NOT be ignored - migrations must be in git for production
+
+# Prisma
+/src/generated/prisma
 
 # Logs
 logs/

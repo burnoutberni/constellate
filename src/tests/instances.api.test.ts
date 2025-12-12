@@ -7,29 +7,7 @@ import { Hono } from 'hono'
 import instancesRoutes from '../instances.js'
 import { prisma } from '../lib/prisma.js'
 
-// Mock dependencies
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		instance: {
-			findUnique: vi.fn(),
-			findMany: vi.fn(),
-			count: vi.fn(),
-			update: vi.fn(),
-		},
-		user: {
-			count: vi.fn(),
-		},
-		event: {
-			count: vi.fn(),
-		},
-		following: {
-			count: vi.fn(),
-		},
-		follower: {
-			count: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../middleware/auth.js', () => ({
 	requireAuth: vi.fn(async () => {}),

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client.js'
 import { generateKeyPairSync } from 'crypto'
 
 const prisma = new PrismaClient()

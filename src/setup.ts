@@ -44,7 +44,7 @@ app.post('/', async (c) => {
 			},
 		})
 
-		if (!user) {
+		if (!user || !user.user || !user.user.id) {
 			return c.json({ error: 'Failed to create user' }, 500)
 		}
 

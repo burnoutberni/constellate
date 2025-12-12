@@ -3,7 +3,10 @@
  * Prevents connection pool exhaustion by using a single instance
  */
 
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient } from '../generated/prisma/client.js'
+import type { Prisma } from '../generated/prisma/client.js'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { config } from '../config.js'
 
 const globalForPrisma = globalThis as unknown as {
 	prisma: PrismaClient | undefined
@@ -21,9 +24,14 @@ if (shouldLogQueries) {
 	logLevel = ['error']
 }
 
+// Create Prisma adapter with connection string
+// Prisma will manage its own connection pool internally
+const adapter = new PrismaPg({ connectionString: config.databaseUrl })
+
 export const prisma =
 	globalForPrisma.prisma ??
 	new PrismaClient({
+		adapter,
 		log: logLevel,
 	})
 

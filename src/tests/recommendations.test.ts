@@ -442,7 +442,7 @@ describe('Event recommendations API', () => {
 		expect(recommendation?.reasons).toBeDefined()
 		expect(recommendation?.signals).toBeDefined()
 		// Verify that popularity scoring code path is executed
-		// Note: _count may not be populated correctly in test environment (prismock),
+		// Note: _count may not be populated correctly in test environment (mocked prisma),
 		// but the scoring logic is still executed, which is what we're testing for coverage
 		expect(typeof recommendation?.signals.popularityScore).toBe('number')
 		// The event being recommended with 6 attendees tests the popularity scoring branch

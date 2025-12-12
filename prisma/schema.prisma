@@ -2,13 +2,15 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client" // Required for using @prisma/adapter-pg
 }
 
 datasource db {
   // Use PostgreSQL for production and development
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Note: In Prisma 7.x, connection URLs are configured in prisma.config.ts or passed to PrismaClient
 }
 
 // User model - supports both local and remote (federated) users

@@ -5,7 +5,7 @@
 
 import { prisma } from '../lib/prisma.js'
 import { AppError } from '../lib/errors.js'
-import { ReminderStatus } from '@prisma/client'
+import { ReminderStatus } from '../generated/prisma/enums.js'
 
 // Valid reminder minute options (in minutes before event start)
 export const REMINDER_MINUTE_OPTIONS = [5, 15, 30, 60, 120, 1440] as const

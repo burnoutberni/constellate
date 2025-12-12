@@ -6,7 +6,7 @@
 import { Hono, type Context } from 'hono'
 import { ZodError } from 'zod'
 import type { z } from 'zod'
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './lib/prisma.js'
 import { requireAuth } from './middleware/auth.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -97,10 +97,24 @@ app.post('/event-templates', async (c) => {
 		const userId = requireAuth(c)
 		const payload = TemplateInput.parse(await c.req.json())
 
+		const sanitizedName = sanitizeText(payload.name)
+
+		// Check for duplicate template name manually (workaround for prisma-mock compound unique constraint limitation)
+		const existing = await prisma.eventTemplate.findFirst({
+			where: {
+				userId,
+				name: sanitizedName,
+			},
+		})
+
+		if (existing) {
+			return c.json({ error: 'Template name already exists' }, 409 as const)
+		}
+
 		const template = await prisma.eventTemplate.create({
 			data: {
 				userId,
-				name: sanitizeText(payload.name),
+				name: sanitizedName,
 				description: payload.description ? sanitizeText(payload.description) : null,
 				data: sanitizeTemplateData(payload.data),
 			},

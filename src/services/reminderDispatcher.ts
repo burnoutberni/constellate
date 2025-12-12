@@ -1,4 +1,5 @@
-import { NotificationType, ReminderStatus, Prisma } from '@prisma/client'
+import { NotificationType, ReminderStatus } from '../generated/prisma/enums.js'
+import { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../lib/prisma.js'
 import { createNotification } from './notifications.js'
 import { config } from '../config.js'

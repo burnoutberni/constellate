@@ -7,15 +7,7 @@ import {
 } from '../../lib/eventVisibility.js'
 import { prisma } from '../../lib/prisma.js'
 
-vi.mock('../../lib/prisma.js', () => {
-	return {
-		prisma: {
-			following: {
-				findFirst: vi.fn(),
-			},
-		},
-	}
-})
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('eventVisibility helpers', () => {
 	beforeEach(() => {

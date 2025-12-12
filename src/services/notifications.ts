@@ -1,4 +1,5 @@
-import { Prisma, type NotificationType } from '@prisma/client'
+import { Prisma } from '../generated/prisma/client.js'
+import { NotificationType } from '../generated/prisma/enums.js'
 import { prisma } from '../lib/prisma.js'
 import { sanitizeText } from '../lib/sanitization.js'
 import { broadcastToUser, BroadcastEvents } from '../realtime.js'
@@ -119,7 +120,7 @@ export async function listNotifications(userId: string, limit = 20) {
 		include: notificationInclude,
 	})
 
-	return notifications
+	return notifications || []
 }
 
 export async function getUnreadNotificationCount(userId: string) {

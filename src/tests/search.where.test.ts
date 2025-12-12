@@ -50,7 +50,7 @@ describe('buildSearchWhereClause', () => {
 	})
 
 	it('resolves username to userId', async () => {
-		const findUniqueSpy = vi.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+		vi.mocked(prisma.user.findUnique).mockResolvedValue({
 			id: 'user_123',
 		} as any)
 
@@ -59,14 +59,14 @@ describe('buildSearchWhereClause', () => {
 			username: 'alice',
 		})
 
-		expect(findUniqueSpy).toHaveBeenCalledWith({
+		expect(prisma.user.findUnique).toHaveBeenCalledWith({
 			where: { username: 'alice' },
 		})
 		expect(where.userId).toBe('user_123')
 	})
 
 	it('throws when username is not found', async () => {
-		vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null)
+		vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
 
 		await expect(
 			buildSearchWhereClause({

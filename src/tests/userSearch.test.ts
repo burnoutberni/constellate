@@ -9,21 +9,7 @@ import {
 	getBaseUrl,
 } from '../lib/activitypubHelpers.js'
 
-// Mock dependencies
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			findMany: vi.fn(),
-			findFirst: vi.fn(),
-			findUnique: vi.fn(),
-		},
-		event: {
-			findMany: vi.fn(),
-			count: vi.fn(),
-			upsert: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../lib/activitypubHelpers.js', () => ({
 	resolveWebFinger: vi.fn(),

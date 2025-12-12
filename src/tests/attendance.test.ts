@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
-import { ReminderStatus } from '@prisma/client'
+import { ReminderStatus } from '../generated/prisma/enums.js'
 import attendanceApp from '../attendance.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -10,25 +10,6 @@ import { AttendanceStatus } from '../constants/activitypub.js'
 import { scheduleReminderForEvent, cancelReminderForEvent } from '../services/reminders.js'
 
 // Mock dependencies
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		event: {
-			findUnique: vi.fn(),
-		},
-		user: {
-			findUnique: vi.fn(),
-		},
-		eventAttendance: {
-			upsert: vi.fn(),
-			findUnique: vi.fn(),
-			delete: vi.fn(),
-			findMany: vi.fn(),
-		},
-		following: {
-			findFirst: vi.fn(),
-		},
-	},
-}))
 
 vi.mock('../middleware/auth.js', () => ({
 	requireAuth: vi.fn(),

@@ -11,19 +11,9 @@ import {
 } from '../../services/reminders.js'
 import { prisma } from '../../lib/prisma.js'
 import { AppError } from '../../lib/errors.js'
-import { ReminderStatus } from '@prisma/client'
+import { ReminderStatus } from '../../generated/prisma/enums.js'
 
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		eventReminder: {
-			upsert: vi.fn(),
-			findMany: vi.fn(),
-			findUnique: vi.fn(),
-			findFirst: vi.fn(),
-			update: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 describe('Reminder service', () => {
 	const mockEvent = {

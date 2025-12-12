@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../lib/prisma.js'
 import { buildVisibilityWhere, resolveEventActorUrl } from '../lib/eventVisibility.js'
 
@@ -309,8 +309,14 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 		})
 	}
 
+	// Exclude events created by the user
+	// Use OR condition to handle both null userId (remote events) and non-matching userId
+	// This is a workaround for prisma-mock's handling of NOT queries with null values
 	filters.push({
-		NOT: { userId },
+		OR: [
+			{ userId: null },
+			{ userId: { not: userId } },
+		],
 	})
 
 	const candidateWhere = filters.length === 1 ? filters[0] : { AND: filters }
@@ -323,7 +329,10 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 				visibility: 'PUBLIC',
 				sharedEventId: null,
 				startTime: { gte: startTimeCutoff },
-				NOT: { userId },
+				OR: [
+					{ userId: null },
+					{ userId: { not: userId } },
+				],
 			},
 			safeLimit
 		)

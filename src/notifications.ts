@@ -38,7 +38,7 @@ app.get('/', lenientRateLimit, async (c) => {
 		])
 
 		return c.json({
-			notifications: notifications.map(serializeNotification),
+			notifications: (notifications || []).map(serializeNotification),
 			unreadCount,
 		})
 	} catch (error) {

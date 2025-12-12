@@ -11,7 +11,7 @@ import type { Addressing } from '../lib/audience.js'
 import { ContentType } from '../constants/activitypub.js'
 import { decryptPrivateKey } from '../lib/encryption.js'
 import { prisma } from '../lib/prisma.js'
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from '../generated/prisma/client.js'
 import type { Activity } from '../lib/activitypubSchemas.js'
 
 interface DeliveryError {

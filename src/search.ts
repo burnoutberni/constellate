@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './lib/prisma.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
@@ -437,7 +437,7 @@ app.get('/upcoming', async (c) => {
 		})
 
 		// Ensure _count is explicitly included in response
-		const eventsWithCounts = events.map((event) => ({
+		const eventsWithCounts = (events || []).map((event) => ({
 			...event,
 			_count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
 		}))
@@ -504,7 +504,7 @@ app.get('/popular', async (c) => {
 		})
 
 		// Ensure _count is explicitly included in response
-		const eventsWithCounts = events.map((event) => ({
+		const eventsWithCounts = (events || []).map((event) => ({
 			...event,
 			_count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
 		}))

@@ -17,7 +17,7 @@ import {
 	buildUpdateProfileActivity,
 } from '../../services/ActivityBuilder.js'
 import { ActivityType, ObjectType, PUBLIC_COLLECTION } from '../../constants/activitypub.js'
-import type { Event, User, Comment } from '@prisma/client'
+import type { Event, User, Comment } from '../../generated/prisma/client.js'
 import type { FollowActivity } from '../../lib/activitypubSchemas.js'
 
 type EventWithUser = Event & { user: User | null }

@@ -11,7 +11,7 @@ import {
 	PUBLIC_COLLECTION,
 } from '../constants/activitypub.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
-import type { Event, User, Comment } from '@prisma/client'
+import type { Event, User, Comment } from '../generated/prisma/client.js'
 import type {
 	CreateActivity,
 	UpdateActivity,

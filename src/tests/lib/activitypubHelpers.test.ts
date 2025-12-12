@@ -19,24 +19,7 @@ import { ContentType } from '../../constants/activitypub.js'
 import type { Person } from '../../lib/activitypubSchemas.js'
 
 // Mock dependencies
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			upsert: vi.fn(),
-		},
-		processedActivity: {
-			findUnique: vi.fn(),
-			create: vi.fn(),
-			deleteMany: vi.fn(),
-		},
-		blockedUser: {
-			findUnique: vi.fn(),
-		},
-		blockedDomain: {
-			findUnique: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),

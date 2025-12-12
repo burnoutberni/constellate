@@ -1,4 +1,4 @@
-import type { Event } from '@prisma/client'
+import type { Event } from '../generated/prisma/client.js'
 
 export const DAY_IN_MS = 1000 * 60 * 60 * 24
 export const DEFAULT_TRENDING_LIMIT = 10

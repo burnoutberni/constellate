@@ -1,30 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Event as PrismaEvent, User } from '@prisma/client'
+import type { Event as PrismaEvent, User } from '../generated/prisma/client.js'
 
 vi.mock('../lib/eventVisibility.js', () => ({
 	canUserViewEvent: vi.fn(),
 }))
 
-vi.mock('../lib/prisma.js', () => ({
-	prisma: {
-		eventLike: {
-			findMany: vi.fn(),
-		},
-		eventAttendance: {
-			findMany: vi.fn(),
-		},
-		comment: {
-			findMany: vi.fn(),
-		},
-		event: {
-			findMany: vi.fn(),
-		},
-		user: {
-			findUnique: vi.fn(),
-			findFirst: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 import { __testExports, type FeedActivity } from '../activity.js'
 import { prisma } from '../lib/prisma.js'

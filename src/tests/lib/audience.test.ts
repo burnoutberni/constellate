@@ -10,16 +10,7 @@ import {
 } from '../../lib/audience.js'
 import { prisma } from '../../lib/prisma.js'
 
-vi.mock('../../lib/prisma.js', () => ({
-	prisma: {
-		user: {
-			findUnique: vi.fn(),
-		},
-		follower: {
-			findMany: vi.fn(),
-		},
-	},
-}))
+// Mock dependencies (prisma is already mocked in setupVitest.ts)
 
 vi.mock('../../lib/activitypubHelpers.js', () => ({
 	getBaseUrl: vi.fn(() => 'http://localhost:3000'),
