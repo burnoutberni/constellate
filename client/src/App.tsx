@@ -4,6 +4,8 @@ import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
+import { api } from './lib/api-client'
+import { logger, configureLogger } from './lib/logger'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
 import { LoginPage } from './pages/LoginPage'
@@ -26,6 +28,8 @@ import { useEffect, useState } from 'react'
 import { MentionNotifications } from './components/MentionNotifications'
 import { ErrorToasts } from './components/ErrorToasts'
 import { SuccessToasts } from './components/SuccessToasts'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { PageLoader } from './components/ui'
 
 function AppContent() {
     // Global SSE connection
@@ -41,23 +45,22 @@ function AppContent() {
             return
         }
 
-        fetch('/api/setup/status')
-            .then((res) => res.json())
+        api.get<{ setupRequired: boolean }>('/setup/status')
             .then((data) => {
                 if (data.setupRequired) {
                     navigate('/onboarding')
                 }
             })
-            .catch(console.error)
+            .catch((error) => logger.error('Failed to check setup status:', error))
             .finally(() => setCheckingSetup(false))
     }, [navigate, location.pathname])
 
     if (checkingSetup) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+        return <PageLoader />
     }
 
     return (
-        <>
+        <ErrorBoundary resetKeys={[location.pathname]}>
             <Routes>
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/" element={<HomePage />} />
@@ -81,11 +84,19 @@ function AppContent() {
             <MentionNotifications />
             <ErrorToasts />
             <SuccessToasts />
-        </>
+        </ErrorBoundary>
     )
 }
 
 function App() {
+    // Configure logger based on environment
+    useEffect(() => {
+        configureLogger({
+            minLevel: import.meta.env.DEV ? 'debug' : 'warn',
+            enableInProduction: false,
+        })
+    }, [])
+
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>

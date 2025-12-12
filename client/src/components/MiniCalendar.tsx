@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useEvents } from '@/hooks/queries'
 import { eventsWithinRange } from '../lib/recurrence'
+import { Button } from './ui'
 
 interface MiniCalendarProps {
     selectedDate: Date
@@ -76,20 +77,24 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
             <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-sm">{monthName}</h3>
                 <div className="flex items-center gap-1">
-                    <button
+                    <Button
                         onClick={previousMonth}
-                        className="p-1 hover:bg-gray-100 rounded text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
                         aria-label="Previous month"
                     >
                         ←
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={nextMonth}
-                        className="p-1 hover:bg-gray-100 rounded text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
                         aria-label="Next month"
                     >
                         →
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -100,7 +105,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
                     return (
                         <div
                             key={`day-header-${dayNames[index]}`}
-                            className="text-center text-xs font-semibold text-gray-500 py-1"
+                            className="text-center text-xs font-semibold text-neutral-500 py-1"
                         >
                             {day}
                         </div>
@@ -135,35 +140,39 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
                         dayDate.toDateString() === selectedDate.toDateString()
 
                     return (
-                        <button
+                        <Button
                             key={day}
                             onClick={() => handleDayClick(day)}
-                            className={`aspect-square text-xs rounded hover:bg-blue-50 transition-colors relative ${isToday
+                            variant="ghost"
+                            size="sm"
+                            className={`aspect-square text-xs rounded hover:bg-info-50 transition-colors relative ${isToday
                                     ? 'ring-1 ring-blue-500 font-semibold'
                                     : ''
                                 } ${isSelected
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                    : 'text-gray-700'
+                                    ? 'bg-info-600 text-white hover:bg-info-700'
+                                    : 'text-neutral-700'
                                 }`}
                         >
                             {day}
                             {dayEvents.length > 0 && (
                                 <div
-                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'
+                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-info-500'
                                         }`}
                                 />
                             )}
-                        </button>
+                        </Button>
                     )
                 })}
             </div>
 
-            <button
+            <Button
                 onClick={goToToday}
-                className="mt-3 w-full text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                variant="ghost"
+                size="sm"
+                className="mt-3 w-full text-xs text-info-600 hover:text-info-700 hover:underline"
             >
                 Go to today
-            </button>
+            </Button>
         </div>
     )
 }

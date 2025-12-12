@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from './ui'
+import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 import { queryKeys } from '@/hooks/queries'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
 
 interface PrivacySettingsProps {
   profile: {
@@ -13,7 +14,7 @@ interface PrivacySettingsProps {
 
 export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
   const queryClient = useQueryClient()
-  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const handleError = useErrorHandler()
   const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(
     profile.autoAcceptFollowers ?? true,
   )
@@ -25,18 +26,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { autoAcceptFollowers?: boolean }) => {
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update privacy settings')
-      }
-      return response.json()
+      return api.put('/profile', data, undefined, 'Failed to update privacy settings')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
@@ -50,9 +40,8 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
       await updateProfileMutation.mutateAsync({ autoAcceptFollowers: newValue })
     } catch (error) {
       // Revert on error
-      console.error('Failed to update auto-accept setting:', error)
       setAutoAcceptFollowers(!newValue)
-      addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update privacy setting. Please try again.' })
+      handleError(error, 'Failed to update privacy setting. Please try again.', { context: 'PrivacySettings.handleToggleAutoAccept' })
     }
   }
 
@@ -72,9 +61,10 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
                 approve each follower.
               </p>
             </div>
-            <button
+            <Button
               onClick={handleToggleAutoAccept}
               disabled={updateProfileMutation.isPending}
+              variant="ghost"
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary ${
                 autoAcceptFollowers ? 'bg-primary-600' : 'bg-background-tertiary'
               }`}
@@ -87,7 +77,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
                   autoAcceptFollowers ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
-            </button>
+            </Button>
           </div>
 
           {/* Additional privacy settings can be added here in the future */}

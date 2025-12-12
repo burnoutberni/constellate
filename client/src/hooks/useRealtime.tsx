@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Event } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface BaseEvent {
     timestamp: string
@@ -171,7 +172,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 
         // Error handling
         eventSource.onerror = (error) => {
-            console.error('❌ SSE error:', error)
+            logger.error('SSE error:', error)
             setIsConnected(false)
             onDisconnectRef.current?.()
         }

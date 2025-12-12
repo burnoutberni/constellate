@@ -385,7 +385,7 @@ describe('EditEventPage', () => {
 
         // After selecting WEEKLY, the "Repeat Until" field should appear
         await waitFor(() => {
-            const repeatUntilLabel = screen.getByText('Repeat Until *')
+            const repeatUntilLabel = screen.getByText('Repeat Until')
             expect(repeatUntilLabel).toBeInTheDocument()
             const repeatUntilInput = repeatUntilLabel.parentElement?.querySelector('input[type="date"]')
             expect(repeatUntilInput).toBeInTheDocument()

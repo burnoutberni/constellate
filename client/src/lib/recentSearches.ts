@@ -1,4 +1,6 @@
 // Helper functions for managing recent searches in localStorage
+import { logger } from './logger'
+
 const RECENT_SEARCHES_KEY = 'constellate_recent_searches'
 const MAX_RECENT_SEARCHES = 5
 
@@ -22,7 +24,7 @@ export function addRecentSearch(query: string): void {
     const updated = [query, ...filtered].slice(0, MAX_RECENT_SEARCHES)
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
   } catch (error) {
-    console.error('Failed to save recent search:', error)
+    logger.error('Failed to save recent search:', error)
   }
 }
 
@@ -30,7 +32,7 @@ export function clearRecentSearches(): void {
   try {
     localStorage.removeItem(RECENT_SEARCHES_KEY)
   } catch (error) {
-    console.error('Failed to clear recent searches:', error)
+    logger.error('Failed to clear recent searches:', error)
   }
 }
 

@@ -12,7 +12,7 @@ export function InstanceList({ instances, onBlock, onUnblock, onRefresh }: Insta
     if (instances.length === 0) {
         return (
             <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-400">No instances found</p>
+                <p className="text-neutral-600 dark:text-neutral-400">No instances found</p>
             </div>
         )
     }

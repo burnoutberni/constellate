@@ -8,6 +8,8 @@ import { SignUpPrompt } from '../components/SignUpPrompt'
 import { useAuth } from '../hooks/useAuth'
 import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { Spinner } from '@/components/ui'
 
 export function UserProfilePage() {
     const location = useLocation()
@@ -44,7 +46,7 @@ export function UserProfilePage() {
     const followMutation = useFollowUser(username)
     const unfollowMutation = useUnfollowUser(username)
     const { followersModalOpen, followersModalUsername, followersModalType, openFollowersModal, closeFollowersModal } = useUIStore()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
 
     const isOwnProfile = currentUser?.id === profileData?.user.id
     const isAuthenticated = Boolean(currentUser)
@@ -56,8 +58,7 @@ return
         try {
             await followMutation.mutateAsync()
         } catch (err) {
-            console.error('Error following user:', err)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to follow user' })
+            handleError(err, 'Failed to follow user', { context: 'UserProfilePage.handleFollow' })
         }
     }
 
@@ -68,13 +69,12 @@ return
         try {
             await unfollowMutation.mutateAsync()
         } catch (err) {
-            console.error('Error unfollowing user:', err)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to unfollow user' })
+            handleError(err, 'Failed to unfollow user', { context: 'UserProfilePage.handleUnfollow' })
         }
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-neutral-50">
             <Navbar
                 isConnected={false}
                 user={currentUser}
@@ -84,7 +84,7 @@ return
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {isLoading && (
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+                        <Spinner size="lg" />
                     </div>
                 )}
 

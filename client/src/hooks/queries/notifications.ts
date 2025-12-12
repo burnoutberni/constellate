@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { Notification } from '@/types'
+import { api } from '@/lib/api-client'
+import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 
 export interface NotificationsResponse {
     notifications: Notification[]
@@ -15,17 +17,7 @@ export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
 
     return useQuery<NotificationsResponse>({
         queryKey: queryKeys.notifications.list(safeLimit),
-        queryFn: async () => {
-            const response = await fetch(`/api/notifications?limit=${safeLimit}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch notifications')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<NotificationsResponse>('/notifications', { limit: safeLimit }, undefined, 'Failed to fetch notifications'),
         enabled,
         staleTime: 1000 * 30,
     })
@@ -33,19 +25,12 @@ export function useNotifications(limit = 20, options?: { enabled?: boolean }) {
 
 export function useMarkNotificationRead() {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async (notificationId: string) => {
-            const response = await fetch(`/api/notifications/${notificationId}/read`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to mark notification as read')
-            }
-
-            return response.json() as Promise<{ notification: Notification }>
+        mutationFn: (notificationId: string) => api.post<{ notification: Notification }>(`/notifications/${notificationId}/read`, undefined, undefined, 'Failed to mark notification as read'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to mark notification as read')
         },
         onSuccess: ({ notification }) => {
             const queries = queryClient.getQueriesData<NotificationsResponse>({
@@ -73,19 +58,12 @@ export function useMarkNotificationRead() {
 
 export function useMarkAllNotificationsRead() {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch('/api/notifications/mark-all-read', {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to mark notifications as read')
-            }
-
-            return response.json() as Promise<{ updated: number; unreadCount: number }>
+        mutationFn: () => api.post<{ updated: number; unreadCount: number }>('/notifications/mark-all-read', undefined, undefined, 'Failed to mark notifications as read'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to mark notifications as read')
         },
         onSuccess: () => {
             const queries = queryClient.getQueriesData<NotificationsResponse>({

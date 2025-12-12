@@ -8,19 +8,6 @@ interface ActivityFeedItemProps {
     activity: Activity
 }
 
-function getBadgeVariant(badgeClass: string): 'success' | 'warning' | 'error' | 'default' {
-    if (badgeClass.includes('success')) {
-return 'success'
-}
-    if (badgeClass.includes('warning')) {
-return 'warning'
-}
-    if (badgeClass.includes('error')) {
-return 'error'
-}
-    return 'default'
-}
-
 export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
     const visibilityMeta = getVisibilityMeta(activity.event.visibility as EventVisibility | undefined)
     const rsvpStatus = activity.data?.status === 'attending' ? 'will attend' : 'might attend'
@@ -164,7 +151,7 @@ return `${days}d ago`
                         {/* Event Info */}
                         <div className="flex items-center gap-2 mt-2 text-xs text-text-tertiary flex-wrap">
                             <Badge
-                                variant={getBadgeVariant(visibilityMeta.badgeClass)}
+                                variant={visibilityMeta.variant}
                                 size="sm"
                             >
                                 {visibilityMeta.icon} {visibilityMeta.label}

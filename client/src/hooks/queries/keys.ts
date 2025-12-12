@@ -17,6 +17,8 @@ export const queryKeys = {
         profile: (username: string) => ['users', 'profile', username] as const,
         followStatus: (username: string) => ['users', 'followStatus', username] as const,
         currentProfile: (userId?: string | null) => ['users', 'current', 'profile', userId ?? null] as const,
+        followers: (username: string) => ['users', 'followers', username] as const,
+        following: (username: string) => ['users', 'following', username] as const,
     },
     activity: {
         feed: () => ['activity', 'feed'] as const,
@@ -34,5 +36,19 @@ export const queryKeys = {
             ['instances', 'list', params] as const,
         search: (query: string, limit?: number) => ['instances', 'search', query, limit] as const,
         detail: (domain: string) => ['instances', 'detail', domain] as const,
+    },
+    admin: {
+        users: () => ['admin', 'users'] as const,
+        apiKeys: () => ['admin', 'api-keys'] as const,
+        instances: () => ['admin', 'instances'] as const,
+    },
+    templates: {
+        list: (userId?: string | null) => ['templates', userId ?? null] as const,
+    },
+    followers: {
+        pending: () => ['followers', 'pending'] as const,
+    },
+    platform: {
+        stats: () => ['platform', 'stats'] as const,
     },
 } as const

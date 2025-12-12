@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
 import { useAuth } from '../hooks/useAuth'
 import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { api } from '@/lib/api-client'
 
 interface AccountSettingsProps {
   profile: {
@@ -12,7 +15,7 @@ interface AccountSettingsProps {
 
 export function AccountSettings({ profile }: AccountSettingsProps) {
   const { logout } = useAuth()
-  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const handleError = useErrorHandler()
   const addSuccessToast = useUIStore((state) => state.addSuccessToast)
   const [showPasswordChange, setShowPasswordChange] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -47,22 +50,10 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
     try {
       // Use better-auth's change password endpoint
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to change password')
-      }
+      await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      }, undefined, 'Failed to change password')
 
       // Success
       addSuccessToast({ id: crypto.randomUUID(), message: 'Password changed successfully!' })
@@ -71,10 +62,9 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
       setNewPassword('')
       setConfirmPassword('')
     } catch (error) {
-      console.error('Failed to change password:', error)
-      setPasswordError(
-        error instanceof Error ? error.message : 'Failed to change password. Please try again.',
-      )
+      const errorMessage = extractErrorMessage(error, 'Failed to change password. Please try again.')
+      setPasswordError(errorMessage)
+      handleError(error, errorMessage, { context: 'AccountSettings.handlePasswordChange' })
     } finally {
       setIsChangingPassword(false)
     }
@@ -82,7 +72,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== profile.username) {
-      addErrorToast({ id: crypto.randomUUID(), message: 'Please type your username correctly to confirm deletion' })
+      handleError(new Error('Please type your username correctly to confirm deletion'), 'Confirmation required', { context: 'AccountSettings.handleDeleteAccount' })
       return
     }
 
@@ -91,25 +81,14 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
     try {
       // Note: This endpoint may need to be implemented in the backend
-      const response = await fetch('/api/profile', {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete account')
-      }
+      await api.delete('/profile', undefined, 'Failed to delete account')
 
       // Log out and redirect
       addSuccessToast({ id: crypto.randomUUID(), message: 'Your account has been deleted.' })
       await logout()
       window.location.href = '/'
     } catch (error) {
-      console.error('Failed to delete account:', error)
-      addErrorToast({
-        id: crypto.randomUUID(),
-        message: 'Failed to delete account. This feature may not be available yet. Please contact support.',
-      })
+      handleError(error, 'Failed to delete account. This feature may not be available yet. Please contact support.', { context: 'AccountSettings.handleDeleteAccount' })
     }
   }
 

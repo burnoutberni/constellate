@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect, type ChangeEvent, type KeyboardEvent, type FormEvent } from 'react'
 import { Button } from './ui/Button'
 import { MentionAutocomplete, MentionSuggestion } from './MentionAutocomplete'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface CommentFormProps {
     onSubmit: (content: string) => Promise<void>
@@ -145,26 +147,18 @@ return
         const controller = new AbortController()
         const timeout = setTimeout(async () => {
             try {
-                const response = await fetch(
-                    `/api/user-search?q=${encodeURIComponent(mentionQuery)}&limit=5`,
-                    {
-                        credentials: 'include',
-                        signal: controller.signal,
-                    },
+                const body = await api.get<{ users?: MentionSuggestion[] }>(
+                    '/user-search',
+                    { q: mentionQuery, limit: 5 },
+                    { signal: controller.signal }
                 )
-
-                if (!response.ok) {
-                    return
-                }
-
-                const body = (await response.json()) as { users?: MentionSuggestion[] }
                 const suggestions = Array.isArray(body.users) ? body.users.slice(0, 5) : []
                 setMentionSuggestions(suggestions)
                 setActiveMentionIndex(0)
                 setShowMentionSuggestions(suggestions.length > 0)
             } catch (error) {
                 if (!controller.signal.aborted) {
-                    console.error('Failed to load mention suggestions:', error)
+                    logger.error('Failed to load mention suggestions:', error)
                 }
             }
         }, 200)

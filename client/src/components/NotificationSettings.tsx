@@ -154,13 +154,14 @@ export function NotificationSettings({
                                         {description}
                                     </p>
                                 </div>
-                                <button
+                                <Button
                                     id={`notification-${type}`}
                                     type="button"
                                     role="switch"
                                     aria-checked={localPreferences[type]}
                                     onClick={() => handleToggle(type)}
                                     disabled={loading}
+                                    variant="ghost"
                                     className={`
                                         relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
                                         border-2 border-transparent transition-colors duration-200 ease-in-out
@@ -188,7 +189,7 @@ export function NotificationSettings({
                                             }
                                         `}
                                     />
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>

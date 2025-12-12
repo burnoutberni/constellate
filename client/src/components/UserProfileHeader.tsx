@@ -153,9 +153,11 @@ return null
                                     {eventCount === 1 ? 'Event' : 'Events'}
                                 </span>
                             </div>
-                            <button
+                            <Button
                                 onClick={onFollowersClick}
-                                className="flex items-center gap-1.5 hover:text-text-primary transition-colors"
+                                variant="ghost"
+                                size="sm"
+                                className="flex items-center gap-1.5 hover:text-text-primary transition-colors h-auto p-0"
                             >
                                 <span className="font-semibold text-text-primary">
                                     {followerCount}
@@ -163,16 +165,18 @@ return null
                                 <span className="text-text-secondary">
                                     {followerCount === 1 ? 'Follower' : 'Followers'}
                                 </span>
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={onFollowingClick}
-                                className="flex items-center gap-1.5 hover:text-text-primary transition-colors"
+                                variant="ghost"
+                                size="sm"
+                                className="flex items-center gap-1.5 hover:text-text-primary transition-colors h-auto p-0"
                             >
                                 <span className="font-semibold text-text-primary">
                                     {followingCount}
                                 </span>
                                 <span className="text-text-secondary">Following</span>
-                            </button>
+                            </Button>
                         </div>
 
                         {/* Join Date */}

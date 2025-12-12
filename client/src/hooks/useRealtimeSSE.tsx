@@ -9,6 +9,7 @@ import { queryKeys } from './queries/keys'
 import { useUIStore } from '@/stores'
 import type { EventDetail, EventUser, Notification } from '@/types'
 import type { NotificationsResponse } from './queries/notifications'
+import { logger } from '@/lib/logger'
 
 type QueryKeys = typeof queryKeys
 
@@ -612,7 +613,7 @@ export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
         setupEventListeners(eventSource, queryClient, queryKeys, setSSEConnected, setIsConnected, options, addMentionNotification)
 
         eventSource.onerror = (error) => {
-            console.error('❌ SSE error:', error)
+            logger.error('SSE error:', error)
             setIsConnected(false)
             setSSEConnected(false)
             options.onDisconnect?.()

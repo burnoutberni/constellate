@@ -3,12 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceList } from '../components/InstanceList'
 import { Container, Stack } from '@/components/layout'
-import { Button, Input, Card } from '@/components/ui'
+import { Button, Input, Card, Spinner } from '@/components/ui'
 import { useAuth } from '../hooks/useAuth'
 import { useInstances, useInstanceSearch, queryKeys } from '@/hooks/queries'
 import { setSEOMetadata } from '../lib/seo'
 import type { InstanceWithStats } from '@/types'
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { api } from '@/lib/api-client'
 
 type SortOption = 'activity' | 'users' | 'created'
 
@@ -46,57 +47,21 @@ export function InstancesPage() {
     const queryClient = useQueryClient()
 
     const blockMutation = useMutation({
-        mutationFn: async (domain: string) => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/block`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to block instance',
-                }))
-                throw new Error(error.error || 'Failed to block instance')
-            }
-            return response.json()
-        },
+        mutationFn: (domain: string) => api.post(`/instances/${encodeURIComponent(domain)}/block`, undefined, undefined, 'Failed to block instance'),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
         },
     })
 
     const unblockMutation = useMutation({
-        mutationFn: async (domain: string) => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/unblock`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to unblock instance',
-                }))
-                throw new Error(error.error || 'Failed to unblock instance')
-            }
-            return response.json()
-        },
+        mutationFn: (domain: string) => api.post(`/instances/${encodeURIComponent(domain)}/unblock`, undefined, undefined, 'Failed to unblock instance'),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
         },
     })
 
     const refreshMutation = useMutation({
-        mutationFn: async (domain: string) => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/refresh`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to refresh instance',
-                }))
-                throw new Error(error.error || 'Failed to refresh instance')
-            }
-            return response.json()
-        },
+        mutationFn: (domain: string) => api.post(`/instances/${encodeURIComponent(domain)}/refresh`, undefined, undefined, 'Failed to refresh instance'),
         onSuccess: (_data, domain) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.instances.detail(domain) })
             queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
@@ -134,16 +99,16 @@ export function InstancesPage() {
     const hasPreviousPage = offset > 0
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
             <Navbar user={user} onLogout={logout} />
 
             <Container className="py-8">
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
                         Federated Instances
                     </h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-400">
+                    <p className="mt-2 text-neutral-600 dark:text-neutral-400">
                         Discover and browse federated instances connected to this server
                     </p>
                 </div>
@@ -192,22 +157,23 @@ export function InstancesPage() {
 
                 {/* Stats */}
                 {!searchQuery && instancesData && (
-                    <div className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
                         Showing {offset + 1}-{Math.min(offset + limit, total)} of {total} instances
                     </div>
                 )}
 
                 {/* Loading State */}
                 {isLoading && (
-                    <div className="text-center py-12">
-                        <p className="text-gray-600 dark:text-gray-400">Loading instances...</p>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Spinner size="lg" />
+                        <p className="mt-4 text-neutral-600 dark:text-neutral-400">Loading instances...</p>
                     </div>
                 )}
 
                 {/* Error State */}
                 {!isLoading && instances.length === 0 && searchQuery && (
                     <div className="text-center py-12">
-                        <p className="text-gray-600 dark:text-gray-400">
+                        <p className="text-neutral-600 dark:text-neutral-400">
                             No instances found matching &quot;{searchQuery}&quot;
                         </p>
                     </div>

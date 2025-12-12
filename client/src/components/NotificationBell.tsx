@@ -5,7 +5,7 @@ import {
     useMarkNotificationRead,
     useMarkAllNotificationsRead,
 } from '@/hooks/queries'
-import { Badge, Button, Card, CardHeader, CardTitle, CardContent } from './ui'
+import { Badge, Button, Card, CardHeader, CardTitle, CardContent, Spinner } from './ui'
 import { NotificationItem } from './NotificationItem'
 
 interface NotificationBellProps {
@@ -73,7 +73,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         if (isLoading) {
             return (
                 <div className="flex items-center justify-center py-8" role="status" aria-label="Loading notifications" aria-live="polite">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+                    <Spinner size="sm" />
                 </div>
             )
         }
@@ -114,13 +114,15 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button
+            <Button
                 type="button"
                 id="notification-bell-button"
                 aria-label="Notifications"
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
                 onClick={() => setIsOpen((prev) => !prev)}
+                variant="ghost"
+                size="sm"
                 className="relative rounded-full p-2 hover:bg-background-secondary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
             >
                 <BellIcon hasUnread={unreadCount > 0} />
@@ -133,7 +135,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </Badge>
                 )}
-            </button>
+            </Button>
 
             {isOpen && (
                 <Card

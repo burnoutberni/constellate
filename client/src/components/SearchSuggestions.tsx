@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Badge } from './ui'
+import { Badge, Button } from './ui'
 import { getRecentSearchesList } from '../lib/recentSearches'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface SearchSuggestionsProps {
   query: string
@@ -32,33 +34,24 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
     const timer = setTimeout(async () => {
       try {
         // Fetch tag suggestions from the backend
-        const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`, {
-          credentials: 'include',
-        })
+        const data = await api.get<{ tags?: Array<{ tag: string; count: number }>; locations?: string[] }>(
+          '/search/suggestions',
+          { q: query }
+        )
+        const tagSuggestions: Suggestion[] = (data.tags || []).map((tag: { tag: string; count: number }) => ({
+          type: 'tag' as const,
+          value: tag.tag,
+          count: tag.count,
+        }))
 
-        if (response.ok) {
-          const data = await response.json()
-          const tagSuggestions: Suggestion[] = (data.tags || []).map((tag: { tag: string; count: number }) => ({
-            type: 'tag' as const,
-            value: tag.tag,
-            count: tag.count,
-          }))
+        const locationSuggestions: Suggestion[] = (data.locations || []).map((location: string) => ({
+          type: 'location' as const,
+          value: location,
+        }))
 
-          const locationSuggestions: Suggestion[] = (data.locations || []).map((location: string) => ({
-            type: 'location' as const,
-            value: location,
-          }))
-
-          setSuggestions([...tagSuggestions, ...locationSuggestions])
-        } else {
-          // Fallback to showing recent searches if API fails
-          const recentSearches = getRecentSearchesList().filter((s) =>
-            s.toLowerCase().includes(query.toLowerCase()),
-          )
-          setSuggestions(recentSearches.map((s) => ({ type: 'recent' as const, value: s })))
-        }
+        setSuggestions([...tagSuggestions, ...locationSuggestions])
       } catch (error) {
-        console.error('Failed to fetch suggestions:', error)
+        logger.error('Failed to fetch suggestions:', error)
         // Fallback to recent searches
         const recentSearches = getRecentSearchesList().filter((s) =>
           s.toLowerCase().includes(query.toLowerCase()),
@@ -81,17 +74,19 @@ return null
 
     return (
       <div className={className}>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2">
-          <p className="text-xs text-gray-500 font-medium px-2">Recent Searches</p>
+        <div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-3 space-y-2">
+          <p className="text-xs text-neutral-500 font-medium px-2">Recent Searches</p>
           {recentSearches.map((search) => (
-            <button
+            <Button
               key={`recent-${search}`}
               onClick={() => onSelect(search)}
-              className="w-full text-left px-3 py-2 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
             >
-              <span className="text-gray-400">🕐</span>
-              <span className="text-sm text-gray-900">{search}</span>
-            </button>
+              <span className="text-neutral-400">🕐</span>
+              <span className="text-sm text-neutral-900">{search}</span>
+            </Button>
           ))}
         </div>
       </div>
@@ -101,10 +96,10 @@ return null
   if (isLoading) {
     return (
       <div className={className}>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+        <div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-4">
           <div className="animate-pulse space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
+            <div className="h-4 bg-neutral-200 rounded w-3/4" />
+            <div className="h-4 bg-neutral-200 rounded w-1/2" />
           </div>
         </div>
       </div>
@@ -117,18 +112,20 @@ return null
 
   return (
     <div className={className}>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2">
+      <div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-3 space-y-2">
         {suggestions.map((suggestion) => (
-          <button
+          <Button
             key={`${suggestion.type}-${suggestion.value}`}
             onClick={() => onSelect(suggestion.value)}
-            className="w-full text-left px-3 py-2 rounded hover:bg-gray-50 transition-colors flex items-center justify-between gap-2"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {suggestion.type === 'tag' && <span className="text-gray-400 shrink-0">🏷️</span>}
-              {suggestion.type === 'location' && <span className="text-gray-400 shrink-0">📍</span>}
-              {suggestion.type === 'recent' && <span className="text-gray-400 shrink-0">🕐</span>}
-              <span className="text-sm text-gray-900 truncate">
+              {suggestion.type === 'tag' && <span className="text-neutral-400 shrink-0">🏷️</span>}
+              {suggestion.type === 'location' && <span className="text-neutral-400 shrink-0">📍</span>}
+              {suggestion.type === 'recent' && <span className="text-neutral-400 shrink-0">🕐</span>}
+              <span className="text-sm text-neutral-900 truncate">
                 {suggestion.type === 'tag' ? `#${suggestion.value}` : suggestion.value}
               </span>
             </div>
@@ -137,7 +134,7 @@ return null
                 {suggestion.count}
               </Badge>
             )}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

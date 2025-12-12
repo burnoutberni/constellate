@@ -1,4 +1,4 @@
-import { Avatar } from './ui'
+import { Avatar, Button } from './ui'
 
 export interface MentionSuggestion {
     id: string
@@ -30,10 +30,11 @@ export function MentionAutocomplete({
             {suggestions.map((suggestion, index) => {
                 const isActive = index === activeIndex
                 return (
-                    <button
+                    <Button
                         type="button"
                         key={suggestion.id}
-                        className={`flex w-full items-center gap-3 p-2 text-left transition-colors hover:bg-primary-50 ${
+                        variant="ghost"
+                        className={`flex w-full items-center gap-3 p-2 justify-start transition-colors hover:bg-primary-50 ${
                             isActive ? 'bg-primary-50' : 'bg-background-primary'
                         }`}
                         onMouseDown={(e) => {
@@ -53,7 +54,7 @@ export function MentionAutocomplete({
                             </span>
                             <span className="text-xs text-text-secondary">@{suggestion.username}</span>
                         </div>
-                    </button>
+                    </Button>
                 )
             })}
         </div>

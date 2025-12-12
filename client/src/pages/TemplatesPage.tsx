@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { PageLayout, Container } from '@/components/layout'
-import { Button, Input, Textarea } from '@/components/ui'
+import { Button, Input, Textarea, Modal } from '@/components/ui'
 import { TemplateList } from '../components/TemplateList'
 import { useAuth } from '../hooks/useAuth'
 import { useUIStore } from '@/stores'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { queryKeys } from '@/hooks/queries'
 import type { EventTemplate } from '../components/TemplateCard'
+import { api } from '@/lib/api-client'
 
 interface TemplatePreviewModalProps {
     template: EventTemplate | null
@@ -20,55 +23,57 @@ return null
 }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <Modal isOpen={Boolean(template)} onClose={onClose} maxWidth="2xl">
+            <div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold">Template Preview</h2>
-                        <button
+                        <Button
                             onClick={onClose}
-                            className="text-gray-500 hover:text-gray-700 text-2xl"
+                            variant="ghost"
+                            size="sm"
+                            className="text-neutral-500 hover:text-neutral-700 text-2xl h-auto p-0 min-w-0"
                         >
                             ×
-                        </button>
+                        </Button>
                     </div>
 
                     <div className="space-y-4">
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                            <h3 className="text-lg font-semibold text-neutral-900">{template.name}</h3>
                             {template.description && (
-                                <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                                <p className="text-sm text-neutral-600 mt-1">{template.description}</p>
                             )}
                         </div>
 
-                        <div className="border-t border-gray-200 pt-4 space-y-3">
-                            <h4 className="font-medium text-gray-900">Template Data</h4>
+                        <div className="border-t border-neutral-200 pt-4 space-y-3">
+                            <h4 className="font-medium text-neutral-900">Template Data</h4>
 
                             {template.data.title && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Event Title</label>
-                                    <p className="mt-1 text-sm text-gray-900">{template.data.title}</p>
+                                    <label className="block text-sm font-medium text-neutral-700">Event Title</label>
+                                    <p className="mt-1 text-sm text-neutral-900">{template.data.title}</p>
                                 </div>
                             )}
 
                             {template.data.summary && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                                    <p className="mt-1 text-sm text-gray-900">{template.data.summary}</p>
+                                    <label className="block text-sm font-medium text-neutral-700">Description</label>
+                                    <p className="mt-1 text-sm text-neutral-900">{template.data.summary}</p>
                                 </div>
                             )}
 
                             {template.data.location && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Location</label>
-                                    <p className="mt-1 text-sm text-gray-900">{template.data.location}</p>
+                                    <label className="block text-sm font-medium text-neutral-700">Location</label>
+                                    <p className="mt-1 text-sm text-neutral-900">{template.data.location}</p>
                                 </div>
                             )}
 
                             {(template.data.locationLatitude !== undefined && template.data.locationLongitude !== undefined) && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Coordinates</label>
-                                    <p className="mt-1 text-sm text-gray-900">
+                                    <label className="block text-sm font-medium text-neutral-700">Coordinates</label>
+                                    <p className="mt-1 text-sm text-neutral-900">
                                         {template.data.locationLatitude}, {template.data.locationLongitude}
                                     </p>
                                 </div>
@@ -76,8 +81,8 @@ return null
 
                             {template.data.url && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Event URL</label>
-                                    <p className="mt-1 text-sm text-gray-900">
+                                    <label className="block text-sm font-medium text-neutral-700">Event URL</label>
+                                    <p className="mt-1 text-sm text-neutral-900">
                                         <a
                                             href={template.data.url}
                                             target="_blank"
@@ -91,7 +96,7 @@ return null
                             )}
                         </div>
 
-                        <div className="border-t border-gray-200 pt-4">
+                        <div className="border-t border-neutral-200 pt-4">
                             <Button variant="secondary" onClick={onClose} fullWidth>
                                 Close
                             </Button>
@@ -99,7 +104,7 @@ return null
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     )
 }
 
@@ -128,7 +133,7 @@ return
             await onSave(template.id, { name: name.trim(), description: description.trim() })
             onClose()
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update template')
+            setError(extractErrorMessage(err, 'Failed to update template'))
         } finally {
             setSaving(false)
         }
@@ -139,17 +144,19 @@ return null
 }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <Modal isOpen={Boolean(template)} onClose={onClose} maxWidth="2xl">
+            <div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold">Edit Template</h2>
-                        <button
+                        <Button
                             onClick={onClose}
-                            className="text-gray-500 hover:text-gray-700 text-2xl"
+                            variant="ghost"
+                            size="sm"
+                            className="text-neutral-500 hover:text-neutral-700 text-2xl h-auto p-0 min-w-0"
                         >
                             ×
-                        </button>
+                        </Button>
                     </div>
 
                     {error && (
@@ -160,7 +167,7 @@ return null
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label htmlFor="template-name" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="template-name" className="block text-sm font-medium text-neutral-700 mb-2">
                                 Template Name *
                             </label>
                             <Input
@@ -174,7 +181,7 @@ return null
                         </div>
 
                         <div>
-                            <label htmlFor="template-description" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="template-description" className="block text-sm font-medium text-neutral-700 mb-2">
                                 Description
                             </label>
                             <Textarea
@@ -207,7 +214,7 @@ return null
                     </form>
                 </div>
             </div>
-        </div>
+        </Modal>
     )
 }
 
@@ -221,15 +228,9 @@ export function TemplatesPage() {
 
     // Fetch templates
     const { data: templatesData, isLoading } = useQuery({
-        queryKey: ['templates', user?.id],
+        queryKey: queryKeys.templates.list(user?.id),
         queryFn: async () => {
-            const response = await fetch('/api/event-templates', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch templates')
-            }
-            const body = await response.json() as { templates: EventTemplate[] }
+            const body = await api.get<{ templates: EventTemplate[] }>('/event-templates', undefined, undefined, 'Failed to fetch templates')
             return body.templates || []
         },
         enabled: Boolean(user),
@@ -240,16 +241,10 @@ export function TemplatesPage() {
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async (templateId: string) => {
-            const response = await fetch(`/api/event-templates/${templateId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to delete template')
-            }
+            await api.delete(`/event-templates/${templateId}`, undefined, 'Failed to delete template')
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['templates', user?.id] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.templates.list(user?.id) })
         },
         onError: (error) => {
             addErrorToast({
@@ -262,21 +257,10 @@ export function TemplatesPage() {
     // Update mutation
     const updateMutation = useMutation({
         mutationFn: async ({ id, data }: { id: string; data: { name: string; description: string } }) => {
-            const response = await fetch(`/api/event-templates/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(data),
-            })
-            if (!response.ok) {
-                throw new Error('Failed to update template')
-            }
-            return response.json()
+            return api.put(`/event-templates/${id}`, data, undefined, 'Failed to update template')
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['templates', user?.id] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.templates.list(user?.id) })
         },
     })
 
@@ -306,8 +290,8 @@ export function TemplatesPage() {
             <PageLayout header={<Navbar isConnected={false} user={null} onLogout={logout} />}>
                 <Container className="py-8">
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold text-gray-900">Sign In Required</h1>
-                        <p className="mt-2 text-gray-600">You need to be signed in to manage templates.</p>
+                        <h1 className="text-2xl font-bold text-neutral-900">Sign In Required</h1>
+                        <p className="mt-2 text-neutral-600">You need to be signed in to manage templates.</p>
                         <Button
                             variant="primary"
                             onClick={() => navigate('/login')}
@@ -326,8 +310,8 @@ export function TemplatesPage() {
             <PageLayout header={<Navbar isConnected={false} user={user} onLogout={logout} />}>
                 <Container className="py-8">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900">Event Templates</h1>
-                        <p className="mt-2 text-gray-600">
+                        <h1 className="text-3xl font-bold text-neutral-900">Event Templates</h1>
+                        <p className="mt-2 text-neutral-600">
                             Create and manage reusable event templates. Create an event and check &quot;Save as template&quot; to add it here.
                         </p>
                     </div>

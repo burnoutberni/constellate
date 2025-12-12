@@ -57,7 +57,7 @@ export function CommentItem({
                         <Link
                             key={`mention-${partKey}`}
                             to={`/@${mention.user.username}`}
-                            className="text-blue-600 font-medium hover:underline"
+                            className="text-info-600 font-medium hover:underline"
                         >
                             {part}
                         </Link>
@@ -107,12 +107,14 @@ export function CommentItem({
                 <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary">
                     <span>{new Date(comment.createdAt).toLocaleString()}</span>
                     {canReply && onReply && (
-                        <button
+                        <Button
                             onClick={() => onReply(comment.id)}
-                            className="text-primary-600 hover:text-primary-700 font-medium"
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary-600 hover:text-primary-700 font-medium text-xs h-auto p-0"
                         >
                             Reply
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '@/lib/api-client'
 import {
     useEventDetail,
     useRSVP,
@@ -12,6 +13,7 @@ import {
     useEventReminder,
     queryKeys,
 } from '@/hooks/queries'
+import type { UserProfile } from '@/types'
 import { SignupModal } from '../components/SignupModal'
 import { EventHeader } from '../components/EventHeader'
 import { EventInfo } from '../components/EventInfo'
@@ -20,19 +22,22 @@ import { AttendeeList } from '../components/AttendeeList'
 import { ReminderSelector } from '../components/ReminderSelector'
 import { CalendarExport } from '../components/CalendarExport'
 import { CommentList } from '../components/CommentList'
-import { Button, Card, CardContent } from '@/components/ui'
+import { Button, Card, CardContent, Spinner } from '@/components/ui'
 import { Container } from '@/components/layout'
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { setSEOMetadata } from '../lib/seo'
 import { getDefaultTimezone } from '../lib/timezones'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { createLogger } from '@/lib/logger'
 import { formatDate } from '../lib/formatUtils'
+
+const log = createLogger('[EventDetailPage]')
 
 export function EventDetailPage() {
     const location = useLocation()
     const navigate = useNavigate()
     const { user } = useAuth()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
     const [username, setUsername] = useState<string>('')
     const [eventId, setEventId] = useState<string>('')
     const [signupModalOpen, setSignupModalOpen] = useState(false)
@@ -56,19 +61,17 @@ export function EventDetailPage() {
 
     // Fetch event
     const { data: event, isLoading } = useEventDetail(username, eventId)
-    const { data: viewerProfile } = useQuery({
+    const { data: viewerProfile } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user?.id) {
 return null
 }
-            const response = await fetch('/api/users/me/profile', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
+            try {
+                return await api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
+            } catch {
                 return null
             }
-            return response.json()
         },
         enabled: Boolean(user?.id),
         staleTime: 5 * 60 * 1000,
@@ -144,7 +147,7 @@ return false
                 await rsvpMutation.mutateAsync({ status, reminderMinutesBeforeStart: selectedReminder })
             }
         } catch (error) {
-            console.error('RSVP failed:', error)
+            log.error('RSVP failed:', error)
         }
     }
 
@@ -157,7 +160,7 @@ return false
 
         if (!canManageReminder) {
             setSelectedReminder(activeReminderMinutes)
-            addErrorToast({ id: crypto.randomUUID(), message: 'RSVP as Going or Maybe to enable reminders.' })
+            handleError(new Error('RSVP as Going or Maybe to enable reminders.'), 'Reminder not available', { context: 'EventDetailPage.handleReminderChange' })
             return
         }
 
@@ -166,9 +169,8 @@ return false
         try {
             await reminderMutation.mutateAsync(nextValue)
         } catch (error) {
-            console.error('Failed to update reminder:', error)
             setSelectedReminder(previousValue !== undefined ? previousValue : null)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update reminder. Please try again.' })
+            handleError(error, 'Failed to update reminder. Please try again.', { context: 'EventDetailPage.handleReminderChange' })
         }
     }
 
@@ -181,7 +183,7 @@ return false
         try {
             await likeMutation.mutateAsync(userLiked)
         } catch (error) {
-            console.error('Like failed:', error)
+            log.error('Like failed:', error)
         }
     }
 
@@ -195,12 +197,7 @@ return false
             await shareMutation.mutateAsync()
             setHasShared(true)
         } catch (error) {
-            console.error('Share failed:', error)
-            let errorMessage = 'Failed to share event'
-            if (error instanceof Error) {
-                errorMessage = error.message
-            }
-            addErrorToast({ id: crypto.randomUUID(), message: errorMessage })
+            handleError(error, 'Failed to share event', { context: 'EventDetailPage.handleShare' })
         }
     }
 
@@ -208,8 +205,7 @@ return false
         try {
             await addCommentMutation.mutateAsync({ content })
         } catch (error) {
-            console.error('Comment failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to post comment. Please try again.' })
+            handleError(error, 'Failed to post comment. Please try again.', { context: 'EventDetailPage.handleAddComment' })
         }
     }
 
@@ -217,8 +213,7 @@ return false
         try {
             await addCommentMutation.mutateAsync({ content, inReplyToId: parentId })
         } catch (error) {
-            console.error('Reply failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to post reply. Please try again.' })
+            handleError(error, 'Failed to post reply. Please try again.', { context: 'EventDetailPage.handleReply' })
         }
     }
 
@@ -247,22 +242,14 @@ return
         setDeleteCommentId(null)
 
         try {
-            const response = await fetch(`/api/events/comments/${commentId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to delete comment')
-            }
+            await api.delete(`/events/comments/${commentId}`, undefined, 'Failed to delete comment')
 
             // Invalidate event detail query
             queryClient.invalidateQueries({
                 queryKey: queryKeys.events.detail(username, eventId),
             })
         } catch (error) {
-            console.error('Delete comment failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to delete comment. Please try again.' })
+            handleError(error, 'Failed to delete comment. Please try again.', { context: 'EventDetailPage.confirmDeleteComment' })
         }
     }
 
@@ -283,8 +270,7 @@ return
             // Redirect to feed after successful deletion
             navigate('/feed', { replace: true })
         } catch (error) {
-            console.error('Delete event failed:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to delete event. Please try again.' })
+            handleError(error, 'Failed to delete event. Please try again.', { context: 'EventDetailPage.confirmDeleteEvent' })
         }
     }
 
@@ -294,7 +280,7 @@ return
 }
         // Navigate to edit page with duplicate intent - we'll handle this in EditEventPage
         // For now, just navigate to create event modal (would need to open modal with pre-filled data)
-        addErrorToast({ id: crypto.randomUUID(), message: 'Duplicate functionality coming soon!' })
+        handleError(new Error('Duplicate functionality coming soon!'), 'Feature not available', { context: 'EventDetailPage.handleDuplicateEvent' })
     }
 
     const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
@@ -328,7 +314,7 @@ return
     if (isLoading) {
         return (
             <div className="min-h-screen bg-background-secondary flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
+                <Spinner size="lg" />
             </div>
         )
     }

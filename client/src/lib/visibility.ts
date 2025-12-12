@@ -33,6 +33,7 @@ const VISIBILITY_META: Record<
         label: string
         icon: string
         badgeClass: string
+        variant: 'primary' | 'info' | 'warning' | 'error'
         helper: string
     }
 > = {
@@ -40,24 +41,28 @@ const VISIBILITY_META: Record<
         label: 'Public',
         icon: '🌍',
         badgeClass: 'badge-primary',
+        variant: 'primary',
         helper: 'Everyone can discover this event.',
     },
     FOLLOWERS: {
         label: 'Followers only',
         icon: '👥',
         badgeClass: 'badge-followers',
+        variant: 'info',
         helper: 'Only approved followers can see this event.',
     },
     UNLISTED: {
         label: 'Unlisted',
         icon: '🔗',
         badgeClass: 'badge-neutral',
+        variant: 'warning',
         helper: 'Hidden from feeds—share the link with people you trust.',
     },
     PRIVATE: {
         label: 'Private',
         icon: '🔒',
         badgeClass: 'badge-private',
+        variant: 'error',
         helper: 'Only you can view this event.',
     },
 }

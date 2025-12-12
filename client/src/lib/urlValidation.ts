@@ -3,6 +3,8 @@
  * Provides safe URL validation to prevent XSS attacks via malicious URL schemes
  */
 
+import { logger } from './logger'
+
 /**
  * Validates that a URL is safe for navigation
  * Only allows:
@@ -71,7 +73,7 @@ export function safeNavigate(
     navigate: (path: string) => void,
 ): boolean {
     if (!isSafeNavigationUrl(url)) {
-        console.warn('[URL Validation] Blocked unsafe URL:', url)
+        logger.warn('Blocked unsafe URL:', url)
         return false
     }
 

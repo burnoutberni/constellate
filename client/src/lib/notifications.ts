@@ -29,8 +29,8 @@ const typeMeta: Record<NotificationType, NotificationTypeMeta> = {
     MENTION: {
         label: 'Mention',
         icon: '@',
-        badgeClass: 'bg-blue-100 text-blue-700',
-        iconClass: 'bg-blue-50 text-blue-600',
+        badgeClass: 'bg-info-100 text-info-700',
+        iconClass: 'bg-info-50 text-info-600',
     },
     EVENT: {
         label: 'Event update',
@@ -41,16 +41,16 @@ const typeMeta: Record<NotificationType, NotificationTypeMeta> = {
     SYSTEM: {
         label: 'System',
         icon: '🔔',
-        badgeClass: 'bg-gray-100 text-gray-700',
-        iconClass: 'bg-gray-50 text-gray-600',
+        badgeClass: 'bg-neutral-100 text-neutral-700',
+        iconClass: 'bg-neutral-50 text-neutral-600',
     },
 }
 
 const fallbackMeta: NotificationTypeMeta = {
     label: 'Notification',
     icon: '🔔',
-    badgeClass: 'bg-gray-100 text-gray-700',
-    iconClass: 'bg-gray-50 text-gray-600',
+    badgeClass: 'bg-neutral-100 text-neutral-700',
+    iconClass: 'bg-neutral-50 text-neutral-600',
 }
 
 export function getNotificationTypeMeta(type: NotificationType | string | undefined) {

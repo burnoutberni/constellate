@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Card, Badge, Button, Avatar } from './ui'
-import type { InstanceWithStats } from '@/types'
+import type { InstanceWithStats, UserProfile } from '@/types'
 import { useAuth } from '../hooks/useAuth'
 import { queryKeys } from '@/hooks/queries'
+import { api } from '@/lib/api-client'
 
 interface InstanceCardProps {
     instance: InstanceWithStats
@@ -17,19 +18,17 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
     const { user } = useAuth()
 
     // Fetch user profile to check admin status
-    const { data: userProfile } = useQuery({
+    const { data: userProfile } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user?.id) {
 return null
 }
-            const response = await fetch('/api/users/me/profile', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-return null
-}
-            return response.json()
+            try {
+                return await api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
+            } catch {
+                return null
+            }
         },
         enabled: Boolean(user?.id),
     })
@@ -91,12 +90,12 @@ return `${Math.floor(diffDays / 30)} months ago`
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                             <h3
-                                className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
+                                className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate cursor-pointer hover:text-info-600 dark:hover:text-info-400"
                                 onClick={() => navigate(`/instances/${encodeURIComponent(instance.domain)}`)}
                             >
                                 {instance.title || instance.domain}
                             </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 {instance.domain}
                             </p>
                         </div>
@@ -106,7 +105,7 @@ return `${Math.floor(diffDays / 30)} months ago`
                     </div>
 
                     {instance.description && (
-                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                        <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">
                             {instance.description}
                         </p>
                     )}
@@ -124,33 +123,33 @@ return `${Math.floor(diffDays / 30)} months ago`
                     {/* Stats */}
                     <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">
                                 {instance.userCount?.toLocaleString() ?? 'N/A'}
                             </div>
-                            <div className="text-gray-600 dark:text-gray-400">Users</div>
+                            <div className="text-neutral-600 dark:text-neutral-400">Users</div>
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">
                                 {instance.eventCount?.toLocaleString() ?? 'N/A'}
                             </div>
-                            <div className="text-gray-600 dark:text-gray-400">Events</div>
+                            <div className="text-neutral-600 dark:text-neutral-400">Events</div>
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">
                                 {instance.stats.remoteUsers}
                             </div>
-                            <div className="text-gray-600 dark:text-gray-400">Remote Users</div>
+                            <div className="text-neutral-600 dark:text-neutral-400">Remote Users</div>
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">
                                 {instance.stats.localFollowing}
                             </div>
-                            <div className="text-gray-600 dark:text-gray-400">Following</div>
+                            <div className="text-neutral-600 dark:text-neutral-400">Following</div>
                         </div>
                     </div>
 
                     {/* Activity Info */}
-                    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="mt-4 text-xs text-neutral-500 dark:text-neutral-400">
                         Last activity: {formatRelativeTime(instance.lastActivityAt)}
                         {instance.lastFetchedAt && (
                             <> • Last fetched: {formatDate(instance.lastFetchedAt)}</>
@@ -159,7 +158,7 @@ return `${Math.floor(diffDays / 30)} months ago`
 
                     {/* Error Info */}
                     {instance.lastError && (
-                        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs text-red-600 dark:text-red-400">
+                        <div className="mt-2 p-2 bg-error-50 dark:bg-error-900/20 rounded text-xs text-error-600 dark:text-error-400">
                             {instance.lastError}
                         </div>
                     )}

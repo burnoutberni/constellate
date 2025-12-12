@@ -46,8 +46,8 @@ const renderTemplateList = (templates: EventTemplate[] = mockTemplates, loading 
 describe('TemplateList', () => {
     it('should render loading spinner when loading', () => {
         renderTemplateList([], true)
-        const spinner = document.querySelector('.animate-spin')
-        expect(spinner).toBeInTheDocument()
+        const skeletons = document.querySelectorAll('.animate-pulse')
+        expect(skeletons.length).toBeGreaterThan(0)
     })
 
     it('should render empty state when no templates', () => {

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { Container, Stack } from '@/components/layout'
-import { Button, Badge, Card } from '@/components/ui'
+import { Button, Badge, Card, Spinner } from '@/components/ui'
 import { NotificationItem } from '../components/NotificationItem'
 import { NotificationSettings } from '../components/NotificationSettings'
 import { useAuth } from '../hooks/useAuth'
@@ -58,7 +58,7 @@ return sortedNotifications
         if (isLoading) {
             return (
                 <Card variant="elevated" padding="lg" className="flex items-center justify-center min-h-[200px]" role="status" aria-label="Loading notifications" aria-live="polite">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+                    <Spinner size="md" />
                 </Card>
             )
         }

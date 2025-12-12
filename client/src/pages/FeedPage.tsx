@@ -13,8 +13,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { EventVisibility, Activity } from '@/types'
 import { getVisibilityMeta } from '../lib/visibility'
 import { eventsWithinRange } from '../lib/recurrence'
-import { Button, Card, Badge } from '@/components/ui'
+import { Button, Card, Badge, Spinner } from '@/components/ui'
 import { Container, Stack } from '@/components/layout'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 function getEmptyActivityMessage(filter: ActivityFilterType): string {
     if (filter === 'all') {
@@ -172,7 +173,7 @@ export function FeedPage() {
         if (activityLoading) {
             return (
                 <Card variant="default" padding="lg" className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent mx-auto" />
+                    <Spinner size="md" />
                 </Card>
             )
         }
@@ -212,7 +213,7 @@ export function FeedPage() {
         if (trendingBusy) {
             return (
                 <Card variant="default" padding="lg" className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-warning-500 border-t-transparent mx-auto" />
+                    <Spinner size="md" />
                     <p className="mt-3 text-sm text-text-secondary">Surfacing trending events�</p>
                 </Card>
             )
@@ -341,8 +342,9 @@ export function FeedPage() {
                 <div className="grid lg:grid-cols-3 gap-6">
                     {/* Main Feed - Activity Feed */}
                     <div className="lg:col-span-2 space-y-4">
-                        {/* Tab Navigation */}
-                        <Stack direction="column" directionSm="row" alignSm="center" justifySm="between" gap="md" className="mb-4">
+                        <ErrorBoundary resetKeys={[activeTab, activityFilter]}>
+                            {/* Tab Navigation */}
+                            <Stack direction="column" directionSm="row" alignSm="center" justifySm="between" gap="md" className="mb-4">
                             <div className="flex items-center gap-2" role="tablist">
                                 <Button
                                     variant={activeTab === 'activity' ? 'primary' : 'ghost'}
@@ -422,6 +424,7 @@ export function FeedPage() {
                                 {renderTrendingEvents()}
                             </div>
                         )}
+                        </ErrorBoundary>
                     </div>
 
                     {/* Sidebar */}
@@ -439,7 +442,7 @@ export function FeedPage() {
                                     if (recommendationsLoading) {
                                         return (
                                             <div className="flex items-center justify-center py-4">
-                                                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" />
+                                                <Spinner size="sm" />
                                             </div>
                                         )
                                     }
@@ -453,11 +456,12 @@ export function FeedPage() {
                                     return (
                                         <div className="space-y-2">
                                             {recommendedEvents.map((item) => (
-                                                <button
+                                                <Button
                                                     key={item.event.id}
                                                     type="button"
                                                     onClick={() => handleEventClick(item.event)}
-                                                    className="p-2 rounded hover:bg-background-secondary cursor-pointer transition-colors border border-transparent hover:border-border-hover text-left w-full"
+                                                    variant="ghost"
+                                                    className="p-2 rounded hover:bg-background-secondary cursor-pointer transition-colors border border-transparent hover:border-border-hover justify-start w-full"
                                                 >
                                                     <div className="font-medium text-sm text-text-primary truncate">
                                                         {item.event.title}
@@ -474,7 +478,7 @@ export function FeedPage() {
                                                             {item.reasons[0]}
                                                         </div>
                                                     )}
-                                                </button>
+                                                </Button>
                                             ))}
                                         </div>
                                     )
@@ -487,7 +491,7 @@ export function FeedPage() {
                             <h2 className="font-bold text-lg text-text-primary mb-4">Today&apos;s Events</h2>
                             {eventsLoading ? (
                                 <div className="flex items-center justify-center py-4">
-                                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" />
+                                    <Spinner size="sm" />
                                 </div>
                             ) : (() => {
                                 if (todayEvents.length === 0) {
@@ -500,11 +504,12 @@ export function FeedPage() {
                                 return (
                                     <div className="space-y-2">
                                         {todayEvents.slice(0, 5).map((event) => (
-                                            <button
+                                            <Button
                                                 key={event.id}
                                                 type="button"
                                                 onClick={() => handleEventClick(event)}
-                                                className="p-2 rounded hover:bg-background-secondary cursor-pointer transition-colors text-left w-full"
+                                                variant="ghost"
+                                                className="p-2 rounded hover:bg-background-secondary cursor-pointer transition-colors justify-start w-full"
                                             >
                                                 <div className="font-medium text-sm text-text-primary">
                                                     {event.title}
@@ -513,7 +518,7 @@ export function FeedPage() {
                                                     {formatTime(event.startTime)}
                                                     {event.location && ` � ${event.location}`}
                                                 </div>
-                                            </button>
+                                            </Button>
                                         ))}
                                         {todayEvents.length > 5 && (
                                             <div className="text-xs text-text-tertiary text-center pt-2">
@@ -537,7 +542,7 @@ export function FeedPage() {
                                 </h2>
                                 {eventsLoading ? (
                                     <div className="flex items-center justify-center py-4">
-                                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" />
+                                        <Spinner size="sm" />
                                     </div>
                                 ) : (() => {
                                     if (selectedDateEvents.length === 0) {
@@ -552,10 +557,11 @@ export function FeedPage() {
                                             {selectedDateEvents.map((event) => {
                                                 const visibilityMeta = getVisibilityMeta(event.visibility as EventVisibility | undefined)
                                                 return (
-                                                    <button
+                                                    <Button
                                                         key={event.id}
                                                         type="button"
                                                         onClick={() => handleEventClick(event)}
+                                                        variant="ghost"
                                                         className="p-2 rounded hover:bg-background-secondary cursor-pointer transition-colors text-left w-full"
                                                     >
                                                         <div className="font-medium text-sm text-text-primary">
@@ -578,7 +584,7 @@ export function FeedPage() {
                                                                 {visibilityMeta.icon} {visibilityMeta.label}
                                                             </Badge>
                                                         </div>
-                                                    </button>
+                                                    </Button>
                                                 )
                                             })}
                                         </div>

@@ -105,7 +105,7 @@ export function ReminderItem({ reminder, onDelete, isDeleting = false }: Reminde
                                 {reminder.status}
                             </Badge>
                             {reminder.failureReason && (
-                                <span className="text-xs text-red-600" title={reminder.failureReason}>
+                                <span className="text-xs text-error-600" title={reminder.failureReason}>
                                     Failed: {reminder.failureReason}
                                 </span>
                             )}

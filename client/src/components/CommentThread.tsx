@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { CommentItem } from './CommentItem'
 import { CommentForm } from './CommentForm'
+import { createLogger } from '@/lib/logger'
 import type { CommentWithMentions } from '@/types'
+
+const log = createLogger('[CommentThread]')
 
 interface CommentThreadProps {
     comment: CommentWithMentions
@@ -37,7 +40,7 @@ return
             await onReply(comment.id, content)
             setShowReplyForm(false)
         } catch (error) {
-            console.error('Failed to submit reply:', error)
+            log.error('Failed to submit reply:', error)
         } finally {
             setIsSubmitting(false)
         }

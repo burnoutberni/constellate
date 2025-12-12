@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react'
-import { Button } from './ui/Button'
+import { Button, Input } from './ui'
 import { Stack } from './layout'
 
 interface CalendarNavigationProps {
@@ -132,24 +132,24 @@ export function CalendarNavigation({
 
         {/* Date Display with Picker */}
         <div className="relative" ref={datePickerRef}>
-          <button
+          <Button
             onClick={() => setShowDatePicker(!showDatePicker)}
+            variant="ghost"
+            size="sm"
             className="px-4 py-2 text-sm font-medium min-w-[280px] text-center hover:bg-background-secondary rounded-lg transition-colors"
             aria-label="Select date"
           >
             {displayText}
-          </button>
+          </Button>
 
           {showDatePicker && (
             <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-background-primary border border-border-default rounded-lg shadow-lg p-4 z-50 min-w-[280px]">
-              <label className="block text-sm font-medium text-text-primary mb-2">
-                Jump to date
-              </label>
-              <input
+              <Input
                 type="date"
+                label="Jump to date"
                 value={formatDateForInput(currentDate)}
                 onChange={handleDatePickerChange}
-                className="w-full px-3 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                size="sm"
               />
               <Button
                 variant="secondary"

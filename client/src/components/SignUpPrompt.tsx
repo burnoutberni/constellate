@@ -168,12 +168,14 @@ return 'continue'
       <p className={`text-sm text-text-secondary text-center ${props.className || ''}`}>
         💡{' '}
         {props.onSignUp ? (
-          <button
+          <Button
             onClick={props.onSignUp}
-            className="text-primary-600 hover:text-primary-700 hover:underline font-medium"
+            variant="ghost"
+            size="sm"
+            className="text-primary-600 hover:text-primary-700 hover:underline font-medium h-auto p-0"
           >
             Sign up
-          </button>
+          </Button>
         ) : (
           <Link
             to="/login"

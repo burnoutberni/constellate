@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { UserProfile, FollowStatus, Event } from '@/types'
+import { api } from '@/lib/api-client'
+import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 
 interface UserProfileResponse {
     user: UserProfile
@@ -11,23 +13,12 @@ interface UserProfileResponse {
 export function useUserProfile(username: string) {
     return useQuery<UserProfileResponse>({
         queryKey: queryKeys.users.profile(username),
-        queryFn: async () => {
-            const response = await fetch(
-                `/api/user-search/profile/${encodeURIComponent(username)}`,
-                {
-                    credentials: 'include',
-                },
-            )
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('User not found')
-                }
-                throw new Error('Failed to fetch profile')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<UserProfileResponse>(
+            `/user-search/profile/${encodeURIComponent(username)}`,
+            undefined,
+            undefined,
+            'Failed to fetch profile'
+        ),
         enabled: Boolean(username),
     })
 }
@@ -35,20 +26,12 @@ export function useUserProfile(username: string) {
 export function useFollowStatus(username: string) {
     return useQuery<FollowStatus>({
         queryKey: queryKeys.users.followStatus(username),
-        queryFn: async () => {
-            const response = await fetch(
-                `/api/users/${encodeURIComponent(username)}/follow-status`,
-                {
-                    credentials: 'include',
-                },
-            )
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch follow status')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<FollowStatus>(
+            `/users/${encodeURIComponent(username)}/follow-status`,
+            undefined,
+            undefined,
+            'Failed to fetch follow status'
+        ),
         enabled: Boolean(username),
     })
 }
@@ -56,26 +39,10 @@ export function useFollowStatus(username: string) {
 // Mutations
 export function useFollowUser(username: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(
-                `/api/users/${encodeURIComponent(username)}/follow`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                },
-            )
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to follow user',
-                }))
-                throw new Error(error.error || 'Failed to follow user')
-            }
-
-            return response.json()
-        },
+        mutationFn: () => api.post(`/users/${encodeURIComponent(username)}/follow`, undefined, undefined, 'Failed to follow user'),
         onMutate: async () => {
             // Optimistic update
             await queryClient.cancelQueries({
@@ -119,7 +86,7 @@ export function useFollowUser(username: string) {
 
             return { previousProfile, previousStatus }
         },
-        onError: (_err, _variables, context) => {
+        onError: (error, _variables, context) => {
             // Rollback on error
             if (context?.previousProfile) {
                 queryClient.setQueryData(
@@ -133,6 +100,8 @@ export function useFollowUser(username: string) {
                     context.previousStatus,
                 )
             }
+            // Handle error with user-friendly message
+            handleMutationError(error, 'Failed to follow user')
         },
         onSuccess: () => {
             // Invalidate to get fresh data
@@ -148,26 +117,10 @@ export function useFollowUser(username: string) {
 
 export function useUnfollowUser(username: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(
-                `/api/users/${encodeURIComponent(username)}/follow`,
-                {
-                    method: 'DELETE',
-                    credentials: 'include',
-                },
-            )
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to unfollow user',
-                }))
-                throw new Error(error.error || 'Failed to unfollow user')
-            }
-
-            return response.json()
-        },
+        mutationFn: () => api.delete(`/users/${encodeURIComponent(username)}/follow`, undefined, 'Failed to unfollow user'),
         onMutate: async () => {
             // Optimistic update
             await queryClient.cancelQueries({
@@ -213,7 +166,7 @@ export function useUnfollowUser(username: string) {
 
             return { previousProfile, previousStatus }
         },
-        onError: (_err, _variables, context) => {
+        onError: (error, _variables, context) => {
             // Rollback on error
             if (context?.previousProfile) {
                 queryClient.setQueryData(
@@ -227,6 +180,8 @@ export function useUnfollowUser(username: string) {
                     context.previousStatus,
                 )
             }
+            // Handle error with user-friendly message
+            handleMutationError(error, 'Failed to unfollow user')
         },
         onSuccess: () => {
             // Invalidate to get fresh data

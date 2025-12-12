@@ -66,14 +66,14 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
         <form onSubmit={onSubmit}>
             <Card className="p-5 space-y-4">
                 <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Filters</h2>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <h2 className="text-xl font-semibold text-neutral-900">Filters</h2>
+                    <p className="text-sm text-neutral-500 mt-1">
                         Find events that match your interests
                     </p>
                 </div>
 
                 <div>
-                    <label htmlFor="keyword-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="keyword-filter" className="block text-sm font-medium text-neutral-700 mb-1">
                         Keyword
                     </label>
                     <Input
@@ -88,7 +88,7 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                 </div>
 
                 <div>
-                    <label htmlFor="location-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="location-filter" className="block text-sm font-medium text-neutral-700 mb-1">
                         Location
                     </label>
                     <Input
@@ -125,7 +125,7 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                 {formState.dateRange === 'custom' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="start-date-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="start-date-filter" className="block text-sm font-medium text-neutral-700 mb-1">
                                 Starts after
                             </label>
                             <Input
@@ -138,7 +138,7 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                             />
                         </div>
                         <div>
-                            <label htmlFor="end-date-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="end-date-filter" className="block text-sm font-medium text-neutral-700 mb-1">
                                 Ends before
                             </label>
                             <Input
@@ -186,7 +186,7 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="categories-filter" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="categories-filter" className="block text-sm font-medium text-neutral-700">
                         Categories / Tags
                     </label>
                     <Input
@@ -202,14 +202,16 @@ export function EventFilters({ formState, onFormStateChange, onSubmit, onClearAl
                             {formState.categories.map((category) => (
                                 <Badge key={category} variant="default">
                                     #{category}
-                                    <button
+                                    <Button
                                         type="button"
                                         aria-label={`Remove ${category}`}
                                         onClick={() => handleRemoveCategory(category)}
-                                        className="ml-1 text-gray-500 hover:text-gray-700"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-1 text-neutral-500 hover:text-neutral-700 h-auto p-0 min-w-0"
                                     >
                                         ×
-                                    </button>
+                                    </Button>
                                 </Badge>
                             ))}
                         </div>

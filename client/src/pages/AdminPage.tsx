@@ -5,7 +5,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { Input, Button, Textarea, Modal, Spinner } from '@/components/ui'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
+import type { UserProfile } from '@/types'
 
 interface User {
     id: string
@@ -67,7 +72,7 @@ export function AdminPage() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
     const addSuccessToast = useUIStore((state) => state.addSuccessToast)
     const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances'>('users')
     const [showCreateUserModal, setShowCreateUserModal] = useState(false)
@@ -78,35 +83,22 @@ export function AdminPage() {
     const [revokeApiKeyId, setRevokeApiKeyId] = useState<string | null>(null)
 
     // Check if user is admin
-    const { data: userProfile, isLoading: isLoadingProfile } = useQuery({
+    const { data: userProfile, isLoading: isLoadingProfile } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user) {
 return null
 }
-            const response = await fetch(`/api/users/me/profile`, {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch profile')
-            }
-            return response.json()
+            return api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
         },
         enabled: Boolean(user),
     })
 
     // Fetch users
     const { data: usersData, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-        queryKey: ['admin-users'],
+        queryKey: queryKeys.admin.users(),
         queryFn: async () => {
-            const response = await fetch('/api/admin/users', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch users')
-            }
-            const data = await response.json() as { users: User[]; pagination: { page: number; limit: number; total: number; pages: number } }
-            return data
+            return api.get<{ users: User[]; pagination: { page: number; limit: number; total: number; pages: number } }>('/admin/users', undefined, undefined, 'Failed to fetch users')
         },
         enabled: activeTab === 'users' && Boolean(userProfile?.isAdmin),
         refetchOnMount: true,
@@ -115,30 +107,18 @@ return null
 
     // Fetch API keys
     const { data: apiKeysData, isLoading: isLoadingApiKeys } = useQuery({
-        queryKey: ['admin-api-keys'],
+        queryKey: queryKeys.admin.apiKeys(),
         queryFn: async () => {
-            const response = await fetch('/api/admin/api-keys', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch API keys')
-            }
-            return response.json() as Promise<{ apiKeys: ApiKey[] }>
+            return api.get<{ apiKeys: ApiKey[] }>('/admin/api-keys', undefined, undefined, 'Failed to fetch API keys')
         },
         enabled: activeTab === 'api-keys' && Boolean(userProfile?.isAdmin),
     })
 
     // Fetch instances
     const { data: instancesData, isLoading: isLoadingInstances, refetch: refetchInstances } = useQuery({
-        queryKey: ['admin-instances'],
+        queryKey: queryKeys.admin.instances(),
         queryFn: async () => {
-            const response = await fetch('/api/instances?limit=100&sortBy=activity', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch instances')
-            }
-            return response.json() as Promise<{ instances: Instance[]; total: number }>
+            return api.get<{ instances: Instance[]; total: number }>('/instances', { limit: 100, sortBy: 'activity' }, undefined, 'Failed to fetch instances')
         },
         enabled: activeTab === 'instances' && Boolean(userProfile?.isAdmin),
     })
@@ -153,46 +133,26 @@ return null
             isBot?: boolean
             password?: string
         }) => {
-            const response = await fetch('/api/admin/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(data),
-            })
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to create user')
-            }
-            return response.json()
+            return api.post('/admin/users', data, undefined, 'Failed to create user')
         },
         onSuccess: async () => {
             // Invalidate and refetch to ensure we get the latest data
             setShowCreateUserModal(false)
             // Small delay to ensure backend has processed the creation
             setTimeout(async () => {
-                await queryClient.invalidateQueries({ queryKey: ['admin-users'] })
-                await queryClient.refetchQueries({ queryKey: ['admin-users'] })
+                await queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() })
+                await queryClient.refetchQueries({ queryKey: queryKeys.admin.users() })
             }, 100)
         },
     })
 
     // Create API key mutation
-    const createApiKeyMutation = useMutation({
+    const createApiKeyMutation = useMutation<{ key: string }, unknown, { userId: string; name: string; description?: string }>({
         mutationFn: async (data: { userId: string; name: string; description?: string }) => {
-            const response = await fetch('/api/admin/api-keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(data),
-            })
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to create API key')
-            }
-            return response.json()
+            return api.post<{ key: string }>('/admin/api-keys', data, undefined, 'Failed to create API key')
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['admin-api-keys'] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.apiKeys() })
             setNewApiKey(data.key)
             setShowCreateApiKeyModal(false)
         },
@@ -201,36 +161,20 @@ return null
     // Delete user mutation
     const deleteUserMutation = useMutation({
         mutationFn: async (userId: string) => {
-            const response = await fetch(`/api/admin/users/${userId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to delete user')
-            }
-            return response.json()
+            return api.delete(`/admin/users/${userId}`, undefined, 'Failed to delete user')
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() })
         },
     })
 
     // Delete API key mutation
     const deleteApiKeyMutation = useMutation({
         mutationFn: async (keyId: string) => {
-            const response = await fetch(`/api/admin/api-keys/${keyId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to delete API key')
-            }
-            return response.json()
+            return api.delete(`/admin/api-keys/${keyId}`, undefined, 'Failed to delete API key')
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['admin-api-keys'] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.apiKeys() })
         },
     })
 
@@ -242,11 +186,11 @@ return null
 
     if (isLoadingProfile) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-neutral-50">
                 <Navbar isConnected={false} user={user} onLogout={logout} />
                 <div className="max-w-6xl mx-auto px-4 py-8">
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+                        <Spinner size="lg" />
                     </div>
                 </div>
             </div>
@@ -254,41 +198,47 @@ return null
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-neutral-50">
             <Navbar isConnected={false} user={user} onLogout={logout} />
             <div className="max-w-6xl mx-auto px-4 py-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Panel</h1>
+                <h1 className="text-3xl font-bold text-neutral-900 mb-8">Admin Panel</h1>
 
                 {/* Tabs */}
-                <div className="border-b border-gray-200 mb-6">
+                <div className="border-b border-neutral-200 mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        <button
+                        <Button
                             onClick={() => setActiveTab('users')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'users'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            variant="ghost"
+                            size="sm"
+                            className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${activeTab === 'users'
+                                ? 'border-info-500 text-info-600'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
                                 }`}
                         >
                             Users
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => setActiveTab('api-keys')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'api-keys'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            variant="ghost"
+                            size="sm"
+                            className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${activeTab === 'api-keys'
+                                ? 'border-info-500 text-info-600'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
                                 }`}
                         >
                             API Keys
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => setActiveTab('instances')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'instances'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            variant="ghost"
+                            size="sm"
+                            className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${activeTab === 'instances'
+                                ? 'border-info-500 text-info-600'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
                                 }`}
                         >
                             Instances
-                        </button>
+                        </Button>
                     </nav>
                 </div>
 
@@ -296,46 +246,47 @@ return null
                 {activeTab === 'users' && (
                     <div>
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
+                            <h2 className="text-xl font-semibold text-neutral-900">User Management</h2>
                             <div className="flex gap-2">
-                                <button
+                                <Button
                                     onClick={() => refetchUsers()}
-                                    className="btn btn-secondary"
+                                    variant="secondary"
                                     disabled={isLoadingUsers}
+                                    loading={isLoadingUsers}
                                 >
                                     Refresh
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                     onClick={() => setShowCreateUserModal(true)}
-                                    className="btn btn-primary"
+                                    variant="primary"
                                 >
                                     Create User
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
                         {isLoadingUsers ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                                <Spinner size="md" />
                             </div>
                         ) : (
                             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                                    <thead className="bg-neutral-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 User
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Type
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Stats
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Created
                                             </th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Actions
                                             </th>
                                         </tr>
@@ -345,14 +296,14 @@ return null
                                             <tr key={userItem.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div>
-                                                        <div className="text-sm font-medium text-gray-900">
+                                                        <div className="text-sm font-medium text-neutral-900">
                                                             {userItem.username}
                                                         </div>
                                                         {userItem.email && (
-                                                            <div className="text-sm text-gray-500">{userItem.email}</div>
+                                                            <div className="text-sm text-neutral-500">{userItem.email}</div>
                                                         )}
                                                         {userItem.name && (
-                                                            <div className="text-sm text-gray-500">{userItem.name}</div>
+                                                            <div className="text-sm text-neutral-500">{userItem.name}</div>
                                                         )}
                                                     </div>
                                                 </td>
@@ -364,18 +315,18 @@ return null
                                                             </span>
                                                         )}
                                                         {userItem.isBot && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info-100 text-info-800">
                                                                 Bot
                                                             </span>
                                                         )}
                                                         {userItem.isRemote && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
                                                                 Remote
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                                                     {userItem._count && (
                                                         <div>
                                                             {userItem._count.events} events, {userItem._count.followers}{' '}
@@ -383,19 +334,21 @@ return null
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                                                     {new Date(userItem.createdAt).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button
+                                                    <Button
                                                         onClick={() => {
                                                             setDeleteUserId(userItem.id)
                                                         }}
+                                                        variant="ghost"
+                                                        size="sm"
                                                         className="text-error-600 hover:text-error-900"
                                                         disabled={deleteUserMutation.isPending}
                                                     >
                                                         Delete
-                                                    </button>
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -410,40 +363,40 @@ return null
                 {activeTab === 'api-keys' && (
                     <div>
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold text-gray-900">API Key Management</h2>
-                            <button
+                            <h2 className="text-xl font-semibold text-neutral-900">API Key Management</h2>
+                            <Button
                                 onClick={() => {
                                     setSelectedUserId(null)
                                     setShowCreateApiKeyModal(true)
                                 }}
-                                className="btn btn-primary"
+                                variant="primary"
                             >
                                 Create API Key
-                            </button>
+                            </Button>
                         </div>
 
                         {isLoadingApiKeys ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                                <Spinner size="md" />
                             </div>
                         ) : (
                             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                                    <thead className="bg-neutral-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Name
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 User
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Key
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Last Used
                                             </th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Actions
                                             </th>
                                         </tr>
@@ -453,35 +406,37 @@ return null
                                             <tr key={key.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div>
-                                                        <div className="text-sm font-medium text-gray-900">
+                                                        <div className="text-sm font-medium text-neutral-900">
                                                             {key.name}
                                                         </div>
                                                         {key.description && (
-                                                            <div className="text-sm text-gray-500">{key.description}</div>
+                                                            <div className="text-sm text-neutral-500">{key.description}</div>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                                                     {key.user?.username}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-neutral-500">
                                                     {key.prefix}...
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                                                     {key.lastUsedAt
                                                         ? new Date(key.lastUsedAt).toLocaleString()
                                                         : 'Never'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button
+                                                    <Button
                                                         onClick={() => {
                                                             setRevokeApiKeyId(key.id)
                                                         }}
+                                                        variant="ghost"
+                                                        size="sm"
                                                         className="text-error-600 hover:text-error-900"
                                                         disabled={deleteApiKeyMutation.isPending}
                                                     >
                                                         Revoke
-                                                    </button>
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -496,43 +451,44 @@ return null
                 {activeTab === 'instances' && (
                     <div>
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold text-gray-900">Federated Instances</h2>
-                            <button
+                            <h2 className="text-xl font-semibold text-neutral-900">Federated Instances</h2>
+                            <Button
                                 onClick={() => refetchInstances()}
-                                className="btn btn-secondary"
+                                variant="secondary"
                                 disabled={isLoadingInstances}
+                                loading={isLoadingInstances}
                             >
                                 Refresh
-                            </button>
+                            </Button>
                         </div>
 
                         {isLoadingInstances ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                                <Spinner size="md" />
                             </div>
                         ) : (
                             <>
-                                <div className="mb-4 text-sm text-gray-600">
+                                <div className="mb-4 text-sm text-neutral-600">
                                     {instancesData?.total || 0} known instance(s) discovered through federation
                                 </div>
                                 <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                                     {instancesData?.instances && instancesData.instances.length > 0 ? (
                                         <table className="min-w-full divide-y divide-gray-200">
-                                            <thead className="bg-gray-50">
+                                            <thead className="bg-neutral-50">
                                                 <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                         Instance
                                                     </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                         Software
                                                     </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                         Users
                                                     </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                         Connections
                                                     </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                         Last Activity
                                                     </th>
                                                 </tr>
@@ -553,45 +509,45 @@ return null
                                                                     />
                                                                 )}
                                                                 <div>
-                                                                    <div className="text-sm font-medium text-gray-900">
+                                                                    <div className="text-sm font-medium text-neutral-900">
                                                                         {instance.title || instance.domain}
                                                                     </div>
-                                                                    <div className="text-sm text-gray-500">
+                                                                    <div className="text-sm text-neutral-500">
                                                                         {instance.domain}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-900">
+                                                            <div className="text-sm text-neutral-900">
                                                                 {instance.software || 'Unknown'}
                                                             </div>
                                                             {instance.version && (
-                                                                <div className="text-sm text-gray-500">
+                                                                <div className="text-sm text-neutral-500">
                                                                     v{instance.version}
                                                                 </div>
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-900">
+                                                            <div className="text-sm text-neutral-900">
                                                                 {instance.userCount?.toLocaleString() || 'N/A'}
                                                             </div>
                                                             {instance.eventCount !== undefined && (
-                                                                <div className="text-sm text-gray-500">
+                                                                <div className="text-sm text-neutral-500">
                                                                     {instance.eventCount.toLocaleString()} posts
                                                                 </div>
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-900">
+                                                            <div className="text-sm text-neutral-900">
                                                                 {instance.stats?.remoteUsers || 0} cached users
                                                             </div>
-                                                            <div className="text-sm text-gray-500">
+                                                            <div className="text-sm text-neutral-500">
                                                                 {instance.stats?.remoteEvents || 0} events,{' '}
                                                                 {instance.stats?.localFollowing || 0} following
                                                             </div>
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                                                             {instance.lastActivityAt
                                                                 ? new Date(instance.lastActivityAt).toLocaleDateString()
                                                                 : 'Never'}
@@ -603,7 +559,7 @@ return null
                                     ) : (
                                         <div className="text-center py-12 px-6">
                                             <svg
-                                                className="mx-auto h-12 w-12 text-gray-400"
+                                                className="mx-auto h-12 w-12 text-neutral-400"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
@@ -615,8 +571,8 @@ return null
                                                     d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
                                                 />
                                             </svg>
-                                            <h3 className="mt-2 text-sm font-medium text-gray-900">No instances discovered yet</h3>
-                                            <p className="mt-1 text-sm text-gray-500">
+                                            <h3 className="mt-2 text-sm font-medium text-neutral-900">No instances discovered yet</h3>
+                                            <p className="mt-1 text-sm text-neutral-500">
                                                 Instances will appear here automatically when remote users interact with your instance.
                                             </p>
                                         </div>
@@ -646,22 +602,22 @@ return null
                         }}
                         onCreate={(data) => createApiKeyMutation.mutate(data)}
                         isPending={createApiKeyMutation.isPending}
-                        error={createApiKeyMutation.error?.message}
+                        error={createApiKeyMutation.error instanceof Error ? createApiKeyMutation.error.message : typeof createApiKeyMutation.error === 'object' && createApiKeyMutation.error !== null && 'message' in createApiKeyMutation.error ? String(createApiKeyMutation.error.message) : undefined}
                         users={usersData?.users || []}
                     />
                 )}
 
                 {/* New API Key Display Modal */}
                 {newApiKey && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                    <Modal isOpen={Boolean(newApiKey)} onClose={() => setNewApiKey(null)} maxWidth="md">
+                        <div className="p-6">
                             <h3 className="text-lg font-semibold mb-4">API Key Created</h3>
-                            <p className="text-sm text-gray-600 mb-4">
+                            <p className="text-sm text-neutral-600 mb-4">
                                 Save this key now. You will not be able to see it again.
                             </p>
                             <div
                                 id="api-key-display"
-                                className="bg-gray-100 p-4 rounded font-mono text-sm break-all mb-4 select-all cursor-text"
+                                className="bg-neutral-100 p-4 rounded font-mono text-sm break-all mb-4 select-all cursor-text"
                                 onClick={(e) => {
                                     // Select all text when clicking on the key
                                     const range = document.createRange()
@@ -673,7 +629,7 @@ return null
                             >
                                 {newApiKey}
                             </div>
-                            <button
+                            <Button
                                 onClick={async () => {
                                     try {
                                         // Try modern clipboard API first
@@ -692,18 +648,18 @@ return null
                                                 document.execCommand('copy')
                                                 addSuccessToast({ id: crypto.randomUUID(), message: 'Copied to clipboard!' })
                                             } catch (err) {
-                                                console.error('Failed to copy to clipboard:', err)
+                                                logger.error('Failed to copy to clipboard:', err)
                                                 // Fallback: select the text so user can manually copy
                                                 textarea.style.position = 'static'
                                                 textarea.style.opacity = '1'
                                                 textarea.focus()
                                                 textarea.select()
-                                                addErrorToast({ id: crypto.randomUUID(), message: 'Please manually copy the text above' })
+                                                handleError(new Error('Please manually copy the text above'), 'Copy failed', { context: 'AdminPage.copyApiKey' })
                                             }
                                             document.body.removeChild(textarea)
                                         }
                                     } catch (err) {
-                                        console.error('Failed to copy:', err)
+                                        logger.error('Failed to copy:', err)
                                         // Fallback: select the text in the display div
                                         const keyDiv = document.getElementById('api-key-display')
                                         if (keyDiv) {
@@ -714,22 +670,25 @@ return null
                                             selection?.addRange(range)
                                             addSuccessToast({ id: crypto.randomUUID(), message: 'Text selected - press Ctrl+C (or Cmd+C) to copy' })
                                         } else {
-                                            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to copy. Please manually select and copy the key above.' })
+                                            handleError(new Error('Failed to copy. Please manually select and copy the key above.'), 'Copy failed', { context: 'AdminPage.copyApiKey' })
                                         }
                                     }
                                 }}
-                                className="btn btn-secondary w-full mb-2"
+                                variant="secondary"
+                                fullWidth
+                                className="mb-2"
                             >
                                 Copy to Clipboard
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={() => setNewApiKey(null)}
-                                className="btn btn-primary w-full"
+                                variant="primary"
+                                fullWidth
                             >
                                 I&apos;ve Saved It
-                            </button>
+                            </Button>
                         </div>
-                    </div>
+                    </Modal>
                 )}
 
                 {/* Delete User Confirmation */}
@@ -810,39 +769,34 @@ function CreateUserModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <Modal isOpen={true} onClose={onClose} maxWidth="md">
+            <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Create User</h3>
                 {error && <div className="mb-4 text-sm text-error-600">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Username *
-                        </label>
-                        <input
+                        <Input
                             type="text"
+                            label="Username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
+                        <Input
                             type="email"
+                            label="Email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
+                        <Input
                             type="text"
+                            label="Name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>
                     <div className="mb-4">
@@ -853,21 +807,18 @@ function CreateUserModal({
                                 onChange={(e) => setIsBot(e.target.checked)}
                                 className="mr-2"
                             />
-                            <span className="text-sm text-gray-700">Bot User</span>
+                            <span className="text-sm text-neutral-700">Bot User</span>
                         </label>
                     </div>
                     {!isBot && (
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Password *
-                            </label>
-                            <input
+                            <Input
                                 type="password"
+                                label="Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 minLength={8}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
                         </div>
                     )}
@@ -879,25 +830,26 @@ function CreateUserModal({
                                 onChange={(e) => setIsAdmin(e.target.checked)}
                                 className="mr-2"
                             />
-                            <span className="text-sm text-gray-700">Admin</span>
+                            <span className="text-sm text-neutral-700">Admin</span>
                         </label>
                     </div>
                     <div className="flex gap-2">
-                        <button
+                        <Button
                             type="button"
+                            variant="secondary"
                             onClick={onClose}
-                            className="btn btn-secondary flex-1"
+                            fullWidth
                             disabled={isPending}
                         >
                             Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary flex-1" disabled={isPending}>
+                        </Button>
+                        <Button type="submit" variant="primary" fullWidth disabled={isPending} loading={isPending}>
                             {isPending ? 'Creating...' : 'Create'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     )
 }
 
@@ -928,20 +880,20 @@ function CreateApiKeyModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <Modal isOpen={true} onClose={onClose} maxWidth="md">
+            <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Create API Key</h3>
                 {error && <div className="mb-4 text-sm text-error-600">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-neutral-700 mb-1">
                             User *
                         </label>
                         <select
                             value={userId}
                             onChange={(e) => setUserId(e.target.value)}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-md"
                         >
                             <option value="">Select a user</option>
                             {users.map((userOption) => (
@@ -952,41 +904,38 @@ function CreateApiKeyModal({
                         </select>
                     </div>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                        <input
+                        <Input
                             type="text"
+                            label="Name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Description
-                        </label>
-                        <textarea
+                        <Textarea
+                            label="Description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             rows={3}
                         />
                     </div>
                     <div className="flex gap-2">
-                        <button
+                        <Button
                             type="button"
+                            variant="secondary"
                             onClick={onClose}
-                            className="btn btn-secondary flex-1"
+                            fullWidth
                             disabled={isPending}
                         >
                             Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary flex-1" disabled={isPending}>
+                        </Button>
+                        <Button type="submit" variant="primary" fullWidth disabled={isPending} loading={isPending}>
                             {isPending ? 'Creating...' : 'Create'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     )
 }

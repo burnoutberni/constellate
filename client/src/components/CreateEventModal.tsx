@@ -3,12 +3,15 @@ import { useAuth } from '../hooks/useAuth'
 import type { EventVisibility } from '@/types'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload as buildEventPayloadUtil } from '../lib/eventFormUtils'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { useEventDraft } from '../hooks/useEventDraft'
 import { Button, Input, Textarea, Card } from './ui'
 import { RecurrenceSelector } from './RecurrenceSelector'
 import { VisibilitySelector } from './VisibilitySelector'
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
+import { isApiError } from '@/lib/errorHandling'
 
 interface CreateEventModalProps {
     isOpen: boolean
@@ -32,7 +35,7 @@ const normalizeTagInput = (input: string): string => input.trim().replace(/^#+/,
 
 export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId }: CreateEventModalProps) {
     const { user } = useAuth()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
     const { saveDraft, loadDraft, clearDraft, hasDraft } = useEventDraft()
     const [error, setError] = useState<string | null>(null)
     const [showDraftPrompt, setShowDraftPrompt] = useState(false)
@@ -120,13 +123,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess, initialTemplateId
         if (!user) {
             return []
         }
-        const response = await fetch('/api/event-templates', {
-            credentials: 'include',
-        })
-        if (!response.ok) {
-            throw new Error('Unable to load templates')
-        }
-        const body = await response.json() as { templates?: EventTemplate[] }
+        const body = await api.get<{ templates?: EventTemplate[] }>('/event-templates', undefined, undefined, 'Unable to load templates')
         return Array.isArray(body.templates) ? body.templates : []
     }, [user])
 
@@ -296,7 +293,7 @@ return
 
     const handleUseCurrentLocation = () => {
         if (!navigator.geolocation) {
-            addErrorToast({ id: crypto.randomUUID(), message: 'Geolocation is not supported in this browser.' })
+            handleError(new Error('Geolocation is not supported in this browser.'), 'Geolocation not available', { context: 'CreateEventModal.handleUseCurrentLocation' })
             return
         }
         setGeoLoading(true)
@@ -312,8 +309,7 @@ return
                 setGeoLoading(false)
             },
             (err) => {
-                console.error('Geolocation error:', err)
-                addErrorToast({ id: crypto.randomUUID(), message: 'Unable to access your current location.' })
+                handleError(err, 'Unable to access your current location.', { context: 'CreateEventModal.handleUseCurrentLocation' })
                 setGeoLoading(false)
             },
             { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
@@ -330,7 +326,7 @@ return
             const latest = await loadTemplates()
             setTemplates(latest)
         } catch (err) {
-            console.error('Failed to reload templates', err)
+            logger.error('Failed to reload templates', err)
             setTemplateError('Unable to refresh templates. Please try again later.')
         } finally {
             setTemplatesLoading(false)
@@ -356,22 +352,16 @@ return
         if (!templateLabel) {
             return
         }
-        const response = await fetch('/api/event-templates', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        const created = await api.post<EventTemplate>(
+            '/event-templates',
+            {
                 name: templateLabel,
                 description: templateDescription.trim() || undefined,
                 data: payload,
-            }),
-        })
-        if (!response.ok) {
-            throw new Error('Failed to save template')
-        }
-        const created = await response.json() as EventTemplate
+            },
+            undefined,
+            'Failed to save template'
+        )
         setTemplates((current) => [created, ...current.filter((item) => item.id !== created.id)])
     }
 
@@ -419,8 +409,7 @@ return
                     endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
                 })
             } catch (err) {
-                console.error('Failed to save template', err)
-                addErrorToast({ id: crypto.randomUUID(), message: 'Your event was created, but saving the template failed. You can try again later from the event details page.' })
+                handleError(err, 'Your event was created, but saving the template failed. You can try again later from the event details page.', { context: 'CreateEventModal.handleSuccessfulSubmission' })
             }
         }
         clearDraft() // Clear draft after successful creation
@@ -464,35 +453,36 @@ return
                 'latitude' in coordinateResult ? coordinateResult.latitude : undefined,
                 'longitude' in coordinateResult ? coordinateResult.longitude : undefined,
             )
-            const response = await fetch('/api/events', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
+            try {
+                await api.post('/events', {
                     ...payload,
                     tags: formData.tags.length > 0 ? formData.tags : undefined,
                     headerImage: formData.headerImage.trim() || undefined,
                     timezone: formData.timezone,
-                }),
-            })
+                }, undefined, 'Failed to create event')
 
-            if (response.ok) {
+                // If we get here, the request was successful
                 const hasCoordinates = 'latitude' in coordinateResult && 'longitude' in coordinateResult
                 await handleSuccessfulSubmission(
                     hasCoordinates ? coordinateResult.latitude : undefined,
                     hasCoordinates ? coordinateResult.longitude : undefined,
                 )
-            } else if (response.status === 401) {
-                setError('Authentication required. Please sign in.')
-            } else {
-                setError('Failed to create event. Please try again.')
+            } catch (err) {
+                // Check if it's an authentication error
+                if (isApiError(err) && err.response?.status === 401) {
+                    const authError = 'Authentication required. Please sign in.'
+                    setError(authError)
+                    handleError(err, authError, { context: 'CreateEventModal.handleSubmit' })
+                } else {
+                    const genericError = 'Error creating event. Please try again.'
+                    setError(genericError)
+                    handleError(err, genericError, { context: 'CreateEventModal.handleSubmit' })
+                }
+            } finally {
+                setSubmitting(false)
             }
         } catch (err) {
-            setError('Error creating event. Please try again.')
-            console.error('Error creating event:', err)
-        } finally {
+            handleError(err, 'Error creating event. Please try again.', { context: 'CreateEventModal.handleSubmit' })
             setSubmitting(false)
         }
     }
@@ -507,13 +497,15 @@ return
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Create Event</h2>
-                        <button
+                        <Button
                             onClick={onClose}
-                            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 text-2xl"
+                            variant="ghost"
+                            size="sm"
+                            className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 text-2xl h-auto p-0 min-w-0"
                             aria-label="Close modal"
                         >
                             ×
-                        </button>
+                        </Button>
                     </div>
                     {error && (
                         <div className="bg-error-50 dark:bg-error-900/20 text-error-600 dark:text-error-400 p-3 rounded-lg mb-4 text-sm">
@@ -682,11 +674,12 @@ return
                                     </div>
                                 )}
                                 {locationSuggestions.map((suggestion) => (
-                                    <button
+                                    <Button
                                         key={suggestion.id}
                                         type="button"
                                         onClick={() => handleSuggestionSelect(suggestion)}
-                                        className="w-full text-left border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 hover:border-primary-400 dark:hover:border-primary-600 transition-colors"
+                                        variant="ghost"
+                                        className="w-full justify-start border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 hover:border-primary-400 dark:hover:border-primary-600 transition-colors"
                                     >
                                         <div className="font-medium text-neutral-900 dark:text-neutral-100">{suggestion.label}</div>
                                         {suggestion.hint && (
@@ -695,7 +688,7 @@ return
                                         <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
                                             {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}
                                         </div>
-                                    </button>
+                                    </Button>
                                 ))}
                                 {locationSuggestionsError && (
                                     <div className="text-xs text-error-500 dark:text-error-400">{locationSuggestionsError}</div>
@@ -746,7 +739,7 @@ return
                                                 </option>
                                             ))
                                         } catch (timezoneError) {
-                                            console.error('Failed to load timezones:', timezoneError)
+                                            logger.error('Failed to load timezones:', timezoneError)
                                         }
                                     }
                                     // Fallback to common timezones
@@ -836,7 +829,7 @@ return
                                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm"
                                             >
                                                 #{tag}
-                                                <button
+                                                <Button
                                                     type="button"
                                                     onClick={() => {
                                                         setFormData({
@@ -848,7 +841,7 @@ return
                                                     aria-label={`Remove ${tag} tag`}
                                                 >
                                                     ×
-                                                </button>
+                                                </Button>
                                             </span>
                                         ))}
                                     </div>
@@ -860,37 +853,32 @@ return
                         </div>
 
                         {user && (
-                            <div className="border-t border-gray-200 pt-4">
+                            <div className="border-t border-neutral-200 pt-4">
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={saveAsTemplate}
                                         onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                                        className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                        className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                                     />
                                     <div className="flex-1">
-                                        <span className="text-sm font-medium text-gray-900">Save as template</span>
-                                        <p className="text-xs text-gray-500 mt-1">
+                                        <span className="text-sm font-medium text-neutral-900">Save as template</span>
+                                        <p className="text-xs text-neutral-500 mt-1">
                                             Save this event configuration as a reusable template (excludes dates and tags)
                                         </p>
                                     </div>
                                 </label>
                                 {saveAsTemplate && (
                                     <div className="mt-4 space-y-3 pl-7">
+                                        <Input
+                                            type="text"
+                                            label="Template Name"
+                                            value={templateName}
+                                            onChange={(e) => setTemplateName(e.target.value)}
+                                            placeholder={formData.title || 'My Event Template'}
+                                        />
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Template Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={templateName}
-                                                onChange={(e) => setTemplateName(e.target.value)}
-                                                className="input"
-                                                placeholder={formData.title || 'My Event Template'}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            <label className="block text-sm font-medium text-neutral-700 mb-2">
                                                 Template Description (optional)
                                             </label>
                                             <textarea

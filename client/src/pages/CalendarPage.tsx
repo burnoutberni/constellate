@@ -8,14 +8,17 @@ import { eventsWithinRange } from '../lib/recurrence'
 import { CalendarView } from '../components/CalendarView'
 import { CalendarNavigation } from '../components/CalendarNavigation'
 import { CalendarEventPopup } from '../components/CalendarEventPopup'
-import { Card } from '@/components/ui'
+import { Card, Button } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { ErrorBoundary } from '../components/ErrorBoundary'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 export function CalendarPage() {
     const colors = useThemeColors()
     const navigate = useNavigate()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
     const [events, setEvents] = useState<Event[]>([])
     const [currentDate, setCurrentDate] = useState(new Date())
     const [view, setView] = useState<'month' | 'week' | 'day'>('month')
@@ -55,13 +58,10 @@ export function CalendarPage() {
 return
 }
             try {
-                const response = await fetch('/api/user/attendance')
-                if (response.ok) {
-                    const data = await response.json()
-                    setUserAttendance(data.attendance || [])
-                }
+                const data = await api.get<{ attendance: string[] }>('/user/attendance', undefined, undefined, 'Failed to fetch attendance')
+                setUserAttendance((data.attendance || []).map(eventId => ({ eventId })))
             } catch (error) {
-                console.error('Error fetching user attendance:', error)
+                logger.error('Error fetching user attendance:', error)
             }
         }
         fetchAttendance()
@@ -127,16 +127,19 @@ return
         const fetchEvents = async () => {
             try {
                 setLoading(true)
-                const params = new URLSearchParams({
-                    limit: '500',
-                    rangeStart: dateRange.start.toISOString(),
-                    rangeEnd: dateRange.end.toISOString(),
-                })
-                const response = await fetch(`/api/events?${params.toString()}`)
-                const data = await response.json()
+                const data = await api.get<{ events: Event[] }>(
+                    '/events',
+                    {
+                        limit: 500,
+                        rangeStart: dateRange.start.toISOString(),
+                        rangeEnd: dateRange.end.toISOString(),
+                    },
+                    undefined,
+                    'Failed to fetch events'
+                )
                 setEvents(data.events || [])
             } catch (error) {
-                console.error('Error fetching events:', error)
+                logger.error('Error fetching events:', error)
             } finally {
                 setLoading(false)
             }
@@ -197,28 +200,22 @@ return
             window.URL.revokeObjectURL(url)
             document.body.removeChild(a)
         } catch (error) {
-            console.error('Error exporting event:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to export event. Please try again.' })
+            handleError(error, 'Failed to export event. Please try again.', { context: 'CalendarPage.handleExportICS' })
         }
-    }, [addErrorToast])
+    }, [handleError])
 
     const handleExportGoogle = useCallback(async (eventId: string) => {
         try {
-            const response = await fetch(`/api/calendar/${eventId}/export/google`)
-            if (!response.ok) {
-                throw new Error('Failed to generate Google Calendar link')
-            }
-            const data = await response.json()
+            const data = await api.get<{ url?: string }>(`/calendar/${eventId}/export/google`, undefined, undefined, 'Failed to generate Google Calendar link')
             if (data?.url) {
                 window.open(data.url, '_blank', 'noopener,noreferrer')
             } else {
                 throw new Error('No URL returned from server')
             }
         } catch (error) {
-            console.error('Error exporting to Google Calendar:', error)
-            addErrorToast({ id: crypto.randomUUID(), message: 'Failed to export to Google Calendar. Please try again.' })
+            handleError(error, 'Failed to export to Google Calendar. Please try again.', { context: 'CalendarPage.handleExportGoogle' })
         }
-    }, [addErrorToast])
+    }, [handleError])
 
     return (
         <div className="min-h-screen bg-background-primary">
@@ -240,16 +237,18 @@ return
                 <div className="grid lg:grid-cols-3 gap-6">
                     {/* Calendar Card */}
                     <div className="lg:col-span-2">
-                        <Card>
-                            <CalendarView
-                                view={view}
-                                currentDate={currentDate}
-                                events={rangeEvents}
-                                loading={loading}
-                                userAttendingEventIds={userAttendingEventIds}
-                                onEventClick={handleEventClick}
-                            />
-                        </Card>
+                        <ErrorBoundary resetKeys={[view, currentDate.toISOString()]}>
+                            <Card>
+                                <CalendarView
+                                    view={view}
+                                    currentDate={currentDate}
+                                    events={rangeEvents}
+                                    loading={loading}
+                                    userAttendingEventIds={userAttendingEventIds}
+                                    onEventClick={handleEventClick}
+                                />
+                            </Card>
+                        </ErrorBoundary>
                     </div>
 
                     {/* Upcoming Events Sidebar */}
@@ -263,10 +262,11 @@ return
                                     upcomingEvents.slice(0, 5).map((event) => {
                                         const isAttending = userAttendingEventIds.has(event.id)
                                         return (
-                                            <button
+                                            <Button
                                                 key={event.id}
                                                 onClick={() => handleNavigateToEvent(event.id)}
-                                                className={`flex gap-3 p-2 rounded hover:bg-background-secondary cursor-pointer w-full text-left transition-colors ${
+                                                variant="ghost"
+                                                className={`flex gap-3 p-2 rounded hover:bg-background-secondary cursor-pointer w-full justify-start transition-colors ${
                                                     isAttending ? 'ring-1 ring-primary-500' : ''
                                                 }`}
                                             >
@@ -297,7 +297,7 @@ return
                                                         </div>
                                                     )}
                                                 </div>
-                                            </button>
+                                            </Button>
                                         )
                                     })
                                 )}

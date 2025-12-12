@@ -57,11 +57,12 @@ return '?'
 
     if (compact) {
         return (
-            <button
+            <Button
                 type="button"
                 onClick={handleOpen}
+                variant="ghost"
                 aria-label={`View notification: ${notification.title}`}
-                className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
+                className={`flex w-full items-start gap-3 px-4 py-3 justify-start transition-colors ${
                     notification.read
                         ? 'bg-background-primary hover:bg-background-secondary'
                         : 'bg-primary-50 hover:bg-primary-100'
@@ -90,7 +91,7 @@ return '?'
                         {formatRelativeTime(notification.createdAt)}
                     </p>
                 </div>
-            </button>
+            </Button>
         )
     }
 

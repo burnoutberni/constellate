@@ -7,7 +7,7 @@ import { HomeHero } from '../components/HomeHero'
 import { EventStats } from '../components/EventStats'
 import { EventCard } from '../components/EventCard'
 import { Container, Section } from '@/components/layout'
-import { Button } from '@/components/ui'
+import { Button, Card, Spinner } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 
@@ -119,7 +119,7 @@ export function HomePage() {
 
                             {trendingLoading ? (
                                 <div className="flex items-center justify-center py-12">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
+                                    <Spinner size="lg" />
                                 </div>
                             ) : (
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -163,7 +163,7 @@ export function HomePage() {
 
                             {recommendationsLoading ? (
                                 <div className="flex items-center justify-center py-12">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
+                                    <Spinner size="lg" />
                                 </div>
                             ) : (
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,7 +224,7 @@ export function HomePage() {
                                 {/* Calendar */}
                                 {isLoading ? (
                                     <div className="flex items-center justify-center h-96">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent" />
+                                        <Spinner size="lg" />
                                     </div>
                                 ) : (
                                     <div>
@@ -318,7 +318,7 @@ export function HomePage() {
                                 <h2 className="text-xl font-bold text-text-primary mb-4">Today&apos;s Events</h2>
                                 {isLoading ? (
                                     <div className="flex items-center justify-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent" />
+                                        <Spinner size="md" />
                                     </div>
                                 ) : (() => {
                                     if (todayEvents.length === 0) {
@@ -332,10 +332,12 @@ export function HomePage() {
                                     return (
                                         <div className="space-y-3">
                                             {todayEvents.map((event) => (
-                                                <div
+                                                <Card
                                                     key={event.id}
                                                     onClick={() => handleEventClick(event)}
-                                                    className="p-3 rounded-lg border border-border-default hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 cursor-pointer transition-colors"
+                                                    interactive
+                                                    padding="sm"
+                                                    className="hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10"
                                                 >
                                                     <div className="font-semibold text-text-primary mb-1">
                                                         {event.title}
@@ -349,7 +351,7 @@ export function HomePage() {
                                                             by @{event.user.username}
                                                         </div>
                                                     )}
-                                                </div>
+                                                </Card>
                                             ))}
                                         </div>
                                     )

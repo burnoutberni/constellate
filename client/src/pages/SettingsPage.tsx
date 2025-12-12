@@ -3,29 +3,26 @@ import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/hooks/queries'
 import { Container } from '@/components/layout'
+import { Spinner } from '@/components/ui'
 import { ProfileSettings } from '../components/ProfileSettings'
 import { PrivacySettings } from '../components/PrivacySettings'
 import { TimeZoneSettings } from '../components/TimeZoneSettings'
 import { AccountSettings } from '../components/AccountSettings'
 import { setSEOMetadata } from '../lib/seo'
 import { useEffect } from 'react'
+import { api } from '@/lib/api-client'
+import type { UserProfile } from '@/types'
 
 export function SettingsPage() {
     const { user, logout } = useAuth()
 
-    const { data: profile, isLoading } = useQuery({
+    const { data: profile, isLoading } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user?.id) {
                 return null
             }
-            const response = await fetch(`/api/users/me/profile`, {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch profile')
-            }
-            return response.json()
+            return api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
         },
         enabled: Boolean(user?.id),
     })
@@ -44,7 +41,7 @@ export function SettingsPage() {
                 <Navbar isConnected={false} user={user} onLogout={logout} />
                 <Container className="py-8">
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+                        <Spinner size="lg" />
                     </div>
                 </Container>
             </div>
@@ -72,16 +69,29 @@ export function SettingsPage() {
 
                 <div className="space-y-6">
                     {/* Profile Settings */}
-                    <ProfileSettings profile={profile} userId={user?.id} />
+                    <ProfileSettings profile={{
+                        id: profile.id,
+                        username: profile.username,
+                        name: profile.name ?? null,
+                        bio: profile.bio ?? null,
+                        profileImage: profile.profileImage ?? null,
+                        headerImage: profile.headerImage ?? null,
+                        displayColor: profile.displayColor,
+                    }} userId={user?.id} />
 
                     {/* Time Zone Settings */}
                     <TimeZoneSettings profile={profile} userId={user?.id} />
 
                     {/* Privacy Settings */}
-                    <PrivacySettings profile={profile} userId={user?.id} />
+                    <PrivacySettings profile={{
+                        autoAcceptFollowers: profile.autoAcceptFollowers ?? true,
+                    }} userId={user?.id} />
 
                     {/* Account Settings */}
-                    <AccountSettings profile={profile} />
+                    <AccountSettings profile={{
+                        email: profile.email ?? null,
+                        username: profile.username,
+                    }} />
                 </div>
             </Container>
         </div>

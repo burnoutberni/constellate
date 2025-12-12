@@ -4,7 +4,7 @@ import { Navbar } from '../components/Navbar'
 import { EventCard } from '../components/EventCard'
 import { EventFilters, type FilterFormState } from '../components/EventFilters'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
-import { Card, Button, Badge, ToggleGroup, ToggleButton, Select } from '@/components/ui'
+import { Card, Button, Badge, ToggleGroup, ToggleButton, Select, Spinner } from '@/components/ui'
 import { Container, Grid, Stack } from '@/components/layout'
 import { useAuth } from '../hooks/useAuth'
 import { useUIStore } from '@/stores'
@@ -267,8 +267,8 @@ export function EventDiscoveryPage() {
 
             <Container className="py-6">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Discover Events</h1>
-                    <p className="text-gray-600">
+                    <h1 className="text-3xl font-bold text-neutral-900 mb-2">Discover Events</h1>
+                    <p className="text-neutral-600">
                         Browse upcoming events from the federated community
                     </p>
                 </div>
@@ -291,7 +291,7 @@ export function EventDiscoveryPage() {
                             <Stack gap="sm">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                     <div>
-                                        <h2 className="text-xl font-semibold text-gray-900">
+                                        <h2 className="text-xl font-semibold text-neutral-900">
                                             {(() => {
                                                 if (isFetching) {
 return 'Updating results…'
@@ -345,24 +345,28 @@ return 'Updating results…'
                                                 key={`${chip.key}-${chip.value}-${chip.removableValue ?? 'all'}`}
                                                 variant="default"
                                             >
-                                                <span className="text-xs uppercase text-gray-500">{chip.label}</span>
+                                                <span className="text-xs uppercase text-neutral-500">{chip.label}</span>
                                                 <span className="mx-1">{chip.value}</span>
-                                                <button
+                                                <Button
                                                     type="button"
                                                     onClick={() => handleRemoveFilter(chip)}
-                                                    className="ml-1 text-gray-500 hover:text-gray-700"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="ml-1 text-neutral-500 hover:text-neutral-700 h-auto p-0 min-w-0"
                                                     aria-label={`Remove ${chip.label} filter`}
                                                 >
                                                     ×
-                                                </button>
+                                                </Button>
                                             </Badge>
                                         ))}
-                                        <button
+                                        <Button
                                             onClick={handleClearAllFilters}
-                                            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-sm text-primary-600 hover:text-primary-700 font-medium h-auto p-0"
                                         >
                                             Clear all
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </Stack>
@@ -370,20 +374,22 @@ return 'Updating results…'
 
                         {/* Results */}
                         {isError && (
-                            <Card className="p-6 text-red-600">
+                            <Card className="p-6 text-error-600">
                                 {(error as Error)?.message || 'Something went wrong while searching.'}
                             </Card>
                         )}
 
                         {isLoading && (
                             <Card className="p-10 text-center">
-                                <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mx-auto" />
-                                <p className="text-sm text-gray-500 mt-3">Looking for matching events…</p>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Spinner size="md" />
+                                    <p className="text-sm text-neutral-500 mt-3">Looking for matching events…</p>
+                                </div>
                             </Card>
                         )}
 
                         {!isLoading && sortedEvents.length === 0 && (
-                            <Card className="p-10 text-center text-gray-500">
+                            <Card className="p-10 text-center text-neutral-500">
                                 <p className="font-medium">No events match these filters just yet.</p>
                                 <p className="text-sm mt-2">
                                     Try broadening your date range or removing a location filter.
@@ -427,7 +433,7 @@ return 'Updating results…'
                                 >
                                     Previous
                                 </Button>
-                                <span className="text-sm text-gray-600">
+                                <span className="text-sm text-neutral-600">
                                     Page {currentPage} of {totalPages}
                                 </span>
                                 <Button

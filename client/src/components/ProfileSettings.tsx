@@ -4,6 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Button, Avat
 import { queryKeys } from '@/hooks/queries'
 import { useThemeColors } from '@/design-system'
 import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { api } from '@/lib/api-client'
 
 interface ProfileSettingsProps {
   profile: {
@@ -21,7 +23,7 @@ interface ProfileSettingsProps {
 export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
   const colors = useThemeColors()
   const queryClient = useQueryClient()
-  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const handleError = useErrorHandler()
   const addSuccessToast = useUIStore((state) => state.addSuccessToast)
   const [name, setName] = useState(profile.name || '')
   const [bio, setBio] = useState(profile.bio || '')
@@ -46,18 +48,7 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
       headerImage?: string
       displayColor?: string
     }) => {
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update profile')
-      }
-      return response.json()
+      return api.put('/profile', data, undefined, 'Failed to update profile')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
@@ -75,8 +66,7 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
       })
       addSuccessToast({ id: crypto.randomUUID(), message: 'Profile updated successfully!' })
     } catch (error) {
-      console.error('Failed to update profile:', error)
-      addErrorToast({ id: crypto.randomUUID(), message: 'Failed to update profile. Please try again.' })
+      handleError(error, 'Failed to update profile. Please try again.', { context: 'ProfileSettings.handleSave' })
     }
   }
 

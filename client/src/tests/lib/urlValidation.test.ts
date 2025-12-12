@@ -154,7 +154,7 @@ describe('safeNavigate', () => {
             expect(mockNavigate).not.toHaveBeenCalled()
             expect(mockLocationHref).toBe('')
             expect(console.warn).toHaveBeenCalledWith(
-                '[URL Validation] Blocked unsafe URL:',
+                'Blocked unsafe URL:',
                 'javascript:alert(1)'
             )
         })

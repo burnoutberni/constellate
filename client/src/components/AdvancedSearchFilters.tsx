@@ -1,5 +1,5 @@
 import { useState, KeyboardEvent, type ReactNode } from 'react'
-import { Button, Input, Badge } from './ui'
+import { Button, Input, Badge, Select } from './ui'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
 interface SearchFilters {
@@ -108,12 +108,12 @@ return
 
   return (
     <div className={className}>
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg border border-neutral-200 shadow-sm">
+        <div className="p-4 border-b border-neutral-200">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Advanced Filters</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-lg font-semibold text-neutral-900">Advanced Filters</h2>
+              <p className="text-sm text-neutral-500 mt-1">
                 {(() => {
                   if (activeFiltersCount === 0) {
 return 'Refine your search'
@@ -159,22 +159,17 @@ return 'Refine your search'
             onToggle={() => toggleSection('date')}
           >
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date range
-                </label>
-                <select
-                  value={filters.dateRange}
-                  onChange={(e) => onFiltersChange({ ...filters, dateRange: e.target.value as DateRangeSelection })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {DATE_RANGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Date range"
+                value={filters.dateRange}
+                onChange={(e) => onFiltersChange({ ...filters, dateRange: e.target.value as DateRangeSelection })}
+              >
+                {DATE_RANGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
 
               {filters.dateRange === 'custom' && (
                 <div className="grid grid-cols-2 gap-4">
@@ -202,39 +197,29 @@ return 'Refine your search'
             onToggle={() => toggleSection('details')}
           >
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Attendance mode
-                </label>
-                <select
-                  value={filters.mode}
-                  onChange={(e) => onFiltersChange({ ...filters, mode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {ATTENDANCE_MODE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Attendance mode"
+                value={filters.mode}
+                onChange={(e) => onFiltersChange({ ...filters, mode: e.target.value })}
+              >
+                {ATTENDANCE_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Status"
+                value={filters.status}
+                onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
             </div>
           </FilterSection>
 
@@ -259,14 +244,16 @@ return 'Refine your search'
                   {filters.categories.map((category) => (
                     <Badge key={category} variant="primary">
                       #{category}
-                      <button
+                      <Button
                         type="button"
                         onClick={() => handleRemoveCategory(category)}
-                        className="ml-2 hover:text-red-600"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2 hover:text-error-600 h-auto p-0 min-w-0"
                         aria-label={`Remove ${category}`}
                       >
                         ×
-                      </button>
+                      </Button>
                     </Badge>
                   ))}
                 </div>
@@ -275,7 +262,7 @@ return 'Refine your search'
           </FilterSection>
         </div>
 
-        <div className="p-4 bg-gray-50 border-t border-gray-200 flex gap-3">
+        <div className="p-4 bg-neutral-50 border-t border-neutral-200 flex gap-3">
           <Button
             variant="primary"
             fullWidth
@@ -305,20 +292,21 @@ interface FilterSectionProps {
 function FilterSection({ title, expanded, onToggle, children }: FilterSectionProps) {
   return (
     <div>
-      <button
+      <Button
         onClick={onToggle}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        variant="ghost"
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 transition-colors"
       >
-        <span className="font-medium text-gray-900">{title}</span>
+        <span className="font-medium text-neutral-900">{title}</span>
         <svg
-          className={`w-5 h-5 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-neutral-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </Button>
       {expanded && (
         <div className="px-4 pb-4">
           {children}

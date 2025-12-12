@@ -20,12 +20,12 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
     return (
       <Card className={className}>
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">🔥 Trending Events</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">🔥 Trending Events</h3>
           <div className="space-y-3">
             {['first', 'second', 'third'].map((position) => (
               <div key={`trending-skeleton-${position}`} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-neutral-100 rounded w-1/2" />
               </div>
             ))}
           </div>
@@ -64,8 +64,8 @@ return `In ${days} days`
     <Card className={className}>
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">🔥 Trending Events</h3>
-          <span className="text-xs text-gray-500">Last {data.windowDays} days</span>
+          <h3 className="text-lg font-semibold text-neutral-900">🔥 Trending Events</h3>
+          <span className="text-xs text-neutral-500">Last {data.windowDays} days</span>
         </div>
 
         <div className="space-y-3">
@@ -76,7 +76,7 @@ return `In ${days} days`
 
         <Link
           to="/search"
-          className="block text-center text-sm text-blue-600 hover:text-blue-700 mt-4 font-medium"
+          className="block text-center text-sm text-info-600 hover:text-info-700 mt-4 font-medium"
         >
           View all events →
         </Link>
@@ -99,12 +99,12 @@ return null
   return (
     <Link
       to={eventPath}
-      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+      className="block p-3 rounded-lg hover:bg-neutral-50 transition-colors border border-neutral-100"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 text-sm truncate">{event.title}</h4>
-          <p className="text-xs text-gray-500 mt-1">
+          <h4 className="font-medium text-neutral-900 text-sm truncate">{event.title}</h4>
+          <p className="text-xs text-neutral-500 mt-1">
             {formatDate(event.startTime)}
             {event.location && <span> • {event.location}</span>}
           </p>
@@ -119,7 +119,7 @@ return null
           )}
         </div>
         {engagementCount > 0 && (
-          <div className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+          <div className="flex items-center gap-1 text-xs text-neutral-500 shrink-0">
             <span>🔥</span>
             <span>{engagementCount}</span>
           </div>

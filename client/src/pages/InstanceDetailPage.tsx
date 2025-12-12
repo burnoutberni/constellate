@@ -4,11 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { InstanceStats } from '../components/InstanceStats'
 import { Container } from '@/components/layout'
-import { Card, Button, Badge, Avatar } from '@/components/ui'
+import { Card, Button, Badge, Avatar, Spinner } from '@/components/ui'
 import { useAuth } from '../hooks/useAuth'
 import { useInstanceDetail, useBlockInstance, useUnblockInstance, useRefreshInstance, queryKeys } from '@/hooks/queries'
 import { setSEOMetadata } from '../lib/seo'
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { api } from '@/lib/api-client'
+import type { UserProfile } from '@/types'
 
 export function InstanceDetailPage() {
     const { domain } = useParams<{ domain: string }>()
@@ -18,19 +20,17 @@ export function InstanceDetailPage() {
     const [showUnblockConfirm, setShowUnblockConfirm] = useState(false)
 
     // Fetch user profile to check admin status
-    const { data: userProfile } = useQuery({
+    const { data: userProfile } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user?.id) {
 return null
 }
-            const response = await fetch('/api/users/me/profile', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-return null
-}
-            return response.json()
+            try {
+                return await api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
+            } catch {
+                return null
+            }
         },
         enabled: Boolean(user?.id),
     })
@@ -93,11 +93,12 @@ return 'Never'
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
                 <Navbar user={user} onLogout={logout} />
                 <Container className="py-8">
-                    <div className="text-center py-12">
-                        <p className="text-gray-600 dark:text-gray-400">Loading instance details...</p>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Spinner size="lg" />
+                        <p className="mt-4 text-neutral-600 dark:text-neutral-400">Loading instance details...</p>
                     </div>
                 </Container>
             </div>
@@ -106,11 +107,11 @@ return 'Never'
 
     if (error || !instance) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
                 <Navbar user={user} onLogout={logout} />
                 <Container className="py-8">
                     <div className="text-center py-12">
-                        <p className="text-gray-600 dark:text-gray-400">
+                        <p className="text-neutral-600 dark:text-neutral-400">
                             {error instanceof Error ? error.message : 'Instance not found'}
                         </p>
                         <Button variant="secondary" onClick={() => navigate('/instances')} className="mt-4">
@@ -123,7 +124,7 @@ return 'Never'
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
             <Navbar user={user} onLogout={logout} />
             <Container className="py-8">
                 {/* Back Button */}
@@ -148,10 +149,10 @@ return 'Never'
                         <div className="flex-1">
                             <div className="flex items-start justify-between gap-2">
                                 <div>
-                                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                                    <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
                                         {instance.title || instance.domain}
                                     </h1>
-                                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                                    <p className="text-lg text-neutral-600 dark:text-neutral-400 mt-1">
                                         {instance.domain}
                                     </p>
                                 </div>
@@ -161,7 +162,7 @@ return 'Never'
                             </div>
 
                             {instance.description && (
-                                <p className="mt-4 text-gray-700 dark:text-gray-300">
+                                <p className="mt-4 text-neutral-700 dark:text-neutral-300">
                                     {instance.description}
                                 </p>
                             )}
@@ -181,7 +182,7 @@ return 'Never'
 
                 {/* Stats */}
                 <Card className="p-6 mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
                         Statistics
                     </h2>
                     <InstanceStats instance={instance} />
@@ -189,34 +190,34 @@ return 'Never'
 
                 {/* Details */}
                 <Card className="p-6 mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
                         Details
                     </h2>
                     <div className="space-y-3 text-sm">
                         <div>
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">
+                            <span className="font-semibold text-neutral-700 dark:text-neutral-300">
                                 Last Activity:
                             </span>{' '}
-                            <span className="text-gray-600 dark:text-gray-400">
+                            <span className="text-neutral-600 dark:text-neutral-400">
                                 {formatDate(instance.lastActivityAt)}
                             </span>
                         </div>
                         {instance.lastFetchedAt && (
                             <div>
-                                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                <span className="font-semibold text-neutral-700 dark:text-neutral-300">
                                     Last Fetched:
                                 </span>{' '}
-                                <span className="text-gray-600 dark:text-gray-400">
+                                <span className="text-neutral-600 dark:text-neutral-400">
                                     {formatDate(instance.lastFetchedAt)}
                                 </span>
                             </div>
                         )}
                         {instance.createdAt && (
                             <div>
-                                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                <span className="font-semibold text-neutral-700 dark:text-neutral-300">
                                     Created:
                                 </span>{' '}
-                                <span className="text-gray-600 dark:text-gray-400">
+                                <span className="text-neutral-600 dark:text-neutral-400">
                                     {formatDate(instance.createdAt)}
                                 </span>
                             </div>
@@ -225,7 +226,7 @@ return 'Never'
 
                     {/* Error Info */}
                     {instance.lastError && (
-                        <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded text-sm text-red-600 dark:text-red-400">
+                        <div className="mt-4 p-4 bg-error-50 dark:bg-error-900/20 rounded text-sm text-error-600 dark:text-error-400">
                             <span className="font-semibold">Last Error:</span> {instance.lastError}
                         </div>
                     )}
@@ -234,7 +235,7 @@ return 'Never'
                 {/* Admin Actions */}
                 {isAdmin && (
                     <Card className="p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                        <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
                             Admin Actions
                         </h2>
                         <div className="flex gap-2">

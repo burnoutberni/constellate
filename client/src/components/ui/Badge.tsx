@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '../../lib/utils'
 
-export type BadgeVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
+export type BadgeVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'outlined'
 export type BadgeSize = 'sm' | 'md' | 'lg'
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -74,8 +74,12 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
         'dark:bg-error-900 dark:text-error-200',
       ],
       info: [
-        'bg-blue-100 text-blue-800',
-        'dark:bg-blue-900 dark:text-blue-200',
+        'bg-info-100 text-info-800',
+        'dark:bg-info-900 dark:text-info-200',
+      ],
+      outlined: [
+        'bg-transparent border border-border-primary text-text-primary',
+        'dark:border-border-primary dark:text-text-primary',
       ],
     }
 

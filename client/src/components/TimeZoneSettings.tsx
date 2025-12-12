@@ -4,7 +4,9 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui'
 import { Stack } from './layout'
 import { queryKeys } from '@/hooks/queries'
 import { getDefaultTimezone, getSupportedTimezones } from '../lib/timezones'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { api } from '@/lib/api-client'
 
 interface TimeZoneSettingsProps {
   profile: {
@@ -15,7 +17,7 @@ interface TimeZoneSettingsProps {
 
 export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
   const queryClient = useQueryClient()
-  const addErrorToast = useUIStore((state) => state.addErrorToast)
+  const handleError = useErrorHandler()
   const timezoneOptions = useMemo(() => getSupportedTimezones(), [])
   const [timezone, setTimezone] = useState(profile.timezone || getDefaultTimezone())
 
@@ -26,18 +28,7 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { timezone?: string }) => {
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update timezone')
-      }
-      return response.json()
+      return api.put('/profile', data, undefined, 'Failed to update timezone')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
@@ -51,13 +42,9 @@ export function TimeZoneSettings({ profile, userId }: TimeZoneSettingsProps) {
     try {
       await updateProfileMutation.mutateAsync({ timezone: nextTimezone })
     } catch (error) {
-      console.error('Failed to update timezone preference to', nextTimezone, ':', error)
       setTimezone(previous)
-      const errorMessage =
-        error instanceof Error && error.message
-          ? `Failed to update timezone preference: ${error.message}`
-          : 'Failed to update timezone preference. Please try again.'
-      addErrorToast({ id: crypto.randomUUID(), message: errorMessage })
+      const errorMessage = extractErrorMessage(error, 'Failed to update timezone preference. Please try again.')
+      handleError(error, errorMessage, { context: 'TimeZoneSettings.handleTimezoneChange' })
     }
   }
 

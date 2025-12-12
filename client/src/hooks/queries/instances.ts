@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { InstanceListResponse, InstanceSearchResponse, InstanceWithStats } from '@/types'
+import { api } from '@/lib/api-client'
+import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 
 interface InstanceListParams {
     limit?: number
@@ -14,43 +16,14 @@ export function useInstances(params: InstanceListParams = {}) {
 
     return useQuery<InstanceListResponse>({
         queryKey: queryKeys.instances.list({ limit, offset, sortBy }),
-        queryFn: async () => {
-            const searchParams = new URLSearchParams()
-            searchParams.append('limit', limit.toString())
-            searchParams.append('offset', offset.toString())
-            searchParams.append('sortBy', sortBy)
-
-            const response = await fetch(`/api/instances?${searchParams.toString()}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch instances')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<InstanceListResponse>('/instances', { limit, offset, sortBy }, undefined, 'Failed to fetch instances'),
     })
 }
 
 export function useInstanceSearch(query: string, limit = 20) {
     return useQuery<InstanceSearchResponse>({
         queryKey: queryKeys.instances.search(query, limit),
-        queryFn: async () => {
-            const searchParams = new URLSearchParams()
-            searchParams.append('q', query)
-            searchParams.append('limit', limit.toString())
-
-            const response = await fetch(`/api/instances/search?${searchParams.toString()}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to search instances')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<InstanceSearchResponse>('/instances/search', { q: query, limit }, undefined, 'Failed to search instances'),
         enabled: query.length > 0,
     })
 }
@@ -58,20 +31,12 @@ export function useInstanceSearch(query: string, limit = 20) {
 export function useInstanceDetail(domain: string) {
     return useQuery<InstanceWithStats>({
         queryKey: queryKeys.instances.detail(domain),
-        queryFn: async () => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Instance not found')
-                }
-                throw new Error('Failed to fetch instance details')
-            }
-
-            return response.json()
-        },
+        queryFn: () => api.get<InstanceWithStats>(
+            `/instances/${encodeURIComponent(domain)}`,
+            undefined,
+            undefined,
+            'Failed to fetch instance details'
+        ),
         enabled: Boolean(domain),
     })
 }
@@ -79,22 +44,12 @@ export function useInstanceDetail(domain: string) {
 // Mutations
 export function useBlockInstance(domain: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/block`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to block instance',
-                }))
-                throw new Error(error.error || 'Failed to block instance')
-            }
-
-            return response.json()
+        mutationFn: () => api.post(`/instances/${encodeURIComponent(domain)}/block`, undefined, undefined, 'Failed to block instance'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to block instance')
         },
         onSuccess: () => {
             // Invalidate all instance queries
@@ -107,22 +62,12 @@ export function useBlockInstance(domain: string) {
 
 export function useUnblockInstance(domain: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/unblock`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to unblock instance',
-                }))
-                throw new Error(error.error || 'Failed to unblock instance')
-            }
-
-            return response.json()
+        mutationFn: () => api.post(`/instances/${encodeURIComponent(domain)}/unblock`, undefined, undefined, 'Failed to unblock instance'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to unblock instance')
         },
         onSuccess: () => {
             // Invalidate all instance queries
@@ -135,22 +80,12 @@ export function useUnblockInstance(domain: string) {
 
 export function useRefreshInstance(domain: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(`/api/instances/${encodeURIComponent(domain)}/refresh`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to refresh instance',
-                }))
-                throw new Error(error.error || 'Failed to refresh instance')
-            }
-
-            return response.json()
+        mutationFn: () => api.post(`/instances/${encodeURIComponent(domain)}/refresh`, undefined, undefined, 'Failed to refresh instance'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to refresh instance')
         },
         onSuccess: () => {
             // Invalidate instance detail query

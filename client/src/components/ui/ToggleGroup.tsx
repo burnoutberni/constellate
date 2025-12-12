@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react'
 import { cn } from '../../lib/utils'
+import { Button } from './Button'
 
 interface ToggleGroupContextValue {
   value: string | null
@@ -99,15 +100,15 @@ export const ToggleButton = React.forwardRef<HTMLButtonElement, ToggleButtonProp
     }
 
     return (
-      <button
+      <Button
         ref={ref}
         type="button"
         onClick={handleClick}
+        variant={isSelected ? 'primary' : 'ghost'}
+        size="sm"
         className={cn(
           'p-1.5 rounded',
           'transition-colors duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-offset-2',
-          'focus:ring-primary-500 focus:ring-offset-background-primary',
           isSelected
             ? [
                 'bg-primary-600 text-white',
@@ -125,7 +126,7 @@ export const ToggleButton = React.forwardRef<HTMLButtonElement, ToggleButtonProp
       >
         {icon && <span className="flex items-center justify-center">{icon}</span>}
         {children}
-      </button>
+      </Button>
     )
   },
 )

@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/hooks/queries'
 import type { User } from '@/types'
 import { useThemeColors } from '@/design-system'
+import { Button, Spinner } from '@/components/ui'
+import { api } from '@/lib/api-client'
 
 interface PendingFollower extends User {
     followerId: string
@@ -17,48 +19,22 @@ export function PendingFollowersPage() {
     const queryClient = useQueryClient()
 
     const { data, isLoading, error } = useQuery<{ followers: PendingFollower[] }>({
-        queryKey: ['pendingFollowers'],
-        queryFn: async () => {
-            const response = await fetch('/api/followers/pending', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch pending followers')
-            }
-            return response.json()
-        },
+        queryKey: queryKeys.followers.pending(),
+        queryFn: () => api.get<{ followers: PendingFollower[] }>('/followers/pending', undefined, undefined, 'Failed to fetch pending followers'),
     })
 
     const acceptMutation = useMutation({
-        mutationFn: async (followerId: string) => {
-            const response = await fetch(`/api/followers/${followerId}/accept`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to accept follower')
-            }
-            return response.json()
-        },
+        mutationFn: (followerId: string) => api.post(`/followers/${followerId}/accept`, undefined, undefined, 'Failed to accept follower'),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pendingFollowers'] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.followers.pending() })
             queryClient.invalidateQueries({ queryKey: queryKeys.users.profile(user?.username || '') })
         },
     })
 
     const rejectMutation = useMutation({
-        mutationFn: async (followerId: string) => {
-            const response = await fetch(`/api/followers/${followerId}/reject`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to reject follower')
-            }
-            return response.json()
-        },
+        mutationFn: (followerId: string) => api.post(`/followers/${followerId}/reject`, undefined, undefined, 'Failed to reject follower'),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pendingFollowers'] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.followers.pending() })
         },
     })
 
@@ -69,14 +45,14 @@ export function PendingFollowersPage() {
         })
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-neutral-50">
             <Navbar isConnected={false} user={user} onLogout={logout} />
             <div className="max-w-4xl mx-auto px-4 py-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">Pending Follow Requests</h1>
+                <h1 className="text-3xl font-bold text-neutral-900 mb-8">Pending Follow Requests</h1>
 
                 {isLoading && (
                     <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+                        <Spinner size="lg" />
                     </div>
                 )}
 
@@ -88,7 +64,7 @@ export function PendingFollowersPage() {
 
                 {data && (
                     data.followers.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+                        <div className="bg-white rounded-lg shadow-sm p-8 text-center text-neutral-500">
                             No pending follow requests
                         </div>
                     ) : (
@@ -121,42 +97,44 @@ export function PendingFollowersPage() {
                                                     <div>
                                                         <Link
                                                             to={`/@${follower.username}`}
-                                                            className="text-lg font-semibold text-gray-900 hover:text-blue-600"
+                                                            className="text-lg font-semibold text-neutral-900 hover:text-info-600"
                                                         >
                                                             {follower.name || follower.username}
                                                         </Link>
-                                                        <p className="text-sm text-gray-500">
+                                                        <p className="text-sm text-neutral-500">
                                                             @{follower.username}
                                                             {follower.isRemote && (
-                                                                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                                                <span className="ml-2 text-xs bg-info-100 text-info-700 px-2 py-1 rounded">
                                                                     Remote
                                                                 </span>
                                                             )}
                                                         </p>
                                                         {follower.bio && (
-                                                            <p className="text-sm text-gray-600 mt-2">{follower.bio}</p>
+                                                            <p className="text-sm text-neutral-600 mt-2">{follower.bio}</p>
                                                         )}
-                                                        <p className="text-xs text-gray-400 mt-2">
+                                                        <p className="text-xs text-neutral-400 mt-2">
                                                             Requested {formatDate(follower.createdAt)}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex gap-3 mt-4">
-                                                    <button
+                                                    <Button
                                                         onClick={() => acceptMutation.mutate(follower.followerId)}
                                                         disabled={acceptMutation.isPending || rejectMutation.isPending}
-                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        loading={acceptMutation.isPending}
+                                                        variant="primary"
                                                     >
-                                                        {acceptMutation.isPending ? 'Accepting...' : 'Accept'}
-                                                    </button>
-                                                    <button
+                                                        Accept
+                                                    </Button>
+                                                    <Button
                                                         onClick={() => rejectMutation.mutate(follower.followerId)}
                                                         disabled={acceptMutation.isPending || rejectMutation.isPending}
-                                                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        loading={rejectMutation.isPending}
+                                                        variant="secondary"
                                                     >
-                                                        {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
-                                                    </button>
+                                                        Reject
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>

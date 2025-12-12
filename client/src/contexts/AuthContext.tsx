@@ -1,5 +1,6 @@
 import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { authClient } from '../lib/auth-client'
+import { logger } from '@/lib/logger'
 
 interface User {
     id: string
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { data: session } = await authClient.getSession()
             setUser(session?.user || null)
         } catch (error) {
-            console.error('Auth check failed:', error)
+            logger.error('Auth check failed:', error)
             setUser(null)
         } finally {
             setLoading(false)

@@ -4,15 +4,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '../components/Navbar'
 import { Stack } from '@/components/layout'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '@/lib/api-client'
 import { useUIStore } from '@/stores'
 import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
 import { getVisibilityMeta } from '../lib/visibility'
 import { getDefaultTimezone } from '../lib/timezones'
-import type { Event } from '@/types'
+import type { Event, UserProfile } from '@/types'
 import { AdvancedSearchFilters } from '../components/AdvancedSearchFilters'
 import { addRecentSearch } from '../lib/recentSearches'
 import { TrendingEvents } from '../components/TrendingEvents'
 import { RecommendedEvents } from '../components/RecommendedEvents'
+import { Button, Badge, Spinner } from '@/components/ui'
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 import { isBackendDateRange } from '../lib/searchUtils'
 
@@ -171,19 +173,17 @@ export function SearchPage() {
     const initialFormState = useMemo(() => buildFormStateFromParams(searchParams), [searchParams])
     const [formState, setFormState] = useState<FormState>(initialFormState)
 
-    const { data: viewerProfile } = useQuery({
+    const { data: viewerProfile } = useQuery<UserProfile | null>({
         queryKey: queryKeys.users.currentProfile(user?.id),
         queryFn: async () => {
             if (!user?.id) {
 return null
 }
-            const response = await fetch('/api/users/me/profile', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-return null
-}
-            return response.json()
+            try {
+                return await api.get<UserProfile>('/users/me/profile', undefined, undefined, 'Failed to fetch profile')
+            } catch {
+                return null
+            }
         },
         enabled: Boolean(user?.id),
     })
@@ -338,14 +338,16 @@ return null
         if (isLoading) {
             return (
                 <div className="card p-10 text-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mx-auto" />
-                    <p className="text-sm text-gray-500 mt-3">Looking for matching events…</p>
+                    <div className="flex flex-col items-center justify-center">
+                        <Spinner size="md" />
+                        <p className="text-sm text-neutral-500 mt-3">Looking for matching events…</p>
+                    </div>
                 </div>
             )
         }
         if (data && data.events && data.events.length === 0) {
             return (
-                <div className="card p-10 text-center text-gray-500">
+                <div className="card p-10 text-center text-neutral-500">
                     <p className="font-medium">No events match these filters just yet.</p>
                     <p className="text-sm mt-2">Try broadening your date range or removing a location filter.</p>
                 </div>
@@ -361,7 +363,7 @@ return null
     const totalResults = data?.pagination.total ?? 0
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-neutral-100">
             <Navbar isConnected={sseConnected} user={user} onLogout={logout} />
             <div className="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-12">
                 <div className="lg:col-span-4 space-y-4">
@@ -387,8 +389,8 @@ return null
                     <Stack className="card p-4" gap="sm">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
-                                <p className="text-sm text-gray-500">
+                                <h2 className="text-xl font-semibold text-neutral-900">Search Results</h2>
+                                <p className="text-sm text-neutral-500">
                                     {(() => {
                                         if (isFetching) {
 return 'Updating results…'
@@ -399,25 +401,33 @@ return 'Updating results…'
                                 </p>
                             </div>
                             {appliedFilters.length > 0 && (
-                                <button className="btn btn-link text-sm" onClick={handleClearAllFilters}>
+                                <Button variant="ghost" size="sm" className="text-sm" onClick={handleClearAllFilters}>
                                     Clear all filters
-                                </button>
+                                </Button>
                             )}
                         </div>
 
                         {appliedFilters.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {appliedFilters.map((chip) => (
-                                    <button
+                                    <Badge
                                         key={`${chip.key}-${chip.value}-${chip.removableValue ?? 'all'}`}
-                                        type="button"
-                                        onClick={() => handleRemoveFilter(chip)}
-                                        className="badge badge-outline gap-2"
+                                        variant="outlined"
+                                        className="gap-2"
                                     >
-                                        <span className="text-xs uppercase text-gray-500">{chip.label}</span>
+                                        <span className="text-xs uppercase text-neutral-500">{chip.label}</span>
                                         <span>{chip.value}</span>
-                                        <span aria-hidden="true">×</span>
-                                    </button>
+                                        <Button
+                                            type="button"
+                                            onClick={() => handleRemoveFilter(chip)}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-auto p-0 min-w-0 ml-1"
+                                            aria-label={`Remove ${chip.label} filter`}
+                                        >
+                                            <span aria-hidden="true">×</span>
+                                        </Button>
+                                    </Badge>
                                 ))}
                             </div>
                         )}
@@ -435,23 +445,23 @@ return 'Updating results…'
 
                     {totalPages > 1 && (
                         <div className="card p-4 flex items-center justify-between">
-                            <button
-                                className="btn btn-secondary"
+                            <Button
+                                variant="secondary"
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage <= 1}
                             >
                                 Previous
-                            </button>
-                            <span className="text-sm text-gray-600">
+                            </Button>
+                            <span className="text-sm text-neutral-600">
                                 Page {currentPage} of {totalPages}
                             </span>
-                            <button
-                                className="btn btn-secondary"
+                            <Button
+                                variant="secondary"
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage >= totalPages}
                             >
                                 Next
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -470,13 +480,13 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
         <div className="card p-5 space-y-3">
             <Stack direction="column" directionMd="row" alignMd="center" justifyMd="between" gap="sm">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="text-lg font-semibold text-neutral-900">{event.title}</h3>
+                    <p className="text-sm text-neutral-500">
                         {formatEventDateTime(event.startTime, formatter)}
                         {event.location && <span> • {event.location}</span>}
                     </p>
                     {event.user && (
-                        <p className="text-xs text-gray-500">Hosted by @{event.user.username}</p>
+                        <p className="text-xs text-neutral-500">Hosted by @{event.user.username}</p>
                     )}
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -491,7 +501,7 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
             </Stack>
 
             {event.summary && (
-                <p className="text-sm text-gray-700 line-clamp-3">{event.summary}</p>
+                <p className="text-sm text-neutral-700 line-clamp-3">{event.summary}</p>
             )}
 
             {event.tags.length > 0 && (
@@ -504,7 +514,7 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500">
                 {typeof event._count?.attendance === 'number' && (
                     <span>👥 {event._count.attendance} attending</span>
                 )}

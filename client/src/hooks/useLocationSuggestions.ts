@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { api } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 export interface LocationSuggestion {
     id: string
@@ -49,28 +51,12 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
             abortRef.current = controller
 
             try {
-                const response = await fetch(`/api/location/search?q=${encodeURIComponent(trimmed)}&limit=5`, {
-                    signal: controller.signal,
-                    credentials: 'include',
-                })
-
-                if (!response.ok) {
-                    const statusCode = response.status
-                    const isClientError = statusCode >= 400 && statusCode < 500
-                    const isServerError = statusCode >= 500
-
-                    let errorMessage: string
-                    if (isClientError) {
-                        errorMessage = `Location lookup failed (${statusCode}): Please check your search query.`
-                    } else if (isServerError) {
-                        errorMessage = `Location lookup failed (${statusCode}): Service temporarily unavailable.`
-                    } else {
-                        errorMessage = `Location lookup failed (${statusCode})`
-                    }
-                    throw new Error(errorMessage)
-                }
-
-                const body = await response.json() as SuggestionResponse
+                const body = await api.get<SuggestionResponse>(
+                    '/location/search',
+                    { q: trimmed, limit: 5 },
+                    { signal: controller.signal },
+                    'Location lookup failed'
+                )
                 setSuggestions(Array.isArray(body.results) ? body.results : [])
             } catch (err) {
                 if ((err as Error).name === 'AbortError') {
@@ -78,7 +64,7 @@ export function useLocationSuggestions(query: string, enabled: boolean = true) {
                     // A new request may be starting, so let it manage its own loading state
                     return
                 }
-                console.error('Location suggestion error:', err)
+                logger.error('Location suggestion error:', err)
                 setError('Unable to fetch location suggestions')
                 setSuggestions([])
             } finally {

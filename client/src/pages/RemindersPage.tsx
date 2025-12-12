@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useUserReminders } from '@/hooks/queries'
 import { ReminderList } from '../components/ReminderList'
 import { Container, PageLayout } from '@/components/layout'
-import { Button } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
 
 export function RemindersPage() {
     const navigate = useNavigate()
@@ -22,8 +22,9 @@ export function RemindersPage() {
         return (
             <PageLayout>
                 <Container>
-                    <div className="py-12 text-center">
-                        <div className="text-text-secondary">Loading reminders...</div>
+                    <div className="py-12 flex flex-col items-center justify-center min-h-[200px]">
+                        <Spinner size="lg" />
+                        <p className="mt-4 text-text-secondary">Loading reminders...</p>
                     </div>
                 </Container>
             </PageLayout>

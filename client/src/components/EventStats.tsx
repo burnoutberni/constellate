@@ -1,4 +1,4 @@
-import { Card, CardContent } from './ui'
+import { Card, CardContent, Spinner } from './ui'
 
 interface EventStatsProps {
   /**
@@ -71,7 +71,7 @@ export function EventStats({
       <CardContent>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent" />
+            <Spinner size="md" />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">

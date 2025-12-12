@@ -5,10 +5,11 @@ import { useEventDetail, useUpdateEvent } from '@/hooks/queries'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
 import { validateRecurrence, parseCoordinates, buildEventPayload } from '../lib/eventFormUtils'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
-import { Button, Card, CardContent } from '@/components/ui'
+import { Button, Card, CardContent, Input, Spinner } from '@/components/ui'
 import { Container } from '@/components/layout'
 import { Navbar } from '../components/Navbar'
-import { useUIStore } from '@/stores'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { extractErrorMessage } from '@/lib/errorHandling'
 import type { EventVisibility } from '@/types'
 
 const MAX_TAG_LENGTH = 50
@@ -21,7 +22,7 @@ export function EditEventPage() {
     const { user } = useAuth()
     const location = useLocation()
     const navigate = useNavigate()
-    const addErrorToast = useUIStore((state) => state.addErrorToast)
+    const handleError = useErrorHandler()
 
     const [username, setUsername] = useState('')
     const [eventId, setEventId] = useState('')
@@ -86,7 +87,7 @@ return
 
         // Check if user is owner
         if (user?.id !== event.user?.id) {
-            addErrorToast({ id: crypto.randomUUID(), message: 'You do not have permission to edit this event.' })
+            handleError(new Error('You do not have permission to edit this event.'), 'Permission denied', { context: 'EditEventPage' })
             navigate(`/@${username}/${eventId}`, { replace: true })
             return
         }
@@ -105,7 +106,7 @@ return
             recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.slice(0, 10) : '',
             tags: event.tags?.map((t) => t.tag) || [],
         })
-    }, [event, user, username, eventId, navigate, addErrorToast])
+    }, [event, user, username, eventId, navigate, handleError])
 
     const addTag = useCallback(() => {
         setTagError(null)
@@ -159,7 +160,7 @@ return
 
     const handleUseCurrentLocation = () => {
         if (!navigator.geolocation) {
-            addErrorToast({ id: crypto.randomUUID(), message: 'Geolocation is not supported in this browser.' })
+            handleError(new Error('Geolocation is not supported in this browser.'), 'Geolocation not available', { context: 'EditEventPage.handleUseCurrentLocation' })
             return
         }
         setGeoLoading(true)
@@ -175,8 +176,7 @@ return
                 setGeoLoading(false)
             },
             (err) => {
-                console.error('Geolocation error:', err)
-                addErrorToast({ id: crypto.randomUUID(), message: 'Unable to access your current location.' })
+                handleError(err, 'Unable to access your current location.', { context: 'EditEventPage.handleUseCurrentLocation' })
                 setGeoLoading(false)
             },
             { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS },
@@ -229,10 +229,9 @@ return
             // Navigate back to event detail page
             navigate(`/@${username}/${eventId}`)
         } catch (err) {
-            console.error('Update failed:', err)
-            const errorMessage = err instanceof Error ? err.message : 'Failed to update event. Please try again.'
+            const errorMessage = extractErrorMessage(err, 'Failed to update event. Please try again.')
             setError(errorMessage)
-            addErrorToast({ id: crypto.randomUUID(), message: errorMessage })
+            handleError(err, errorMessage, { context: 'EditEventPage.handleSubmit' })
         }
     }
 
@@ -245,7 +244,10 @@ return
             <>
                 <Navbar />
                 <Container size="md" className="py-8">
-                    <div className="text-center text-text-secondary">Loading event...</div>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Spinner size="lg" />
+                        <p className="mt-4 text-center text-text-secondary">Loading event...</p>
+                    </div>
                 </Container>
             </>
         )
@@ -271,26 +273,21 @@ return
                         <h1 className="text-2xl font-bold text-text-primary mb-6">Edit Event</h1>
 
                         {error && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                            <div className="mb-4 p-3 bg-error-50 border border-error-200 rounded-lg text-error-700">
                                 {error}
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Title */}
-                            <div>
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Event Title *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                    placeholder="Enter event title"
-                                    required
-                                />
-                            </div>
+                            <Input
+                                type="text"
+                                label="Event Title"
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                placeholder="Enter event title"
+                                required
+                            />
 
                             {/* Summary */}
                             <div>
@@ -307,58 +304,46 @@ return
                             </div>
 
                             {/* Start Time */}
-                            <div>
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Start Time *
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={formData.startTime}
-                                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                    required
-                                />
-                            </div>
+                            <Input
+                                type="datetime-local"
+                                label="Start Time"
+                                value={formData.startTime}
+                                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                required
+                            />
 
                             {/* End Time */}
-                            <div>
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    End Time
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={formData.endTime}
-                                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                />
-                            </div>
+                            <Input
+                                type="datetime-local"
+                                label="End Time"
+                                value={formData.endTime}
+                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                            />
 
                             {/* Location */}
                             <div>
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Location
-                                </label>
-                                <input
+                                <Input
                                     type="text"
+                                    label="Location"
                                     value={formData.location}
                                     onChange={(e) => {
                                         setFormData({ ...formData, location: e.target.value })
                                         setLocationSearch(e.target.value)
                                     }}
-                                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
                                     placeholder="Enter location"
                                 />
                                 {locationSearch.length >= MIN_QUERY_LENGTH && locationSuggestions.length > 0 && (
                                     <div className="mt-2 border border-border-default rounded-lg bg-background-primary shadow-lg">
                                         {locationSuggestions.map((suggestion) => (
-                                            <button
+                                            <Button
                                                 key={suggestion.id}
                                                 type="button"
                                                 onClick={() => handleSuggestionSelect(suggestion)}
-                                                className="w-full px-3 py-2 text-left hover:bg-background-tertiary text-text-primary"
+                                                variant="ghost"
+                                                className="w-full px-3 py-2 justify-start hover:bg-background-tertiary text-text-primary"
                                             >
                                                 {suggestion.label}
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 )}
@@ -366,30 +351,20 @@ return
 
                             {/* Coordinates */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-text-primary mb-2">
-                                        Latitude
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.locationLatitude}
-                                        onChange={(e) => setFormData({ ...formData, locationLatitude: e.target.value })}
-                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                        placeholder="e.g., 40.7128"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-text-primary mb-2">
-                                        Longitude
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.locationLongitude}
-                                        onChange={(e) => setFormData({ ...formData, locationLongitude: e.target.value })}
-                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                        placeholder="e.g., -74.0060"
-                                    />
-                                </div>
+                                <Input
+                                    type="text"
+                                    label="Latitude"
+                                    value={formData.locationLatitude}
+                                    onChange={(e) => setFormData({ ...formData, locationLatitude: e.target.value })}
+                                    placeholder="e.g., 40.7128"
+                                />
+                                <Input
+                                    type="text"
+                                    label="Longitude"
+                                    value={formData.locationLongitude}
+                                    onChange={(e) => setFormData({ ...formData, locationLongitude: e.target.value })}
+                                    placeholder="e.g., -74.0060"
+                                />
                             </div>
                             <div className="flex gap-2">
                                 <Button
@@ -415,18 +390,13 @@ return
                             </div>
 
                             {/* URL */}
-                            <div>
-                                <label className="block text-sm font-semibold text-text-primary mb-2">
-                                    Event URL
-                                </label>
-                                <input
-                                    type="url"
-                                    value={formData.url}
-                                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                    placeholder="https://example.com"
-                                />
-                            </div>
+                            <Input
+                                type="url"
+                                label="Event URL"
+                                value={formData.url}
+                                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                                placeholder="https://example.com"
+                            />
 
                             {/* Visibility */}
                             <div>
@@ -465,18 +435,13 @@ return
 
                             {/* Recurrence End Date */}
                             {formData.recurrencePattern && (
-                                <div>
-                                    <label className="block text-sm font-semibold text-text-primary mb-2">
-                                        Repeat Until *
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.recurrenceEndDate}
-                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                        className="w-full px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-                                        required={Boolean(formData.recurrencePattern)}
-                                    />
-                                </div>
+                                <Input
+                                    type="date"
+                                    label="Repeat Until"
+                                    value={formData.recurrenceEndDate}
+                                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                    required={Boolean(formData.recurrencePattern)}
+                                />
                             )}
 
                             {/* Tags */}
@@ -485,7 +450,7 @@ return
                                     Tags
                                 </label>
                                 <div className="flex gap-2 mb-2">
-                                    <input
+                                    <Input
                                         type="text"
                                         value={tagInput}
                                         onChange={(e) => setTagInput(e.target.value)}
@@ -495,7 +460,7 @@ return
                                                 addTag()
                                             }
                                         }}
-                                        className="flex-1 px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                                        className="flex-1"
                                         placeholder="Add a tag"
                                     />
                                     <Button type="button" variant="secondary" size="sm" onClick={addTag}>
@@ -503,7 +468,7 @@ return
                                     </Button>
                                 </div>
                                 {tagError && (
-                                    <div className="text-sm text-red-600 mb-2">{tagError}</div>
+                                    <div className="text-sm text-error-600 mb-2">{tagError}</div>
                                 )}
                                 {formData.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
@@ -513,13 +478,15 @@ return
                                                 className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 text-primary-700 rounded text-sm"
                                             >
                                                 #{tag}
-                                                <button
+                                                <Button
                                                     type="button"
                                                     onClick={() => removeTag(tag)}
-                                                    className="hover:text-primary-900"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="hover:text-primary-900 h-auto p-0 min-w-0"
                                                 >
                                                     ×
-                                                </button>
+                                                </Button>
                                             </span>
                                         ))}
                                     </div>

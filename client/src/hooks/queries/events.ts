@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
+import { api } from '@/lib/api-client'
+import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
+import { isApiError } from '@/lib/errorHandling'
 
 interface EventsResponse {
     events: Event[]
@@ -69,88 +72,60 @@ interface UpdateEventInput {
 export function useEvents(limit: number = 50) {
     return useQuery<EventsResponse>({
         queryKey: queryKeys.events.list(limit),
-        queryFn: async () => {
-            const response = await fetch(`/api/events?limit=${limit}`, {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch events')
-            }
-            return response.json()
-        },
+        queryFn: () => api.get<EventsResponse>('/events', { limit }, undefined, 'Failed to fetch events'),
     })
 }
 
 export function useEventDetail(username: string, eventId: string) {
     return useQuery<EventDetail>({
         queryKey: queryKeys.events.detail(username, eventId),
-        queryFn: async () => {
-            const response = await fetch(
-                `/api/events/by-user/${encodeURIComponent(username)}/${encodeURIComponent(eventId)}`,
-                {
-                    credentials: 'include',
-                },
-            )
-            if (!response.ok) {
-                throw new Error('Failed to fetch event')
-            }
-            return response.json()
-        },
+        queryFn: () => api.get<EventDetail>(
+            `/events/by-user/${encodeURIComponent(username)}/${encodeURIComponent(eventId)}`,
+            undefined,
+            undefined,
+            'Failed to fetch event'
+        ),
         enabled: Boolean(username) && Boolean(eventId),
     })
 }
 
 export function useRecommendedEvents(limit: number = 6, options?: { enabled?: boolean }) {
+    const handleQueryError = useQueryErrorHandler()
+    
     return useQuery<RecommendationsResponse>({
         queryKey: queryKeys.events.recommendations(limit),
         enabled: options?.enabled ?? true,
         retry: false,
         queryFn: async () => {
-            const response = await fetch(`/api/recommendations?limit=${limit}`, {
-                credentials: 'include',
-            })
-
-            if (response.status === 401) {
-                return {
-                    recommendations: [],
-                    metadata: {
-                        generatedAt: new Date().toISOString(),
-                        signals: { tags: 0, hosts: 0, followed: 0 },
-                    },
+            try {
+                return await api.get<RecommendationsResponse>('/recommendations', { limit }, undefined, 'Failed to fetch recommendations')
+            } catch (error) {
+                // Handle 401 gracefully
+                if (isApiError(error) && error.response?.status === 401) {
+                    return {
+                        recommendations: [],
+                        metadata: {
+                            generatedAt: new Date().toISOString(),
+                            signals: { tags: 0, hosts: 0, followed: 0 },
+                        },
+                    }
                 }
+                // Use query error handler for other errors
+                handleQueryError(error, 'Failed to fetch recommendations', { silent: true })
+                throw error
             }
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch recommendations')
-            }
-
-            return response.json()
         },
     })
 }
 
 export function useUpdateEvent(eventId: string, username: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async (input: UpdateEventInput) => {
-            const response = await fetch(`/api/events/${eventId}`, {
-                method: 'PUT',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(input),
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to update event',
-                }))
-                throw new Error(error.error || 'Failed to update event')
-            }
-
-            return response.json()
+        mutationFn: (input: UpdateEventInput) => api.put(`/events/${eventId}`, input, undefined, 'Failed to update event'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to update event')
         },
         onSuccess: () => {
             // Invalidate event detail and lists
@@ -163,25 +138,16 @@ export function useUpdateEvent(eventId: string, username: string) {
 
 export function useDeleteEvent(eventId: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async (userId: string) => {
-            const response = await fetch(`/api/events/${eventId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-                headers: {
-                    'x-user-id': userId,
-                },
-            })
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to delete event',
-                }))
-                throw new Error(error.error || 'Failed to delete event')
-            }
-
-            return response.json()
+        mutationFn: (userId: string) => api.delete(`/events/${eventId}`, {
+            headers: {
+                'x-user-id': userId,
+            },
+        }, 'Failed to delete event'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to delete event')
         },
         onSuccess: () => {
             // Remove from cache and invalidate lists
@@ -195,37 +161,20 @@ export function useDeleteEvent(eventId: string) {
 
 export function useRSVP(eventId: string, userId?: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
         mutationFn: async (input: RSVPInput | null) => {
             if (input === null) {
                 // Remove attendance
-                const response = await fetch(`/api/events/${eventId}/attend`, {
-                    method: 'DELETE',
-                    credentials: 'include',
-                })
-                if (!response.ok) {
-                    throw new Error('Failed to remove attendance')
-                }
-                return response.json()
+                return api.delete(`/events/${eventId}/attend`, undefined, 'Failed to remove attendance')
             }
-                // Set attendance
-                const payload: Record<string, unknown> = { status: input.status }
-                if (input.reminderMinutesBeforeStart !== undefined) {
-                    payload.reminderMinutesBeforeStart = input.reminderMinutesBeforeStart
-                }
-                const response = await fetch(`/api/events/${eventId}/attend`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify(payload),
-                })
-                if (!response.ok) {
-                    throw new Error('Failed to set attendance')
-                }
-                return response.json()
+            // Set attendance
+            const payload: Record<string, unknown> = { status: input.status }
+            if (input.reminderMinutesBeforeStart !== undefined) {
+                payload.reminderMinutesBeforeStart = input.reminderMinutesBeforeStart
+            }
+            return api.post(`/events/${eventId}/attend`, payload, undefined, 'Failed to set attendance')
         },
         onMutate: async (input) => {
             // Cancel outgoing queries
@@ -282,13 +231,16 @@ export function useRSVP(eventId: string, userId?: string) {
 
             return { previousData }
         },
-        onError: (_err, _variables, context) => {
+        onError: (error, variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
                     queryClient.setQueryData(queryKey, data)
                 })
             }
+            // Handle error with user-friendly message
+            const message = variables === null ? 'Failed to remove attendance' : 'Failed to set attendance'
+            handleMutationError(error, message)
         },
         onSuccess: () => {
             // Don't invalidate immediately - wait for SSE event
@@ -299,32 +251,16 @@ export function useRSVP(eventId: string, userId?: string) {
 
 export function useLikeEvent(eventId: string, userId?: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
         mutationFn: async (liked: boolean) => {
             if (liked) {
                 // Unlike
-                const response = await fetch(`/api/events/${eventId}/like`, {
-                    method: 'DELETE',
-                    credentials: 'include',
-                })
-                if (!response.ok) {
-                    throw new Error('Failed to unlike event')
-                }
-                return response.json()
+                return api.delete(`/events/${eventId}/like`, undefined, 'Failed to unlike event')
             }
-                // Like
-                const response = await fetch(`/api/events/${eventId}/like`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-                if (!response.ok) {
-                    throw new Error('Failed to like event')
-                }
-                return response.json()
+            // Like
+            return api.post(`/events/${eventId}/like`, {}, undefined, 'Failed to like event')
         },
         onMutate: async (liked) => {
             // Cancel outgoing queries
@@ -374,13 +310,16 @@ export function useLikeEvent(eventId: string, userId?: string) {
 
             return { previousData }
         },
-        onError: (_err, _variables, context) => {
+        onError: (error, variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
                     queryClient.setQueryData(queryKey, data)
                 })
             }
+            // Handle error with user-friendly message
+            const message = variables ? 'Failed to unlike event' : 'Failed to like event'
+            handleMutationError(error, message)
         },
         onSuccess: () => {
             // Don't invalidate immediately - wait for SSE event
@@ -391,20 +330,12 @@ export function useLikeEvent(eventId: string, userId?: string) {
 
 export function useShareEvent(eventId: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async () => {
-            const response = await fetch(`/api/events/${eventId}/share`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({
-                    error: 'Failed to share event',
-                }))
-                throw new Error(error.error || 'Failed to share event')
-            }
-            return response.json()
+        mutationFn: () => api.post(`/events/${eventId}/share`, undefined, undefined, 'Failed to share event'),
+        onError: (error) => {
+            handleMutationError(error, 'Failed to share event')
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
@@ -414,24 +345,10 @@ export function useShareEvent(eventId: string) {
 
 export function useAddComment(eventId: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
-        mutationFn: async (input: CommentInput) => {
-            const response = await fetch(`/api/events/${eventId}/comments`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(input),
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to add comment')
-            }
-
-            return response.json()
-        },
+        mutationFn: (input: CommentInput) => api.post(`/events/${eventId}/comments`, input, undefined, 'Failed to add comment'),
         onMutate: async (_input) => {
             // Cancel outgoing queries
             await queryClient.cancelQueries({
@@ -463,13 +380,15 @@ export function useAddComment(eventId: string) {
 
             return { previousData }
         },
-        onError: (_err, _variables, context) => {
+        onError: (error, _variables, context) => {
             // Rollback on error
             if (context?.previousData) {
                 context.previousData.forEach((data, queryKey) => {
                     queryClient.setQueryData(queryKey, data)
                 })
             }
+            // Handle error with user-friendly message
+            handleMutationError(error, 'Failed to add comment')
         },
         onSuccess: () => {
             // Don't invalidate immediately - wait for SSE event
@@ -485,19 +404,12 @@ export function useTrendingEvents(
 ) {
     return useQuery<TrendingEventsResponse>({
         queryKey: queryKeys.events.trending(limit, windowDays),
-        queryFn: async () => {
-            const params = new URLSearchParams({
-                limit: String(limit),
-                windowDays: String(windowDays),
-            })
-            const response = await fetch(`/api/events/trending?${params.toString()}`, {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch trending events')
-            }
-            return response.json()
-        },
+        queryFn: () => api.get<TrendingEventsResponse>(
+            '/events/trending',
+            { limit, windowDays },
+            undefined,
+            'Failed to fetch trending events'
+        ),
         enabled: options?.enabled ?? true,
         staleTime: 60_000,
     })
@@ -505,36 +417,18 @@ export function useTrendingEvents(
 
 export function useEventReminder(eventId: string, username: string) {
     const queryClient = useQueryClient()
+    const handleMutationError = useMutationErrorHandler()
 
     return useMutation({
         mutationFn: async (minutesBeforeStart: number | null) => {
             if (minutesBeforeStart === null) {
-                const response = await fetch(`/api/events/${eventId}/reminders`, {
-                    method: 'DELETE',
-                    credentials: 'include',
-                })
-
-                if (!response.ok) {
-                    throw new Error('Failed to remove reminder')
-                }
-
-                return response.json()
+                return api.delete(`/events/${eventId}/reminders`, undefined, 'Failed to remove reminder')
             }
-
-            const response = await fetch(`/api/events/${eventId}/reminders`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ minutesBeforeStart }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to update reminder')
-            }
-
-            return response.json()
+            return api.post(`/events/${eventId}/reminders`, { minutesBeforeStart }, undefined, 'Failed to update reminder')
+        },
+        onError: (error, variables) => {
+            const message = variables === null ? 'Failed to remove reminder' : 'Failed to update reminder'
+            handleMutationError(error, message)
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
@@ -544,16 +438,8 @@ export function useEventReminder(eventId: string, username: string) {
 
 export function usePlatformStats() {
     return useQuery<PlatformStatsResponse>({
-        queryKey: ['platform', 'stats'],
-        queryFn: async () => {
-            const response = await fetch('/api/search/stats', {
-                credentials: 'include',
-            })
-            if (!response.ok) {
-                throw new Error('Failed to fetch platform statistics')
-            }
-            return response.json()
-        },
+        queryKey: queryKeys.platform.stats(),
+        queryFn: () => api.get<PlatformStatsResponse>('/search/stats', undefined, undefined, 'Failed to fetch platform statistics'),
         staleTime: 60_000, // Cache for 1 minute
     })
 }

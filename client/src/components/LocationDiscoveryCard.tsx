@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useNearbyEvents } from '@/hooks/queries'
 import { useLocationSuggestions, LocationSuggestion, MIN_QUERY_LENGTH } from '../hooks/useLocationSuggestions'
+import { Button, Input } from './ui'
+import { logger } from '@/lib/logger'
 
 // Radius options for nearby event discovery (in kilometers)
 // These values align with common search distances and are within the backend's max radius of 500 km
@@ -68,7 +70,7 @@ export function LocationDiscoveryCard() {
                 setGeoLoading(false)
             },
             (err) => {
-                console.error('Geolocation error:', err)
+                logger.error('Geolocation error:', err)
                 setGeoError('Unable to access your current location.')
                 setGeoLoading(false)
             },
@@ -90,7 +92,7 @@ export function LocationDiscoveryCard() {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="font-bold text-lg">Find events nearby</h2>
-                    <p className="text-xs text-gray-500">Search by place or use your device location.</p>
+                    <p className="text-xs text-neutral-500">Search by place or use your device location.</p>
                 </div>
                 <select
                     className="input w-28 text-sm"
@@ -106,102 +108,106 @@ export function LocationDiscoveryCard() {
             </div>
 
             <div className="space-y-2">
-                <input
+                <Input
                     type="text"
-                    className="input"
                     placeholder="Search a city, venue, or address"
                     value={locationQuery}
                     onChange={(event) => setLocationQuery(event.target.value)}
+                    error={Boolean(suggestionError)}
+                    errorMessage={suggestionError || undefined}
                 />
-                {suggestionError && <p className="text-xs text-error-500">{suggestionError}</p>}
                 {locationQuery.trim().length >= MIN_QUERY_LENGTH && (
                     <div className="space-y-2">
-                        {suggestionLoading && <p className="text-xs text-gray-500">Searching places…</p>}
+                        {suggestionLoading && <p className="text-xs text-neutral-500">Searching places…</p>}
                         {!suggestionLoading && suggestions.length === 0 && (
-                            <p className="text-xs text-gray-400">No matches yet. Keep typing for better results.</p>
+                            <p className="text-xs text-neutral-400">No matches yet. Keep typing for better results.</p>
                         )}
                         {suggestions.map((suggestion) => (
-                            <button
+                            <Button
                                 key={suggestion.id}
                                 type="button"
                                 onClick={() => handleSuggestionSelect(suggestion)}
-                                className="w-full text-left border border-gray-200 rounded-lg p-3 hover:border-blue-500 transition-colors"
+                                variant="ghost"
+                                className="w-full justify-start border border-neutral-200 rounded-lg p-3 hover:border-info-500 transition-colors"
                             >
-                                <div className="font-medium text-gray-900">{suggestion.label}</div>
+                                <div className="font-medium text-neutral-900">{suggestion.label}</div>
                                 {suggestion.hint && (
-                                    <div className="text-xs text-gray-500">{suggestion.hint}</div>
+                                    <div className="text-xs text-neutral-500">{suggestion.hint}</div>
                                 )}
-                                <div className="text-xs text-gray-400 mt-1">
+                                <div className="text-xs text-neutral-400 mt-1">
                                     {suggestion.latitude.toFixed(2)}, {suggestion.longitude.toFixed(2)}
                                 </div>
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 )}
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm">
-                <button
+                <Button
                     type="button"
-                    className="btn btn-secondary"
+                    variant="secondary"
                     onClick={handleUseMyLocation}
                     disabled={geoLoading}
+                    loading={geoLoading}
                 >
-                    {geoLoading ? 'Locating…' : 'Use my location'}
-                </button>
-                <button
+                    Use my location
+                </Button>
+                <Button
                     type="button"
-                    className="btn btn-ghost"
+                    variant="ghost"
                     onClick={clearSelection}
                     disabled={!selectedLocation}
                 >
                     Clear selection
-                </button>
+                </Button>
             </div>
             {geoError && <p className="text-xs text-error-500">{geoError}</p>}
 
             {showPermissionPrompt && (
-                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
-                    <p className="text-sm text-blue-900 font-medium">
+                <div className="border border-info-200 bg-info-50 rounded-lg p-4 space-y-3">
+                    <p className="text-sm text-info-900 font-medium">
                         Location permission needed
                     </p>
-                    <p className="text-xs text-blue-700">
+                    <p className="text-xs text-info-700">
                         We need your location to show you events happening nearby. Your location will only be used to find nearby events and will not be stored or shared.
                     </p>
                     <div className="flex gap-2">
-                        <button
+                        <Button
                             type="button"
                             onClick={handlePermissionConfirm}
-                            className="btn btn-primary text-sm"
+                            variant="primary"
+                            size="sm"
                         >
                             Allow location
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="button"
                             onClick={handlePermissionCancel}
-                            className="btn btn-ghost text-sm"
+                            variant="ghost"
+                            size="sm"
                         >
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
 
             {selectedLocation ? (
                 <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center justify-between text-sm text-neutral-600">
                         <span>
                             Showing events within {radiusKm} km of
                             {' '}
-                            <span className="font-semibold text-gray-800">{selectedLocation.label}</span>
+                            <span className="font-semibold text-neutral-800">{selectedLocation.label}</span>
                         </span>
                         <span>
                             {selectedLocation.latitude.toFixed(2)}, {selectedLocation.longitude.toFixed(2)}
                         </span>
                     </div>
-                    {isLoading && <div className="text-sm text-gray-500">Loading nearby events…</div>}
+                    {isLoading && <div className="text-sm text-neutral-500">Loading nearby events…</div>}
                     {!isLoading && data?.events.length === 0 && (
-                        <div className="text-sm text-gray-500">No upcoming events in this radius yet.</div>
+                        <div className="text-sm text-neutral-500">No upcoming events in this radius yet.</div>
                     )}
                     <div className="space-y-3">
                         {data?.events.map((event) => {
@@ -210,13 +216,13 @@ export function LocationDiscoveryCard() {
                                 <Link
                                     key={event.id}
                                     to={linkTarget}
-                                    className="block border border-gray-200 rounded-lg p-3 hover:border-blue-500 transition-colors"
+                                    className="block border border-neutral-200 rounded-lg p-3 hover:border-info-500 transition-colors"
                                 >
-                                    <div className="font-medium text-gray-900 truncate">{event.title}</div>
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="font-medium text-neutral-900 truncate">{event.title}</div>
+                                    <div className="text-xs text-neutral-500 mt-1">
                                         {new Date(event.startTime).toLocaleString()}
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-neutral-500">
                                         {event.distanceKm?.toFixed(1)} km away
                                         {event.location && ` • ${event.location}`}
                                     </div>
@@ -226,7 +232,7 @@ export function LocationDiscoveryCard() {
                     </div>
                 </div>
             ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-neutral-500">
                     Select a location or use your device location to discover nearby events.
                 </p>
             )}

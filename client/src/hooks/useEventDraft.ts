@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { logger } from '@/lib/logger'
 
 const DRAFT_KEY = 'event-creation-draft'
 const DRAFT_TIMESTAMP_KEY = 'event-creation-draft-timestamp'
@@ -34,7 +35,7 @@ export function useEventDraft() {
         localStorage.setItem(DRAFT_TIMESTAMP_KEY, Date.now().toString())
       }
     } catch (error) {
-      console.error('Failed to save draft:', error)
+      logger.error('Failed to save draft:', error)
     }
   }, [])
 
@@ -43,7 +44,7 @@ export function useEventDraft() {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(DRAFT_TIMESTAMP_KEY)
     } catch (error) {
-      console.error('Failed to clear draft:', error)
+      logger.error('Failed to clear draft:', error)
     }
   }, [])
 
@@ -68,7 +69,7 @@ export function useEventDraft() {
       const draft = JSON.parse(draftStr) as EventDraft
       return draft
     } catch (error) {
-      console.error('Failed to load draft:', error)
+      logger.error('Failed to load draft:', error)
       return null
     }
   }, [clearDraft])
@@ -93,7 +94,7 @@ export function useEventDraft() {
 
       return true
     } catch (error) {
-      console.error('Failed to check draft status:', error)
+      logger.error('Failed to check draft status:', error)
       return false
     }
   }, [clearDraft])

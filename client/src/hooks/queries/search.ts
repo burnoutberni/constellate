@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 import type { Event } from '@/types'
-import { buildErrorMessage } from '../../lib/errorHandling'
+import { api } from '@/lib/api-client'
 
 export interface EventSearchFilters extends Record<string, string | undefined> {
     q?: string
@@ -28,36 +28,20 @@ export interface EventSearchResponse {
     filters: Record<string, string | undefined>
 }
 
-const buildQueryString = (filters: EventSearchFilters, page: number, limit: number) => {
-    const params = new URLSearchParams()
-
-    Object.entries(filters).forEach(([key, value]) => {
-        if (typeof value === 'string' && value.trim().length > 0) {
-            params.set(key, value)
-        }
-    })
-
-    params.set('page', String(page))
-    params.set('limit', String(limit))
-
-    return params.toString()
-}
-
 export function useEventSearch(filters: EventSearchFilters, page = 1, limit = 20) {
     return useQuery<EventSearchResponse>({
         queryKey: queryKeys.search.events({ filters, page, limit }),
-        queryFn: async () => {
-            const query = buildQueryString(filters, page, limit)
-            const response = await fetch(`/api/search?${query}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const errorMessage = await buildErrorMessage('Failed to search events', response)
-                throw new Error(errorMessage)
+        queryFn: () => {
+            const queryParams: Record<string, string | number> = {
+                page,
+                limit,
             }
-
-            return response.json()
+            Object.entries(filters).forEach(([key, value]) => {
+                if (typeof value === 'string' && value.trim().length > 0) {
+                    queryParams[key] = value
+                }
+            })
+            return api.get<EventSearchResponse>('/search', queryParams, undefined, 'Failed to search events')
         },
         placeholderData: keepPreviousData,
     })
@@ -89,27 +73,21 @@ export function useNearbyEvents(
         queryKey: queryKeys.events.nearby(coordinates?.latitude, coordinates?.longitude, radiusKm),
         enabled: Boolean(coordinates) && enabled,
         staleTime: 1000 * 60 * 5,
-        queryFn: async () => {
+        queryFn: () => {
             if (!coordinates) {
                 throw new Error('Coordinates are required for nearby events')
             }
-            const params = new URLSearchParams({
-                latitude: coordinates.latitude.toString(),
-                longitude: coordinates.longitude.toString(),
-                radiusKm: radiusKm.toString(),
-                limit: '25',
-            })
-
-            const response = await fetch(`/api/search/nearby?${params.toString()}`, {
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const errorMessage = await buildErrorMessage('Failed to load nearby events', response)
-                throw new Error(errorMessage)
-            }
-
-            return response.json()
+            return api.get<NearbyEventsResponse>(
+                '/search/nearby',
+                {
+                    latitude: coordinates.latitude,
+                    longitude: coordinates.longitude,
+                    radiusKm,
+                    limit: 25,
+                },
+                undefined,
+                'Failed to load nearby events'
+            )
         },
     })
 }

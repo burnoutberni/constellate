@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ProfileSettings } from '../../components/ProfileSettings'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
+import { tokens } from '../../design-system'
 
 // Mock fetch
 global.fetch = vi.fn()
@@ -25,7 +26,7 @@ describe('ProfileSettings Component', () => {
     bio: 'Test bio',
     profileImage: 'https://example.com/profile.jpg',
     headerImage: 'https://example.com/header.jpg',
-    displayColor: '#3b82f6',
+    displayColor: tokens.colors.semantic.info[500],
   }
 
   const renderComponent = (profile = mockProfile, userId = 'user-1') => {
@@ -85,7 +86,7 @@ describe('ProfileSettings Component', () => {
   it('should display color picker with current color', () => {
     renderComponent()
 
-    const colorInputs = screen.getAllByDisplayValue('#3b82f6')
+    const colorInputs = screen.getAllByDisplayValue(tokens.colors.semantic.info[500])
     const colorPicker = colorInputs.find(input => input.getAttribute('type') === 'color')
     expect(colorPicker).toBeDefined()
     expect(colorPicker).toHaveAttribute('type', 'color')
