@@ -6,471 +6,465 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import { config } from 'dotenv'
 config()
 vi.mock('../lib/eventVisibility.js', () => ({
-    canUserViewEvent: vi.fn().mockResolvedValue(true),
+	canUserViewEvent: vi.fn().mockResolvedValue(true),
 }))
 import { prisma } from '../lib/prisma.js'
 import { canUserViewEvent } from '../lib/eventVisibility.js'
 
 describe('Calendar Export', () => {
-    let app: any
-    let testUser: any
-    let testEvent: any
-    const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
-
-    beforeAll(async () => {
-        const mod = await import('../server.js')
-        app = mod.app
-    })
-
-    beforeEach(async () => {
-        // Clean up test data
-        await prisma.eventAttendance.deleteMany({})
-        await prisma.eventLike.deleteMany({})
-        await prisma.comment.deleteMany({})
-        await prisma.event.deleteMany({})
-        await prisma.user.deleteMany({})
-
-        // Create test user
-        testUser = await prisma.user.create({
-            data: {
-                username: 'testuser',
-                email: 'test@example.com',
-                name: 'Test User',
-                isRemote: false,
-                timezone: 'America/New_York',
-            },
-        })
-
-        // Create test event
-        testEvent = await prisma.event.create({
-            data: {
-                title: 'Test Event',
-                summary: 'Test event description',
-                location: 'Test Location',
-                startTime: new Date('2024-01-01T10:00:00Z'),
-                endTime: new Date('2024-01-01T12:00:00Z'),
-                timezone: 'America/New_York',
-                userId: testUser.id,
-                attributedTo: `${baseUrl}/users/${testUser.username}`,
-            },
-        })
-        vi.mocked(canUserViewEvent).mockResolvedValue(true)
-    })
-
-    afterEach(async () => {
-        vi.mocked(canUserViewEvent).mockReset()
-        // Clean up
-        await prisma.eventAttendance.deleteMany({})
-        await prisma.eventLike.deleteMany({})
-        await prisma.comment.deleteMany({})
-        await prisma.event.deleteMany({})
-        await prisma.user.deleteMany({})
-    })
-
-    
-
-    describe('User Calendar Export', () => {
-
-        it('should return 404 for non-existent user', async () => {
-            const res = await app.request('/api/calendar/user/nonexistent/export.ics')
-
-            expect(res.status).toBe(404)
-            const text = await res.text()
-            expect(text).toBe('User not found')
-        })
-
-        it('should use user name in calendar name when available', async () => {
-            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain(`X-WR-CALNAME:${testUser.name}'s Events`)
-        })
-
-    })
-
-    describe('Public Feed Export', () => {
-
-        it('should only include future events', async () => {
-            // Create past event
-            const pastEvent = await prisma.event.create({
-                data: {
-                    title: 'Past Event',
-                    startTime: new Date(Date.now() - 86400000), // Yesterday
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                },
-            })
-
-            const res = await app.request('/api/calendar/feed.ics')
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            // Should not contain past event
-            expect(icsContent).not.toContain('SUMMARY:Past Event')
-            // Note: Cleanup is handled by afterEach hook
-        })
-
-        it('should handle events without user', async () => {
-            const eventWithoutUser = await prisma.event.create({
-                data: {
-                    title: 'Event Without User',
-                    startTime: new Date(Date.now() + 86400000),
-                    userId: null,
-                    attributedTo: 'https://remote.example.com/users/remote',
-                },
-            })
-
-            const res = await app.request('/api/calendar/feed.ics')
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('SUMMARY:Event Without User')
-            // Should handle missing user gracefully
-            // Note: Cleanup is handled by afterEach hook
-        })
-
-        it('should include calendar URL in feed', async () => {
-            const res = await app.request('/api/calendar/feed.ics')
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain(`X-WR-CALDESC:Public events from Constellate`)
-        })
-    })
-
-    describe('ICS Format Validation', () => {
-        it('should produce valid ICS format', async () => {
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-
-            // Basic ICS structure
-            expect(icsContent).toContain('BEGIN:VCALENDAR')
-            expect(icsContent).toContain('VERSION:2.0')
-            expect(icsContent).toContain('PRODID:')
-            expect(icsContent).toContain('END:VCALENDAR')
-
-            // Event structure
-            expect(icsContent).toContain('BEGIN:VEVENT')
-            expect(icsContent).toContain('END:VEVENT')
-            expect(icsContent).toContain('DTSTART')
-            expect(icsContent).toContain('DTEND')
-            expect(icsContent).toContain('SUMMARY')
-        })
-
-        it('should include organizer information', async () => {
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('ORGANIZER')
-            expect(icsContent).toContain(testUser.name || testUser.username)
-        })
-
-        it('should include timezone metadata for events', async () => {
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('TZID=America/New_York')
-            expect(icsContent).toContain('BEGIN:VTIMEZONE')
-        })
-
-    })
-
-    describe('Google Calendar Export', () => {
-        it('should generate a Google Calendar link for an event', async () => {
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
-
-            expect(res.status).toBe(200)
-            const data = await res.json()
-            const googleUrl = new URL(data.url)
-            expect(googleUrl.hostname).toBe('calendar.google.com')
-            expect(googleUrl.searchParams.get('text')).toBe(testEvent.title)
-            expect(googleUrl.searchParams.get('details')).toContain(testEvent.summary)
-            expect(googleUrl.searchParams.get('action')).toBe('TEMPLATE')
-            expect(googleUrl.searchParams.get('dates')).toMatch(/^\d{8}T\d{6}Z\/\d{8}T\d{6}Z$/)
-            expect(googleUrl.searchParams.get('location')).toBe(testEvent.location)
-            expect(googleUrl.searchParams.get('trp')).toBe('false')
-            expect(googleUrl.searchParams.has('sprop')).toBe(true)
-        })
-
-        it('should return 404 for missing event when requesting Google export', async () => {
-            await prisma.event.delete({ where: { id: testEvent.id } })
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
-
-            expect(res.status).toBe(404)
-            const text = await res.text()
-            expect(text).toBe('Event not found')
-        })
-
-        it('should return 403 when viewer cannot access Google export', async () => {
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
-
-            expect(res.status).toBe(403)
-            const text = await res.text()
-            expect(text).toBe('Forbidden')
-        })
-
-        it('should generate Google Calendar link for event with minimal fields', async () => {
-            const minimalEvent = await prisma.event.create({
-                data: {
-                    title: 'Minimal Event',
-                    startTime: new Date('2024-01-01T10:00:00Z'),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                },
-            })
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${minimalEvent.id}/export/google`)
-
-            expect(res.status).toBe(200)
-            const data = await res.json()
-            const googleUrl = new URL(data.url)
-            expect(googleUrl.searchParams.get('text')).toBe('Minimal Event')
-            expect(googleUrl.searchParams.has('location')).toBe(false)
-        })
-
-        it('should include canonical event URL in details parameter', async () => {
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
-
-            expect(res.status).toBe(200)
-            const data = await res.json()
-            const googleUrl = new URL(data.url)
-            const details = googleUrl.searchParams.get('details')
-            expect(details).toContain(`/events/${testEvent.id}`)
-        })
-    })
-
-    describe('Error Handling', () => {
-        it('should handle database errors in single event export', async () => {
-            const { vi } = await import('vitest')
-            const originalFindUnique = prisma.event.findUnique
-            vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(500)
-            const text = await res.text()
-            expect(text).toBe('Internal server error')
-
-            // Restore
-            prisma.event.findUnique = originalFindUnique
-        })
-
-        it('should handle database errors in user calendar export', async () => {
-            const { vi } = await import('vitest')
-            const originalFindUnique = prisma.user.findUnique
-            vi.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
-
-            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
-
-            expect(res.status).toBe(500)
-            const text = await res.text()
-            expect(text).toBe('Internal server error')
-
-            // Restore
-            prisma.user.findUnique = originalFindUnique
-        })
-
-        it('should handle database errors in feed export', async () => {
-            const { vi } = await import('vitest')
-            const originalFindMany = prisma.event.findMany
-            vi.spyOn(prisma.event, 'findMany').mockRejectedValueOnce(new Error('Database error'))
-
-            const res = await app.request('/api/calendar/feed.ics')
-
-            expect(res.status).toBe(500)
-            const text = await res.text()
-            expect(text).toBe('Internal server error')
-
-            // Restore
-            prisma.event.findMany = originalFindMany
-        })
-
-        it('should handle database errors in Google Calendar export', async () => {
-            const { vi } = await import('vitest')
-            const originalFindUnique = prisma.event.findUnique
-            vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
-
-            expect(res.status).toBe(500)
-            const text = await res.text()
-            expect(text).toBe('Internal server error')
-
-            // Restore
-            prisma.event.findUnique = originalFindUnique
-        })
-
-        it('should handle event without user in single export', async () => {
-            const eventWithoutUser = await prisma.event.create({
-                data: {
-                    title: 'Event Without User',
-                    startTime: new Date('2024-01-01T10:00:00Z'),
-                    userId: null,
-                    attributedTo: 'https://remote.example.com/users/remote',
-                },
-            })
-
-            const res = await app.request(`/api/calendar/${eventWithoutUser.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('SUMMARY:Event Without User')
-            // Should handle missing user gracefully
-            // Note: Cleanup is handled by afterEach hook
-        })
-    })
-
-    describe('Visibility filtering', () => {
-        it('should return 403 when viewer cannot access single event export', async () => {
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(403)
-            const text = await res.text()
-            expect(text).toBe('Forbidden')
-        })
-
-        it('should exclude hidden events in user calendar export', async () => {
-            await prisma.event.create({
-                data: {
-                    title: 'Followers Only Event',
-                    startTime: new Date('2024-01-02T10:00:00Z'),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    visibility: 'FOLLOWERS',
-                },
-            })
-
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(false)
-
-            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('SUMMARY:Test Event')
-            expect(icsContent).not.toContain('SUMMARY:Followers Only Event')
-        })
-    })
-
-    describe('Recurring Events Export', () => {
-        it('should include RRULE in single event export for recurring events', async () => {
-            const recurringEvent = await prisma.event.create({
-                data: {
-                    title: 'Weekly Meeting',
-                    startTime: new Date('2024-01-01T10:00:00Z'),
-                    endTime: new Date('2024-01-01T11:00:00Z'),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    recurrencePattern: 'WEEKLY',
-                    recurrenceEndDate: new Date('2024-03-31T10:00:00Z'),
-                },
-            })
-
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${recurringEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('RRULE')
-            expect(icsContent).toContain('FREQ=WEEKLY')
-            const rruleLine = icsContent.split('\n').find((line: string) => line.startsWith('RRULE:')) || ''
-            // The 'Z' suffix is optional due to timezone-aware formatting - the timezone is already specified in TZID
-            expect(rruleLine).toMatch(/UNTIL=20240331T100000(Z)?/)
-        })
-
-        it('should include RRULE in user calendar export for recurring events', async () => {
-            const recurringEvent = await prisma.event.create({
-                data: {
-                    title: 'Daily Standup',
-                    startTime: new Date('2024-01-01T09:00:00Z'),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    recurrencePattern: 'DAILY',
-                    recurrenceEndDate: new Date('2024-01-31T09:00:00Z'),
-                },
-            })
-
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('RRULE')
-            expect(icsContent).toContain('FREQ=DAILY')
-            expect(icsContent).toContain('SUMMARY:Daily Standup')
-        })
-
-        it('should include RRULE in public feed export for recurring events', async () => {
-            await prisma.event.create({
-                data: {
-                    title: 'Monthly Review',
-                    startTime: new Date(Date.now() + 86400000), // Future event
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    visibility: 'PUBLIC',
-                    recurrencePattern: 'MONTHLY',
-                    recurrenceEndDate: new Date(Date.now() + 90 * 86400000),
-                },
-            })
-
-            const res = await app.request('/api/calendar/feed.ics')
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).toContain('RRULE')
-            expect(icsContent).toContain('FREQ=MONTHLY')
-            expect(icsContent).toContain('SUMMARY:Monthly Review')
-        })
-
-        it('should not include RRULE for non-recurring events', async () => {
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            const veventBlock = icsContent.split('BEGIN:VEVENT')[1]?.split('END:VEVENT')[0] ?? ''
-            expect(veventBlock).not.toContain('RRULE:FREQ')
-            expect(icsContent).toContain('SUMMARY:Test Event')
-        })
-
-        it('should not include RRULE when recurrencePattern is set but recurrenceEndDate is missing', async () => {
-            const incompleteRecurringEvent = await prisma.event.create({
-                data: {
-                    title: 'Incomplete Recurring Event',
-                    startTime: new Date('2024-01-01T10:00:00Z'),
-                    userId: testUser.id,
-                    attributedTo: `${baseUrl}/users/${testUser.username}`,
-                    recurrencePattern: 'WEEKLY',
-                    recurrenceEndDate: null,
-                },
-            })
-
-            vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
-
-            const res = await app.request(`/api/calendar/${incompleteRecurringEvent.id}/export.ics`)
-
-            expect(res.status).toBe(200)
-            const icsContent = await res.text()
-            expect(icsContent).not.toContain('RRULE')
-            expect(icsContent).toContain('SUMMARY:Incomplete Recurring Event')
-        })
-    })
+	let app: any
+	let testUser: any
+	let testEvent: any
+	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+
+	beforeAll(async () => {
+		const mod = await import('../server.js')
+		app = mod.app
+	})
+
+	beforeEach(async () => {
+		// Clean up test data
+		await prisma.eventAttendance.deleteMany({})
+		await prisma.eventLike.deleteMany({})
+		await prisma.comment.deleteMany({})
+		await prisma.event.deleteMany({})
+		await prisma.user.deleteMany({})
+
+		// Create test user
+		testUser = await prisma.user.create({
+			data: {
+				username: 'testuser',
+				email: 'test@example.com',
+				name: 'Test User',
+				isRemote: false,
+				timezone: 'America/New_York',
+			},
+		})
+
+		// Create test event
+		testEvent = await prisma.event.create({
+			data: {
+				title: 'Test Event',
+				summary: 'Test event description',
+				location: 'Test Location',
+				startTime: new Date('2024-01-01T10:00:00Z'),
+				endTime: new Date('2024-01-01T12:00:00Z'),
+				timezone: 'America/New_York',
+				userId: testUser.id,
+				attributedTo: `${baseUrl}/users/${testUser.username}`,
+			},
+		})
+		vi.mocked(canUserViewEvent).mockResolvedValue(true)
+	})
+
+	afterEach(async () => {
+		vi.mocked(canUserViewEvent).mockReset()
+		// Clean up
+		await prisma.eventAttendance.deleteMany({})
+		await prisma.eventLike.deleteMany({})
+		await prisma.comment.deleteMany({})
+		await prisma.event.deleteMany({})
+		await prisma.user.deleteMany({})
+	})
+
+	describe('User Calendar Export', () => {
+		it('should return 404 for non-existent user', async () => {
+			const res = await app.request('/api/calendar/user/nonexistent/export.ics')
+
+			expect(res.status).toBe(404)
+			const text = await res.text()
+			expect(text).toBe('User not found')
+		})
+
+		it('should use user name in calendar name when available', async () => {
+			const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain(`X-WR-CALNAME:${testUser.name}'s Events`)
+		})
+	})
+
+	describe('Public Feed Export', () => {
+		it('should only include future events', async () => {
+			// Create past event
+			const pastEvent = await prisma.event.create({
+				data: {
+					title: 'Past Event',
+					startTime: new Date(Date.now() - 86400000), // Yesterday
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+				},
+			})
+
+			const res = await app.request('/api/calendar/feed.ics')
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			// Should not contain past event
+			expect(icsContent).not.toContain('SUMMARY:Past Event')
+			// Note: Cleanup is handled by afterEach hook
+		})
+
+		it('should handle events without user', async () => {
+			const eventWithoutUser = await prisma.event.create({
+				data: {
+					title: 'Event Without User',
+					startTime: new Date(Date.now() + 86400000),
+					userId: null,
+					attributedTo: 'https://remote.example.com/users/remote',
+				},
+			})
+
+			const res = await app.request('/api/calendar/feed.ics')
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('SUMMARY:Event Without User')
+			// Should handle missing user gracefully
+			// Note: Cleanup is handled by afterEach hook
+		})
+
+		it('should include calendar URL in feed', async () => {
+			const res = await app.request('/api/calendar/feed.ics')
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain(`X-WR-CALDESC:Public events from Constellate`)
+		})
+	})
+
+	describe('ICS Format Validation', () => {
+		it('should produce valid ICS format', async () => {
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+
+			// Basic ICS structure
+			expect(icsContent).toContain('BEGIN:VCALENDAR')
+			expect(icsContent).toContain('VERSION:2.0')
+			expect(icsContent).toContain('PRODID:')
+			expect(icsContent).toContain('END:VCALENDAR')
+
+			// Event structure
+			expect(icsContent).toContain('BEGIN:VEVENT')
+			expect(icsContent).toContain('END:VEVENT')
+			expect(icsContent).toContain('DTSTART')
+			expect(icsContent).toContain('DTEND')
+			expect(icsContent).toContain('SUMMARY')
+		})
+
+		it('should include organizer information', async () => {
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('ORGANIZER')
+			expect(icsContent).toContain(testUser.name || testUser.username)
+		})
+
+		it('should include timezone metadata for events', async () => {
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('TZID=America/New_York')
+			expect(icsContent).toContain('BEGIN:VTIMEZONE')
+		})
+	})
+
+	describe('Google Calendar Export', () => {
+		it('should generate a Google Calendar link for an event', async () => {
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+			expect(res.status).toBe(200)
+			const data = await res.json()
+			const googleUrl = new URL(data.url)
+			expect(googleUrl.hostname).toBe('calendar.google.com')
+			expect(googleUrl.searchParams.get('text')).toBe(testEvent.title)
+			expect(googleUrl.searchParams.get('details')).toContain(testEvent.summary)
+			expect(googleUrl.searchParams.get('action')).toBe('TEMPLATE')
+			expect(googleUrl.searchParams.get('dates')).toMatch(/^\d{8}T\d{6}Z\/\d{8}T\d{6}Z$/)
+			expect(googleUrl.searchParams.get('location')).toBe(testEvent.location)
+			expect(googleUrl.searchParams.get('trp')).toBe('false')
+			expect(googleUrl.searchParams.has('sprop')).toBe(true)
+		})
+
+		it('should return 404 for missing event when requesting Google export', async () => {
+			await prisma.event.delete({ where: { id: testEvent.id } })
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+			expect(res.status).toBe(404)
+			const text = await res.text()
+			expect(text).toBe('Event not found')
+		})
+
+		it('should return 403 when viewer cannot access Google export', async () => {
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+			expect(res.status).toBe(403)
+			const text = await res.text()
+			expect(text).toBe('Forbidden')
+		})
+
+		it('should generate Google Calendar link for event with minimal fields', async () => {
+			const minimalEvent = await prisma.event.create({
+				data: {
+					title: 'Minimal Event',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+				},
+			})
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${minimalEvent.id}/export/google`)
+
+			expect(res.status).toBe(200)
+			const data = await res.json()
+			const googleUrl = new URL(data.url)
+			expect(googleUrl.searchParams.get('text')).toBe('Minimal Event')
+			expect(googleUrl.searchParams.has('location')).toBe(false)
+		})
+
+		it('should include canonical event URL in details parameter', async () => {
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+			expect(res.status).toBe(200)
+			const data = await res.json()
+			const googleUrl = new URL(data.url)
+			const details = googleUrl.searchParams.get('details')
+			expect(details).toContain(`/events/${testEvent.id}`)
+		})
+	})
+
+	describe('Error Handling', () => {
+		it('should handle database errors in single event export', async () => {
+			const { vi } = await import('vitest')
+			const originalFindUnique = prisma.event.findUnique
+			vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(500)
+			const text = await res.text()
+			expect(text).toBe('Internal server error')
+
+			// Restore
+			prisma.event.findUnique = originalFindUnique
+		})
+
+		it('should handle database errors in user calendar export', async () => {
+			const { vi } = await import('vitest')
+			const originalFindUnique = prisma.user.findUnique
+			vi.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+			const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+			expect(res.status).toBe(500)
+			const text = await res.text()
+			expect(text).toBe('Internal server error')
+
+			// Restore
+			prisma.user.findUnique = originalFindUnique
+		})
+
+		it('should handle database errors in feed export', async () => {
+			const { vi } = await import('vitest')
+			const originalFindMany = prisma.event.findMany
+			vi.spyOn(prisma.event, 'findMany').mockRejectedValueOnce(new Error('Database error'))
+
+			const res = await app.request('/api/calendar/feed.ics')
+
+			expect(res.status).toBe(500)
+			const text = await res.text()
+			expect(text).toBe('Internal server error')
+
+			// Restore
+			prisma.event.findMany = originalFindMany
+		})
+
+		it('should handle database errors in Google Calendar export', async () => {
+			const { vi } = await import('vitest')
+			const originalFindUnique = prisma.event.findUnique
+			vi.spyOn(prisma.event, 'findUnique').mockRejectedValueOnce(new Error('Database error'))
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export/google`)
+
+			expect(res.status).toBe(500)
+			const text = await res.text()
+			expect(text).toBe('Internal server error')
+
+			// Restore
+			prisma.event.findUnique = originalFindUnique
+		})
+
+		it('should handle event without user in single export', async () => {
+			const eventWithoutUser = await prisma.event.create({
+				data: {
+					title: 'Event Without User',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					userId: null,
+					attributedTo: 'https://remote.example.com/users/remote',
+				},
+			})
+
+			const res = await app.request(`/api/calendar/${eventWithoutUser.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('SUMMARY:Event Without User')
+			// Should handle missing user gracefully
+			// Note: Cleanup is handled by afterEach hook
+		})
+	})
+
+	describe('Visibility filtering', () => {
+		it('should return 403 when viewer cannot access single event export', async () => {
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(false)
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(403)
+			const text = await res.text()
+			expect(text).toBe('Forbidden')
+		})
+
+		it('should exclude hidden events in user calendar export', async () => {
+			await prisma.event.create({
+				data: {
+					title: 'Followers Only Event',
+					startTime: new Date('2024-01-02T10:00:00Z'),
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+					visibility: 'FOLLOWERS',
+				},
+			})
+
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+
+			const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('SUMMARY:Test Event')
+			expect(icsContent).not.toContain('SUMMARY:Followers Only Event')
+		})
+	})
+
+	describe('Recurring Events Export', () => {
+		it('should include RRULE in single event export for recurring events', async () => {
+			const recurringEvent = await prisma.event.create({
+				data: {
+					title: 'Weekly Meeting',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					endTime: new Date('2024-01-01T11:00:00Z'),
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+					recurrencePattern: 'WEEKLY',
+					recurrenceEndDate: new Date('2024-03-31T10:00:00Z'),
+				},
+			})
+
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${recurringEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('RRULE')
+			expect(icsContent).toContain('FREQ=WEEKLY')
+			const rruleLine =
+				icsContent.split('\n').find((line: string) => line.startsWith('RRULE:')) || ''
+			// The 'Z' suffix is optional due to timezone-aware formatting - the timezone is already specified in TZID
+			expect(rruleLine).toMatch(/UNTIL=20240331T100000(Z)?/)
+		})
+
+		it('should include RRULE in user calendar export for recurring events', async () => {
+			const recurringEvent = await prisma.event.create({
+				data: {
+					title: 'Daily Standup',
+					startTime: new Date('2024-01-01T09:00:00Z'),
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+					recurrencePattern: 'DAILY',
+					recurrenceEndDate: new Date('2024-01-31T09:00:00Z'),
+				},
+			})
+
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/user/${testUser.username}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('RRULE')
+			expect(icsContent).toContain('FREQ=DAILY')
+			expect(icsContent).toContain('SUMMARY:Daily Standup')
+		})
+
+		it('should include RRULE in public feed export for recurring events', async () => {
+			await prisma.event.create({
+				data: {
+					title: 'Monthly Review',
+					startTime: new Date(Date.now() + 86400000), // Future event
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+					visibility: 'PUBLIC',
+					recurrencePattern: 'MONTHLY',
+					recurrenceEndDate: new Date(Date.now() + 90 * 86400000),
+				},
+			})
+
+			const res = await app.request('/api/calendar/feed.ics')
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).toContain('RRULE')
+			expect(icsContent).toContain('FREQ=MONTHLY')
+			expect(icsContent).toContain('SUMMARY:Monthly Review')
+		})
+
+		it('should not include RRULE for non-recurring events', async () => {
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${testEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			const veventBlock = icsContent.split('BEGIN:VEVENT')[1]?.split('END:VEVENT')[0] ?? ''
+			expect(veventBlock).not.toContain('RRULE:FREQ')
+			expect(icsContent).toContain('SUMMARY:Test Event')
+		})
+
+		it('should not include RRULE when recurrencePattern is set but recurrenceEndDate is missing', async () => {
+			const incompleteRecurringEvent = await prisma.event.create({
+				data: {
+					title: 'Incomplete Recurring Event',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					userId: testUser.id,
+					attributedTo: `${baseUrl}/users/${testUser.username}`,
+					recurrencePattern: 'WEEKLY',
+					recurrenceEndDate: null,
+				},
+			})
+
+			vi.mocked(canUserViewEvent).mockResolvedValueOnce(true)
+
+			const res = await app.request(`/api/calendar/${incompleteRecurringEvent.id}/export.ics`)
+
+			expect(res.status).toBe(200)
+			const icsContent = await res.text()
+			expect(icsContent).not.toContain('RRULE')
+			expect(icsContent).toContain('SUMMARY:Incomplete Recurring Event')
+		})
+	})
 })
-

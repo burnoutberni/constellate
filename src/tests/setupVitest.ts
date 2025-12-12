@@ -5,8 +5,8 @@ import type { PrismaClient } from '@prisma/client'
 const prismaPromise = createPrismock()
 
 vi.mock('../lib/prisma.js', async () => {
-    const prisma = await prismaPromise
-    return { prisma }
+	const prisma = await prismaPromise
+	return { prisma }
 })
 
 process.env.TZ = 'UTC'
@@ -15,15 +15,15 @@ process.env.VITEST = 'true'
 process.env.DATABASE_URL ??= 'file:./tests/dev.db'
 
 beforeEach(async () => {
-    const prisma = await prismaPromise
-    prisma.reset()
+	const prisma = await prismaPromise
+	prisma.reset()
 })
 
 afterAll(async () => {
-    const prisma = await prismaPromise
-    await prisma.$disconnect()
+	const prisma = await prismaPromise
+	await prisma.$disconnect()
 })
 
 export async function getPrismaMock(): Promise<PrismaClient> {
-    return prismaPromise
+	return prismaPromise
 }

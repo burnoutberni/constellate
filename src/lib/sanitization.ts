@@ -11,8 +11,8 @@ import DOMPurify from 'isomorphic-dompurify'
  * @returns Plain text with all HTML removed
  */
 export function sanitizeText(input: string): string {
-    return DOMPurify.sanitize(input, {
-        ALLOWED_TAGS: [],
-        ALLOWED_ATTR: [],
-    })
+	return DOMPurify.sanitize(input, {
+		ALLOWED_TAGS: [],
+		ALLOWED_ATTR: [],
+	})
 }

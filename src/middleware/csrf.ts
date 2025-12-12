@@ -3,7 +3,6 @@
  * Protects against Cross-Site Request Forgery attacks
  */
 
-
 import { csrf } from 'hono/csrf'
 import { config } from '../config.js'
 
@@ -12,5 +11,5 @@ import { config } from '../config.js'
  * Validates Origin header for state-changing requests
  */
 export const csrfProtection = csrf({
-    origin: config.corsOrigins,
+	origin: config.corsOrigins,
 })

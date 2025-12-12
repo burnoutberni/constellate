@@ -1,9 +1,11 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
+import { api } from './lib/api-client'
+import { logger, configureLogger } from './lib/logger'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
 import { LoginPage } from './pages/LoginPage'
@@ -17,73 +19,93 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { SearchPage } from './pages/SearchPage'
 import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
+import { EditEventPage } from './pages/EditEventPage'
+import { TemplatesPage } from './pages/TemplatesPage'
+import { RemindersPage } from './pages/RemindersPage'
+import { InstancesPage } from './pages/InstancesPage'
+import { InstanceDetailPage } from './pages/InstanceDetailPage'
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
 import { MentionNotifications } from './components/MentionNotifications'
 import { ErrorToasts } from './components/ErrorToasts'
+import { SuccessToasts } from './components/SuccessToasts'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { PageLoader } from './components/ui'
 
 function AppContent() {
-    // Global SSE connection
-    useRealtimeSSE()
-    const navigate = useNavigate()
-    const location = useLocation()
-    const [checkingSetup, setCheckingSetup] = useState(true)
+	// Global SSE connection
+	useRealtimeSSE()
+	const navigate = useNavigate()
+	const location = useLocation()
+	const [checkingSetup, setCheckingSetup] = useState(true)
 
-    useEffect(() => {
-        // Don't check setup if we're already on the onboarding page
-        if (location.pathname === '/onboarding') {
-            setCheckingSetup(false)
-            return
-        }
+	useEffect(() => {
+		// Don't check setup if we're already on the onboarding page
+		if (location.pathname === '/onboarding') {
+			setCheckingSetup(false)
+			return
+		}
 
-        fetch('/api/setup/status')
-            .then(res => res.json())
-            .then(data => {
-                if (data.setupRequired) {
-                    navigate('/onboarding')
-                }
-            })
-            .catch(console.error)
-            .finally(() => setCheckingSetup(false))
-    }, [navigate, location.pathname])
+		api.get<{ setupRequired: boolean }>('/setup/status')
+			.then((data) => {
+				if (data.setupRequired) {
+					navigate('/onboarding')
+				}
+			})
+			.catch((error) => logger.error('Failed to check setup status:', error))
+			.finally(() => setCheckingSetup(false))
+	}, [navigate, location.pathname])
 
-    if (checkingSetup) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-    }
+	if (checkingSetup) {
+		return <PageLoader />
+	}
 
-    return (
-        <>
-            <Routes>
-                <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/" element={<HomePage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/feed" element={<FeedPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/events" element={<EventDiscoveryPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/followers/pending" element={<PendingFollowersPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/*" element={<ProfileOrEventPage />} />
-            </Routes>
-            <MentionNotifications />
-            <ErrorToasts />
-        </>
-    )
+	return (
+		<ErrorBoundary resetKeys={[location.pathname]}>
+			<Routes>
+				<Route path="/onboarding" element={<OnboardingPage />} />
+				<Route path="/" element={<HomePage />} />
+				<Route path="/about" element={<AboutPage />} />
+				<Route path="/login" element={<LoginPage />} />
+				<Route path="/feed" element={<FeedPage />} />
+				<Route path="/calendar" element={<CalendarPage />} />
+				<Route path="/search" element={<SearchPage />} />
+				<Route path="/events" element={<EventDiscoveryPage />} />
+				<Route path="/templates" element={<TemplatesPage />} />
+				<Route path="/instances" element={<InstancesPage />} />
+				<Route path="/instances/:domain" element={<InstanceDetailPage />} />
+				<Route path="/settings" element={<SettingsPage />} />
+				<Route path="/followers/pending" element={<PendingFollowersPage />} />
+				<Route path="/notifications" element={<NotificationsPage />} />
+				<Route path="/reminders" element={<RemindersPage />} />
+				<Route path="/admin" element={<AdminPage />} />
+				<Route path="/edit/*" element={<EditEventPage />} />
+				<Route path="/*" element={<ProfileOrEventPage />} />
+			</Routes>
+			<MentionNotifications />
+			<ErrorToasts />
+			<SuccessToasts />
+		</ErrorBoundary>
+	)
 }
 
 function App() {
-    return (
-        <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-                <AuthProvider>
-                    <AppContent />
-                </AuthProvider>
-            </ThemeProvider>
-        </QueryClientProvider>
-    )
+	// Configure logger based on environment
+	useEffect(() => {
+		configureLogger({
+			minLevel: import.meta.env.DEV ? 'debug' : 'warn',
+			enableInProduction: false,
+		})
+	}, [])
+
+	return (
+		<QueryClientProvider client={queryClient}>
+			<ThemeProvider>
+				<AuthProvider>
+					<AppContent />
+				</AuthProvider>
+			</ThemeProvider>
+		</QueryClientProvider>
+	)
 }
 
 export default App

@@ -17,14 +17,14 @@ const MAX_MINUTES = 5_256_000
  * Validates and normalizes reminder minutes to a supported option
  */
 function normalizeReminderMinutes(minutes: number): number {
-    if (!REMINDER_MINUTE_OPTIONS.includes(minutes as typeof REMINDER_MINUTE_OPTIONS[number])) {
-        throw new AppError(
-            'REMINDER_INTERVAL_UNSUPPORTED',
-            `Reminder interval must be one of: ${REMINDER_MINUTE_OPTIONS.join(', ')}`,
-            400
-        )
-    }
-    return minutes
+	if (!REMINDER_MINUTE_OPTIONS.includes(minutes as (typeof REMINDER_MINUTE_OPTIONS)[number])) {
+		throw new AppError(
+			'REMINDER_INTERVAL_UNSUPPORTED',
+			`Reminder interval must be one of: ${REMINDER_MINUTE_OPTIONS.join(', ')}`,
+			400
+		)
+	}
+	return minutes
 }
 
 /**
@@ -32,138 +32,132 @@ function normalizeReminderMinutes(minutes: number): number {
  * Validates that the reminder time is in the future and within reasonable bounds
  */
 export function computeRemindAt(startTime: Date, minutesBeforeStart: number): Date {
-    // Validate startTime
-    if (isNaN(startTime.getTime())) {
-        throw new AppError('REMINDER_INVALID_EVENT', 'Event start time is invalid', 400)
-    }
+	// Validate startTime
+	if (isNaN(startTime.getTime())) {
+		throw new AppError('REMINDER_INVALID_EVENT', 'Event start time is invalid', 400)
+	}
 
-    // Validate minutesBeforeStart is non-negative
-    if (minutesBeforeStart < 0) {
-        throw new AppError(
-            'REMINDER_INVALID_OFFSET',
-            'Reminder offset cannot be negative',
-            400
-        )
-    }
+	// Validate minutesBeforeStart is non-negative
+	if (minutesBeforeStart < 0) {
+		throw new AppError('REMINDER_INVALID_OFFSET', 'Reminder offset cannot be negative', 400)
+	}
 
-    // Validate minutesBeforeStart doesn't exceed maximum
-    if (minutesBeforeStart > MAX_MINUTES) {
-        throw new AppError(
-            'REMINDER_INVALID_OFFSET',
-            `Reminder offset cannot exceed ${MAX_MINUTES} minutes (10 years)`,
-            400
-        )
-    }
+	// Validate minutesBeforeStart doesn't exceed maximum
+	if (minutesBeforeStart > MAX_MINUTES) {
+		throw new AppError(
+			'REMINDER_INVALID_OFFSET',
+			`Reminder offset cannot exceed ${MAX_MINUTES} minutes (10 years)`,
+			400
+		)
+	}
 
-    // Calculate remindAt time (convert minutes to milliseconds)
-    const millisecondsOffset = minutesBeforeStart * 60 * 1000
-    
-    // Validate that the calculation doesn't overflow and produces a valid timestamp
-    // Check that the result is within reasonable bounds (not before Unix epoch or after year 9999)
-    const startTimeMs = startTime.getTime()
-    const remindAtMs = startTimeMs - millisecondsOffset
-    
-    // Validate the computed timestamp is within reasonable range
-    // Unix epoch: 0, Year 9999: 253402300799000 (approximately)
-    const MIN_VALID_TIMESTAMP = 0
-    const MAX_VALID_TIMESTAMP = 253402300799000 // Year 9999
-    if (remindAtMs < MIN_VALID_TIMESTAMP || remindAtMs > MAX_VALID_TIMESTAMP) {
-        throw new AppError(
-            'REMINDER_INVALID_OFFSET',
-            'Reminder offset results in an invalid timestamp',
-            400
-        )
-    }
-    
-    const remindAt = new Date(remindAtMs)
-    
-    // Validate that remindAt is a valid date
-    if (isNaN(remindAt.getTime())) {
-        throw new AppError(
-            'REMINDER_INVALID_OFFSET',
-            'Reminder offset results in an invalid date',
-            400
-        )
-    }
+	// Calculate remindAt time (convert minutes to milliseconds)
+	const millisecondsOffset = minutesBeforeStart * 60 * 1000
 
-    // Validate that remindAt is in the future
-    const now = new Date()
-    if (remindAt <= now) {
-        throw new AppError(
-            'REMINDER_TOO_LATE',
-            'Reminder time must be in the future',
-            400
-        )
-    }
+	// Validate that the calculation doesn't overflow and produces a valid timestamp
+	// Check that the result is within reasonable bounds (not before Unix epoch or after year 9999)
+	const startTimeMs = startTime.getTime()
+	const remindAtMs = startTimeMs - millisecondsOffset
 
-    return remindAt
+	// Validate the computed timestamp is within reasonable range
+	// Unix epoch: 0, Year 9999: 253402300799000 (approximately)
+	const MIN_VALID_TIMESTAMP = 0
+	const MAX_VALID_TIMESTAMP = 253402300799000 // Year 9999
+	if (remindAtMs < MIN_VALID_TIMESTAMP || remindAtMs > MAX_VALID_TIMESTAMP) {
+		throw new AppError(
+			'REMINDER_INVALID_OFFSET',
+			'Reminder offset results in an invalid timestamp',
+			400
+		)
+	}
+
+	const remindAt = new Date(remindAtMs)
+
+	// Validate that remindAt is a valid date
+	if (isNaN(remindAt.getTime())) {
+		throw new AppError(
+			'REMINDER_INVALID_OFFSET',
+			'Reminder offset results in an invalid date',
+			400
+		)
+	}
+
+	// Validate that remindAt is in the future
+	const now = new Date()
+	if (remindAt <= now) {
+		throw new AppError('REMINDER_TOO_LATE', 'Reminder time must be in the future', 400)
+	}
+
+	return remindAt
 }
 
 /**
  * Serializes a reminder object, converting Date objects to ISO strings
  */
 export function serializeReminder(reminder: {
-    id: string
-    eventId: string
-    userId: string
-    minutesBeforeStart: number
-    status: ReminderStatus
-    remindAt: Date
-    createdAt: Date
-    updatedAt: Date
-    deliveredAt: Date | null
-    lastAttemptAt: Date | null
-    failureReason: string | null
+	id: string
+	eventId: string
+	userId: string
+	minutesBeforeStart: number
+	status: ReminderStatus
+	remindAt: Date
+	createdAt: Date
+	updatedAt: Date
+	deliveredAt: Date | null
+	lastAttemptAt: Date | null
+	failureReason: string | null
 }) {
-    return {
-        id: reminder.id,
-        eventId: reminder.eventId,
-        userId: reminder.userId,
-        minutesBeforeStart: reminder.minutesBeforeStart,
-        status: reminder.status,
-        remindAt: reminder.remindAt.toISOString(),
-        createdAt: reminder.createdAt.toISOString(),
-        updatedAt: reminder.updatedAt.toISOString(),
-        deliveredAt: reminder.deliveredAt?.toISOString() ?? null,
-        lastAttemptAt: reminder.lastAttemptAt?.toISOString() ?? null,
-        failureReason: reminder.failureReason,
-    }
+	return {
+		id: reminder.id,
+		eventId: reminder.eventId,
+		userId: reminder.userId,
+		minutesBeforeStart: reminder.minutesBeforeStart,
+		status: reminder.status,
+		remindAt: reminder.remindAt.toISOString(),
+		createdAt: reminder.createdAt.toISOString(),
+		updatedAt: reminder.updatedAt.toISOString(),
+		deliveredAt: reminder.deliveredAt?.toISOString() ?? null,
+		lastAttemptAt: reminder.lastAttemptAt?.toISOString() ?? null,
+		failureReason: reminder.failureReason,
+	}
 }
 
 /**
  * Formats a list of reminders by serializing each one
  */
-export function formatReminderList(reminders: Array<{
-    id: string
-    eventId: string
-    userId: string
-    minutesBeforeStart: number
-    status: ReminderStatus
-    remindAt: Date
-    createdAt: Date
-    updatedAt: Date
-    deliveredAt: Date | null
-    lastAttemptAt: Date | null
-    failureReason: string | null
-}>) {
-    return reminders.map(serializeReminder)
+export function formatReminderList(
+	reminders: Array<{
+		id: string
+		eventId: string
+		userId: string
+		minutesBeforeStart: number
+		status: ReminderStatus
+		remindAt: Date
+		createdAt: Date
+		updatedAt: Date
+		deliveredAt: Date | null
+		lastAttemptAt: Date | null
+		failureReason: string | null
+	}>
+) {
+	return reminders.map(serializeReminder)
 }
 
 /**
  * Lists all reminders for a specific event and user
  */
 export async function listEventRemindersForUser(eventId: string, userId: string) {
-    const reminders = await prisma.eventReminder.findMany({
-        where: {
-            eventId,
-            userId,
-        },
-        orderBy: {
-            remindAt: 'asc',
-        },
-    })
+	const reminders = await prisma.eventReminder.findMany({
+		where: {
+			eventId,
+			userId,
+		},
+		orderBy: {
+			remindAt: 'asc',
+		},
+	})
 
-    return formatReminderList(reminders)
+	return formatReminderList(reminders)
 }
 
 /**
@@ -171,54 +165,54 @@ export async function listEventRemindersForUser(eventId: string, userId: string)
  * Creates a new reminder or updates an existing one
  */
 export async function scheduleReminderForEvent(
-    event: { id: string; title: string; startTime: Date },
-    userId: string,
-    minutesBeforeStart: number
+	event: { id: string; title: string; startTime: Date },
+	userId: string,
+	minutesBeforeStart: number
 ) {
-    // Validate event start time
-    if (isNaN(event.startTime.getTime())) {
-        throw new AppError('REMINDER_INVALID_EVENT', 'Event start time is invalid', 400)
-    }
+	// Validate event start time
+	if (isNaN(event.startTime.getTime())) {
+		throw new AppError('REMINDER_INVALID_EVENT', 'Event start time is invalid', 400)
+	}
 
-    // Validate event hasn't already started
-    const now = new Date()
-    if (event.startTime <= now) {
-        throw new AppError('REMINDER_EVENT_PAST', 'Cannot set reminder for past event', 400)
-    }
+	// Validate event hasn't already started
+	const now = new Date()
+	if (event.startTime <= now) {
+		throw new AppError('REMINDER_EVENT_PAST', 'Cannot set reminder for past event', 400)
+	}
 
-    // Normalize and validate reminder minutes
-    const normalizedMinutes = normalizeReminderMinutes(minutesBeforeStart)
+	// Normalize and validate reminder minutes
+	const normalizedMinutes = normalizeReminderMinutes(minutesBeforeStart)
 
-    // Compute remindAt time
-    const remindAt = computeRemindAt(event.startTime, normalizedMinutes)
+	// Compute remindAt time
+	const remindAt = computeRemindAt(event.startTime, normalizedMinutes)
 
-    // Upsert reminder (create or update existing)
-    const reminder = await prisma.eventReminder.upsert({
-        where: {
-            eventId_userId: {
-                eventId: event.id,
-                userId,
-            },
-        },
-        create: {
-            eventId: event.id,
-            userId,
-            minutesBeforeStart: normalizedMinutes,
-            remindAt,
-            status: ReminderStatus.PENDING,
-        },
-        update: {
-            minutesBeforeStart: normalizedMinutes,
-            remindAt,
-            status: ReminderStatus.PENDING,
-            // Reset delivery tracking when updating
-            deliveredAt: null,
-            lastAttemptAt: null,
-            failureReason: null,
-        },
-    })
+	// Upsert reminder (create or update existing)
+	const reminder = await prisma.eventReminder.upsert({
+		where: {
+			eventId_userId: {
+				eventId: event.id,
+				userId,
+			},
+		},
+		create: {
+			eventId: event.id,
+			userId,
+			minutesBeforeStart: normalizedMinutes,
+			remindAt,
+			status: ReminderStatus.PENDING,
+		},
+		update: {
+			minutesBeforeStart: normalizedMinutes,
+			remindAt,
+			status: ReminderStatus.PENDING,
+			// Reset delivery tracking when updating
+			deliveredAt: null,
+			lastAttemptAt: null,
+			failureReason: null,
+		},
+	})
 
-    return serializeReminder(reminder)
+	return serializeReminder(reminder)
 }
 
 /**
@@ -226,46 +220,46 @@ export async function scheduleReminderForEvent(
  * Returns true if cancelled, false if already sent or doesn't exist
  */
 export async function cancelReminderForEvent(eventId: string, userId: string): Promise<boolean> {
-    // Find the reminder
-    const reminder = await prisma.eventReminder.findUnique({
-        where: {
-            eventId_userId: {
-                eventId,
-                userId,
-            },
-        },
-    })
+	// Find the reminder
+	const reminder = await prisma.eventReminder.findUnique({
+		where: {
+			eventId_userId: {
+				eventId,
+				userId,
+			},
+		},
+	})
 
-    if (!reminder) {
-        return false
-    }
+	if (!reminder) {
+		return false
+	}
 
-    // Don't cancel if already sent
-    if (reminder.status === ReminderStatus.SENT) {
-        return false
-    }
+	// Don't cancel if already sent
+	if (reminder.status === ReminderStatus.SENT) {
+		return false
+	}
 
-    // Update status to CANCELLED
-    try {
-        await prisma.eventReminder.update({
-            where: {
-                eventId_userId: {
-                    eventId,
-                    userId,
-                },
-            },
-            data: {
-                status: ReminderStatus.CANCELLED,
-            },
-        })
-        return true
-    } catch (error: unknown) {
-        // Handle P2025 (record not found) gracefully - reminder may have been deleted concurrently
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-            return false
-        }
-        throw error
-    }
+	// Update status to CANCELLED
+	try {
+		await prisma.eventReminder.update({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId,
+				},
+			},
+			data: {
+				status: ReminderStatus.CANCELLED,
+			},
+		})
+		return true
+	} catch (error: unknown) {
+		// Handle P2025 (record not found) gracefully - reminder may have been deleted concurrently
+		if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+			return false
+		}
+		throw error
+	}
 }
 
 /**
@@ -273,34 +267,34 @@ export async function cancelReminderForEvent(eventId: string, userId: string): P
  * Verifies the reminder belongs to the user before deleting
  */
 export async function deleteReminderById(reminderId: string, userId: string) {
-    // Find the reminder and verify ownership
-    const reminder = await prisma.eventReminder.findFirst({
-        where: {
-            id: reminderId,
-            userId,
-        },
-    })
+	// Find the reminder and verify ownership
+	const reminder = await prisma.eventReminder.findFirst({
+		where: {
+			id: reminderId,
+			userId,
+		},
+	})
 
-    if (!reminder) {
-        throw new AppError('REMINDER_NOT_FOUND', 'Reminder not found', 404)
-    }
+	if (!reminder) {
+		throw new AppError('REMINDER_NOT_FOUND', 'Reminder not found', 404)
+	}
 
-    // Update status to CANCELLED (soft delete)
-    const updated = await prisma.eventReminder.update({
-        where: {
-            id: reminderId,
-        },
-        data: {
-            status: ReminderStatus.CANCELLED,
-        },
-    })
+	// Update status to CANCELLED (soft delete)
+	const updated = await prisma.eventReminder.update({
+		where: {
+			id: reminderId,
+		},
+		data: {
+			status: ReminderStatus.CANCELLED,
+		},
+	})
 
-    return serializeReminder(updated)
+	return serializeReminder(updated)
 }
 
 /**
  * Returns the list of available reminder minute options
  */
 export function getReminderOptions(): number[] {
-    return [...REMINDER_MINUTE_OPTIONS]
+	return [...REMINDER_MINUTE_OPTIONS]
 }

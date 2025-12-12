@@ -2,54 +2,23 @@
 
 A federated event management platform implementing the ActivityPub protocol for decentralized event sharing and discovery across multiple instances.
 
-**Status: Public Beta** - The project is ready for beta testing. See deployment section for production setup.
+**Status: Public Beta**
 
 ## Features
 
-- **Event sharing & reposts**: Share any public event (local or remote) with your followers. Shares are federated using ActivityPub `Announce` activities, appear in the activity feed with attribution, and include a dedicated share action on the event detail page.
-
-## Advanced Event Search (WP-011)
-
-Constellate now ships with a dedicated `/search` experience and richer backend filtering so community members can zero in on the events that matter most.
-
-- **Filter UI:** The new `SearchPage` pairs keyword search with location filters, attendance mode/status toggles, tag/category chips, and both preset and custom date ranges. All filters sync to the URL, making searches easy to share.
-- **API updates:** `GET /api/search` accepts the following query parameters (all optional):
-  - `q` — keyword (title/summary)
-  - `location` — case-insensitive substring match
-  - `dateRange` — one of `today`, `tomorrow`, `this_weekend`, `next_7_days`, `next_30_days`
-  - `startDate` / `endDate` — ISO timestamps for custom ranges (leave `dateRange` unset to rely exclusively on explicit bounds)
-  - `mode` — `OfflineEventAttendanceMode`, `OnlineEventAttendanceMode`, or `MixedEventAttendanceMode`
-  - `status` — `EventScheduled`, `EventPostponed`, `EventCancelled`
-  - `categories` or `tags` — comma-separated list of normalized tags (aliases are treated interchangeably)
-  - `username` — filter by organizer handle
-  - `page` / `limit` — pagination controls (limit capped at 100)
-- **Preset handling:** When `dateRange` is provided and explicit dates are omitted, the backend now expands the preset into start/end boundaries (e.g., `next_7_days` resolves to “today through six days from now”) while still respecting visibility constraints.
-- **Documentation-first:** Filters are echoed back under `filters` in the JSON payload so clients can display applied chips without re-parsing URLs.
-
-## User Mentions in Comments
-
-Constellate comments now understand `@username` mentions:
-
-- Backend automatically parses sanitized comment text, stores structured mention metadata, and broadcasts a `mention:received` SSE event to the mentioned local user (remote users are skipped until federation notifications land).
-- POST `/api/events/:id/comments` accepts an optional `inReplyToId` and returns each comment's `mentions` array so clients can render contextual links.
-- New `CommentMention` entries power future notification history while keeping API responses lightweight.
-- The web client adds mention autocomplete (type `@` to search local users), inline highlighting, and real-time mention toasts in the bottom-right corner so people notice when they're called out.
-
-## Timezone Handling (WP-017)
-
-- **User preference:** Every account now has a stored IANA timezone (defaults to `UTC`). Update it from `/settings`, where the UI pulls from the platform-supported timezone list and persists via `PUT /api/profile`.
-- **Event metadata:** Newly created and shared events automatically capture the creator's timezone so other viewers know where the times originate. Event detail pages render times in the viewer's preferred/device timezone and call out the source timezone for clarity.
-- **Calendar exports:** All `.ics` exports embed the correct `VTIMEZONE` definitions and tag each event with `TZID`, so calendar clients convert to the subscriber's locale without losing the original schedule.
-
-## Event Reminders (WP-015)
-
-- RSVP flows now include a reminder selector (Going/Maybe only). Supported offsets: 5, 15, 30, 60, 120 minutes and 24 hours before start.
-- API endpoints:
-  - `GET /api/events/:eventId/reminders` — returns the viewer's reminder plus the allowed offsets.
-  - `POST /api/events/:eventId/reminders` — sets or updates the reminder (`{ "minutesBeforeStart": 30 }`).
-  - `DELETE /api/events/:eventId/reminders` or `DELETE /api/events/:eventId/reminders/:reminderId` — cancels reminders.
-- RSVP payloads accept an optional `reminderMinutesBeforeStart` field so the frontend can create reminders in the same request as an attendance change.
-- `src/services/reminderDispatcher.ts` runs every ~30 seconds (in non-test environments) to pick up reminders whose `remindAt` timestamp passed, emit in-app notifications, and send emails via `src/lib/email.ts` when SMTP is configured.
+- **Event Management**: Create, share, and discover events with full ActivityPub federation
+- **Advanced Search**: Filter by location, date, tags, attendance mode, and organizer
+- **User Mentions**: `@username` mentions in comments with real-time notifications
+- **Timezone Support**: User timezone preferences with proper calendar export handling
+- **Event Reminders**: Configurable reminders for RSVP'd events
+- **Follow System**: Follow users and build personalized activity feeds
+- **Notifications**: Real-time in-app notifications via SSE
+- **Event Recommendations**: Personalized event suggestions based on interests
+- **Trending Events**: Algorithm-based trending events with engagement metrics
+- **Recurring Events**: Support for daily, weekly, and monthly recurring schedules
+- **Calendar Sync**: iCal exports and Google Calendar integration
+- **Location Discovery**: Nearby event search with OpenStreetMap integration
+- **Instance Directory**: Discover and explore federated instances
 
 ## Development
 
@@ -63,21 +32,17 @@ npm run docker:dev
 npm run docker:test
 ```
 
-The dev environment starts two instances (app1 and app2) that watch all frontend and backend code changes. Both are served by Caddy at `http://app1.local` and `http://app2.local`. Each instance runs both backend and frontend; the frontend proxies API requests to the backend. Add these domains to your hosts file: `app1.local`, `app2.local`, and `test.local`. Edit `/etc/hosts` and add `127.0.0.1 app1.local app2.local test.local`. The test watcher monitors source code changes and runs tests automatically.
-
-**Database:** Docker development uses PostgreSQL (consistent with production). Migrations are created and applied automatically on first startup.
+The dev environment starts two instances (app1 and app2) at `http://app1.local` and `http://app2.local`. Add these domains to your hosts file: `127.0.0.1 app1.local app2.local test.local`.
 
 ### Local Development
-
-**Option 1: Using PostgreSQL (Recommended, consistent with production)**
 
 ```bash
 # Install dependencies
 npm install
 cd client && npm install && cd ..
 
-# Set up PostgreSQL database (make sure PostgreSQL is running)
-# Create database: createdb constellate_dev
+# Set up PostgreSQL database
+createdb constellate_dev
 export DATABASE_URL="postgresql://user:password@localhost:5432/constellate_dev?schema=public"
 
 # Set up database
@@ -92,20 +57,15 @@ npm run dev
 npm run test:watch
 ```
 
-
-
 ## Production
 
 ### Docker Deployment
 
 ```bash
-# Build and start production containers
 npm run docker:prod
 ```
 
 ### Required Environment Variables
-
-Create a `.env` file with the following variables:
 
 ```bash
 # Server Configuration
@@ -128,162 +88,84 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
 
 **Important Notes:**
 
-1. **Rate Limiting**: The current implementation uses in-memory rate limiting, which only works for single-instance deployments. For multi-instance deployments, you MUST implement Redis-based rate limiting (see `src/middleware/rateLimit.ts` for details).
-
-2. **Caddy Configuration**: Update `Caddyfile.prod` with your actual domain and email before deployment.
-
-3. **Database Migrations**: Migrations run automatically on container startup via `scripts/prod-entrypoint.sh`. Always create migrations when changing the database schema using `npx prisma migrate dev --name your_change_name`.
-
-4. **Security**: Ensure all secrets are properly generated and stored securely. Never commit `.env` files to version control.
+- Rate limiting is in-memory only (single-instance). Use Redis for multi-instance deployments.
+- Update `Caddyfile.prod` with your domain before deployment.
+- Migrations run automatically on container startup.
 
 ## Testing
 
-Testing runs entirely against an in-memory Prisma mock (via `@pkgverse/prismock`), so no local database or Docker services are required. Just install dependencies with `npm install` (and `npm install` inside `client/` when touching frontend code) and use the scripts below:
+Tests run against an in-memory Prisma mock, no database required:
 
 ```bash
-# Run deterministic Vitest suite with coverage + JUnit (reports/junit.xml)
+# Run test suite with coverage
 npm run test:coverage
 
-# Watch mode (run in separate terminal from dev servers)
+# Watch mode
 npm run test:watch
 
-# Run test suite
+# Run tests
 npm test
 ```
 
-The mocked data layer resets between tests, so suites remain isolated without needing to truncate tables or run migrations.
-
-## Follow System
-
-Constellate supports following users to build a personalized activity feed. The follow system integrates with ActivityPub for federated follows across instances:
-
-- `POST /api/users/:username/follow` — follow a user (local or remote)
-- `DELETE /api/users/:username/follow` — unfollow a user
-- `GET /api/users/:username/follow-status` — check if you're following a user
-- `GET /api/activity/feed` — get activities from users you follow
-
-Features:
-- **Auto-accept**: Users can configure whether to automatically accept follow requests
-- **Pending follows**: Follow requests to users with auto-accept disabled appear as "Pending"
-- **ActivityPub integration**: Following remote users sends ActivityPub Follow activities
-- **Activity feed**: See events, likes, RSVPs, and comments from people you follow
-- **Real-time updates**: Follow status changes are broadcast via SSE (`follow:pending`, `follow:accepted`, etc.)
-
 ## ActivityPub Federation
 
-Constellate implements the ActivityPub protocol for decentralized federation with other compatible instances (Mastodon, Mobilizon, etc.). The following ActivityPub activity types are fully supported:
+Constellate implements ActivityPub for federation with compatible instances (Mastodon, Mobilizon, etc.). Supported activities:
 
-### Outgoing Activities (Sent to Remote Instances)
+- **Outgoing**: Create, Update, Delete, Follow, Accept, Reject, Like, Announce, TentativeAccept, Undo
+- **Incoming**: All activity types are processed and cached locally
+- **Features**: HTTP signatures, WebFinger discovery, shared inboxes, real-time SSE updates
 
-- **Create**: Share new events and comments with followers on remote instances
-- **Update**: Notify followers when event details or profile information changes
-- **Delete**: Inform followers when events or comments are deleted
-- **Follow**: Request to follow remote users
-- **Accept**: Accept follow requests and indicate event attendance
-- **Reject**: Reject follow requests and indicate non-attendance
-- **Like**: Like events created by remote users
-- **Announce**: Share/repost events from remote instances
-- **TentativeAccept**: Indicate "maybe" attendance status
-- **Undo**: Reverse previous actions (unlike, unfollow, change RSVP)
+See `src/activitypub.ts`, `src/federation.ts`, and `src/services/ActivityBuilder.ts` for implementation details.
 
-### Incoming Activities (Received from Remote Instances)
+## API Endpoints
 
-All outgoing activity types are also processed when received from remote instances. Constellate properly handles:
+Key endpoints:
 
-- **Event synchronization**: Remote events are cached locally and kept up-to-date via Update activities
-- **Profile updates**: Remote user profiles are updated when they change
-- **Deletion handling**: Deleted content is removed from local caches (uses Tombstone objects)
-- **RSVP management**: Track attendance from remote users with Accept/TentativeAccept/Reject
-- **Activity reversal**: Undo activities properly reverse likes, follows, and attendance
+- **Events**: `GET /api/events`, `POST /api/events`, `GET /api/events/:id`, `GET /api/events/trending`
+- **Search**: `GET /api/search` (with filters), `GET /api/search/nearby`
+- **Users**: `POST /api/users/:username/follow`, `GET /api/activity/feed`
+- **Notifications**: `GET /api/notifications`, `POST /api/notifications/:id/read`
+- **Reminders**: `GET /api/events/:id/reminders`, `POST /api/events/:id/reminders`
+- **Instances**: `GET /api/instances`, `GET /api/instances/search`
 
-### Federation Features
+## To-Do
 
-- **HTTP Signatures**: All outgoing activities are signed using RSA-based HTTP signatures for authentication
-- **Signature verification**: Incoming activities are verified to prevent spoofing
-- **WebFinger discovery**: Supports ActivityPub actor discovery via WebFinger
-- **Shared inboxes**: Efficient delivery using shared inbox endpoints when available
-- **Real-time updates**: Federation events trigger real-time broadcasts via SSE
-- **Activity deduplication**: Prevents processing the same activity multiple times
-- **Error handling**: Failed deliveries are logged (retry logic can be added in WP-019)
+### High Priority
 
-For implementation details, see `src/activitypub.ts`, `src/federation.ts`, and `src/services/ActivityBuilder.ts`.
+- [ ] Implement Redis-based rate limiting for multi-instance deployments (currently in-memory only)
+- [ ] Implement missing backend endpoints:
+    - [ ] `PUT /api/notifications/preferences` - Notification preferences saving
+    - [ ] `DELETE /api/profile` - Account deletion endpoint
+- [ ] Replace remaining direct `fetch()` call in `CalendarPage.tsx` (line 189) with API client
 
-## Notifications API
+### Medium Priority
 
-Constellate ships with a backend notification service that powers both the REST API and real-time delivery channel:
+- [ ] Consider React Hook Form + Zod for form validation
+- [ ] Run accessibility audit (axe-core, keyboard navigation, screen readers)
+- [ ] Performance optimization (bundle analysis, code splitting, lazy loading)
+- [ ] Design system improvements:
+    - [ ] Add more semantic color variants
+    - [ ] Expand typography scale
+    - [ ] Add animation tokens
+    - [ ] Add component-specific tokens
+    - [ ] Create Storybook documentation site
+- [ ] Add pre-commit git hooks (lint-staged/husky) for linting and formatting
+- [ ] Add bundle size monitoring to CI/CD to prevent regressions
+- [ ] Add automated accessibility checks (axe-core) to GitHub Actions workflow
 
-- `GET /api/notifications?limit=20` — returns the most recent notifications plus the unread count.
-- `POST /api/notifications/:notificationId/read` — marks a single notification as read.
-- `POST /api/notifications/mark-all-read` — marks all notifications for the authenticated user as read.
+### Low Priority
 
-Notifications are streamed in real time over the existing SSE endpoint as `notification:created` events, so the frontend can immediately surface unread counts without polling.
-
-## Notification UI (WP-009)
-
-- The client now includes a `NotificationBell` component (`client/src/components/NotificationBell.tsx`) that surfaces unread counts in the navbar, streams updates via `notification:created` / `notification:read` SSE events, and exposes quick actions (mark all read, jump to details).
-- A dedicated `/notifications` page (`client/src/pages/NotificationsPage.tsx`) presents the full inbox with type-specific styling (follow, comment, like, mention, event, system), actor context, and contextual navigation buttons.
-- Both surfaces are powered by the same React Query hooks (`client/src/hooks/queries/notifications.ts`) which wrap the REST endpoints above and keep the cache synchronized with SSE broadcasts for real-time UI updates.
-- When linking notifications to product experiences, populate `contextUrl` on the backend — the UI will navigate internally for relative URLs or fall back to `window.location` for absolute links.
-
-## Event Recommendations (WP-013)
-
-Constellate now suggests events tailored to each signed-in member's interests:
-
-- `GET /api/recommendations?limit=6` returns a scored list of events the viewer can access, along with reasons (matching tags, followed hosts, popularity) and lightweight signal metadata. The endpoint requires authentication and respects the same visibility rules as the events feed.
-- Recommendations combine recently attended or liked events, preferred organizers, followed ActivityPub actors, and current engagement signals (attendance, likes, comments, recency).
-- The Home page and Feed sidebar display a "Recommended for you" card when a user is signed in. Each card surfaces the top reason and links directly to the detailed event view.
-- When no personal signals exist yet, the service automatically falls back to trending upcoming public events so the UI still has meaningful suggestions.
-
-## Trending Events (WP-012)
-
-- `GET /api/events/trending?limit=10&windowDays=7` surfaces the most engaged events from the recent window. Each response contains the trending window, generation timestamp, and an array of events annotated with `trendingScore`, `trendingRank`, and a `trendingMetrics` breakdown (likes, comments, RSVPs).
-- Scores weight engagement (likes ×4, comments ×5, attendance ×3) and apply a decay/boost curve so upcoming and freshly updated events outrank stale listings. Only events with real engagement are returned, and standard visibility rules still apply.
-- The feed page now exposes Activity / Trending tabs; the Trending tab shows the hottest events with live metrics, visibility badges, tag chips, and a manual refresh control that re-runs the algorithm on demand.
+- [ ] Add JSDoc comments and component documentation (partial - some components have docs)
+- [ ] Add integration and E2E tests for critical paths (Playwright/Cypress setup)
+- [ ] Enforce import organization with ESLint
+- [ ] Centralize and type-safe environment variables (backend has config.ts, frontend needs it)
+- [ ] Detect and eliminate code duplication
+- [ ] Set up dependency management automation
+- [ ] Set up error tracking and monitoring
+- [ ] Extend API client to handle blob responses (for `.ics` file downloads)
+- [ ] Add coverage threshold enforcement in CI (minimum coverage requirements)
+- [ ] Add dependency security scanning (`npm audit` or Snyk) to CI
 
 ## License
 
 AGPL-3.0
-
-## Recurring Events
-
-Constellate now supports recurring events for daily, weekly, and monthly schedules. When creating or updating an event via `POST /api/events` or `PUT /api/events/:id`, include the following fields:
-
-- `recurrencePattern`: one of `DAILY`, `WEEKLY`, or `MONTHLY`
-- `recurrenceEndDate`: ISO timestamp that indicates when the recurrence should stop
-
-Recurring events automatically expand on calendar views and are exported with RRULE metadata in iCal feeds.
-
-## Calendar Sync (WP-016)
-
-- iCal exports include canonical event URLs inside the description so calendar clients always preserve a link back to Constellate.
-- `GET /api/calendar/{id}/export/google` returns a ready-to-open Google Calendar link for any event, respecting the same visibility rules as iCal downloads.
-- The Calendar page now adds a per-event **Add to Google Calendar** action inside the Upcoming Events list so users can quickly push upcoming happenings to their personal calendar.
-
-## Location-Based Event Discovery (WP-014)
-
-Constellate now understands precise event coordinates and exposes a nearby search workflow:
-
-- `Event` records include optional `locationLatitude` / `locationLongitude` decimals (degrees). Supply both values to enable map tooling and geo queries.
-- `GET /api/location/search?q=coit%20tower` proxies to OpenStreetMap Nominatim and returns normalized suggestions so the web client can autocomplete venue and coordinate fields.
-  - **Note:** The Nominatim endpoint is configurable via the `NOMINATIM_ENDPOINT` environment variable (defaults to the public Nominatim instance). This allows self-hosting or using alternative Nominatim instances.
-- `GET /api/search/nearby?latitude=40.7128&longitude=-74.0060&radiusKm=50&limit=25` returns upcoming events sorted by distance from the provided point. Responses include each event's `distanceKm` plus the origin metadata.
-- The event creation modal now offers:
-  - Address/venue text, decimal coordinate inputs with validation, and "Use my location" shortcuts.
-  - Inline autocomplete so organizers can search for a place once and reuse it in templates.
-- The feed sidebar contains a **Find events nearby** card that lets anyone choose a saved location (or their current device location), pick a radius (10-100 km), and browse nearby events live.
-
-## Instance Discovery and Directory (WP-021)
-
-Constellate now helps users discover and explore federated instances:
-
-- **Automatic tracking:** When remote users follow local users or create events, their instances are automatically tracked in the database.
-- **Instance directory:** `GET /api/instances?limit=50&sortBy=activity` returns known federated instances with metadata including software, version, user count, and connection statistics.
-- **Instance search:** `GET /api/instances/search?q=mastodon` searches instances by domain, title, or description.
-- **Instance details:** `GET /api/instances/{domain}` provides detailed information about a specific instance including cached remote users, events, and follower counts.
-- **Admin panel:** The admin interface includes an "Instances" tab showing:
-  - All discovered instances with their metadata (software name, version, user count)
-  - Connection statistics (cached users, events, follows from each instance)
-  - Last activity timestamps to see which instances are most active
-  - Instance icons and descriptions when available
-- **Profile visibility:** User profiles for remote users display which instance they're from (e.g., "from mastodon.social")
-- **Metadata fetching:** Constellate attempts to fetch instance metadata via NodeInfo protocol to display instance names, descriptions, user counts, and software versions.

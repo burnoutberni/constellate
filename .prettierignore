@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Build outputs
+dist/
+build/
+client/dist/
+client/build/
+*.tsbuildinfo
+
+# Generated files
+prisma/migrations/
+*.generated.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Docker
+*.dockerfile

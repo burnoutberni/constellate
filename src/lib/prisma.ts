@@ -6,7 +6,7 @@
 import { PrismaClient, Prisma } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined
+	prisma: PrismaClient | undefined
 }
 
 // Determine log level based on environment
@@ -14,25 +14,26 @@ const globalForPrisma = globalThis as unknown as {
 const shouldLogQueries = process.env.PRISMA_LOG_QUERIES === 'true'
 let logLevel: Prisma.LogLevel[]
 if (shouldLogQueries) {
-    logLevel = ['query', 'error', 'warn']
+	logLevel = ['query', 'error', 'warn']
 } else if (process.env.NODE_ENV === 'development') {
-    logLevel = ['error', 'warn']
+	logLevel = ['error', 'warn']
 } else {
-    logLevel = ['error']
+	logLevel = ['error']
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-    log: logLevel,
-})
+export const prisma =
+	globalForPrisma.prisma ??
+	new PrismaClient({
+		log: logLevel,
+	})
 
 if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma
+	globalForPrisma.prisma = prisma
 }
 
 // Graceful shutdown
 if (process.env.NODE_ENV === 'production') {
-    process.on('beforeExit', async () => {
-        await prisma.$disconnect()
-    })
+	process.on('beforeExit', async () => {
+		await prisma.$disconnect()
+	})
 }
-

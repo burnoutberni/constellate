@@ -1,6 +1,6 @@
 /**
  * Design System - Public API
- * 
+ *
  * Central export point for all design system modules.
  */
 
@@ -11,4 +11,5 @@ export * from './tokens'
 export * from './types'
 
 // Theme Context
-export { ThemeProvider, useTheme, useThemeColors } from './ThemeContext'
+export { ThemeProvider, ThemeContext, type ThemeContextType } from './ThemeContext'
+export { useTheme, useThemeColors } from '../hooks/useTheme'

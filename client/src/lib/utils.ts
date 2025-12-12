@@ -7,5 +7,5 @@ import { twMerge } from 'tailwind-merge'
  * Example: cn('p-2', 'p-4') resolves to just 'p-4'
  */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+	return twMerge(clsx(inputs))
 }
