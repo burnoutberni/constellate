@@ -508,7 +508,7 @@ const setupEventListeners = (
 				createdAt?: string
 			}
 
-			if (data.commentId && data.eventId) {
+			if (data?.commentId && data?.eventId) {
 				const createdAt = data.createdAt || event.timestamp || new Date().toISOString()
 				addMentionNotification({
 					id: `${data.commentId}-${createdAt}`,
