@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { useAuth } from '../hooks/useAuth'
+
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
+
+import { useAuth } from '../hooks/useAuth'
+
 import { Modal, Button, Input } from './ui'
 
 const log = createLogger('[SignupModal]')

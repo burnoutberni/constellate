@@ -93,15 +93,10 @@ function addOptionalFieldsForUpdate(
 	formData: Pick<FormData, 'summary' | 'location' | 'url'>
 ): Record<string, unknown> {
 	const fields: Record<string, unknown> = {}
-	if (formData.summary !== undefined) {
-		fields.summary = formData.summary.trim() || null
-	}
-	if (formData.location !== undefined) {
-		fields.location = formData.location.trim() || null
-	}
-	if (formData.url !== undefined) {
-		fields.url = formData.url.trim() || null
-	}
+	// All fields are always defined in FormData, so we always add them
+	fields.summary = formData.summary.trim() || null
+	fields.location = formData.location.trim() || null
+	fields.url = formData.url.trim() || null
 	return fields
 }
 

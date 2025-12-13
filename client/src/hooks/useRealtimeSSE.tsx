@@ -3,13 +3,15 @@
  * Single instance manages all real-time updates and cache invalidation
  */
 
-import { useEffect, useState, useRef } from 'react'
 import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import { queryKeys } from './queries/keys'
+import { useEffect, useState, useRef } from 'react'
+
+import { logger } from '@/lib/logger'
 import { useUIStore } from '@/stores'
 import type { EventDetail, EventUser, Notification } from '@/types'
+
+import { queryKeys } from './queries/keys'
 import type { NotificationsResponse } from './queries/notifications'
-import { logger } from '@/lib/logger'
 
 type QueryKeys = typeof queryKeys
 
@@ -63,11 +65,11 @@ const updateLikeInCache = (
 		return
 	}
 	const eventDetail = data as EventDetail
-	const userId = newLike.user?.id
+	const userId = newLike.user.id
 	if (checkLikeExists(eventDetail.likes, userId)) {
 		return
 	}
-	const currentLikes = eventDetail.likes || []
+	const currentLikes = eventDetail.likes
 	const updatedLikes = [...currentLikes, newLike]
 	const updatedCount = updatedLikes.length
 	qClient.setQueryData(queryKey, {
@@ -135,7 +137,7 @@ const addCommentToCache = (
 		return
 	}
 	const eventDetail = data as EventDetail
-	const updatedComments = [...(eventDetail.comments || []), newComment]
+	const updatedComments = [...eventDetail.comments, newComment]
 	qClient.setQueryData(queryKey, {
 		...eventDetail,
 		comments: updatedComments,

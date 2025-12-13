@@ -1,5 +1,6 @@
-import { InstanceCard } from './InstanceCard'
 import type { InstanceWithStats } from '@/types'
+
+import { InstanceCard } from './InstanceCard'
 
 interface InstanceListProps {
 	instances: InstanceWithStats[]

@@ -1,11 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Navbar } from '../components/Navbar'
-import { InstanceStats } from '../components/InstanceStats'
+
 import { Container } from '@/components/layout'
 import { Card, Button, Badge, Avatar, Spinner } from '@/components/ui'
-import { useAuth } from '../hooks/useAuth'
 import {
 	useInstanceDetail,
 	useBlockInstance,
@@ -13,10 +11,14 @@ import {
 	useRefreshInstance,
 	queryKeys,
 } from '@/hooks/queries'
-import { setSEOMetadata } from '../lib/seo'
-import { ConfirmationModal } from '../components/ConfirmationModal'
 import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
+
+import { ConfirmationModal } from '../components/ConfirmationModal'
+import { InstanceStats } from '../components/InstanceStats'
+import { Navbar } from '../components/Navbar'
+import { useAuth } from '../hooks/useAuth'
+import { setSEOMetadata } from '../lib/seo'
 
 export function InstanceDetailPage() {
 	const { domain } = useParams<{ domain: string }>()

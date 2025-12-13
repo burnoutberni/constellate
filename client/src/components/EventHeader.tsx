@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Avatar } from './ui'
+
 import { EventActions } from './EventActions'
+import { Avatar } from './ui'
 
 interface EventHeaderProps {
 	/**

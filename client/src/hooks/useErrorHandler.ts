@@ -30,9 +30,10 @@
  */
 
 import { useCallback } from 'react'
-import { useUIStore } from '@/stores'
+
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
+import { useUIStore } from '@/stores'
 
 const log = createLogger('[Error Handler]')
 
@@ -63,21 +64,7 @@ export function useErrorHandler() {
 	const addErrorToast = useUIStore((state) => state.addErrorToast)
 
 	return useCallback(
-		(error: unknown, contextOrMessage?: string, options?: ErrorHandlerOptions) => {
-			// Handle legacy usage: if second param is an object, treat it as options
-			let message: string | undefined
-			let opts: ErrorHandlerOptions | undefined
-
-			if (typeof contextOrMessage === 'string') {
-				message = contextOrMessage
-				opts = options
-			} else if (contextOrMessage && typeof contextOrMessage === 'object') {
-				// Legacy: second param was options object
-				opts = contextOrMessage as ErrorHandlerOptions
-			} else {
-				opts = options
-			}
-
+		(error: unknown, message?: string, options?: ErrorHandlerOptions) => {
 			// Extract error message
 			const errorMessage = extractErrorMessage(
 				error,
@@ -86,7 +73,7 @@ export function useErrorHandler() {
 
 			// Use provided message as context if no explicit context is given
 			const finalMessage = message || errorMessage
-			const debugContext = opts?.context || (message ? `Context: ${message}` : undefined)
+			const debugContext = options?.context || (message ? `Context: ${message}` : undefined)
 
 			// Log error for debugging (always in dev, or when context is provided)
 			if (import.meta.env.DEV || debugContext) {
@@ -94,7 +81,7 @@ export function useErrorHandler() {
 			}
 
 			// Show toast unless silent option is used
-			if (!opts?.silent) {
+			if (!options?.silent) {
 				addErrorToast({
 					id: crypto.randomUUID(),
 					message: finalMessage,

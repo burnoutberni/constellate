@@ -1,4 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
+
+import { Container, Section } from '@/components/layout'
+import { Button, Card, Spinner } from '@/components/ui'
+import { useThemeColors } from '@/design-system'
 import {
 	useEvents,
 	useRecommendedEvents,
@@ -6,14 +10,12 @@ import {
 	usePlatformStats,
 } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
+
+import { EventCard } from '../components/EventCard'
+import { EventStats } from '../components/EventStats'
+import { HomeHero } from '../components/HomeHero'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
-import { HomeHero } from '../components/HomeHero'
-import { EventStats } from '../components/EventStats'
-import { EventCard } from '../components/EventCard'
-import { Container, Section } from '@/components/layout'
-import { Button, Card, Spinner } from '@/components/ui'
-import { useThemeColors } from '@/design-system'
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 
 export function HomePage() {

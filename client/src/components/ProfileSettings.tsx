@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Button, Avatar } from './ui'
-import { queryKeys } from '@/hooks/queries'
+import { useState, useEffect } from 'react'
+
 import { useThemeColors } from '@/design-system'
-import { useUIStore } from '@/stores'
+import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { useUIStore } from '@/stores'
+
+import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Button, Avatar } from './ui'
 
 interface ProfileSettingsProps {
 	profile: {
@@ -33,11 +35,14 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
 
 	// Update local state when profile changes
 	useEffect(() => {
-		setName(profile.name || '')
-		setBio(profile.bio || '')
-		setProfileImageUrl(profile.profileImage || '')
-		setHeaderImageUrl(profile.headerImage || '')
-		setDisplayColor(profile.displayColor || '#3b82f6')
+		// Use setTimeout to avoid synchronous setState in effect
+		setTimeout(() => {
+			setName(profile.name || '')
+			setBio(profile.bio || '')
+			setProfileImageUrl(profile.profileImage || '')
+			setHeaderImageUrl(profile.headerImage || '')
+			setDisplayColor(profile.displayColor || '#3b82f6')
+		}, 0)
 	}, [profile])
 
 	const updateProfileMutation = useMutation({

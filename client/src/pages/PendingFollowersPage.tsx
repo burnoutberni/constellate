@@ -1,12 +1,14 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+
+import { Button, Spinner } from '@/components/ui'
+import { useThemeColors } from '@/design-system'
+import { queryKeys } from '@/hooks/queries'
+import { api } from '@/lib/api-client'
+import type { User } from '@/types'
+
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '@/hooks/queries'
-import type { User } from '@/types'
-import { useThemeColors } from '@/design-system'
-import { Button, Spinner } from '@/components/ui'
-import { api } from '@/lib/api-client'
 
 interface PendingFollower extends User {
 	followerId: string

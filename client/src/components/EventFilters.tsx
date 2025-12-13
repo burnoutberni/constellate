@@ -1,8 +1,10 @@
 import { FormEvent, KeyboardEvent, useState } from 'react'
+
+import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
+import { normalizeCategory } from '../lib/searchUtils'
+
 import { Card, Button, Input, Badge } from './ui'
 import { Select } from './ui/Select'
-import { normalizeCategory } from '../lib/searchUtils'
-import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
 export interface FilterFormState {
 	q: string

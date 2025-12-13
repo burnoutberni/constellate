@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button } from './ui'
-import { getRecentSearchesList } from '../lib/recentSearches'
+
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+
+import { getRecentSearchesList } from '../lib/recentSearches'
+
+import { Badge, Button } from './ui'
 
 interface SearchSuggestionsProps {
 	query: string

@@ -1,10 +1,12 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { extractErrorMessage } from '@/lib/errorHandling'
-import { logger } from '@/lib/logger'
+
 import { Input, Button } from '@/components/ui'
 import { api } from '@/lib/api-client'
+import { extractErrorMessage } from '@/lib/errorHandling'
+import { logger } from '@/lib/logger'
+
+import { useAuth } from '../hooks/useAuth'
 
 export function OnboardingPage() {
 	const navigate = useNavigate()

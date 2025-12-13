@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import { useNearbyEvents } from '@/hooks/queries'
+import { logger } from '@/lib/logger'
+
 import {
 	useLocationSuggestions,
 	LocationSuggestion,
 	MIN_QUERY_LENGTH,
 } from '../hooks/useLocationSuggestions'
+
 import { Button, Input } from './ui'
-import { logger } from '@/lib/logger'
 
 // Radius options for nearby event discovery (in kilometers)
 // These values align with common search distances and are within the backend's max radius of 500 km
@@ -54,7 +57,8 @@ export function LocationDiscoveryCard() {
 	}
 
 	const handleUseMyLocation = () => {
-		if (!navigator.geolocation) {
+		// navigator.geolocation is always defined in TypeScript's DOM types
+		if (!('geolocation' in navigator) || !navigator.geolocation) {
 			setGeoError('Geolocation is not supported in this browser.')
 			return
 		}

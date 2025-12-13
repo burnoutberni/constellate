@@ -1,7 +1,9 @@
 import React, { Component, type ReactNode } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button } from './ui'
-import { Container } from './layout'
+
 import { logger } from '@/lib/logger'
+
+import { Container } from './layout'
+import { Card, CardContent, CardHeader, CardTitle, Button } from './ui'
 
 export interface ErrorBoundaryProps {
 	children: ReactNode

@@ -1,12 +1,14 @@
-import { Link } from 'react-router-dom'
-import { SearchBar } from './SearchBar'
 import { useQuery } from '@tanstack/react-query'
-import { NotificationBell } from './NotificationBell'
-import { ThemeToggle } from './ThemeToggle'
+import { Link } from 'react-router-dom'
+
 import { queryKeys } from '@/hooks/queries'
-import { Button } from './ui'
 import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
+
+import { NotificationBell } from './NotificationBell'
+import { SearchBar } from './SearchBar'
+import { ThemeToggle } from './ThemeToggle'
+import { Button } from './ui'
 
 export function Navbar({
 	isConnected,
@@ -103,9 +105,9 @@ export function Navbar({
 									className="text-sm text-neutral-700 hover:text-neutral-900">
 									Followers
 								</Link>
-								<NotificationBell userId={user?.id} />
+								<NotificationBell userId={user.id} />
 								<span className="text-sm text-neutral-700">
-									👤 {user?.name || user?.email}
+									👤 {user.name || user.email}
 								</span>
 								{onLogout && (
 									<Button onClick={onLogout} variant="secondary" size="sm">

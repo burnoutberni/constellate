@@ -16,16 +16,30 @@ describe('CalendarExport', () => {
 	// Mock window.open - return null to prevent jsdom navigation warnings
 	let originalOpen: typeof window.open
 	let originalBlob: typeof Blob
+	let blobConstructorSpy: ReturnType<typeof vi.fn>
+
 	beforeEach(() => {
 		originalOpen = window.open
 		// Return null to prevent jsdom "Not implemented: navigation to another Document" warnings
 		window.open = vi.fn(() => null)
 
-		// Mock Blob constructor
+		// Mock Blob constructor - needs to be a proper constructor class that we can spy on
 		originalBlob = global.Blob
-		global.Blob = vi.fn((parts, options) => {
-			return { parts, options, type: options?.type || '' }
-		}) as unknown as typeof Blob
+		blobConstructorSpy = vi.fn()
+
+		class MockBlob {
+			parts: unknown[]
+			options: { type?: string }
+			type: string
+			constructor(parts: unknown[], options?: { type?: string }) {
+				blobConstructorSpy(parts, options)
+				this.parts = parts
+				this.options = options || {}
+				this.type = options?.type || ''
+			}
+		}
+
+		global.Blob = MockBlob as unknown as typeof Blob
 	})
 
 	afterEach(() => {
@@ -57,8 +71,9 @@ describe('CalendarExport', () => {
 		const icalButton = screen.getByText('Download iCal')
 		fireEvent.click(icalButton)
 
-		// Verify link element was created
-		expect(createElementSpy).toHaveBeenCalledWith('a')
+		// Verify link element was created (filter for 'a' tag calls only)
+		const anchorCalls = createElementSpy.mock.calls.filter((call) => call[0] === 'a')
+		expect(anchorCalls.length).toBeGreaterThan(0)
 
 		// Verify blob was created
 		expect(global.URL.createObjectURL).toHaveBeenCalled()
@@ -95,8 +110,10 @@ describe('CalendarExport', () => {
 		const icalButton = screen.getByText('Download iCal')
 		fireEvent.click(icalButton)
 
-		expect(global.Blob).toHaveBeenCalled()
-		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		expect(blobConstructorSpy).toHaveBeenCalled()
+		// Get the blob content from the first call's first argument (parts array)
+		const blobCall = blobConstructorSpy.mock.calls[0]
+		const blobContent = (blobCall[0] as unknown[])[0] as string
 
 		expect(blobContent).toContain('BEGIN:VCALENDAR')
 		expect(blobContent).toContain('SUMMARY:Test Event')
@@ -116,7 +133,8 @@ describe('CalendarExport', () => {
 		const icalButton = screen.getByText('Download iCal')
 		fireEvent.click(icalButton)
 
-		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		const blobCall = blobConstructorSpy.mock.calls[0]
+		const blobContent = (blobCall[0] as unknown[])[0] as string
 
 		expect(blobContent).toContain('SUMMARY:Minimal Event')
 		expect(blobContent).not.toContain('DESCRIPTION:')
@@ -135,7 +153,8 @@ describe('CalendarExport', () => {
 		const icalButton = screen.getByText('Download iCal')
 		fireEvent.click(icalButton)
 
-		const blobContent = (global.Blob as ReturnType<typeof vi.fn>).mock.calls[0][0][0] as string
+		const blobCall = blobConstructorSpy.mock.calls[0]
+		const blobContent = (blobCall[0] as unknown[])[0] as string
 
 		expect(blobContent).toContain('SUMMARY:Event\\, with\\; special\\\\chars')
 		expect(blobContent).toContain('Line 1\\nLine 2')
@@ -149,10 +168,13 @@ describe('CalendarExport', () => {
 		const icalButton = screen.getByText('Download iCal')
 		fireEvent.click(icalButton)
 
-		const linkElement = createElementSpy.mock.results.find(
-			(result) => result.value instanceof HTMLAnchorElement
-		)?.value as HTMLAnchorElement
+		// Find the anchor element from the createElement calls
+		const anchorCallIndex = createElementSpy.mock.calls.findIndex((call) => call[0] === 'a')
+		expect(anchorCallIndex).not.toBe(-1)
 
+		const linkElement = createElementSpy.mock.results[anchorCallIndex]
+			?.value as HTMLAnchorElement
+		expect(linkElement).toBeInstanceOf(HTMLAnchorElement)
 		expect(linkElement.download).toBe('test_event.ics')
 
 		createElementSpy.mockRestore()

@@ -1,17 +1,19 @@
-import { Navbar } from '../components/Navbar'
-import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
-import { queryKeys } from '@/hooks/queries'
+import { useEffect } from 'react'
+
 import { Container } from '@/components/layout'
 import { Spinner } from '@/components/ui'
-import { ProfileSettings } from '../components/ProfileSettings'
-import { PrivacySettings } from '../components/PrivacySettings'
-import { TimeZoneSettings } from '../components/TimeZoneSettings'
-import { AccountSettings } from '../components/AccountSettings'
-import { setSEOMetadata } from '../lib/seo'
-import { useEffect } from 'react'
+import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
+
+import { AccountSettings } from '../components/AccountSettings'
+import { Navbar } from '../components/Navbar'
+import { PrivacySettings } from '../components/PrivacySettings'
+import { ProfileSettings } from '../components/ProfileSettings'
+import { TimeZoneSettings } from '../components/TimeZoneSettings'
+import { useAuth } from '../hooks/useAuth'
+import { setSEOMetadata } from '../lib/seo'
 
 export function SettingsPage() {
 	const { user, logout } = useAuth()

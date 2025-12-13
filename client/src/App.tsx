@@ -1,35 +1,36 @@
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from './lib/queryClient'
+import { useEffect, useState } from 'react'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { ErrorToasts } from './components/ErrorToasts'
+import { MentionNotifications } from './components/MentionNotifications'
+import { SuccessToasts } from './components/SuccessToasts'
+import { PageLoader } from './components/ui'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
-import { HomePage } from './pages/HomePage'
+import { queryClient } from './lib/queryClient'
 import { AboutPage } from './pages/AboutPage'
-import { LoginPage } from './pages/LoginPage'
-import { FeedPage } from './pages/FeedPage'
-import { CalendarPage } from './pages/CalendarPage'
-import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { AdminPage } from './pages/AdminPage'
-import { OnboardingPage } from './pages/OnboardingPage'
-import { NotificationsPage } from './pages/NotificationsPage'
-import { SearchPage } from './pages/SearchPage'
-import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
+import { CalendarPage } from './pages/CalendarPage'
 import { EditEventPage } from './pages/EditEventPage'
-import { TemplatesPage } from './pages/TemplatesPage'
-import { RemindersPage } from './pages/RemindersPage'
-import { InstancesPage } from './pages/InstancesPage'
+import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
+import { FeedPage } from './pages/FeedPage'
+import { HomePage } from './pages/HomePage'
 import { InstanceDetailPage } from './pages/InstanceDetailPage'
-import { useEffect, useState } from 'react'
-import { MentionNotifications } from './components/MentionNotifications'
-import { ErrorToasts } from './components/ErrorToasts'
-import { SuccessToasts } from './components/SuccessToasts'
-import { ErrorBoundary } from './components/ErrorBoundary'
-import { PageLoader } from './components/ui'
+import { InstancesPage } from './pages/InstancesPage'
+import { LoginPage } from './pages/LoginPage'
+import { NotificationsPage } from './pages/NotificationsPage'
+import { OnboardingPage } from './pages/OnboardingPage'
+import { PendingFollowersPage } from './pages/PendingFollowersPage'
+import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
+import { RemindersPage } from './pages/RemindersPage'
+import { SearchPage } from './pages/SearchPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 
 function AppContent() {
 	// Global SSE connection
@@ -41,7 +42,8 @@ function AppContent() {
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
 		if (location.pathname === '/onboarding') {
-			setCheckingSetup(false)
+			// Use setTimeout to avoid synchronous setState in effect
+			setTimeout(() => setCheckingSetup(false), 0)
 			return
 		}
 

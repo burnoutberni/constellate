@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { useUserReminders } from '@/hooks/queries'
-import { ReminderList } from '../components/ReminderList'
+
 import { Container, PageLayout } from '@/components/layout'
 import { Button, Spinner } from '@/components/ui'
+import { useUserReminders } from '@/hooks/queries'
+
+import { ReminderList } from '../components/ReminderList'
+import { useAuth } from '../hooks/useAuth'
 
 export function RemindersPage() {
 	const navigate = useNavigate()

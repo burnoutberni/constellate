@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import { Avatar, Badge, Button } from './ui'
 
 export interface Attendee {
@@ -45,7 +46,7 @@ export function AttendeeList({
 }: AttendeeListProps) {
 	const [showAll, setShowAll] = useState(false)
 
-	if (!attendees || attendees.length === 0) {
+	if (attendees.length === 0) {
 		return null
 	}
 

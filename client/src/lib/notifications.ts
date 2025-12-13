@@ -57,5 +57,7 @@ export function getNotificationTypeMeta(type: NotificationType | string | undefi
 	if (!type) {
 		return fallbackMeta
 	}
-	return typeMeta[type as NotificationType] ?? fallbackMeta
+	// typeMeta has all NotificationType keys, so the cast guarantees a value exists
+	const meta = typeMeta[type as NotificationType]
+	return meta ?? fallbackMeta
 }

@@ -1,7 +1,9 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { queryKeys } from './keys'
-import type { Event } from '@/types'
+
 import { api } from '@/lib/api-client'
+import type { Event } from '@/types'
+
+import { queryKeys } from './keys'
 
 export interface EventSearchFilters extends Record<string, string | undefined> {
 	q?: string

@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Navbar } from '../components/Navbar'
+
 import { Container, Stack } from '@/components/layout'
 import { Button, Badge, Card, Spinner } from '@/components/ui'
-import { NotificationItem } from '../components/NotificationItem'
-import { NotificationSettings } from '../components/NotificationSettings'
-import { useAuth } from '../hooks/useAuth'
 import {
 	useNotifications,
 	useMarkNotificationRead,
@@ -13,6 +10,11 @@ import {
 } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
 import type { NotificationType } from '@/types'
+
+import { Navbar } from '../components/Navbar'
+import { NotificationItem } from '../components/NotificationItem'
+import { NotificationSettings } from '../components/NotificationSettings'
+import { useAuth } from '../hooks/useAuth'
 
 export function NotificationsPage() {
 	const { user, logout } = useAuth()

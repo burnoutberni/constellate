@@ -1,4 +1,5 @@
 import { useUIStore } from '@/stores'
+
 import { Toasts } from './Toast'
 
 export function ErrorToasts() {

@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
+
 import { useEvents } from '@/hooks/queries'
+
 import { eventsWithinRange } from '../lib/recurrence'
+
 import { Button } from './ui'
 
 interface MiniCalendarProps {

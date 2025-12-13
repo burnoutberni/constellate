@@ -1,5 +1,7 @@
 import { useContext } from 'react'
-import { ThemeContext, tokens, type ThemeContextType } from '@/design-system'
+
+import { ThemeContext, type ThemeContextType } from './ThemeContext'
+import { tokens } from './tokens'
 
 /**
  * Hook to access theme context

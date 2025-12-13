@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { CommentItem } from './CommentItem'
-import { CommentForm } from './CommentForm'
+
 import { createLogger } from '@/lib/logger'
 import type { CommentWithMentions } from '@/types'
+
+import { CommentForm } from './CommentForm'
+import { CommentItem } from './CommentItem'
 
 const log = createLogger('[CommentThread]')
 

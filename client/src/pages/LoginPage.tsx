@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+
 import { Input, Button } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
+
+import { useAuth } from '../hooks/useAuth'
 
 const log = createLogger('[LoginPage]')
 

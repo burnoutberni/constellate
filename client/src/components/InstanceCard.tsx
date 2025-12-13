@@ -1,10 +1,13 @@
-import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Card, Badge, Button, Avatar } from './ui'
-import type { InstanceWithStats, UserProfile } from '@/types'
-import { useAuth } from '../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
+import type { InstanceWithStats, UserProfile } from '@/types'
+
+import { useAuth } from '../hooks/useAuth'
+
+import { Card, Badge, Button, Avatar } from './ui'
 
 interface InstanceCardProps {
 	instance: InstanceWithStats

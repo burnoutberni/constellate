@@ -1,7 +1,8 @@
-import { Button } from './ui'
 import { useFollowUser, useUnfollowUser, useFollowStatus } from '@/hooks/queries'
+
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
+
+import { Button } from './ui'
 
 interface FollowButtonProps {
 	username: string
@@ -21,7 +22,6 @@ export function FollowButton({
 	showStatus = false,
 }: FollowButtonProps) {
 	const { user } = useAuth()
-	const navigate = useNavigate()
 	const { data: followStatus, isLoading: statusLoading } = useFollowStatus(username)
 	const followMutation = useFollowUser(username)
 	const unfollowMutation = useUnfollowUser(username)
@@ -37,10 +37,7 @@ export function FollowButton({
 	const isLoading = statusLoading || followMutation.isPending || unfollowMutation.isPending
 
 	const handleClick = () => {
-		if (!user) {
-			navigate('/login')
-			return
-		}
+		// user is always defined here due to early return above
 
 		if (isFollowing) {
 			unfollowMutation.mutate()

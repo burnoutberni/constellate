@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CreateEventModal } from '../../components/CreateEventModal'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
@@ -177,13 +177,18 @@ describe('CreateEventModal', () => {
 		const addButton = screen.getByRole('button', { name: /Add/i })
 
 		const longTag = 'a'.repeat(51)
-		await user.type(tagInput, longTag)
+		// Use fireEvent for faster input with long strings
+		fireEvent.change(tagInput, { target: { value: longTag } })
 		await user.click(addButton)
 
-		await waitFor(() => {
-			expect(screen.getByText(/Tag must be 50 characters or less/i)).toBeInTheDocument()
-		})
-	})
+		await waitFor(
+			() => {
+				// The error message includes "after normalization" and current count
+				expect(screen.getByText(/Tag must be 50 characters or less/i)).toBeInTheDocument()
+			},
+			{ timeout: 5000 }
+		)
+	}, 10000)
 
 	it('should show draft prompt when draft exists', async () => {
 		mockHasDraft.mockReturnValue(true)
