@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
+<<<<<<< HEAD
 import { Button, CloseIcon } from '@/components/ui'
 import { getNavLinks } from '@/lib/navigation'
+=======
+import { Button } from '@/components/ui'
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 import { cn } from '@/lib/utils'
 
 export interface MobileNavProps {
@@ -21,7 +25,16 @@ export interface MobileNavProps {
  * MobileNav component - slide-out navigation menu for mobile devices.
  * Fully accessible with keyboard navigation, focus trap, and ARIA support.
  */
+<<<<<<< HEAD
 export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavProps) {
+=======
+export function MobileNav({
+	isOpen,
+	onClose,
+	user,
+	isAdmin = false,
+}: MobileNavProps) {
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 	const navRef = useRef<HTMLElement>(null)
 	const location = useLocation()
 
@@ -43,7 +56,13 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 
 		// Focus first focusable element
 		if (nav) {
+<<<<<<< HEAD
 			const firstFocusable = nav.querySelector<HTMLElement>('a[href], button:not([disabled])')
+=======
+			const firstFocusable = nav.querySelector<HTMLElement>(
+				'a[href], button:not([disabled])'
+			)
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 			firstFocusable?.focus()
 		}
 
@@ -59,7 +78,13 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 					'a[href], button:not([disabled])'
 				)
 				const focusableArray = Array.from(focusableElements)
+<<<<<<< HEAD
 				const currentIndex = focusableArray.findIndex((el) => el === document.activeElement)
+=======
+				const currentIndex = focusableArray.findIndex(
+					(el) => el === document.activeElement
+				)
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 
 				if (event.shiftKey) {
 					// Shift + Tab
@@ -110,6 +135,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 		}
 	}, [isOpen, onClose])
 
+<<<<<<< HEAD
 	const navLinks = getNavLinks(Boolean(user))
 
 	// Get user-specific navigation links
@@ -136,6 +162,20 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 				? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
 				: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
 		)
+=======
+	const navLinks = [
+		{ to: '/feed', label: 'Feed' },
+		{ to: '/calendar', label: 'Calendar' },
+		{ to: '/search', label: 'Search' },
+		...(user
+			? [
+					{ to: '/templates', label: 'Templates' },
+					{ to: '/instances', label: 'Instances' },
+				]
+			: []),
+		{ to: '/about', label: 'About' },
+	]
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 
 	return (
 		<>
@@ -167,7 +207,23 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 							onClick={onClose}
 							aria-label="Close menu"
 							className="rounded-full p-2">
+<<<<<<< HEAD
 							<CloseIcon className="w-5 h-5" />
+=======
+							<svg
+								className="w-5 h-5"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								aria-hidden="true">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 						</Button>
 					</div>
 
@@ -178,7 +234,19 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 								const isActive = location.pathname === link.to
 								return (
 									<li key={link.to}>
+<<<<<<< HEAD
 										<Link to={link.to} className={getLinkClassName(isActive)}>
+=======
+										<Link
+											to={link.to}
+											onClick={onClose}
+											className={cn(
+												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												isActive
+													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+											)}>
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 											{link.label}
 										</Link>
 									</li>
@@ -187,6 +255,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 						</ul>
 
 						{/* User-specific links */}
+<<<<<<< HEAD
 						{userLinks.length > 0 && (
 							<>
 								<div className="border-t border-border-default my-4" />
@@ -203,6 +272,79 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 											</li>
 										)
 									})}
+=======
+						{user && (
+							<>
+								<div className="border-t border-border-default my-4" />
+								<ul className="space-y-1" role="list">
+									<li>
+										<Link
+											to={`/@${user.username || user.id}`}
+											onClick={onClose}
+											className={cn(
+												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												location.pathname === `/@${user.username || user.id}`
+													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+											)}>
+											My Profile
+										</Link>
+									</li>
+									<li>
+										<Link
+											to="/settings"
+											onClick={onClose}
+											className={cn(
+												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												location.pathname === '/settings'
+													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+											)}>
+											Settings
+										</Link>
+									</li>
+									<li>
+										<Link
+											to="/reminders"
+											onClick={onClose}
+											className={cn(
+												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												location.pathname === '/reminders'
+													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+											)}>
+											Reminders
+										</Link>
+									</li>
+									<li>
+										<Link
+											to="/followers/pending"
+											onClick={onClose}
+											className={cn(
+												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												location.pathname === '/followers/pending'
+													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+											)}>
+											Followers
+										</Link>
+									</li>
+									{isAdmin && (
+										<li>
+											<Link
+												to="/admin"
+												onClick={onClose}
+												className={cn(
+													'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+													location.pathname === '/admin'
+														? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+														: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+												)}>
+												Admin
+											</Link>
+										</li>
+									)}
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 								</ul>
 							</>
 						)}
@@ -212,3 +354,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 		</>
 	)
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> b821aaf (WP-120: Navigation Redesign)

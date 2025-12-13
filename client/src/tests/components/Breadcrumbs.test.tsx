@@ -47,7 +47,11 @@ describe('Breadcrumbs Component', () => {
 
 		expect(screen.getByText('Home')).toBeInTheDocument()
 		expect(screen.getByText('@username')).toBeInTheDocument()
+<<<<<<< HEAD
 		expect(screen.getByText('Event123')).toBeInTheDocument()
+=======
+		expect(screen.getByText('Event')).toBeInTheDocument()
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
 	})
 
 	it('should use custom breadcrumb items when provided', () => {
@@ -111,6 +115,7 @@ describe('Breadcrumbs Component', () => {
 
 		expect(screen.getByText('Home')).toBeInTheDocument()
 		expect(screen.getByText('Instances')).toBeInTheDocument()
+<<<<<<< HEAD
 		expect(screen.getByText('Example.com')).toBeInTheDocument()
 	})
 
@@ -127,3 +132,9 @@ describe('Breadcrumbs Component', () => {
 		expect(screen.getByText('Edit Event')).toBeInTheDocument()
 	})
 })
+=======
+		expect(screen.getByText('example.com')).toBeInTheDocument()
+	})
+})
+
+>>>>>>> b821aaf (WP-120: Navigation Redesign)
