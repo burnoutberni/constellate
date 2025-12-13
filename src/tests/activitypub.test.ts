@@ -9,7 +9,11 @@ import activitypubApp from '../activitypub.js'
 import { prisma } from '../lib/prisma.js'
 import { verifySignature } from '../lib/httpSignature.js'
 import { handleActivity } from '../federation.js'
-import { getBaseUrl, createOrderedCollection, createOrderedCollectionPage } from '../lib/activitypubHelpers.js'
+import {
+	getBaseUrl,
+	createOrderedCollection,
+	createOrderedCollectionPage,
+} from '../lib/activitypubHelpers.js'
 import { config } from '../config.js'
 
 // Mock dependencies
@@ -155,7 +159,9 @@ describe('ActivityPub API', () => {
 		})
 
 		it('should return 404 for domain mismatch', async () => {
-			const res = await app.request('/.well-known/webfinger?resource=acct:alice@wrongdomain.com')
+			const res = await app.request(
+				'/.well-known/webfinger?resource=acct:alice@wrongdomain.com'
+			)
 
 			expect(res.status).toBe(404)
 			const body = (await res.json()) as { error: string }
@@ -165,7 +171,9 @@ describe('ActivityPub API', () => {
 		it('should return 404 when user not found', async () => {
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
 
-			const res = await app.request('/.well-known/webfinger?resource=acct:nonexistent@localhost')
+			const res = await app.request(
+				'/.well-known/webfinger?resource=acct:nonexistent@localhost'
+			)
 
 			expect(res.status).toBe(404)
 			const body = (await res.json()) as { error: string }
@@ -321,8 +329,20 @@ describe('ActivityPub API', () => {
 
 		it('should return followers page when page parameter is provided', async () => {
 			const mockFollowers = [
-				{ id: 'follower_1', actorUrl: 'https://remote.com/users/bob', userId: 'user_123', accepted: true, createdAt: new Date() },
-				{ id: 'follower_2', actorUrl: 'https://remote.com/users/charlie', userId: 'user_123', accepted: true, createdAt: new Date() },
+				{
+					id: 'follower_1',
+					actorUrl: 'https://remote.com/users/bob',
+					userId: 'user_123',
+					accepted: true,
+					createdAt: new Date(),
+				},
+				{
+					id: 'follower_2',
+					actorUrl: 'https://remote.com/users/charlie',
+					userId: 'user_123',
+					accepted: true,
+					createdAt: new Date(),
+				},
 			]
 
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
@@ -351,13 +371,15 @@ describe('ActivityPub API', () => {
 		})
 
 		it('should handle pagination correctly', async () => {
-			const mockFollowers = Array(20).fill(null).map((_, i) => ({
-				id: `follower_${i}`,
-				actorUrl: `https://remote.com/users/user${i}`,
-				userId: 'user_123',
-				accepted: true,
-				createdAt: new Date(),
-			}))
+			const mockFollowers = Array(20)
+				.fill(null)
+				.map((_, i) => ({
+					id: `follower_${i}`,
+					actorUrl: `https://remote.com/users/user${i}`,
+					userId: 'user_123',
+					accepted: true,
+					createdAt: new Date(),
+				}))
 
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
 			vi.mocked(prisma.follower.findMany).mockResolvedValue(mockFollowers as any)
@@ -390,7 +412,13 @@ describe('ActivityPub API', () => {
 
 		it('should return following page when page parameter is provided', async () => {
 			const mockFollowing = [
-				{ id: 'following_1', actorUrl: 'https://remote.com/users/bob', userId: 'user_123', accepted: true, createdAt: new Date() },
+				{
+					id: 'following_1',
+					actorUrl: 'https://remote.com/users/bob',
+					userId: 'user_123',
+					accepted: true,
+					createdAt: new Date(),
+				},
 			]
 
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
@@ -433,7 +461,11 @@ describe('ActivityPub API', () => {
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as {
 				type: string
-				orderedItems: Array<{ type: string; actor: string; object: { type: string; name: string } }>
+				orderedItems: Array<{
+					type: string
+					actor: string
+					object: { type: string; name: string }
+				}>
 			}
 			expect(body.type).toBe('OrderedCollectionPage')
 			expect(body.orderedItems).toHaveLength(1)
@@ -468,7 +500,8 @@ describe('ActivityPub API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/activity+json',
-					signature: 'keyId="https://remote.com/users/bob#main-key",algorithm="rsa-sha256",headers="(request-target) host date",signature="mock_signature"',
+					signature:
+						'keyId="https://remote.com/users/bob#main-key",algorithm="rsa-sha256",headers="(request-target) host date",signature="mock_signature"',
 					host: 'localhost:3000',
 					date: new Date().toISOString(),
 				},
@@ -750,4 +783,3 @@ describe('ActivityPub API', () => {
 		})
 	})
 })
-

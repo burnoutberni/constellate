@@ -148,7 +148,7 @@ export function CalendarEventPopup({
 					)}
 
 					{/* Tags */}
-					{event.tags.length > 0 && (
+					{event.tags && event.tags.length > 0 && (
 						<div className="flex flex-wrap gap-1 mb-3">
 							{event.tags.map((tag) => (
 								<Badge key={tag.id} variant="secondary" size="sm">

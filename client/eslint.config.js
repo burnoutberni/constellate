@@ -308,12 +308,6 @@ export default [
 							message:
 								'Please import from the barrel file: import { ... } from "@/components/layout"',
 						},
-						// Icons - must import from barrel file (block direct imports)
-						{
-							group: ['**/components/icons/*', '!**/components/icons/index'],
-							message:
-								'Please import from the barrel file: import { ... } from "@/components/icons"',
-						},
 						// Design system - must import from barrel file (block direct imports)
 						{
 							group: ['**/design-system/*', '!**/design-system/index'],
@@ -361,17 +355,6 @@ export default [
 							],
 							message:
 								'Please use path alias instead: import { ... } from "@/components/layout"',
-						},
-						{
-							group: [
-								'../components/icons',
-								'../../components/icons',
-								'../../../components/icons',
-								'../../../../components/icons',
-								'../../../../../components/icons',
-							],
-							message:
-								'Please use path alias instead: import { ... } from "@/components/icons"',
 						},
 						{
 							group: [

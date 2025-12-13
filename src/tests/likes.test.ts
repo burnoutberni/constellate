@@ -580,4 +580,3 @@ describe('Likes API', () => {
 		})
 	})
 })
-

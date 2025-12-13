@@ -94,7 +94,8 @@ describe('NotificationsPage', () => {
 
 	it('should render notifications page', () => {
 		render(<NotificationsPage />, { wrapper })
-		expect(screen.getByText('Notifications')).toBeInTheDocument()
+		// Use getByRole to find the h1 heading specifically
+		expect(screen.getByRole('heading', { name: 'Notifications', level: 1 })).toBeInTheDocument()
 	})
 
 	it('should show loading state', () => {

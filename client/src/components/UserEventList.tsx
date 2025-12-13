@@ -3,7 +3,7 @@ import type { Event } from '@/types'
 
 import { formatDate, formatTime } from '../lib/formatUtils'
 
-import { CalendarIcon, LocationIcon, AttendeesIcon, LikeIcon, CommentIcon } from './icons'
+import { CalendarIcon, LocationIcon, AttendeesIcon, LikeIcon, CommentIcon } from '@/components/ui'
 import { Card, CardContent } from './ui'
 
 interface UserEventListProps {
