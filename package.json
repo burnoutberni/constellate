@@ -21,7 +21,7 @@
 		"db:studio": "prisma studio",
 		"test": "vitest run",
 		"test:watch": "vitest --coverage --watch --reporter=dot",
-		"test:coverage": "vitest run --coverage --reporter=basic",
+		"test:coverage": "vitest run --coverage --reporter=default",
 		"lint": "eslint src --ext .ts",
 		"format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore && prisma format",
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore",
