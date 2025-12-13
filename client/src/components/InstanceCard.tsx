@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 
-
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { InstanceWithStats, UserProfile } from '@/types'

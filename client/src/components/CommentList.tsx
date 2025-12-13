@@ -4,7 +4,6 @@ import { CommentForm } from './CommentForm'
 import { CommentThread } from './CommentThread'
 import { SignUpPrompt } from './SignUpPrompt'
 
-
 interface CommentListProps {
 	comments: CommentWithMentions[]
 	currentUserId?: string

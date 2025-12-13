@@ -4,7 +4,6 @@ import { useAuth } from '../hooks/useAuth'
 
 import { Button } from './ui'
 
-
 interface FollowButtonProps {
 	username: string
 	variant?: 'primary' | 'secondary' | 'ghost'

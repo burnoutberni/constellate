@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 
-
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -19,9 +18,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	// Derive initial state from profile prop
-	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(
-		profile.autoAcceptFollowers
-	)
+	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(profile.autoAcceptFollowers)
 
 	// Update local state when profile changes
 	useEffect(() => {

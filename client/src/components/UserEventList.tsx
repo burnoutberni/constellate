@@ -6,7 +6,6 @@ import { formatDate, formatTime } from '../lib/formatUtils'
 import { CalendarIcon, LocationIcon, AttendeesIcon, LikeIcon, CommentIcon } from './icons'
 import { Card, CardContent } from './ui'
 
-
 interface UserEventListProps {
 	events: Event[]
 	onEventClick: (eventId: string) => void

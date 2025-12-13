@@ -20,7 +20,6 @@ import { isBackendDateRange } from '../lib/searchUtils'
 import { getDefaultTimezone } from '../lib/timezones'
 import { getVisibilityMeta } from '../lib/visibility'
 
-
 interface FormState {
 	q: string
 	location: string

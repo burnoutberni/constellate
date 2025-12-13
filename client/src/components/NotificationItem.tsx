@@ -10,7 +10,6 @@ import { safeNavigate } from '../lib/urlValidation'
 import { Stack } from './layout'
 import { Card, CardContent, Badge, Button, Avatar } from './ui'
 
-
 interface NotificationItemProps {
 	notification: Notification
 	onMarkRead?: (notificationId: string) => void

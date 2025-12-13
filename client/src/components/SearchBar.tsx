@@ -8,7 +8,6 @@ import { User, Event } from '@/types'
 
 import { Button, Input, Spinner } from './ui'
 
-
 const log = createLogger('[SearchBar]')
 
 interface RemoteAccountSuggestion {

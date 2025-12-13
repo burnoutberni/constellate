@@ -14,7 +14,6 @@ import type { EventTemplate } from '../components/TemplateCard'
 import { TemplateList } from '../components/TemplateList'
 import { useAuth } from '../hooks/useAuth'
 
-
 interface TemplatePreviewModalProps {
 	template: EventTemplate | null
 	onClose: () => void
