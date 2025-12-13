@@ -37,6 +37,10 @@ jobs:
             - name: Lint client
               run: npm run lint --prefix client
 
+            - name: Build client
+              working-directory: client
+              run: npx vite build
+
     tree-shaking:
         name: Tree-shaking Check
         runs-on: ubuntu-latest
