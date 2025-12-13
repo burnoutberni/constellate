@@ -127,9 +127,16 @@ async function fetchRemoteUsers(remoteUsernames: string[]): Promise<MentionTarge
 	return users || []
 }
 
-function buildUserMaps(localUsers: MentionTarget['user'][] | undefined, remoteUsers: MentionTarget['user'][] | undefined) {
-	const localUserMap = new Map((localUsers || []).map((user) => [user.username.toLowerCase(), user]))
-	const remoteUserMap = new Map((remoteUsers || []).map((user) => [user.username.toLowerCase(), user]))
+function buildUserMaps(
+	localUsers: MentionTarget['user'][] | undefined,
+	remoteUsers: MentionTarget['user'][] | undefined
+) {
+	const localUserMap = new Map(
+		(localUsers || []).map((user) => [user.username.toLowerCase(), user])
+	)
+	const remoteUserMap = new Map(
+		(remoteUsers || []).map((user) => [user.username.toLowerCase(), user])
+	)
 	return { localUserMap, remoteUserMap }
 }
 

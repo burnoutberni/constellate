@@ -702,7 +702,10 @@ export function AdminPage() {
 								onClick={async () => {
 									try {
 										// navigator.clipboard is always defined in TypeScript's DOM types
-										if ('clipboard' in navigator && navigator.clipboard.writeText) {
+										if (
+											'clipboard' in navigator &&
+											navigator.clipboard.writeText
+										) {
 											await navigator.clipboard.writeText(newApiKey)
 											addSuccessToast({
 												id: crypto.randomUUID(),

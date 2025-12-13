@@ -10,7 +10,6 @@ import type { User } from '@/types'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
 
-
 interface PendingFollower extends User {
 	followerId: string
 	createdAt: string

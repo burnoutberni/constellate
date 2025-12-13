@@ -13,7 +13,6 @@ import type { EventDetail, EventUser, Notification } from '@/types'
 import { queryKeys } from './queries/keys'
 import type { NotificationsResponse } from './queries/notifications'
 
-
 type QueryKeys = typeof queryKeys
 
 interface UseRealtimeSSEOptions {

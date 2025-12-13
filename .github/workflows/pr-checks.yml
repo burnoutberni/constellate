@@ -48,26 +48,26 @@ jobs:
               if: steps.cache-prisma.outputs.cache-hit != 'true'
               run: npm run db:generate
               env:
-                DATABASE_URL: "file:./prisma/dummy.db"
+                  DATABASE_URL: 'file:./prisma/dummy.db'
 
-            - name: "[Server] Type-Check"
+            - name: '[Server] Type-Check'
               run: npx tsc --noEmit
 
-            - name: "[Server] Lint"
+            - name: '[Server] Lint'
               run: npm run lint
-            
-            - name: "[Server] Prune"
+
+            - name: '[Server] Prune'
               run: npm run analyze:unused
               env:
-                DATABASE_URL: "file:./prisma/dummy.db"
+                  DATABASE_URL: 'file:./prisma/dummy.db'
 
-            - name: "[Client] Type-Check"
+            - name: '[Client] Type-Check'
               run: npx tsc --noEmit --project client/tsconfig.json
 
-            - name: "[Client] Lint"
+            - name: '[Client] Lint'
               run: npm run lint --prefix client
 
-            - name: "[Client] Prune"
+            - name: '[Client] Prune'
               working-directory: client
               run: npx knip
 
@@ -272,7 +272,7 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true' && steps.cache-prisma.outputs.cache-hit != 'true'
               run: npm run db:generate
               env:
-                DATABASE_URL: "file:./prisma/dummy.db"
+                  DATABASE_URL: 'file:./prisma/dummy.db'
 
             - name: Run database migrations
               run: npx prisma migrate deploy

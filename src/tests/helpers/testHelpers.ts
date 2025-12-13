@@ -13,10 +13,7 @@ interface ErrorResponseBody {
  * Logs the response body when a test receives an error status code
  * This helps identify what's causing 500 errors in tests
  */
-export async function logErrorResponse(
-	res: Response,
-	testName?: string
-): Promise<void> {
+export async function logErrorResponse(res: Response, testName?: string): Promise<void> {
 	if (!res.ok) {
 		try {
 			const body = (await res.clone().json()) as ErrorResponseBody
@@ -67,4 +64,3 @@ export function inspectPrismockData(prismaMock: any): {
 
 	return { models, counts }
 }
-

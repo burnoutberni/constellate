@@ -11,8 +11,6 @@ datasource db {
   // Use PostgreSQL for production and development
   provider = "postgresql"
   // Note: In Prisma 7.x, connection URLs are configured in prisma.config.ts or passed to PrismaClient
-  // This URL is only for schema validation (e.g., with prismock) - the actual URL comes from prisma.config.ts
-  url      = env("DATABASE_URL")
 }
 
 // User model - supports both local and remote (federated) users

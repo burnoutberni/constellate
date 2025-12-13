@@ -17,7 +17,7 @@ describe('CalendarExport', () => {
 	let originalOpen: typeof window.open
 	let originalBlob: typeof Blob
 	let blobConstructorSpy: ReturnType<typeof vi.fn>
-	
+
 	beforeEach(() => {
 		originalOpen = window.open
 		// Return null to prevent jsdom "Not implemented: navigation to another Document" warnings
@@ -26,7 +26,7 @@ describe('CalendarExport', () => {
 		// Mock Blob constructor - needs to be a proper constructor class that we can spy on
 		originalBlob = global.Blob
 		blobConstructorSpy = vi.fn()
-		
+
 		class MockBlob {
 			parts: unknown[]
 			options: { type?: string }
@@ -38,7 +38,7 @@ describe('CalendarExport', () => {
 				this.type = options?.type || ''
 			}
 		}
-		
+
 		global.Blob = MockBlob as unknown as typeof Blob
 	})
 
@@ -171,8 +171,9 @@ describe('CalendarExport', () => {
 		// Find the anchor element from the createElement calls
 		const anchorCallIndex = createElementSpy.mock.calls.findIndex((call) => call[0] === 'a')
 		expect(anchorCallIndex).not.toBe(-1)
-		
-		const linkElement = createElementSpy.mock.results[anchorCallIndex]?.value as HTMLAnchorElement
+
+		const linkElement = createElementSpy.mock.results[anchorCallIndex]
+			?.value as HTMLAnchorElement
 		expect(linkElement).toBeInstanceOf(HTMLAnchorElement)
 		expect(linkElement.download).toBe('test_event.ics')
 

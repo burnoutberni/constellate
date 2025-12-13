@@ -14,7 +14,7 @@
 		"docker:prod": "docker compose -f docker-compose.prod.yml up --build",
 		"docker:prod:down": "docker compose -f docker-compose.prod.yml down",
 		"docker:test": "docker compose up test --build",
-		"db:generate": "prisma generate",
+		"db:generate": "prisma generate && tsx scripts/compile-prisma-client.ts",
 		"db:push": "prisma db push",
 		"db:migrate": "prisma migrate dev",
 		"db:seed": "tsx prisma/seed.ts",

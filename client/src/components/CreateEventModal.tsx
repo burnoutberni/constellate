@@ -19,13 +19,10 @@ import {
 	buildEventPayload as buildEventPayloadUtil,
 } from '../lib/eventFormUtils'
 
-
-
 import { RecurrenceSelector } from './RecurrenceSelector'
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
 import { Button, Input, Textarea, Card, Modal } from './ui'
 import { VisibilitySelector } from './VisibilitySelector'
-
 
 interface CreateEventModalProps {
 	isOpen: boolean

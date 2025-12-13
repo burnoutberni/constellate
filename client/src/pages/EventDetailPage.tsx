@@ -19,8 +19,6 @@ import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
 import type { UserProfile } from '@/types'
 
-
-
 import { AttendanceWidget } from '../components/AttendanceWidget'
 import { AttendeeList } from '../components/AttendeeList'
 import { CalendarExport } from '../components/CalendarExport'
@@ -34,7 +32,6 @@ import { useAuth } from '../hooks/useAuth'
 import { formatDate } from '../lib/formatUtils'
 import { setSEOMetadata } from '../lib/seo'
 import { getDefaultTimezone } from '../lib/timezones'
-
 
 const log = createLogger('[EventDetailPage]')
 
@@ -160,7 +157,7 @@ export function EventDetailPage() {
 		[displayedEvent]
 	)
 	const [currentTime, setCurrentTime] = useState(() => Date.now())
-	
+
 	useEffect(() => {
 		const interval = setInterval(() => {
 			setCurrentTime(Date.now())

@@ -7,9 +7,6 @@ import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 import { AttendeesIcon, LikeIcon, CommentIcon, LocationIcon, CalendarIcon } from './icons'
 import { Card, Badge, Avatar } from './ui'
 
-
-
-
 interface EventCardProps {
 	event: Event
 	variant?: 'full' | 'compact'

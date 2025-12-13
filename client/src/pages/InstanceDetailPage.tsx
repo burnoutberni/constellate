@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 
-
 import { Container } from '@/components/layout'
 import { Card, Button, Badge, Avatar, Spinner } from '@/components/ui'
 import {

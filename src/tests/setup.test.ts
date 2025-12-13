@@ -170,7 +170,7 @@ describe('Setup Routes', () => {
 	describe('GET /api/setup/status', () => {
 		it('should return setupRequired: true when no users exist', async () => {
 			await prisma.user.deleteMany()
-			
+
 			// Verify the database is actually empty
 			const userCount = await prisma.user.count()
 			expect(userCount).toBe(0)

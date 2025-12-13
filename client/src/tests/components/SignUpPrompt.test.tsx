@@ -17,7 +17,6 @@ vi.mock('../../hooks/useAuth', () => ({
 	}),
 }))
 
-
 const renderWithRouter = (ui: React.ReactElement) => {
 	return render(<BrowserRouter>{ui}</BrowserRouter>)
 }

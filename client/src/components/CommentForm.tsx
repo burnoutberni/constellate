@@ -192,21 +192,19 @@ export function CommentForm({
 					onSelect={() => {
 						if (textareaRef.current) {
 							// selectionStart is always a number when textarea exists
-							const selectionStart = textareaRef.current.selectionStart ?? textareaRef.current.value.length
-							updateMentionState(
-								textareaRef.current.value,
-								selectionStart
-							)
+							const selectionStart =
+								textareaRef.current.selectionStart ??
+								textareaRef.current.value.length
+							updateMentionState(textareaRef.current.value, selectionStart)
 						}
 					}}
 					onClick={() => {
 						if (textareaRef.current) {
 							// selectionStart is always a number when textarea exists
-							const selectionStart = textareaRef.current.selectionStart ?? textareaRef.current.value.length
-							updateMentionState(
-								textareaRef.current.value,
-								selectionStart
-							)
+							const selectionStart =
+								textareaRef.current.selectionStart ??
+								textareaRef.current.value.length
+							updateMentionState(textareaRef.current.value, selectionStart)
 						}
 					}}
 					placeholder={placeholder}

@@ -839,7 +839,7 @@ type EventWithFullInclude = NonNullable<
 			}>
 		>
 	>
-*/type EventUserSummary = Prisma.UserGetPayload<{
+*/ type EventUserSummary = Prisma.UserGetPayload<{
 	select: {
 		id: true
 		username: true

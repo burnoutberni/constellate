@@ -60,7 +60,7 @@ describe('Event Template API', () => {
 		expect(res.status).toBe(201)
 		const body = (await res.json()) as any
 		expect(body.name).toBe('Weekly Standup') // Should be sanitized
-		
+
 		// Verify it was created in the database
 		const templates = await prisma.eventTemplate.findMany({
 			where: { userId: 'user_123' },
@@ -147,7 +147,7 @@ describe('Event Template API', () => {
 
 		expect(res.status).toBe(200)
 		expect(body.name).toBe('Updated Template')
-		
+
 		// Verify it was updated in the database
 		const updated = await prisma.eventTemplate.findUnique({
 			where: { id: created.id },
@@ -220,7 +220,7 @@ describe('Event Template API', () => {
 
 		expect(res.status).toBe(200)
 		expect(body.success).toBe(true)
-		
+
 		// Verify it was deleted from the database
 		const deleted = await prisma.eventTemplate.findUnique({
 			where: { id: created.id },

@@ -20,23 +20,23 @@ const prismaClientResolver: Plugin = {
 		if (!importer || !id.startsWith('.')) {
 			return null
 		}
-		
+
 		if (importer.includes('src/generated/prisma')) {
 			// Resolve the relative import
 			const importerDir = dirname(importer)
 			const resolvedPath = resolve(importerDir, id)
-			
+
 			// Check if .ts file exists
 			if (existsSync(`${resolvedPath}.ts`)) {
 				return `${resolvedPath}.ts`
 			}
-			
+
 			// Check if it's a directory with index.ts
 			if (existsSync(resolvedPath) && existsSync(resolve(resolvedPath, 'index.ts'))) {
 				return resolve(resolvedPath, 'index.ts')
 			}
 		}
-		
+
 		return null
 	},
 }

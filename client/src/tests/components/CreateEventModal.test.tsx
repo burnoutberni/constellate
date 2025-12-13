@@ -184,9 +184,7 @@ describe('CreateEventModal', () => {
 		await waitFor(
 			() => {
 				// The error message includes "after normalization" and current count
-				expect(
-					screen.getByText(/Tag must be 50 characters or less/i)
-				).toBeInTheDocument()
+				expect(screen.getByText(/Tag must be 50 characters or less/i)).toBeInTheDocument()
 			},
 			{ timeout: 5000 }
 		)

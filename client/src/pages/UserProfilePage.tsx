@@ -13,7 +13,6 @@ import { UserEventList } from '../components/UserEventList'
 import { UserProfileHeader } from '../components/UserProfileHeader'
 import { useAuth } from '../hooks/useAuth'
 
-
 export function UserProfilePage() {
 	const location = useLocation()
 	const navigate = useNavigate()

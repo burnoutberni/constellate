@@ -18,9 +18,6 @@ import {
 import { validateRecurrence, parseCoordinates, buildEventPayload } from '../lib/eventFormUtils'
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
 
-
-
-
 const MAX_TAG_LENGTH = 50
 const COORDINATE_DECIMAL_PLACES = 6
 const GEO_TIMEOUT_MS = 10000
@@ -120,7 +117,9 @@ export function EditEventPage() {
 				endTime: event.endTime ? event.endTime.slice(0, 16) : '',
 				visibility: (event.visibility as EventVisibility | undefined) ?? 'PUBLIC',
 				recurrencePattern: event.recurrencePattern || '',
-				recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.slice(0, 10) : '',
+				recurrenceEndDate: event.recurrenceEndDate
+					? event.recurrenceEndDate.slice(0, 10)
+					: '',
 				tags: event.tags.map((t) => t.tag),
 			})
 		}, 0)

@@ -8,7 +8,6 @@ import { getVisibilityMeta } from '../lib/visibility'
 
 import { Badge } from './ui'
 
-
 interface EventInfoProps {
 	/**
 	 * Event details to display

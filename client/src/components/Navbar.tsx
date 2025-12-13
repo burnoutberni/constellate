@@ -10,7 +10,6 @@ import { SearchBar } from './SearchBar'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui'
 
-
 export function Navbar({
 	isConnected,
 	user,
