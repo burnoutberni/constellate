@@ -15,7 +15,6 @@ export default defineConfig({
 			// Path aliases - enforce barrel file imports
 			'@/components/ui': path.resolve(__dirname, './src/components/ui/index.ts'),
 			'@/components/layout': path.resolve(__dirname, './src/components/layout/index.ts'),
-			'@/components/icons': path.resolve(__dirname, './src/components/icons/index.ts'),
 			'@/design-system': path.resolve(__dirname, './src/design-system/index.ts'),
 			'@/types': path.resolve(__dirname, './src/types/index.ts'),
 			'@/hooks/queries': path.resolve(__dirname, './src/hooks/queries/index.ts'),
