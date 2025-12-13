@@ -1,6 +1,5 @@
 import { beforeEach, afterAll, vi } from 'vitest'
 import { createPrismock } from '@pkgverse/prismock'
-import type { PrismaClient } from '@prisma/client'
 
 const prismaPromise = createPrismock()
 
@@ -16,7 +15,7 @@ process.env.DATABASE_URL ??= 'file:./tests/dev.db'
 
 beforeEach(async () => {
 	const prisma = await prismaPromise
-	prisma.reset()
+	await prisma.reset()
 })
 
 afterAll(async () => {
@@ -24,6 +23,6 @@ afterAll(async () => {
 	await prisma.$disconnect()
 })
 
-export async function getPrismaMock(): Promise<PrismaClient> {
+export async function getPrismaMock() {
 	return prismaPromise
 }

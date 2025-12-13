@@ -1,7 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const originalEnv = { ...process.env }
-const PrismaClientMock = vi.fn()
+
+// Create a proper class constructor mock
+class PrismaClientMock {
+	constructor(options?: any) {
+		PrismaClientMock.constructorCall(options)
+		return PrismaClientMock.instance
+	}
+
+	static constructorCall = vi.fn()
+	static instance = {
+		$disconnect: vi.fn(),
+	}
+}
 
 const loadPrismaModule = async () => {
 	return await vi.importActual<typeof import('../../lib/prisma.js')>('../../lib/prisma.js')
@@ -15,7 +27,8 @@ describe('Prisma singleton', () => {
 	beforeEach(async () => {
 		await vi.resetModules()
 		vi.clearAllMocks()
-		PrismaClientMock.mockReset()
+		PrismaClientMock.constructorCall.mockReset()
+		PrismaClientMock.instance.$disconnect.mockReset()
 		vi.doMock('@prisma/client', () => ({
 			PrismaClient: PrismaClientMock,
 			Prisma: {},
@@ -30,48 +43,29 @@ describe('Prisma singleton', () => {
 	})
 
 	it('enables verbose logging when PRISMA_LOG_QUERIES is true', async () => {
-		const disconnectSpy = vi.fn()
-		let receivedOptions: any
-
-		PrismaClientMock.mockImplementation((options) => {
-			receivedOptions = options
-			return { $disconnect: disconnectSpy }
-		})
-
 		process.env.PRISMA_LOG_QUERIES = 'true'
 
 		await loadPrismaModule()
 
-		expect(PrismaClientMock).toHaveBeenCalledTimes(1)
-		expect(receivedOptions).toEqual({ log: ['query', 'error', 'warn'] })
+		expect(PrismaClientMock.constructorCall).toHaveBeenCalledTimes(1)
+		expect(PrismaClientMock.constructorCall).toHaveBeenCalledWith({
+			log: ['query', 'error', 'warn'],
+		})
 	})
 
 	it('uses warn-level logging in development by default', async () => {
-		const disconnectSpy = vi.fn()
-		let receivedOptions: any
-
-		PrismaClientMock.mockImplementation((options) => {
-			receivedOptions = options
-			return { $disconnect: disconnectSpy }
-		})
-
 		process.env.PRISMA_LOG_QUERIES = undefined
 		process.env.NODE_ENV = 'development'
 
 		await loadPrismaModule()
 
-		expect(receivedOptions).toEqual({ log: ['error', 'warn'] })
+		expect(PrismaClientMock.constructorCall).toHaveBeenCalledWith({
+			log: ['error', 'warn'],
+		})
 	})
 
 	it('limits logging and disconnects gracefully in production', async () => {
-		const disconnectSpy = vi.fn()
-		let receivedOptions: any
 		let beforeExitHandler: (() => Promise<void> | void) | undefined
-
-		PrismaClientMock.mockImplementation((options) => {
-			receivedOptions = options
-			return { $disconnect: disconnectSpy }
-		})
 
 		const onSpy = vi.spyOn(process, 'on').mockImplementation((event, handler) => {
 			if (event === 'beforeExit') {
@@ -85,11 +79,13 @@ describe('Prisma singleton', () => {
 
 		await loadPrismaModule()
 
-		expect(receivedOptions).toEqual({ log: ['error'] })
+		expect(PrismaClientMock.constructorCall).toHaveBeenCalledWith({
+			log: ['error'],
+		})
 		expect(onSpy).toHaveBeenCalledWith('beforeExit', expect.any(Function))
 
 		await beforeExitHandler?.()
-		expect(disconnectSpy).toHaveBeenCalledTimes(1)
+		expect(PrismaClientMock.instance.$disconnect).toHaveBeenCalledTimes(1)
 
 		onSpy.mockRestore()
 	})
