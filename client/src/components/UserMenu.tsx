@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-<<<<<<< HEAD
 import { Avatar, Button, Card, CardContent, ChevronDownIcon } from '@/components/ui'
-=======
-import { Avatar, Button, Card, CardContent } from '@/components/ui'
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 import { cn } from '@/lib/utils'
 
 export interface UserMenuProps {
@@ -29,11 +25,7 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 	const menuRef = useRef<HTMLDivElement>(null)
 	const buttonRef = useRef<HTMLButtonElement>(null)
 
-<<<<<<< HEAD
 	// Handle outside clicks and keyboard interactions
-=======
-	// Close menu when clicking outside
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 	useEffect(() => {
 		if (!isOpen) {
 			return undefined
@@ -51,7 +43,6 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 		}
 
 		function handleKeyDown(event: KeyboardEvent) {
-<<<<<<< HEAD
 			// Handle Escape key to close menu
 			if (event.key === 'Escape') {
 				setIsOpen(false)
@@ -60,29 +51,6 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 			}
 
 			// Handle keyboard navigation within menu
-=======
-			if (event.key === 'Escape') {
-				setIsOpen(false)
-				buttonRef.current?.focus()
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		document.addEventListener('keydown', handleKeyDown)
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside)
-			document.removeEventListener('keydown', handleKeyDown)
-		}
-	}, [isOpen])
-
-	// Keyboard navigation within menu
-	useEffect(() => {
-		if (!isOpen) {
-			return undefined
-		}
-
-		function handleKeyDown(event: KeyboardEvent) {
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 			const menu = menuRef.current
 			if (!menu) {
 				return
@@ -125,15 +93,10 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 			}
 		}
 
-<<<<<<< HEAD
 		document.addEventListener('mousedown', handleClickOutside)
 		document.addEventListener('keydown', handleKeyDown)
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside)
-=======
-		document.addEventListener('keydown', handleKeyDown)
-		return () => {
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 			document.removeEventListener('keydown', handleKeyDown)
 		}
 	}, [isOpen])
@@ -178,30 +141,12 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 				<span className="hidden md:inline text-sm font-medium text-text-primary">
 					{displayName}
 				</span>
-<<<<<<< HEAD
 				<ChevronDownIcon
-=======
-				<svg
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 					className={cn(
 						'w-4 h-4 text-text-secondary transition-transform',
 						isOpen && 'rotate-180'
 					)}
-<<<<<<< HEAD
 				/>
-=======
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true">
-					<path
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth={2}
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
->>>>>>> b821aaf (WP-120: Navigation Redesign)
 			</Button>
 
 			{isOpen && (
@@ -273,7 +218,3 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 		</div>
 	)
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> b821aaf (WP-120: Navigation Redesign)

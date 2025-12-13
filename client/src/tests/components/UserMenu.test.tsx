@@ -165,7 +165,3 @@ describe('UserMenu Component', () => {
 		expect(avatar).toBeInTheDocument()
 	})
 })
-<<<<<<< HEAD
-=======
-
->>>>>>> b821aaf (WP-120: Navigation Redesign)
