@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { LocationDiscoveryCard } from './LocationDiscoveryCard'
 
 const queryClient = new QueryClient({

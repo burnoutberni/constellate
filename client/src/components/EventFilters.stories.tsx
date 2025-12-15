@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
+
 import { EventFilters, type FilterFormState } from './EventFilters'
 
 const meta = {
@@ -58,7 +59,7 @@ const FilterWrapper = () => {
 			onFormStateChange={setFormState}
 			onSubmit={(e) => {
 				e.preventDefault()
-				console.log('Submit', formState)
+				// Submit handler
 			}}
 			onClearAll={() => {
 				setFormState({

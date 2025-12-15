@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { ThemeProvider } from '@/design-system'
+
 import { Navbar } from './Navbar'
 
 const queryClient = new QueryClient({
@@ -63,7 +65,9 @@ export const Authenticated: Story = {
 	args: {
 		isConnected: true,
 		user: mockUser,
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }
 
@@ -81,6 +85,8 @@ export const WithoutImage: Story = {
 			...mockUser,
 			image: null,
 		},
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }

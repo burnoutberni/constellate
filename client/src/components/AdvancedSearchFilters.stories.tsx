@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
-import { AdvancedSearchFilters } from './AdvancedSearchFilters'
+
 import type { DateRangeSelection } from '../lib/searchConstants'
+
+import { AdvancedSearchFilters } from './AdvancedSearchFilters'
 
 const meta = {
 	title: 'Components/AdvancedSearchFilters',
@@ -57,7 +59,9 @@ const FilterWrapper = () => {
 		<AdvancedSearchFilters
 			filters={filters}
 			onFiltersChange={setFilters}
-			onApply={() => console.log('Apply', filters)}
+			onApply={() => {
+				// Apply handler
+			}}
 			onClear={() => {
 				setFilters({
 					q: '',

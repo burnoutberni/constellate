@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { useState } from 'react'
+import React, { useState } from 'react'
+
 import { GridViewIcon, ListViewIcon } from '@/components/ui'
+
 import { ToggleGroup, ToggleButton } from './ToggleGroup'
 
 const meta = {
@@ -28,7 +30,10 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof ToggleGroup>
 
-const ToggleGroupWrapper = ({ children, ...props }: React.ComponentProps<typeof ToggleGroup>) => {
+const ToggleGroupWrapper = ({
+	children,
+	...props
+}: Omit<React.ComponentProps<typeof ToggleGroup>, 'value' | 'onValueChange'>) => {
 	const [value, setValue] = useState<string | null>(null)
 	return (
 		<ToggleGroup {...props} value={value} onValueChange={setValue}>
@@ -92,17 +97,19 @@ export const MultipleOptions: Story = {
 	},
 }
 
+const WithDefaultValueWrapper = () => {
+	const [value, setValue] = useState<string | null>('option2')
+	return (
+		<ToggleGroup value={value} onValueChange={setValue}>
+			<ToggleButton value="option1">Option 1</ToggleButton>
+			<ToggleButton value="option2">Option 2</ToggleButton>
+			<ToggleButton value="option3">Option 3</ToggleButton>
+		</ToggleGroup>
+	)
+}
+
 export const WithDefaultValue: Story = {
-	render: () => {
-		const [value, setValue] = useState<string | null>('option2')
-		return (
-			<ToggleGroup value={value} onValueChange={setValue}>
-				<ToggleButton value="option1">Option 1</ToggleButton>
-				<ToggleButton value="option2">Option 2</ToggleButton>
-				<ToggleButton value="option3">Option 3</ToggleButton>
-			</ToggleGroup>
-		)
-	},
+	render: () => <WithDefaultValueWrapper />,
 	parameters: {
 		layout: 'padded',
 	},

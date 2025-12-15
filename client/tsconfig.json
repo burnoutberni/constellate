@@ -24,7 +24,8 @@
 			"@/lib/*": ["./src/lib/*"],
 			"@/components/*": ["./src/components/*"],
 			"@/hooks/*": ["./src/hooks/*"],
-			"@/pages/*": ["./src/pages/*"]
+			"@/pages/*": ["./src/pages/*"],
+			"@/contexts/*": ["./src/contexts/*"]
 		},
 		/* Linting */
 		"strict": true,

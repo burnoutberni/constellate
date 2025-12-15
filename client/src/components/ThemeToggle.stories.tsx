@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { ThemeProvider } from '@/design-system'
+
 import { ThemeToggle } from './ThemeToggle'
 
 const meta = {

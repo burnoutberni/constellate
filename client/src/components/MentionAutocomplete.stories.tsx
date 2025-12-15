@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
+
 import { MentionAutocomplete, type MentionSuggestion } from './MentionAutocomplete'
 import { Input } from './ui'
 
@@ -40,7 +41,7 @@ const mockSuggestions: MentionSuggestion[] = [
 
 // Interactive wrapper for Docs page
 const InteractiveWrapper = (args: React.ComponentProps<typeof MentionAutocomplete>) => {
-	const [activeIndex, setActiveIndex] = useState(0)
+	const [_activeIndex, _setActiveIndex] = useState(0)
 	return (
 		<div
 			className="relative w-full max-w-md"
@@ -48,9 +49,9 @@ const InteractiveWrapper = (args: React.ComponentProps<typeof MentionAutocomplet
 			<Input placeholder="Type @ to mention someone" value="@" readOnly className="mb-2" />
 			<MentionAutocomplete
 				{...args}
-				activeIndex={activeIndex}
-				onSelect={(suggestion) => {
-					console.log('Select', suggestion)
+				activeIndex={_activeIndex}
+				onSelect={(_suggestion) => {
+					// Select handler
 				}}
 			/>
 		</div>
@@ -82,7 +83,7 @@ export default meta
 type Story = StoryObj<typeof MentionAutocomplete>
 
 const AutocompleteWrapper = () => {
-	const [activeIndex, setActiveIndex] = useState(0)
+	const [_activeIndex, _setActiveIndex] = useState(0)
 	return (
 		<div
 			className="relative w-full max-w-md"
@@ -90,9 +91,9 @@ const AutocompleteWrapper = () => {
 			<Input placeholder="Type @ to mention someone" value="@" readOnly className="mb-2" />
 			<MentionAutocomplete
 				suggestions={mockSuggestions}
-				activeIndex={activeIndex}
-				onSelect={(suggestion) => {
-					console.log('Select', suggestion)
+				activeIndex={_activeIndex}
+				onSelect={(_suggestion) => {
+					// Select handler
 				}}
 				visible={true}
 			/>
@@ -108,7 +109,9 @@ export const Empty: Story = {
 	args: {
 		suggestions: [],
 		activeIndex: 0,
-		onSelect: (s) => console.log('Select', s),
+		onSelect: (_s) => {
+			// Select handler
+		},
 		visible: false,
 	},
 }

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { AddIcon, ArrowRightIcon } from '@/components/ui'
+
 import { Button } from './Button'
 
 const meta = {

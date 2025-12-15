@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
+
 import { NotificationSettings } from './NotificationSettings'
 
 const meta = {
@@ -38,7 +39,7 @@ const SettingsWrapper = () => {
 		<NotificationSettings
 			preferences={preferences}
 			onUpdate={(newPrefs) => {
-				console.log('Update preferences:', newPrefs)
+				// Update preferences handler
 				setPreferences(newPrefs)
 			}}
 		/>
@@ -58,6 +59,8 @@ export const Loading: Story = {
 export const Empty: Story = {
 	args: {
 		preferences: {},
-		onUpdate: (prefs) => console.log('Update', prefs),
+		onUpdate: (_prefs) => {
+			// Update handler
+		},
 	},
 }

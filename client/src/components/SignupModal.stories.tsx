@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { MemoryRouter } from 'react-router-dom'
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { MemoryRouter } from 'react-router-dom'
+
 import { AuthProvider } from '@/contexts/AuthContext'
+
 import { SignupModal } from './SignupModal'
 import { Button } from './ui'
 
@@ -136,7 +138,7 @@ const InteractiveWrapper = (args: React.ComponentProps<typeof SignupModal>) => {
 			isOpen={isOpen}
 			onClose={() => setIsOpen(false)}
 			onSuccess={() => {
-				console.log('Success')
+				// Success handler
 				setIsOpen(false)
 			}}
 		/>
@@ -332,7 +334,7 @@ const ActionWrapper = ({ action }: { action?: 'rsvp' | 'like' | 'comment' }) => 
 			onClose={() => setIsOpen(false)}
 			action={action}
 			onSuccess={() => {
-				console.log('Success')
+				// Success handler
 				setIsOpen(false)
 			}}
 		/>

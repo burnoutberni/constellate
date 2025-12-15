@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
-import { CommentItem } from './CommentItem'
+
 import type { CommentWithMentions } from '@/types'
+
+import { CommentItem } from './CommentItem'
 
 const meta = {
 	title: 'Components/CommentItem',
@@ -31,6 +33,7 @@ const mockComment: CommentWithMentions = {
 		username: 'johndoe',
 		name: 'John Doe',
 		profileImage: 'https://i.pravatar.cc/150?img=12',
+		isRemote: false,
 	},
 	mentions: [],
 }
@@ -46,6 +49,7 @@ const mockCommentWithMention: CommentWithMentions = {
 				id: 'user2',
 				username: 'janesmith',
 				name: 'Jane Smith',
+				isRemote: false,
 			},
 		},
 	],
@@ -60,6 +64,7 @@ const mockReply: CommentWithMentions = {
 		username: 'janesmith',
 		name: 'Jane Smith',
 		profileImage: 'https://i.pravatar.cc/150?img=47',
+		isRemote: false,
 	},
 }
 
@@ -81,7 +86,9 @@ export const OwnComment: Story = {
 	args: {
 		comment: mockComment,
 		currentUserId: 'user1',
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -89,7 +96,9 @@ export const WithReply: Story = {
 	args: {
 		comment: mockComment,
 		currentUserId: 'user2',
-		onReply: (id) => console.log('Reply to', id),
+		onReply: (_id) => {
+			// Reply handler
+		},
 	},
 }
 
@@ -98,7 +107,9 @@ export const NestedReply: Story = {
 		comment: mockReply,
 		currentUserId: 'user1',
 		depth: 1,
-		onReply: (id) => console.log('Reply to', id),
+		onReply: (_id) => {
+			// Reply handler
+		},
 	},
 }
 

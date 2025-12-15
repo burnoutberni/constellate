@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { CommentThread } from './CommentThread'
+
 import type { CommentWithMentions } from '@/types'
+
+import { CommentThread } from './CommentThread'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -41,6 +43,7 @@ const mockComment: CommentWithMentions = {
 		username: 'alice',
 		name: 'Alice Smith',
 		profileImage: 'https://i.pravatar.cc/150?img=1',
+		isRemote: false,
 	},
 	mentions: [],
 }
@@ -49,10 +52,12 @@ export const Default: Story = {
 	args: {
 		comment: mockComment,
 		currentUserId: 'user2',
-		onReply: async (parentId, content) => {
-			console.log('Reply to', parentId, ':', content)
+		onReply: async (_parentId, _content) => {
+			// Reply handler
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -70,14 +75,15 @@ export const WithReplies: Story = {
 						username: 'bob',
 						name: 'Bob Johnson',
 						profileImage: 'https://i.pravatar.cc/150?img=2',
+						isRemote: false,
 					},
 					mentions: [],
 				},
 			],
 		},
 		currentUserId: 'user3',
-		onReply: async (parentId, content) => {
-			console.log('Reply to', parentId, ':', content)
+		onReply: async (_parentId, _content) => {
+			// Reply handler
 		},
 	},
 }
@@ -86,6 +92,8 @@ export const OwnComment: Story = {
 	args: {
 		comment: mockComment,
 		currentUserId: 'user1',
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }

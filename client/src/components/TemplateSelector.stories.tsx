@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
 
 const meta = {
@@ -49,8 +50,12 @@ export const Default: Story = {
 	args: {
 		templates: mockTemplates,
 		selectedId: '1',
-		onSelect: (id) => console.log('Select', id),
-		onRefresh: () => console.log('Refresh'),
+		onSelect: (_id) => {
+			// Select handler
+		},
+		onRefresh: () => {
+			// Refresh handler
+		},
 	},
 }
 
@@ -59,8 +64,12 @@ export const Loading: Story = {
 		templates: [],
 		selectedId: '',
 		loading: true,
-		onSelect: (id) => console.log('Select', id),
-		onRefresh: () => console.log('Refresh'),
+		onSelect: (_id) => {
+			// Select handler
+		},
+		onRefresh: () => {
+			// Refresh handler
+		},
 	},
 }
 
@@ -69,8 +78,12 @@ export const Error: Story = {
 		templates: [],
 		selectedId: '',
 		error: 'Failed to load templates',
-		onSelect: (id) => console.log('Select', id),
-		onRefresh: () => console.log('Refresh'),
+		onSelect: (_id) => {
+			// Select handler
+		},
+		onRefresh: () => {
+			// Refresh handler
+		},
 	},
 }
 
@@ -78,7 +91,11 @@ export const Empty: Story = {
 	args: {
 		templates: [],
 		selectedId: '',
-		onSelect: (id) => console.log('Select', id),
-		onRefresh: () => console.log('Refresh'),
+		onSelect: (_id) => {
+			// Select handler
+		},
+		onRefresh: () => {
+			// Refresh handler
+		},
 	},
 }

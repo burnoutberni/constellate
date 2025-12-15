@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
 import React, { useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
+
 import { AuthProvider } from '@/contexts/AuthContext'
+
 import { CreateEventModal } from './CreateEventModal'
 import { Button } from './ui'
 
@@ -41,7 +43,6 @@ const InteractiveWrapper = (args: React.ComponentProps<typeof CreateEventModal>)
 				isOpen={isOpen}
 				onClose={() => setIsOpen(false)}
 				onSuccess={() => {
-					console.log('Success')
 					setIsOpen(false)
 				}}
 			/>
@@ -89,23 +90,6 @@ const meta = {
 
 export default meta
 type Story = StoryObj<typeof CreateEventModal>
-
-const ModalWrapper = () => {
-	const [isOpen, setIsOpen] = useState(false)
-	return (
-		<>
-			<Button onClick={() => setIsOpen(true)}>Create Event</Button>
-			<CreateEventModal
-				isOpen={isOpen}
-				onClose={() => setIsOpen(false)}
-				onSuccess={() => {
-					console.log('Success')
-					setIsOpen(false)
-				}}
-			/>
-		</>
-	)
-}
 
 export const Default: Story = {
 	render: (args) => <InteractiveWrapper {...args} />,

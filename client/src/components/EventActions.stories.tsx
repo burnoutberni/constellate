@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { EventActions } from './EventActions'
 
 const meta = {
@@ -41,8 +42,12 @@ export const Default: Story = {
 		username: 'johndoe',
 		eventId: 'event1',
 		isOwner: true,
-		onDelete: () => console.log('Delete'),
-		onDuplicate: () => console.log('Duplicate'),
+		onDelete: () => {
+			// Delete handler
+		},
+		onDuplicate: () => {
+			// Duplicate handler
+		},
 	},
 }
 
@@ -51,8 +56,12 @@ export const AsOwner: Story = {
 		username: 'johndoe',
 		eventId: 'event1',
 		isOwner: true,
-		onDelete: () => console.log('Delete'),
-		onDuplicate: () => console.log('Duplicate'),
+		onDelete: () => {
+			// Delete handler
+		},
+		onDuplicate: () => {
+			// Duplicate handler
+		},
 	},
 }
 
@@ -62,7 +71,9 @@ export const Deleting: Story = {
 		eventId: 'event1',
 		isOwner: true,
 		isDeleting: true,
-		onDelete: () => console.log('Delete'),
+		onDelete: () => {
+			// Delete handler
+		},
 	},
 }
 
@@ -72,7 +83,9 @@ export const Duplicating: Story = {
 		eventId: 'event1',
 		isOwner: true,
 		isDuplicating: true,
-		onDuplicate: () => console.log('Duplicate'),
+		onDuplicate: () => {
+			// Duplicate handler
+		},
 	},
 }
 

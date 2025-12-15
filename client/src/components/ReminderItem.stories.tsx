@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
-import { ReminderItem } from './ReminderItem'
+
 import type { ReminderWithEvent } from '@/types'
+
+import { ReminderItem } from './ReminderItem'
 
 const meta = {
 	title: 'Components/ReminderItem',
@@ -24,17 +26,23 @@ type Story = StoryObj<typeof ReminderItem>
 
 const mockReminder: ReminderWithEvent = {
 	id: '1',
-	minutesBefore: 30,
+	minutesBeforeStart: 30,
+	eventId: 'event1',
+	userId: 'user1',
+	remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
+	updatedAt: new Date().toISOString(),
 	status: 'PENDING',
 	event: {
 		id: 'event1',
 		title: 'Summer Music Festival',
 		startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+		timezone: 'America/New_York',
 		user: {
 			id: 'user1',
 			username: 'johndoe',
 			name: 'John Doe',
 			profileImage: 'https://i.pravatar.cc/150?img=12',
+			isRemote: false,
 		},
 	},
 	createdAt: new Date().toISOString(),
@@ -43,7 +51,9 @@ const mockReminder: ReminderWithEvent = {
 export const Default: Story = {
 	args: {
 		reminder: mockReminder,
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -53,7 +63,9 @@ export const Sent: Story = {
 			...mockReminder,
 			status: 'SENT',
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -63,7 +75,9 @@ export const Failed: Story = {
 			...mockReminder,
 			status: 'FAILED',
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -73,7 +87,9 @@ export const Sending: Story = {
 			...mockReminder,
 			status: 'SENDING',
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -81,7 +97,9 @@ export const Deleting: Story = {
 	args: {
 		reminder: mockReminder,
 		isDeleting: true,
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -89,9 +107,11 @@ export const OneHourBefore: Story = {
 	args: {
 		reminder: {
 			...mockReminder,
-			minutesBefore: 60,
+			minutesBeforeStart: 60,
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -99,8 +119,10 @@ export const OneDayBefore: Story = {
 	args: {
 		reminder: {
 			...mockReminder,
-			minutesBefore: 1440,
+			minutesBeforeStart: 1440,
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }

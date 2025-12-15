@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { CalendarView } from './CalendarView'
+
 import type { Event } from '@/types'
+
+import { CalendarView } from './CalendarView'
 
 const meta = {
 	title: 'Components/CalendarView',
@@ -36,9 +38,9 @@ const mockEvents: Event[] = [
 		startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 		endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(),
 		visibility: 'PUBLIC',
-		user: { id: 'user1', username: 'johndoe' },
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
+		timezone: 'America/New_York',
+		tags: [],
+		user: { id: 'user1', username: 'johndoe', isRemote: false },
 	},
 	{
 		id: '2',
@@ -46,9 +48,9 @@ const mockEvents: Event[] = [
 		startTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
 		endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000).toISOString(),
 		visibility: 'PUBLIC',
-		user: { id: 'user1', username: 'johndoe' },
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
+		timezone: 'America/New_York',
+		tags: [],
+		user: { id: 'user1', username: 'johndoe', isRemote: false },
 	},
 ]
 
@@ -58,7 +60,9 @@ export const Default: Story = {
 		currentDate: new Date(),
 		events: mockEvents,
 		loading: false,
-		onEventClick: (event, position) => console.log('Click', event, position),
+		onEventClick: (_event, _position) => {
+			// Event click handler
+		},
 	},
 }
 
@@ -68,7 +72,9 @@ export const MonthView: Story = {
 		currentDate: new Date(),
 		events: mockEvents,
 		loading: false,
-		onEventClick: (event, position) => console.log('Click', event, position),
+		onEventClick: (_event, _position) => {
+			// Event click handler
+		},
 	},
 }
 
@@ -78,7 +84,9 @@ export const WeekView: Story = {
 		currentDate: new Date(),
 		events: mockEvents,
 		loading: false,
-		onEventClick: (event, position) => console.log('Click', event, position),
+		onEventClick: (_event, _position) => {
+			// Event click handler
+		},
 	},
 }
 
@@ -88,7 +96,9 @@ export const DayView: Story = {
 		currentDate: new Date(),
 		events: mockEvents,
 		loading: false,
-		onEventClick: (event, position) => console.log('Click', event, position),
+		onEventClick: (_event, _position) => {
+			// Event click handler
+		},
 	},
 }
 
@@ -117,6 +127,8 @@ export const WithAttendingEvents: Story = {
 		events: mockEvents,
 		loading: false,
 		userAttendingEventIds: new Set(['1']),
-		onEventClick: (event, position) => console.log('Click', event, position),
+		onEventClick: (_event, _position) => {
+			// Event click handler
+		},
 	},
 }

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
-import { EventCard } from './EventCard'
+
 import type { Event } from '@/types'
+
+import { EventCard } from './EventCard'
 
 const mockEvent: Event = {
 	id: '1',
@@ -16,14 +18,15 @@ const mockEvent: Event = {
 		username: 'johndoe',
 		name: 'John Doe',
 		profileImage: 'https://i.pravatar.cc/150?img=12',
+		isRemote: false,
 	},
+	timezone: 'America/New_York',
+	tags: [],
 	_count: {
 		attendance: 42,
 		likes: 128,
 		comments: 15,
 	},
-	createdAt: new Date().toISOString(),
-	updatedAt: new Date().toISOString(),
 }
 
 const meta = {

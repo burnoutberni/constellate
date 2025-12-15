@@ -1,16 +1,23 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
 import React, { useState } from 'react'
-import { api } from '@/lib/api-client'
+import { MemoryRouter } from 'react-router-dom'
+
 import { ThemeProvider } from '@/design-system'
+import { api } from '@/lib/api-client'
+import type { User } from '@/types'
+
 import { FollowersModal } from './FollowersModal'
 import { Button } from './ui'
-import type { User } from '@/types'
 
 // Mock API call for followers/following
 const originalGet = api.get.bind(api)
-;(api.get as any) = async (url: string) => {
+;(api.get as typeof api.get) = async <T,>(
+	url: string,
+	queryParams?: Record<string, string | number | boolean | undefined>,
+	options?: RequestInit,
+	baseErrorMessage?: string
+): Promise<T> => {
 	if (
 		url.includes('/user-search/profile/') &&
 		(url.includes('/followers') || url.includes('/following'))
@@ -23,6 +30,9 @@ const originalGet = api.get.bind(api)
 				email: 'alice@example.com',
 				profileImage: 'https://i.pravatar.cc/150?img=1',
 				isRemote: false,
+				createdAt: new Date().toISOString(),
+				displayColor: '#3b82f6',
+				timezone: 'America/New_York',
 			},
 			{
 				id: 'user2',
@@ -32,6 +42,8 @@ const originalGet = api.get.bind(api)
 				profileImage: null,
 				displayColor: '#3b82f6',
 				isRemote: false,
+				createdAt: new Date().toISOString(),
+				timezone: 'America/New_York',
 			},
 			{
 				id: 'user3',
@@ -40,14 +52,17 @@ const originalGet = api.get.bind(api)
 				email: 'charlie@example.com',
 				profileImage: 'https://i.pravatar.cc/150?img=3',
 				isRemote: true,
+				createdAt: new Date().toISOString(),
+				displayColor: '#3b82f6',
+				timezone: 'America/New_York',
 			},
 		]
 		if (url.includes('/followers')) {
-			return { followers: mockUsers }
+			return { followers: mockUsers } as T
 		}
-		return { following: mockUsers }
+		return { following: mockUsers } as T
 	}
-	return originalGet(url)
+	return originalGet<T>(url, queryParams, options, baseErrorMessage)
 }
 
 const queryClient = new QueryClient({

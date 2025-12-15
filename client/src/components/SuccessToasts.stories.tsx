@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useEffect } from 'react'
+
 import { useUIStore } from '@/stores'
+
 import { SuccessToasts } from './SuccessToasts'
 
 const meta = {
@@ -19,8 +21,8 @@ const ToastWrapper = () => {
 	const addSuccessToast = useUIStore((state) => state.addSuccessToast)
 
 	useEffect(() => {
-		addSuccessToast('Operation completed successfully')
-		addSuccessToast('Settings saved', { duration: 5000 })
+		addSuccessToast({ id: crypto.randomUUID(), message: 'Operation completed successfully' })
+		addSuccessToast({ id: crypto.randomUUID(), message: 'Settings saved' })
 	}, [addSuccessToast])
 
 	return <SuccessToasts />

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
-import { NotificationItem } from './NotificationItem'
+
 import type { Notification } from '@/types'
+
+import { NotificationItem } from './NotificationItem'
 
 const meta = {
 	title: 'Components/NotificationItem',
@@ -24,9 +26,11 @@ type Story = StoryObj<typeof NotificationItem>
 
 const mockNotification: Notification = {
 	id: '1',
-	type: 'event_like',
+	type: 'LIKE',
+	title: 'John Doe liked your event',
 	read: false,
 	createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+	updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
 	actor: {
 		id: 'user1',
 		username: 'johndoe',
@@ -39,7 +43,9 @@ const mockNotification: Notification = {
 export const Default: Story = {
 	args: {
 		notification: mockNotification,
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }
 
@@ -49,7 +55,9 @@ export const Read: Story = {
 			...mockNotification,
 			read: true,
 		},
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }
 
@@ -57,7 +65,9 @@ export const Compact: Story = {
 	args: {
 		notification: mockNotification,
 		compact: true,
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }
 
@@ -65,9 +75,11 @@ export const EventComment: Story = {
 	args: {
 		notification: {
 			...mockNotification,
-			type: 'event_comment',
+			type: 'COMMENT',
 		},
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }
 
@@ -75,9 +87,11 @@ export const FollowRequest: Story = {
 	args: {
 		notification: {
 			...mockNotification,
-			type: 'follow_request',
+			type: 'FOLLOW',
 		},
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }
 
@@ -87,6 +101,8 @@ export const WithoutActor: Story = {
 			...mockNotification,
 			actor: null,
 		},
-		onMarkRead: (id) => console.log('Mark read', id),
+		onMarkRead: (_id) => {
+			// Mark read handler
+		},
 	},
 }

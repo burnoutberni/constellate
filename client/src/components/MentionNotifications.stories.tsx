@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import React, { useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { useUIStore } from '@/stores'
+
 import { MentionNotifications } from './MentionNotifications'
 
 // Interactive preview for Docs page

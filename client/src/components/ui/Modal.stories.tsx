@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { useState } from 'react'
+import React, { useState } from 'react'
+
 import { Button } from './Button'
 import { Modal } from './Modal'
 
@@ -46,7 +47,10 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof Modal>
 
-const ModalWrapper = ({ children, ...props }: React.ComponentProps<typeof Modal>) => {
+const ModalWrapper = ({
+	children,
+	...props
+}: Omit<React.ComponentProps<typeof Modal>, 'isOpen' | 'onClose'>) => {
 	const [isOpen, setIsOpen] = useState(true)
 
 	if (!isOpen) {
@@ -152,7 +156,7 @@ export const NoBackdropClose: Story = {
 			<div className="p-6">
 				<h2 className="text-xl font-semibold mb-4">Modal Without Backdrop Close</h2>
 				<p className="text-text-secondary mb-4">
-					Click outside won't close this modal. Use the close button or Escape key.
+					Click outside won&apos;t close this modal. Use the close button or Escape key.
 				</p>
 				<Button onClick={() => {}}>Close</Button>
 			</div>
@@ -166,7 +170,7 @@ export const NoEscapeClose: Story = {
 			<div className="p-6">
 				<h2 className="text-xl font-semibold mb-4">Modal Without Escape Close</h2>
 				<p className="text-text-secondary mb-4">
-					Escape key won't close this modal. Use the close button or click outside.
+					Escape key won&apos;t close this modal. Use the close button or click outside.
 				</p>
 				<Button onClick={() => {}}>Close</Button>
 			</div>

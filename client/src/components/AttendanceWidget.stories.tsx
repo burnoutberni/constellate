@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { AttendanceWidget } from './AttendanceWidget'
 
 const meta = {
@@ -33,9 +34,15 @@ export const Default: Story = {
 		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }
 
@@ -51,9 +58,15 @@ export const Attending: Story = {
 		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }
 
@@ -69,9 +82,15 @@ export const Maybe: Story = {
 		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }
 
@@ -87,9 +106,15 @@ export const Liked: Story = {
 		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }
 
@@ -105,9 +130,15 @@ export const NotAuthenticated: Story = {
 		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }
 
@@ -123,8 +154,14 @@ export const Pending: Story = {
 		isRSVPPending: true,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (status) => console.log('RSVP', status),
-		onLike: () => console.log('Like'),
-		onShare: () => console.log('Share'),
+		onRSVP: (_status) => {
+			// RSVP handler
+		},
+		onLike: () => {
+			// Like handler
+		},
+		onShare: () => {
+			// Share handler
+		},
 	},
 }

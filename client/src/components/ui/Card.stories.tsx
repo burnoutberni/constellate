@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { Button } from './Button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './Card'
 
@@ -72,7 +73,9 @@ export const Flat: Story = {
 export const Interactive: Story = {
 	args: {
 		interactive: true,
-		onClick: () => alert('Card clicked!'),
+		onClick: () => {
+			// Card clicked handler
+		},
 		children: 'Click me!',
 	},
 	parameters: {

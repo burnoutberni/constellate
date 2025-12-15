@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
+
 import { ConfirmationModal } from './ConfirmationModal'
 import { Button } from './ui'
 
@@ -34,7 +35,6 @@ const InteractiveWrapper = (args: React.ComponentProps<typeof ConfirmationModal>
 						isOpen={isOpen}
 						onCancel={() => setIsOpen(false)}
 						onConfirm={() => {
-							console.log('Confirmed')
 							setIsOpen(false)
 						}}
 					/>,
@@ -129,31 +129,33 @@ export const CustomLabels: Story = {
 	),
 }
 
+const PendingWrapper = () => {
+	const [isOpen, setIsOpen] = useState(false)
+	const [isPending, setIsPending] = useState(false)
+
+	const handleConfirm = async () => {
+		setIsPending(true)
+		// Simulate async operation
+		await new Promise((resolve) => setTimeout(resolve, 2000))
+		setIsPending(false)
+		setIsOpen(false)
+	}
+
+	return (
+		<>
+			<Button onClick={() => setIsOpen(true)}>Open Modal</Button>
+			<ConfirmationModal
+				isOpen={isOpen}
+				title="Processing Request"
+				message="This may take a few seconds..."
+				onCancel={() => setIsOpen(false)}
+				onConfirm={handleConfirm}
+				isPending={isPending}
+			/>
+		</>
+	)
+}
+
 export const Pending: Story = {
-	render: () => {
-		const [isOpen, setIsOpen] = useState(false)
-		const [isPending, setIsPending] = useState(false)
-
-		const handleConfirm = async () => {
-			setIsPending(true)
-			// Simulate async operation
-			await new Promise((resolve) => setTimeout(resolve, 2000))
-			setIsPending(false)
-			setIsOpen(false)
-		}
-
-		return (
-			<>
-				<Button onClick={() => setIsOpen(true)}>Open Modal</Button>
-				<ConfirmationModal
-					isOpen={isOpen}
-					title="Processing Request"
-					message="This may take a few seconds..."
-					onCancel={() => setIsOpen(false)}
-					onConfirm={handleConfirm}
-					isPending={isPending}
-				/>
-			</>
-		)
-	},
+	render: () => <PendingWrapper />,
 }

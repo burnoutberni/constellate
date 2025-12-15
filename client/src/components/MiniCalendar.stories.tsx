@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
+
 import { MiniCalendar } from './MiniCalendar'
 
 const queryClient = new QueryClient({

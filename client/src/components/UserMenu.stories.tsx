@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { UserMenu } from './UserMenu'
 
 const meta = {
@@ -44,7 +45,9 @@ const mockUser = {
 export const Default: Story = {
 	args: {
 		user: mockUser,
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }
 
@@ -54,7 +57,9 @@ export const WithoutImage: Story = {
 			...mockUser,
 			image: null,
 		},
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }
 
@@ -62,7 +67,9 @@ export const Admin: Story = {
 	args: {
 		user: mockUser,
 		isAdmin: true,
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }
 
@@ -72,6 +79,8 @@ export const MinimalUser: Story = {
 			id: 'user1',
 			username: 'johndoe',
 		},
-		onLogout: () => console.log('Logout'),
+		onLogout: () => {
+			// Logout handler
+		},
 	},
 }
