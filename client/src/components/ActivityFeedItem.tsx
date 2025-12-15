@@ -5,7 +5,7 @@ import type { Activity, EventVisibility } from '@/types'
 import { getVisibilityMeta } from '../lib/visibility'
 
 import { FollowButton } from './FollowButton'
-import { Avatar, Badge, Card } from './ui'
+import { Avatar, Badge, Card, SafeHTML } from './ui'
 
 interface ActivityFeedItemProps {
 	activity: Activity
@@ -141,9 +141,9 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
 								)}
 								{activity.type === 'event_shared' &&
 									activity.sharedEvent?.summary && (
-										<p className="text-sm text-text-secondary mt-1">
-											{activity.sharedEvent.summary}
-										</p>
+										<div className="text-sm text-text-secondary mt-1">
+											<SafeHTML html={activity.sharedEvent.summary} />
+										</div>
 									)}
 							</div>
 						</div>

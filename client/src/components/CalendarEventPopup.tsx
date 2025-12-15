@@ -4,7 +4,7 @@ import { tokens } from '@/design-system'
 import type { Event } from '@/types'
 
 import { Stack } from './layout'
-import { Button, Badge } from './ui'
+import { Button, Badge, SafeHTML } from './ui'
 
 interface CalendarEventPopupProps {
 	event: Event
@@ -142,9 +142,9 @@ export function CalendarEventPopup({
 
 					{/* Summary */}
 					{event.summary && (
-						<p className="text-sm text-text-secondary mb-3 line-clamp-3">
-							{event.summary}
-						</p>
+						<div className="text-sm text-text-secondary mb-3 line-clamp-3">
+							<SafeHTML html={event.summary} />
+						</div>
 					)}
 
 					{/* Tags */}

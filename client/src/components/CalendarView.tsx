@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 
 import type { Event } from '@/types'
 
-import { Button, Spinner } from './ui'
+import { Button, Spinner, SafeHTML } from './ui'
 
 interface CalendarViewProps {
 	view: 'month' | 'week' | 'day'
@@ -470,7 +470,11 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
 			{event.location && (
 				<div className="text-sm text-neutral-500 mt-1">📍 {event.location}</div>
 			)}
-			{event.summary && <div className="text-sm text-neutral-600 mt-2">{event.summary}</div>}
+			{event.summary && (
+				<div className="text-sm text-neutral-600 mt-2">
+					<SafeHTML html={event.summary} />
+				</div>
+			)}
 		</Button>
 	)
 }

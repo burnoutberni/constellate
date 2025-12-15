@@ -9,6 +9,7 @@ import {
 	Card,
 	Badge,
 	Avatar,
+	SafeHTML,
 } from '@/components/ui'
 import type { Event } from '@/types'
 
@@ -116,9 +117,9 @@ export function EventCard(props: EventCardProps) {
 
 						{/* Summary */}
 						{event.summary ? (
-							<p className="text-sm text-text-secondary line-clamp-2">
-								{event.summary}
-							</p>
+							<div className="text-sm text-text-secondary line-clamp-2">
+								<SafeHTML html={event.summary} />
+							</div>
 						) : null}
 
 						{/* Date and Time */}

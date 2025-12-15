@@ -6,7 +6,7 @@ import { formatDate, formatTime } from '../lib/formatUtils'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
 
-import { Badge } from './ui'
+import { Badge, SafeHTML } from './ui'
 
 interface EventInfoProps {
 	/**
@@ -86,9 +86,7 @@ export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoPro
 
 			{/* Event Description */}
 			{event.summary && (
-				<div>
-					<p className="text-text-primary text-lg">{event.summary}</p>
-				</div>
+				<SafeHTML html={event.summary} className="text-text-primary text-lg" tag="div" />
 			)}
 
 			{/* Event Details */}
