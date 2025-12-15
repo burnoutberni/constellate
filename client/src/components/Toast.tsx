@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+import { useUIStore } from '@/stores'
+
 import { Stack } from './layout'
 import { Button } from './ui'
 
@@ -65,14 +67,30 @@ function ToastItem({ toast, variant, onDismiss }: ToastItemProps) {
 	)
 }
 
-interface ToastsProps {
-	toasts: Toast[]
-	variant: ToastVariant
-	onDismiss: (id: string) => void
-}
+export function Toasts() {
+	const errorToasts = useUIStore((state) => state.errorToasts)
+	const successToasts = useUIStore((state) => state.successToasts)
+	const dismissErrorToast = useUIStore((state) => state.dismissErrorToast)
+	const dismissSuccessToast = useUIStore((state) => state.dismissSuccessToast)
 
-export function Toasts({ toasts, variant, onDismiss }: ToastsProps) {
-	if (!toasts.length) {
+	const allToasts: Array<{
+		toast: Toast
+		variant: ToastVariant
+		onDismiss: (id: string) => void
+	}> = [
+		...errorToasts.map((toast) => ({
+			toast,
+			variant: 'error' as ToastVariant,
+			onDismiss: dismissErrorToast,
+		})),
+		...successToasts.map((toast) => ({
+			toast,
+			variant: 'success' as ToastVariant,
+			onDismiss: dismissSuccessToast,
+		})),
+	]
+
+	if (!allToasts.length) {
 		return null
 	}
 
@@ -82,8 +100,13 @@ export function Toasts({ toasts, variant, onDismiss }: ToastsProps) {
 			gap="sm"
 			role="alert"
 			aria-atomic="true">
-			{toasts.map((toast) => (
-				<ToastItem key={toast.id} toast={toast} variant={variant} onDismiss={onDismiss} />
+			{allToasts.map(({ toast, variant, onDismiss }) => (
+				<ToastItem
+					key={`${variant}-${toast.id}`}
+					toast={toast}
+					variant={variant}
+					onDismiss={onDismiss}
+				/>
 			))}
 		</Stack>
 	)

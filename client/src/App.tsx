@@ -3,9 +3,8 @@ import { useEffect, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { ErrorToasts } from './components/ErrorToasts'
 import { MentionNotifications } from './components/MentionNotifications'
-import { SuccessToasts } from './components/SuccessToasts'
+import { Toasts } from './components/Toast'
 import { PageLoader } from './components/ui'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
@@ -84,8 +83,7 @@ function AppContent() {
 				<Route path="/*" element={<ProfileOrEventPage />} />
 			</Routes>
 			<MentionNotifications />
-			<ErrorToasts />
-			<SuccessToasts />
+			<Toasts />
 		</ErrorBoundary>
 	)
 }
