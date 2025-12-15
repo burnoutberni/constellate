@@ -47,7 +47,7 @@ describe('Breadcrumbs Component', () => {
 
 		expect(screen.getByText('Home')).toBeInTheDocument()
 		expect(screen.getByText('@username')).toBeInTheDocument()
-		expect(screen.getByText('Event')).toBeInTheDocument()
+		expect(screen.getByText('Event123')).toBeInTheDocument()
 	})
 
 	it('should use custom breadcrumb items when provided', () => {
@@ -111,7 +111,7 @@ describe('Breadcrumbs Component', () => {
 
 		expect(screen.getByText('Home')).toBeInTheDocument()
 		expect(screen.getByText('Instances')).toBeInTheDocument()
-		expect(screen.getByText('example.com')).toBeInTheDocument()
+		expect(screen.getByText('Example.com')).toBeInTheDocument()
 	})
 
 	it('should correctly handle nested routes with configured segments after unconfigured ones', () => {

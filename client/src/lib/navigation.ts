@@ -22,4 +22,3 @@ export function getNavLinks(hasUser: boolean): NavLink[] {
 		{ to: '/about', label: 'About' },
 	]
 }
-
