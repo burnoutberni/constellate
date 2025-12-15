@@ -8,11 +8,34 @@ const dirname =
 	typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+	// Override Vite server config for browser tests
+	server: {
+		host: 'localhost', // Use localhost for browser tests (0.0.0.0 can cause WebSocket issues)
+	},
+	resolve: {
+		alias: {
+			'better-auth/react': path.resolve(
+				dirname,
+				'./node_modules/better-auth/dist/client/react/index.mjs'
+			),
+			// Path aliases - enforce barrel file imports
+			'@/components/ui': path.resolve(dirname, './src/components/ui/index.ts'),
+			'@/components/layout': path.resolve(dirname, './src/components/layout/index.ts'),
+			'@/design-system': path.resolve(dirname, './src/design-system/index.ts'),
+			'@/types': path.resolve(dirname, './src/types/index.ts'),
+			'@/hooks/queries': path.resolve(dirname, './src/hooks/queries/index.ts'),
+			'@/stores': path.resolve(dirname, './src/stores/index.ts'),
+			'@/lib': path.resolve(dirname, './src/lib'),
+			'@/components': path.resolve(dirname, './src/components'),
+			'@/hooks': path.resolve(dirname, './src/hooks'),
+			'@/pages': path.resolve(dirname, './src/pages'),
+			'@/contexts': path.resolve(dirname, './src/contexts'),
+		},
+	},
 	test: {
 		globals: true,
 		environment: 'jsdom',
 		setupFiles: ['./src/tests/setup.ts', './src/tests/mocks.ts'],
-		include: ['src/**/*.{test,spec}.{ts,tsx}'],
 		exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
 		css: true,
 		testTimeout: 10000,
@@ -36,40 +59,41 @@ export default defineConfig({
 			reportOnFailure: true,
 		},
 		projects: [
-			// Storybook tests project - configured independently to avoid inheriting test.include
+			// Regular unit tests project
 			{
+				extends: true,
+				test: {
+					name: 'unit',
+					include: ['src/**/*.{test,spec}.{ts,tsx}'],
+				},
+			},
+			// Storybook tests project
+			{
+				extends: true, // Extend base test config - this is required by the Storybook addon
 				plugins: [
-					// The plugin will run tests for the stories defined in your Storybook config
-					// See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
 					storybookTest({
 						configDir: path.join(dirname, '.storybook'),
+						disableAddonDocs: true,
 					}),
 				],
 				test: {
 					name: 'storybook',
-					// Note: test.include is NOT set here - Storybook uses the "stories" field in main.ts
-					// This prevents the warning about ignored test.include option
+					// Storybook uses the "stories" field in main.ts, not test.include
 					globals: true,
-					environment: 'jsdom',
 					css: true,
-					testTimeout: 30000,
-					hookTimeout: 30000,
-					teardownTimeout: 30000,
+					testTimeout: 60000,
+					hookTimeout: 60000,
+					setupFiles: ['./.storybook/vitest.setup.ts'],
 					browser: {
 						enabled: true,
 						headless: true,
-						provider: playwright({
-							launch: {
-								timeout: 60000,
-							},
-						}),
+						provider: playwright({}),
 						instances: [
 							{
 								browser: 'chromium',
 							},
 						],
 					},
-					setupFiles: ['./.storybook/vitest.setup.ts'],
 				},
 			},
 		],

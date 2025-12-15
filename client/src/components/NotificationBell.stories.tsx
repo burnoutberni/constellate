@@ -6,7 +6,14 @@ import { NotificationBell } from './NotificationBell'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
-		queries: { retry: false },
+		queries: {
+			retry: false,
+			staleTime: Infinity, // Prevent refetching to avoid async updates
+			gcTime: Infinity, // Prevent cache cleanup
+			refetchOnMount: false,
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
+		},
 		mutations: { retry: false },
 	},
 })

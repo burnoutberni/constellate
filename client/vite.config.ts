@@ -62,11 +62,6 @@ export default defineConfig({
 			allow: ['..'],
 		},
 		proxy: {
-			'/ui': {
-				target: 'http://localhost:6006',
-				changeOrigin: true,
-				ws: true, // Enable WebSocket support for HMR
-			},
 			'/api': {
 				target: 'http://localhost:3000',
 				changeOrigin: true,

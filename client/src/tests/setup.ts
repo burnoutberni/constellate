@@ -59,7 +59,10 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock fetch globally to prevent real network calls
-global.fetch = vi.fn(() =>
+// Use globalThis which works in both browser and Node.js environments
+// Safely get the global object - globalThis is available in all modern environments
+const globalObj = globalThis
+globalObj.fetch = vi.fn(() =>
 	Promise.resolve({
 		ok: true,
 		json: async () => ({}),
@@ -68,7 +71,7 @@ global.fetch = vi.fn(() =>
 )
 
 // Mock EventSource for useRealtime hook (jsdom doesn't have EventSource)
-global.EventSource = class EventSource {
+globalObj.EventSource = class EventSource {
 	static readonly CONNECTING = 0
 	static readonly OPEN = 1
 	static readonly CLOSED = 2

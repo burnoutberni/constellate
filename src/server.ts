@@ -265,103 +265,6 @@ app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)
 app.route('/api/instances', instancesRoutes)
 
-// Serve Storybook static files at /ui in production
-if (process.env.NODE_ENV === 'production') {
-	app.get('/ui', async (c) => {
-		const fs = await import('fs/promises')
-		const path = await import('path')
-		const { fileURLToPath } = await import('url')
-
-		const __filename = fileURLToPath(import.meta.url)
-		const __dirname = path.dirname(__filename)
-		const storybookPath = path.join(__dirname, '..', 'client', 'storybook-static')
-		const indexPath = path.join(storybookPath, 'index.html')
-
-		try {
-			const indexContent = await fs.readFile(indexPath)
-			return c.body(indexContent, 200, {
-				'Content-Type': 'text/html',
-			})
-		} catch (error) {
-			console.error('Error serving Storybook index:', error)
-			return c.notFound()
-		}
-	})
-
-	app.get('/ui/*', async (c) => {
-		const fs = await import('fs/promises')
-		const path = await import('path')
-		const { fileURLToPath } = await import('url')
-
-		const __filename = fileURLToPath(import.meta.url)
-		const __dirname = path.dirname(__filename)
-		const storybookPath = path.join(__dirname, '..', 'client', 'storybook-static')
-		const requestPath = c.req.path.replace('/ui', '')
-
-		try {
-			// For paths after /ui, serve the requested file
-			const filePath = path.join(
-				storybookPath,
-				requestPath === '' || requestPath === '/' ? 'index.html' : requestPath
-			)
-
-			// Security: ensure the file is within the storybook-static directory
-			const resolvedPath = path.resolve(filePath)
-			const resolvedStorybookPath = path.resolve(storybookPath)
-			if (!resolvedPath.startsWith(resolvedStorybookPath)) {
-				return c.notFound()
-			}
-
-			// Check if file exists
-			try {
-				const stats = await fs.stat(filePath)
-				if (stats.isFile()) {
-					const fileContent = await fs.readFile(filePath)
-
-					// Determine content type
-					const ext = path.extname(filePath).toLowerCase()
-					const contentTypes: Record<string, string> = {
-						'.html': 'text/html',
-						'.js': 'application/javascript',
-						'.css': 'text/css',
-						'.json': 'application/json',
-						'.png': 'image/png',
-						'.jpg': 'image/jpeg',
-						'.jpeg': 'image/jpeg',
-						'.gif': 'image/gif',
-						'.svg': 'image/svg+xml',
-						'.ico': 'image/x-icon',
-						'.woff': 'font/woff',
-						'.woff2': 'font/woff2',
-						'.ttf': 'font/ttf',
-						'.eot': 'application/vnd.ms-fontobject',
-					}
-
-					const contentType = contentTypes[ext] || 'application/octet-stream'
-
-					return c.body(fileContent, 200, {
-						'Content-Type': contentType,
-					})
-				}
-			} catch {
-				// File doesn't exist, try index.html for SPA routing
-				const indexPath = path.join(storybookPath, 'index.html')
-				try {
-					const indexContent = await fs.readFile(indexPath)
-					return c.body(indexContent, 200, {
-						'Content-Type': 'text/html',
-					})
-				} catch {
-					return c.notFound()
-				}
-			}
-		} catch (error) {
-			console.error('Error serving Storybook file:', error)
-			return c.notFound()
-		}
-	})
-}
-
 // Serve static frontend files in production
 // This should be after all API routes to ensure they take precedence
 if (process.env.NODE_ENV === 'production') {
@@ -386,8 +289,7 @@ if (process.env.NODE_ENV === 'production') {
 			requestPath.startsWith('/inbox') ||
 			requestPath.startsWith('/outbox') ||
 			requestPath.startsWith('/followers') ||
-			requestPath.startsWith('/following') ||
-			requestPath.startsWith('/ui')
+			requestPath.startsWith('/following')
 		) {
 			return c.notFound()
 		}

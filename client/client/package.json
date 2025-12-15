@@ -1,5 +1,0 @@
-{
-	"dependencies": {
-		"@storybook/addon-vitest": "^10.1.8"
-	}
-}

@@ -21,9 +21,6 @@ const config: StorybookConfig = {
 	},
 	staticDirs: [],
 	viteFinal: async (config) => {
-		// Configure base path for Storybook
-		config.base = '/ui/'
-
 		// Add path aliases from vite.config.ts
 		if (!config.resolve) {
 			config.resolve = {}
