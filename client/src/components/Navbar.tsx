@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
-import { getNavLinks } from '@/lib/navigation'
+import { getNavLinks, shouldShowBreadcrumbs } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProfile } from '@/types'
 
@@ -68,8 +68,17 @@ export function Navbar({
 	// Navigation links
 	const navLinks = getNavLinks(Boolean(user))
 
-	// Derive top-level paths from navLinks (plus home page)
+	/**
+	 * Top-level paths where breadcrumbs are hidden.
+	 * These are pages directly accessible from the main navigation, so showing
+	 * breadcrumbs like "Home / Feed" would be redundant. Breadcrumbs are only
+	 * shown on deeper pages (profiles, event details, nested routes) where they
+	 * provide valuable navigation context.
+	 */
 	const topLevelPaths = ['/', ...navLinks.map((link) => link.to)]
+
+	// Determine if breadcrumbs should be shown for the current route
+	const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname, topLevelPaths)
 
 	return (
 		<>
@@ -182,8 +191,8 @@ export function Navbar({
 						</div>
 					</div>
 
-					{/* Breadcrumbs (Desktop only, shown on deeper pages) */}
-					{!topLevelPaths.includes(location.pathname) && (
+					{/* Breadcrumbs: Shown on deeper pages, hidden on top-level nav pages */}
+					{showBreadcrumbs && (
 						<div className="hidden md:block pb-3">
 							<Breadcrumbs />
 						</div>

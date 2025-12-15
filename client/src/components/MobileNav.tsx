@@ -112,6 +112,31 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 
 	const navLinks = getNavLinks(Boolean(user))
 
+	// Get user-specific navigation links
+	const getUserLinks = (): Array<{ to: string; label: string }> => {
+		if (!user) {
+			return []
+		}
+		return [
+			{ to: `/@${user.username || user.id}`, label: 'My Profile' },
+			{ to: '/settings', label: 'Settings' },
+			{ to: '/reminders', label: 'Reminders' },
+			{ to: '/followers/pending', label: 'Followers' },
+			...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
+		]
+	}
+
+	const userLinks = getUserLinks()
+
+	// Shared className logic for navigation links
+	const getLinkClassName = (isActive: boolean) =>
+		cn(
+			'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+			isActive
+				? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+				: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+		)
+
 	return (
 		<>
 			{/* Backdrop */}
@@ -156,12 +181,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 										<Link
 											to={link.to}
 											onClick={onClose}
-											className={cn(
-												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												isActive
-													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-											)}>
+											className={getLinkClassName(isActive)}>
 											{link.label}
 										</Link>
 									</li>
@@ -170,78 +190,23 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 						</ul>
 
 						{/* User-specific links */}
-						{user && (
+						{userLinks.length > 0 && (
 							<>
 								<div className="border-t border-border-default my-4" />
 								<ul className="space-y-1" role="list">
-									<li>
-										<Link
-											to={`/@${user.username || user.id}`}
-											onClick={onClose}
-											className={cn(
-												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												location.pathname ===
-													`/@${user.username || user.id}`
-													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-											)}>
-											My Profile
-										</Link>
-									</li>
-									<li>
-										<Link
-											to="/settings"
-											onClick={onClose}
-											className={cn(
-												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												location.pathname === '/settings'
-													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-											)}>
-											Settings
-										</Link>
-									</li>
-									<li>
-										<Link
-											to="/reminders"
-											onClick={onClose}
-											className={cn(
-												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												location.pathname === '/reminders'
-													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-											)}>
-											Reminders
-										</Link>
-									</li>
-									<li>
-										<Link
-											to="/followers/pending"
-											onClick={onClose}
-											className={cn(
-												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												location.pathname === '/followers/pending'
-													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-											)}>
-											Followers
-										</Link>
-									</li>
-									{isAdmin && (
-										<li>
-											<Link
-												to="/admin"
-												onClick={onClose}
-												className={cn(
-													'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-													location.pathname === '/admin'
-														? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-														: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
-												)}>
-												Admin
-											</Link>
-										</li>
-									)}
+									{userLinks.map((link) => {
+										const isActive = location.pathname === link.to
+										return (
+											<li key={link.to}>
+												<Link
+													to={link.to}
+													onClick={onClose}
+													className={getLinkClassName(isActive)}>
+													{link.label}
+												</Link>
+											</li>
+										)
+									})}
 								</ul>
 							</>
 						)}

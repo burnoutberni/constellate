@@ -69,6 +69,17 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
 }
 
 /**
+ * Formats a path part into a human-readable label.
+ * Capitalizes words and replaces hyphens with spaces.
+ */
+function formatPathPartToLabel(part: string): string {
+	return part
+		.split('-')
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(' ')
+}
+
+/**
  * Route configuration for simple routes that map directly to breadcrumb labels
  */
 const ROUTE_CONFIG: Record<string, { label: string; href: string }> = {
@@ -106,12 +117,7 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 					const config = ROUTE_CONFIG[part]
 					items.push({ label: config.label, href })
 				} else {
-					// Capitalize first letter and replace hyphens with spaces for better display
-					const label = part
-						.split('-')
-						.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-						.join(' ')
-					items.push({ label, href })
+					items.push({ label: formatPathPartToLabel(part), href })
 				}
 			})
 
@@ -143,12 +149,7 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 					const config = ROUTE_CONFIG[part]
 					items.push({ label: config.label, href })
 				} else {
-					// Capitalize first letter and replace hyphens with spaces for better display
-					const label = part
-						.split('-')
-						.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-						.join(' ')
-					items.push({ label, href })
+					items.push({ label: formatPathPartToLabel(part), href })
 				}
 			})
 
@@ -159,7 +160,10 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 ]
 
 /**
- * Generates breadcrumb items from a route path
+ * Generates breadcrumb items from a route path.
+ * Note: This function can generate breadcrumbs for any path, but visibility
+ * is controlled by the parent component (typically Navbar) using shouldShowBreadcrumbs()
+ * from @/lib/navigation.
  */
 function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 	const items: BreadcrumbItem[] = []
@@ -192,12 +196,7 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 			const config = ROUTE_CONFIG[part]
 			items.push({ label: config.label, href })
 		} else {
-			// Capitalize first letter and replace hyphens with spaces for better display
-			const label = part
-				.split('-')
-				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(' ')
-			items.push({ label, href })
+			items.push({ label: formatPathPartToLabel(part), href })
 		}
 	})
 
