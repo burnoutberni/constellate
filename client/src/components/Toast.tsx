@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { useUIStore, type StoredToast, type ToastVariant } from '@/stores'
@@ -17,75 +17,44 @@ interface ToastItemProps {
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	const [isVisible, setIsVisible] = useState(false)
 	const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const rafIdRef = useRef<number | null>(null)
-	const hasMountedRef = useRef(false)
 	const hasDismissedRef = useRef(false) // Track if dismissal already happened to prevent double calls
 
-	// Trigger animation on mount and set up auto-dismiss
-	// This effect should only run once on mount, not when toast.createdAt changes
-	useEffect(() => {
-		// Mark as mounted after first render
-		hasMountedRef.current = true
+	// Helper function to handle dismissal: hide toast, wait for animation, then remove from store
+	const handleDismiss = useCallback(() => {
+		if (hasDismissedRef.current) {return}
+		hasDismissedRef.current = true
 
-		// Trigger animation on mount (use requestAnimationFrame to ensure DOM is ready for smooth animation)
-		rafIdRef.current = requestAnimationFrame(() => {
-			setIsVisible(true)
-		})
-
-		// Auto-dismiss after 5 seconds
-		autoDismissTimerRef.current = setTimeout(() => {
-			setIsVisible(false)
-		}, AUTO_DISMISS_DURATION)
-
-		return () => {
-			if (autoDismissTimerRef.current) {
-				clearTimeout(autoDismissTimerRef.current)
-				autoDismissTimerRef.current = null
-			}
-			if (rafIdRef.current !== null) {
-				cancelAnimationFrame(rafIdRef.current)
-				rafIdRef.current = null
-			}
-		}
-		 
-	}, []) // Only run on mount
-
-	// Handle dismissal when isVisible becomes false
-	useEffect(() => {
-		// Clear any existing timer
+		// Clear any pending dismissal timer
 		if (dismissTimerRef.current) {
 			clearTimeout(dismissTimerRef.current)
 			dismissTimerRef.current = null
 		}
 
-		// Only run dismissal logic after component has mounted
-		// This prevents the race condition on initial render where isVisible is false
-		if (!isVisible && hasMountedRef.current && !hasDismissedRef.current) {
-			// Wait for animation to complete before removing from store
-			dismissTimerRef.current = setTimeout(() => {
-				dismissTimerRef.current = null
-				if (!hasDismissedRef.current) {
-					hasDismissedRef.current = true
-					onDismiss(toast.id)
-				}
-			}, ANIMATION_DURATION) // Match the animation duration
-		}
+		// Hide toast (triggers exit animation)
+		setIsVisible(false)
 
-		// Cleanup: clear timer when effect re-runs
-		return () => {
-			if (dismissTimerRef.current) {
-				clearTimeout(dismissTimerRef.current)
-				dismissTimerRef.current = null
-			}
-		}
-	}, [isVisible, toast.id, onDismiss])
+		// Wait for animation to complete before removing from store
+		dismissTimerRef.current = setTimeout(() => {
+			dismissTimerRef.current = null
+			onDismiss(toast.id)
+		}, ANIMATION_DURATION)
+	}, [toast.id, onDismiss])
 
-	// Handle cleanup on unmount: ensure onDismiss is called if dismissal is pending
+	// Trigger animation on mount and set up auto-dismiss
 	useEffect(() => {
+		// Trigger animation on mount (use requestAnimationFrame to ensure DOM is ready for smooth animation)
+		requestAnimationFrame(() => {
+			setIsVisible(true)
+		})
+
+		// Auto-dismiss after 5 seconds
+		const autoDismissTimer = setTimeout(() => {
+			handleDismiss()
+		}, AUTO_DISMISS_DURATION)
+
 		return () => {
+			clearTimeout(autoDismissTimer)
 			// If component unmounts while dismissal is pending, call onDismiss immediately
-			// Only dismiss if we haven't already dismissed to prevent double calls
 			if (dismissTimerRef.current && !hasDismissedRef.current) {
 				clearTimeout(dismissTimerRef.current)
 				dismissTimerRef.current = null
@@ -93,7 +62,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 				onDismiss(toast.id)
 			}
 		}
-	}, [toast.id, onDismiss])
+	}, [handleDismiss, onDismiss, toast.id])
 
 	const variantStyles: Record<
 		ToastVariant,
@@ -144,9 +113,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			</div>
 			<Button
 				type="button"
-				onClick={() => {
-					setIsVisible(false)
-				}}
+				onClick={handleDismiss}
 				variant="ghost"
 				size="sm"
 				className={cn(

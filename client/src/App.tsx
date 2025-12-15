@@ -32,7 +32,7 @@ import { RemindersPage } from './pages/RemindersPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
-import { MAX_MESSAGE_LENGTH , useUIStore } from './stores'
+import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
 function AppContent() {
 	// Global SSE connection
@@ -72,6 +72,7 @@ function AppContent() {
 				if (
 					typeof parsed === 'object' &&
 					parsed !== null &&
+					!Array.isArray(parsed) &&
 					typeof parsed.message === 'string' &&
 					parsed.message.length > 0 &&
 					parsed.message.length <= MAX_MESSAGE_LENGTH &&

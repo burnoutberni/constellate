@@ -54,6 +54,9 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../../stores', () => ({
 	useUIStore: () => ({
 		addToast: mockAddToast,
+		dismissToast: vi.fn(),
+		clearToasts: vi.fn(),
+		toasts: [],
 	}),
 }))
 

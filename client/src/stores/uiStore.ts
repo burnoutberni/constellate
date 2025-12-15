@@ -137,10 +137,15 @@ export const useUIStore = create<UIState>((set) => ({
 					? toast.message.slice(0, MAX_MESSAGE_LENGTH)
 					: 'Notification'
 
+			// Validate variant to prevent invalid values (defensive programming)
+			const variant: ToastVariant =
+				toast.variant === 'error' || toast.variant === 'success' ? toast.variant : 'success'
+
 			// Ensure createdAt is always set as an ISO string (never a number/timestamp)
 			const toastWithTimestamp: StoredToast = {
 				...toast,
 				message,
+				variant,
 				createdAt: toast.createdAt || new Date().toISOString(),
 			}
 			// Keep the most recent toasts to balance visibility with memory usage
