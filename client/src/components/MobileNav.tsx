@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 import { Button, CloseIcon } from '@/components/ui'
+import { getNavLinks } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 
 export interface MobileNavProps {
@@ -109,18 +110,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 		}
 	}, [isOpen, onClose])
 
-	const navLinks = [
-		{ to: '/feed', label: 'Feed' },
-		{ to: '/calendar', label: 'Calendar' },
-		{ to: '/search', label: 'Search' },
-		...(user
-			? [
-					{ to: '/templates', label: 'Templates' },
-					{ to: '/instances', label: 'Instances' },
-				]
-			: []),
-		{ to: '/about', label: 'About' },
-	]
+	const navLinks = getNavLinks(Boolean(user))
 
 	return (
 		<>

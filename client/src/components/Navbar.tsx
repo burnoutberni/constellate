@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
+import { getNavLinks } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProfile } from '@/types'
 
@@ -65,18 +66,7 @@ export function Navbar({
 	}, [])
 
 	// Navigation links
-	const navLinks = [
-		{ to: '/feed', label: 'Feed' },
-		{ to: '/calendar', label: 'Calendar' },
-		{ to: '/search', label: 'Search' },
-		...(user
-			? [
-					{ to: '/templates', label: 'Templates' },
-					{ to: '/instances', label: 'Instances' },
-				]
-			: []),
-		{ to: '/about', label: 'About' },
-	]
+	const navLinks = getNavLinks(Boolean(user))
 
 	// Derive top-level paths from navLinks (plus home page)
 	const topLevelPaths = ['/', ...navLinks.map((link) => link.to)]

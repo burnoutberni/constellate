@@ -96,9 +96,19 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 	(pathParts) => {
 		if (pathParts[0] === 'instances') {
 			const items: BreadcrumbItem[] = [{ label: 'Instances', href: '/instances' }]
-			if (pathParts[1]) {
-				items.push({ label: pathParts[1] })
-			}
+			
+			// Process all remaining path parts
+			pathParts.slice(1).forEach((part, index) => {
+				const href = `/${pathParts.slice(0, index + 2).join('/')}`
+				
+				// Capitalize first letter and replace hyphens with spaces for better display
+				const label = part
+					.split('-')
+					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+					.join(' ')
+				items.push({ label, href })
+			})
+			
 			return items
 		}
 		return null
@@ -112,22 +122,36 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 		return null
 	},
 
-	// Handle profile routes (@username)
-	(pathParts) => {
-		if (pathParts[0]?.startsWith('@')) {
-			const username = pathParts[0].slice(1)
-			const items: BreadcrumbItem[] = [
-				{ label: `@${username}`, href: `/${pathParts[0]}` },
-			]
+		// Handle profile routes (@username)
+		(pathParts) => {
+			if (pathParts[0]?.startsWith('@')) {
+				const username = pathParts[0].slice(1)
+				const items: BreadcrumbItem[] = [
+					{ label: `@${username}`, href: `/${pathParts[0]}` },
+				]
 
-			// If there's a second part, it's an event
-			if (pathParts[1]) {
-				items.push({ label: 'Event' })
+				// Process all remaining path parts
+				pathParts.slice(1).forEach((part, index) => {
+					const href = `/${pathParts.slice(0, index + 2).join('/')}`
+					
+					// Check route configuration first
+					if (part && part in ROUTE_CONFIG) {
+						const config = ROUTE_CONFIG[part]
+						items.push({ label: config.label, href })
+					} else {
+						// Capitalize first letter and replace hyphens with spaces for better display
+						const label = part
+							.split('-')
+							.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+							.join(' ')
+						items.push({ label, href })
+					}
+				})
+				
+				return items
 			}
-			return items
-		}
-		return null
-	},
+			return null
+		},
 ]
 
 /**
