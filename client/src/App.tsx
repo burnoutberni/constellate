@@ -13,6 +13,7 @@ import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
+import { generateId } from './lib/utils'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
 import { CalendarPage } from './pages/CalendarPage'
@@ -31,7 +32,7 @@ import { RemindersPage } from './pages/RemindersPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
-import { useUIStore } from './stores'
+import { MAX_MESSAGE_LENGTH , useUIStore } from './stores'
 
 function AppContent() {
 	// Global SSE connection
@@ -67,21 +68,26 @@ function AppContent() {
 				const parsed = JSON.parse(toastData)
 
 				// Validate the structure and types of the parsed data
+				// Also validate message length to prevent UI issues and potential abuse
 				if (
 					typeof parsed === 'object' &&
 					parsed !== null &&
 					typeof parsed.message === 'string' &&
+					parsed.message.length > 0 &&
+					parsed.message.length <= MAX_MESSAGE_LENGTH &&
 					typeof parsed.variant === 'string' &&
 					(parsed.variant === 'error' || parsed.variant === 'success')
 				) {
 					addToast({
-						id: crypto.randomUUID(),
+						id: generateId(),
 						message: parsed.message,
 						variant: parsed.variant,
 					})
 				} else {
 					logger.error('Invalid toast data structure in sessionStorage', {
 						hasMessage: typeof parsed?.message === 'string',
+						messageLength:
+							typeof parsed?.message === 'string' ? parsed.message.length : undefined,
 						hasVariant: typeof parsed?.variant === 'string',
 						variantValue: parsed?.variant,
 					})

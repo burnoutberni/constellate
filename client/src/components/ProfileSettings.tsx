@@ -5,6 +5,7 @@ import { useThemeColors } from '@/design-system'
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Button, Avatar } from './ui'
@@ -70,7 +71,7 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
 				displayColor,
 			})
 			addToast({
-				id: crypto.randomUUID(),
+				id: generateId(),
 				message: 'Profile updated successfully!',
 				variant: 'success',
 			})

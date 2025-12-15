@@ -30,7 +30,8 @@ export interface Toast {
 // Stored toasts always have createdAt set
 export type StoredToast = Toast & { createdAt: string }
 
-const MAX_TOASTS = 5
+export const MAX_TOASTS = 5
+export const MAX_MESSAGE_LENGTH = 1000 // Maximum length for toast messages to prevent UI issues
 
 interface UIState {
 	// Create Event Modal
@@ -129,9 +130,17 @@ export const useUIStore = create<UIState>((set) => ({
 			// If the same toast occurs multiple times with different IDs (via crypto.randomUUID()),
 			// both will be shown. Only exact ID matches are removed.
 			const existing = state.toasts.filter((item) => item.id !== toast.id)
+
+			// Validate and truncate message length to prevent UI issues and potential abuse
+			const message =
+				typeof toast.message === 'string' && toast.message.length > 0
+					? toast.message.slice(0, MAX_MESSAGE_LENGTH)
+					: 'Notification'
+
 			// Ensure createdAt is always set as an ISO string (never a number/timestamp)
 			const toastWithTimestamp: StoredToast = {
 				...toast,
+				message,
 				createdAt: toast.createdAt || new Date().toISOString(),
 			}
 			// Keep the most recent toasts to balance visibility with memory usage

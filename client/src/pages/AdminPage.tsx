@@ -7,6 +7,7 @@ import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
 
@@ -697,7 +698,7 @@ export function AdminPage() {
 										) {
 											await navigator.clipboard.writeText(newApiKey)
 											addToast({
-												id: crypto.randomUUID(),
+												id: generateId(),
 												message: 'Copied to clipboard!',
 												variant: 'success',
 											})
@@ -712,7 +713,7 @@ export function AdminPage() {
 											try {
 												document.execCommand('copy')
 												addToast({
-													id: crypto.randomUUID(),
+													id: generateId(),
 													message: 'Copied to clipboard!',
 													variant: 'success',
 												})
@@ -744,7 +745,7 @@ export function AdminPage() {
 											selection?.removeAllRanges()
 											selection?.addRange(range)
 											addToast({
-												id: crypto.randomUUID(),
+												id: generateId(),
 												message:
 													'Text selected - press Ctrl+C (or Cmd+C) to copy',
 												variant: 'success',

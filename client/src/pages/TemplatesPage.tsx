@@ -7,6 +7,7 @@ import { Button, Input, Textarea, Modal } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { Navbar } from '../components/Navbar'
@@ -280,7 +281,7 @@ export function TemplatesPage() {
 		},
 		onError: (error) => {
 			addToast({
-				id: crypto.randomUUID(),
+				id: generateId(),
 				message: error instanceof Error ? error.message : 'Failed to delete template',
 				variant: 'error',
 			})

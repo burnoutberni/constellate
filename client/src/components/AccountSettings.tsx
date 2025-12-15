@@ -4,6 +4,7 @@ import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { TOAST_ON_LOAD_KEY } from '@/lib/storageConstants'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { useAuth } from '../hooks/useAuth'
@@ -66,7 +67,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
 			// Success
 			addToast({
-				id: crypto.randomUUID(),
+				id: generateId(),
 				message: 'Password changed successfully!',
 				variant: 'success',
 			})
@@ -104,6 +105,8 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			await api.delete('/profile', undefined, 'Failed to delete account')
 
 			// Store toast message in sessionStorage to display after redirect
+			// IMPORTANT: message must be a static, trusted string (no user input or backend error messages)
+			// This prevents XSS if sessionStorage is compromised via other vulnerabilities
 			sessionStorage.setItem(
 				TOAST_ON_LOAD_KEY,
 				JSON.stringify({

@@ -24,7 +24,7 @@ const mockTemplate: EventTemplate = {
 const mockUseQuery = vi.fn()
 const mockUseMutation = vi.fn()
 const mockNavigate = vi.fn()
-const mockAddErrorToast = vi.fn()
+const mockAddToast = vi.fn()
 const mockUseAuth = vi.fn()
 
 vi.mock('../../hooks/useAuth', () => ({
@@ -53,7 +53,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../stores', () => ({
 	useUIStore: () => ({
-		addToast: mockAddErrorToast,
+		addToast: mockAddToast,
 	}),
 }))
 

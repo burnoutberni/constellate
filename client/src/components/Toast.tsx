@@ -17,28 +17,39 @@ interface ToastItemProps {
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	const [isVisible, setIsVisible] = useState(false)
 	const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const rafIdRef = useRef<number | null>(null)
 	const hasMountedRef = useRef(false)
+	const hasDismissedRef = useRef(false) // Track if dismissal already happened to prevent double calls
 
 	// Trigger animation on mount and set up auto-dismiss
+	// This effect should only run once on mount, not when toast.createdAt changes
 	useEffect(() => {
 		// Mark as mounted after first render
 		hasMountedRef.current = true
 
 		// Trigger animation on mount (use requestAnimationFrame to ensure DOM is ready for smooth animation)
-		const rafId = requestAnimationFrame(() => {
+		rafIdRef.current = requestAnimationFrame(() => {
 			setIsVisible(true)
 		})
 
 		// Auto-dismiss after 5 seconds
-		const autoDismissTimer = setTimeout(() => {
+		autoDismissTimerRef.current = setTimeout(() => {
 			setIsVisible(false)
 		}, AUTO_DISMISS_DURATION)
 
 		return () => {
-			clearTimeout(autoDismissTimer)
-			cancelAnimationFrame(rafId)
+			if (autoDismissTimerRef.current) {
+				clearTimeout(autoDismissTimerRef.current)
+				autoDismissTimerRef.current = null
+			}
+			if (rafIdRef.current !== null) {
+				cancelAnimationFrame(rafIdRef.current)
+				rafIdRef.current = null
+			}
 		}
-	}, [toast.createdAt])
+		 
+	}, []) // Only run on mount
 
 	// Handle dismissal when isVisible becomes false
 	useEffect(() => {
@@ -50,11 +61,14 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
 		// Only run dismissal logic after component has mounted
 		// This prevents the race condition on initial render where isVisible is false
-		if (!isVisible && hasMountedRef.current) {
+		if (!isVisible && hasMountedRef.current && !hasDismissedRef.current) {
 			// Wait for animation to complete before removing from store
 			dismissTimerRef.current = setTimeout(() => {
 				dismissTimerRef.current = null
-				onDismiss(toast.id)
+				if (!hasDismissedRef.current) {
+					hasDismissedRef.current = true
+					onDismiss(toast.id)
+				}
 			}, ANIMATION_DURATION) // Match the animation duration
 		}
 
@@ -71,9 +85,11 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	useEffect(() => {
 		return () => {
 			// If component unmounts while dismissal is pending, call onDismiss immediately
-			if (dismissTimerRef.current) {
+			// Only dismiss if we haven't already dismissed to prevent double calls
+			if (dismissTimerRef.current && !hasDismissedRef.current) {
 				clearTimeout(dismissTimerRef.current)
 				dismissTimerRef.current = null
+				hasDismissedRef.current = true
 				onDismiss(toast.id)
 			}
 		}
@@ -119,7 +135,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 				'flex items-start gap-3 transition-all duration-200 ease-in-out',
 				isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
 			)}
-			role="alert"
+			role={toast.variant === 'success' ? 'status' : 'alert'}
 			aria-live={styles.ariaLive}
 			aria-atomic="true"
 			aria-label={styles.ariaLabel}>

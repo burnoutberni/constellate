@@ -33,6 +33,7 @@ import { useCallback } from 'react'
 
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 const log = createLogger('[Error Handler]')
@@ -83,7 +84,7 @@ export function useErrorHandler() {
 			// Show toast unless silent option is used
 			if (!options?.silent) {
 				addToast({
-					id: crypto.randomUUID(),
+					id: generateId(),
 					message: finalMessage,
 					variant: 'error',
 				})
