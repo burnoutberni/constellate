@@ -6,6 +6,7 @@ import {
 	CommentIcon,
 	Card,
 	CardContent,
+	SafeHTML,
 } from '@/components/ui'
 import { tokens } from '@/design-system'
 import type { Event } from '@/types'
@@ -59,7 +60,9 @@ export function UserEventList({ events, onEventClick }: UserEventListProps) {
 
 					{/* Event Summary */}
 					{event.summary && (
-						<p className="text-text-secondary mb-3 line-clamp-2">{event.summary}</p>
+						<div className="text-text-secondary mb-3 line-clamp-2">
+							<SafeHTML html={event.summary} />
+						</div>
 					)}
 
 					{/* Event Metadata */}

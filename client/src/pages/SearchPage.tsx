@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { Stack } from '@/components/layout'
-import { Button, Badge, Spinner } from '@/components/ui'
+import { Button, Badge, Spinner, SafeHTML } from '@/components/ui'
 import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import { useUIStore } from '@/stores'
@@ -566,7 +566,9 @@ function EventResultCard({ event, formatter }: { event: Event; formatter: Intl.D
 			</Stack>
 
 			{event.summary && (
-				<p className="text-sm text-neutral-700 line-clamp-3">{event.summary}</p>
+				<div className="text-sm text-neutral-700 line-clamp-3">
+					<SafeHTML html={event.summary} />
+				</div>
 			)}
 
 			{event.tags.length > 0 && (
