@@ -2,6 +2,8 @@ import React from 'react'
 
 import { cn } from '../../lib/utils'
 
+import { ChevronDownIcon } from './icons'
+
 export type SelectSize = 'sm' | 'md' | 'lg'
 
 export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
@@ -133,23 +135,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 							size === 'sm' && 'right-2.5',
 							size === 'lg' && 'right-3.5'
 						)}>
-						<svg
+						<ChevronDownIcon
 							className={cn(
 								size === 'sm' && 'w-3.5 h-3.5',
 								size === 'md' && 'w-4 h-4',
 								size === 'lg' && 'w-5 h-5'
 							)}
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							xmlns="http://www.w3.org/2000/svg">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M19 9l-7 7-7-7"
-							/>
-						</svg>
+						/>
 					</div>
 				</div>
 				{error && errorMessage && (

@@ -1,11 +1,18 @@
 import { Link } from 'react-router-dom'
 
+import {
+	AttendeesIcon,
+	LikeIcon,
+	CommentIcon,
+	LocationIcon,
+	CalendarIcon,
+	Card,
+	Badge,
+	Avatar,
+} from '@/components/ui'
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
-
-import { AttendeesIcon, LikeIcon, CommentIcon, LocationIcon, CalendarIcon } from './icons'
-import { Card, Badge, Avatar } from './ui'
 
 interface EventCardProps {
 	event: Event
@@ -91,7 +98,7 @@ export function EventCard(props: EventCardProps) {
 							<h3 className="text-xl font-bold text-text-primary line-clamp-2">
 								{event.title}
 							</h3>
-							{event.tags.length > 0 && (
+							{event.tags && event.tags.length > 0 && (
 								<div className="flex flex-wrap gap-2">
 									{event.tags.slice(0, 3).map((tag) => (
 										<Badge key={tag.id} variant="primary" size="sm">

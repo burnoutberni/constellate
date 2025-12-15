@@ -2,7 +2,7 @@ import { useState, KeyboardEvent, type ReactNode } from 'react'
 
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
-import { Button, Input, Badge, Select } from './ui'
+import { Button, Input, Badge, Select, ChevronDownIcon } from './ui'
 
 interface SearchFilters {
 	q: string
@@ -305,18 +305,9 @@ function FilterSection({ title, expanded, onToggle, children }: FilterSectionPro
 				variant="ghost"
 				className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 transition-colors">
 				<span className="font-medium text-neutral-900">{title}</span>
-				<svg
+				<ChevronDownIcon
 					className={`w-5 h-5 text-neutral-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24">
-					<path
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth={2}
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
+				/>
 			</Button>
 			{expanded && <div className="px-4 pb-4">{children}</div>}
 		</div>

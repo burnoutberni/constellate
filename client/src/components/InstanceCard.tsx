@@ -143,7 +143,7 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 						</div>
 						<div>
 							<div className="font-semibold text-neutral-900 dark:text-neutral-100">
-								{instance.stats.remoteUsers}
+								{instance.stats?.remoteUsers?.toLocaleString() ?? 'N/A'}
 							</div>
 							<div className="text-neutral-600 dark:text-neutral-400">
 								Remote Users
@@ -151,7 +151,7 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 						</div>
 						<div>
 							<div className="font-semibold text-neutral-900 dark:text-neutral-100">
-								{instance.stats.localFollowing}
+								{instance.stats?.localFollowing?.toLocaleString() ?? 'N/A'}
 							</div>
 							<div className="text-neutral-600 dark:text-neutral-400">Following</div>
 						</div>

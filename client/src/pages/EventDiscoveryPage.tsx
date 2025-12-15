@@ -1,9 +1,18 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { GridViewIcon, ListViewIcon } from '@/components/icons'
 import { Container, Grid, Stack } from '@/components/layout'
-import { Card, Button, Badge, ToggleGroup, ToggleButton, Select, Spinner } from '@/components/ui'
+import {
+	GridViewIcon,
+	ListViewIcon,
+	Card,
+	Button,
+	Badge,
+	ToggleGroup,
+	ToggleButton,
+	Select,
+	Spinner,
+} from '@/components/ui'
 import { useEventSearch, type EventSearchFilters } from '@/hooks/queries'
 import { useUIStore } from '@/stores'
 

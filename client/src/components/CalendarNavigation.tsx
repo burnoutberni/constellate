@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 
 import { Stack } from './layout'
-import { Button, Input } from './ui'
+import { Button, Input, ArrowLeftIcon, ArrowRightIcon } from './ui'
 
 interface CalendarNavigationProps {
 	view: 'month' | 'week' | 'day'
@@ -145,7 +145,7 @@ export function CalendarNavigation({
 					size="sm"
 					onClick={navigatePrevious}
 					aria-label={`Previous ${view}`}
-					leftIcon={<span>←</span>}>
+					leftIcon={<ArrowLeftIcon />}>
 					<span className="sr-only">Previous {view}</span>
 				</Button>
 
@@ -186,7 +186,7 @@ export function CalendarNavigation({
 					size="sm"
 					onClick={navigateNext}
 					aria-label={`Next ${view}`}
-					rightIcon={<span>→</span>}>
+					rightIcon={<ArrowRightIcon />}>
 					<span className="sr-only">Next {view}</span>
 				</Button>
 			</div>

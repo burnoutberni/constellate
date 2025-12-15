@@ -2,33 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import {
+	BellIcon,
+	Badge,
+	Button,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardContent,
+	Spinner,
+} from '@/components/ui'
+import {
 	useNotifications,
 	useMarkNotificationRead,
 	useMarkAllNotificationsRead,
 } from '@/hooks/queries'
 
 import { NotificationItem } from './NotificationItem'
-import { Badge, Button, Card, CardHeader, CardTitle, CardContent, Spinner } from './ui'
 
 interface NotificationBellProps {
 	userId?: string
 }
-
-const BellIcon = ({ hasUnread }: { hasUnread: boolean }) => (
-	<svg
-		className="w-6 h-6 text-text-secondary"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="1.8"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		aria-hidden="true">
-		<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-		<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-		{hasUnread ? <circle cx="18" cy="6" r="2" fill="currentColor" /> : null}
-	</svg>
-)
 
 export function NotificationBell({ userId }: NotificationBellProps) {
 	const [isOpen, setIsOpen] = useState(false)
@@ -134,7 +127,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 				variant="ghost"
 				size="sm"
 				className="relative rounded-full p-2 hover:bg-background-secondary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
-				<BellIcon hasUnread={unreadCount > 0} />
+				<BellIcon hasUnread={unreadCount > 0} className="w-6 h-6 text-text-secondary" />
 				{unreadCount > 0 && (
 					<Badge
 						variant="error"
