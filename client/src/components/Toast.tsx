@@ -33,7 +33,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			clearTimeout(autoDismissTimer)
 			cancelAnimationFrame(rafId)
 		}
-	}, [toast.id, toast.createdAt])
+	}, [toast.createdAt])
 
 	// Handle dismissal when isVisible becomes false
 	// This ensures proper cleanup if component unmounts during the exit animation
