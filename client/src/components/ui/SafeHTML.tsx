@@ -1,5 +1,18 @@
 import DOMPurify from 'dompurify'
-import { useMemo, useEffect, useRef, type ElementType } from 'react'
+import { useMemo, type ElementType } from 'react'
+
+// Add hook once at module level to modify external links during sanitization
+// This runs synchronously during sanitization, avoiding hydration mismatches
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+	// Add target="_blank" and rel="noopener noreferrer" to external links
+	if (node.tagName === 'A' && node.hasAttribute('href')) {
+		const href = node.getAttribute('href')
+		if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+			node.setAttribute('target', '_blank')
+			node.setAttribute('rel', 'noopener noreferrer')
+		}
+	}
+})
 
 export interface SafeHTMLProps {
 	/**
@@ -26,8 +39,6 @@ export interface SafeHTMLProps {
  * ```
  */
 export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
-	const containerRef = useRef<HTMLElement>(null)
-
 	const sanitizedHTML = useMemo(() => {
 		if (!html) {
 			return ''
@@ -36,6 +47,8 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 		// Configure DOMPurify to allow safe HTML tags and attributes
 		// This allows common formatting tags like <p>, <strong>, <em>, <br>, <a>, etc.
 		// but blocks dangerous tags like <script>, <iframe>, etc.
+		// The afterSanitizeAttributes hook (added at module level) will automatically
+		// add target="_blank" and rel="noopener noreferrer" to external links
 		const sanitized = DOMPurify.sanitize(html, {
 			ALLOWED_TAGS: [
 				'p',
@@ -67,37 +80,13 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 				/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+\-.]+(?:[^a-z+.\-:]|$))/i,
 		})
 
-		// Return sanitized HTML without post-processing to ensure SSR/CSR consistency
-		// Post-processing will be done in useEffect after mount
 		return sanitized
 	}, [html])
-
-	// Post-process the sanitized HTML after mount to add target="_blank" to external links
-	// This ensures the initial render matches the server, avoiding hydration errors
-	useEffect(() => {
-		if (!containerRef.current) {
-			return
-		}
-
-		// Find all external links and add target="_blank" and rel="noopener noreferrer"
-		containerRef.current
-			.querySelectorAll<HTMLAnchorElement>('a[href^="http"]')
-			.forEach((link) => {
-				link.setAttribute('target', '_blank')
-				link.setAttribute('rel', 'noopener noreferrer')
-			})
-	}, [sanitizedHTML])
 
 	// If no HTML content, return null
 	if (!sanitizedHTML) {
 		return null
 	}
 
-	return (
-		<Tag
-			ref={containerRef}
-			className={className}
-			dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
-		/>
-	)
+	return <Tag className={className} dangerouslySetInnerHTML={{ __html: sanitizedHTML }} />
 }

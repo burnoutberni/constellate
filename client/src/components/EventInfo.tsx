@@ -86,13 +86,7 @@ export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoPro
 
 			{/* Event Description */}
 			{event.summary && (
-				<div>
-					<SafeHTML
-						html={event.summary}
-						className="text-text-primary text-lg"
-						tag="div"
-					/>
-				</div>
+				<SafeHTML html={event.summary} className="text-text-primary text-lg" tag="div" />
 			)}
 
 			{/* Event Details */}
