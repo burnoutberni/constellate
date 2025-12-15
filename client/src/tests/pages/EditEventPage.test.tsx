@@ -450,13 +450,12 @@ describe('EditEventPage', () => {
 		await user.selectOptions(recurrenceSelect, 'WEEKLY')
 
 		// After selecting WEEKLY, the "Repeat Until" field should appear
+		// Use getByLabelText which is more robust and handles labels with CSS pseudo-elements
 		await waitFor(
 			() => {
-				const repeatUntilLabel = screen.getByText('Repeat Until')
-				expect(repeatUntilLabel).toBeInTheDocument()
-				const repeatUntilInput =
-					repeatUntilLabel.parentElement?.querySelector('input[type="date"]')
+				const repeatUntilInput = screen.getByLabelText('Repeat Until')
 				expect(repeatUntilInput).toBeInTheDocument()
+				expect(repeatUntilInput).toHaveAttribute('type', 'date')
 			},
 			{ timeout: 2000 }
 		)
