@@ -97,6 +97,28 @@ const ROUTE_CONFIG: Record<string, { label: string; href: string }> = {
 }
 
 /**
+ * Processes sub-paths from a pathParts array starting at the given index.
+ * Returns an array of BreadcrumbItems for the remaining path parts.
+ */
+function processSubPaths(pathParts: string[], startIndex: number): BreadcrumbItem[] {
+	const items: BreadcrumbItem[] = []
+
+	pathParts.slice(startIndex).forEach((part, index) => {
+		const href = `/${pathParts.slice(0, startIndex + index + 1).join('/')}`
+
+		// Check route configuration first
+		if (part && part in ROUTE_CONFIG) {
+			const config = ROUTE_CONFIG[part]
+			items.push({ label: config.label, href })
+		} else {
+			items.push({ label: formatPathPartToLabel(part), href })
+		}
+	})
+
+	return items
+}
+
+/**
  * Special route handlers for routes that require custom logic.
  * Returns an array of BreadcrumbItems if the handler processes the path, or null otherwise.
  */
@@ -107,20 +129,7 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 	(pathParts) => {
 		if (pathParts[0] === 'instances') {
 			const items: BreadcrumbItem[] = [{ label: 'Instances', href: '/instances' }]
-
-			// Process all remaining path parts
-			pathParts.slice(1).forEach((part, index) => {
-				const href = `/${pathParts.slice(0, index + 2).join('/')}`
-
-				// Check route configuration first
-				if (part && part in ROUTE_CONFIG) {
-					const config = ROUTE_CONFIG[part]
-					items.push({ label: config.label, href })
-				} else {
-					items.push({ label: formatPathPartToLabel(part), href })
-				}
-			})
-
+			items.push(...processSubPaths(pathParts, 1))
 			return items
 		}
 		return null
@@ -139,20 +148,7 @@ const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 		if (pathParts[0]?.startsWith('@')) {
 			const username = pathParts[0].slice(1)
 			const items: BreadcrumbItem[] = [{ label: `@${username}`, href: `/${pathParts[0]}` }]
-
-			// Process all remaining path parts
-			pathParts.slice(1).forEach((part, index) => {
-				const href = `/${pathParts.slice(0, index + 2).join('/')}`
-
-				// Check route configuration first
-				if (part && part in ROUTE_CONFIG) {
-					const config = ROUTE_CONFIG[part]
-					items.push({ label: config.label, href })
-				} else {
-					items.push({ label: formatPathPartToLabel(part), href })
-				}
-			})
-
+			items.push(...processSubPaths(pathParts, 1))
 			return items
 		}
 		return null
