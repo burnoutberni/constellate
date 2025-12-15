@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
+import { TOAST_ON_LOAD_KEY } from '@/lib/storageConstants'
 import { useUIStore } from '@/stores'
 
 import { useAuth } from '../hooks/useAuth'
@@ -104,7 +105,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 
 			// Store toast message in sessionStorage to display after redirect
 			sessionStorage.setItem(
-				'toastOnLoad',
+				TOAST_ON_LOAD_KEY,
 				JSON.stringify({
 					message: 'Your account has been deleted.',
 					variant: 'success',

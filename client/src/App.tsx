@@ -12,6 +12,7 @@ import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
+import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
 import { CalendarPage } from './pages/CalendarPage'
@@ -60,15 +61,15 @@ function AppContent() {
 
 	// Check for toast messages stored in sessionStorage (e.g., after redirect)
 	useEffect(() => {
-		const toastData = sessionStorage.getItem('toastOnLoad')
+		const toastData = sessionStorage.getItem(TOAST_ON_LOAD_KEY)
 		if (toastData) {
 			try {
 				const { message, variant } = JSON.parse(toastData)
 				addToast({ id: crypto.randomUUID(), message, variant })
-				sessionStorage.removeItem('toastOnLoad')
+				sessionStorage.removeItem(TOAST_ON_LOAD_KEY)
 			} catch (e) {
-				console.error('Failed to parse toast data from sessionStorage', e)
-				sessionStorage.removeItem('toastOnLoad')
+				logger.error('Failed to parse toast data from sessionStorage', e)
+				sessionStorage.removeItem(TOAST_ON_LOAD_KEY)
 			}
 		}
 	}, [addToast])
