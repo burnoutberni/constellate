@@ -11,19 +11,15 @@ import { Toasts } from './Toast'
  */
 function useStoryToasts(toasts: Toast[]) {
 	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
+	const clearToasts = useUIStore((state) => state.clearToasts)
 	const initialized = useRef(false)
 	// Store toasts in ref to capture initial value and avoid dependency issues
 	const toastsRef = useRef(toasts)
 
 	useEffect(() => {
 		if (!initialized.current) {
-			const store = useUIStore.getState()
-
 			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
+			clearToasts()
 
 			// Add provided toasts
 			toastsRef.current.forEach((toast) => {
@@ -32,7 +28,7 @@ function useStoryToasts(toasts: Toast[]) {
 
 			initialized.current = true
 		}
-	}, [addToast, dismissToast])
+	}, [addToast, clearToasts])
 }
 
 /**

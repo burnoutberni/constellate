@@ -30,6 +30,8 @@ export interface Toast {
 // Stored toasts always have createdAt set
 export type StoredToast = Toast & { createdAt: string }
 
+const MAX_TOASTS = 5
+
 interface UIState {
 	// Create Event Modal
 	createEventModalOpen: boolean
@@ -68,6 +70,7 @@ interface UIState {
 	dismissMentionNotification: (id: string) => void
 	addToast: (toast: Toast) => void
 	dismissToast: (id: string) => void
+	clearToasts: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -131,14 +134,15 @@ export const useUIStore = create<UIState>((set) => ({
 				...toast,
 				createdAt: toast.createdAt || new Date().toISOString(),
 			}
-			// Keep the most recent 5 toasts to balance visibility with memory usage
-			// New toasts are added at the beginning, so slice(0, 5) keeps the 5 most recent
+			// Keep the most recent toasts to balance visibility with memory usage
+			// New toasts are added at the beginning, so slice(0, MAX_TOASTS) keeps the most recent
 			return {
-				toasts: [toastWithTimestamp, ...existing].slice(0, 5),
+				toasts: [toastWithTimestamp, ...existing].slice(0, MAX_TOASTS),
 			}
 		}),
 	dismissToast: (id) =>
 		set((state) => ({
 			toasts: state.toasts.filter((item) => item.id !== id),
 		})),
+	clearToasts: () => set({ toasts: [] }),
 }))

@@ -6,6 +6,9 @@ import { useUIStore, type StoredToast, type ToastVariant } from '@/stores'
 import { Stack } from './layout'
 import { Button, CloseIcon } from './ui'
 
+const AUTO_DISMISS_DURATION = 5000 // milliseconds
+const ANIMATION_DURATION = 200 // milliseconds
+
 interface ToastItemProps {
 	toast: StoredToast
 	onDismiss: (id: string) => void
@@ -24,7 +27,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 		// Auto-dismiss after 5 seconds
 		const autoDismissTimer = setTimeout(() => {
 			setIsVisible(false)
-		}, 5000)
+		}, AUTO_DISMISS_DURATION)
 
 		return () => {
 			clearTimeout(autoDismissTimer)
@@ -39,7 +42,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			// Wait for animation to complete before removing from store
 			const dismissTimer = setTimeout(() => {
 				onDismiss(toast.id)
-			}, 200) // Match the animation duration
+			}, ANIMATION_DURATION) // Match the animation duration
 
 			return () => {
 				clearTimeout(dismissTimer)
