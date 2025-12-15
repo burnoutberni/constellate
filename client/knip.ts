@@ -8,6 +8,7 @@ const config: KnipConfig = {
 
 	ignore: [
 		'**/*.d.ts',
+		'**/*.stories.{ts,tsx}', // Storybook story files
 
 		// Design system public API - exported for external use as design system is built
 		'src/design-system/**/*.ts',

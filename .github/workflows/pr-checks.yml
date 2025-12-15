@@ -149,6 +149,10 @@ jobs:
             - name: Install client dependencies
               run: npm ci --prefix client
 
+            - name: Install Playwright browsers
+              working-directory: client
+              run: npx playwright install chromium
+
             - name: Run frontend tests with coverage
               run: npm run test:coverage --prefix client
 
@@ -281,6 +285,11 @@ jobs:
 
             - name: Install client dependencies
               run: npm ci --prefix client
+              if: steps.base_cache.outputs.cache-hit != 'true'
+
+            - name: Install Playwright browsers
+              working-directory: client
+              run: npx playwright install chromium
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Run frontend tests with coverage

@@ -7,7 +7,7 @@
 		"dev:app": "concurrently \"npm run dev:server\" \"npm run dev:client\" --names \"SERVER,CLIENT\" --prefix-colors \"blue,magenta\" --kill-others-on-fail false",
 		"dev:server": "tsx watch src/server.ts",
 		"dev:client": "npm run dev --prefix client",
-		"build": "tsc && cd client && npm run build",
+		"build": "tsc && cd client && npm run build && npm run build-storybook",
 		"start": "node dist/server.js",
 		"docker:dev": "docker compose up app1 app2 caddy --build",
 		"docker:dev:down": "docker compose stop app1 app2 caddy",
