@@ -30,14 +30,13 @@ const config: StorybookConfig = {
 		const aliases = getPathAliases(path.resolve(__dirname, '..'))
 
 		// Add path aliases
-		if (!config.resolve) {
-			config.resolve = {}
+		config.resolve = {
+			...config.resolve,
+			alias: {
+				...config.resolve?.alias,
+				...aliases,
+			},
 		}
-		if (!config.resolve.alias) {
-			config.resolve.alias = {}
-		}
-
-		Object.assign(config.resolve.alias, aliases)
 
 		return config
 	},
