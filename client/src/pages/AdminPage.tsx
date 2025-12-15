@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Input, Button, Textarea, Modal, Spinner } from '@/components/ui'
+import { Input, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -615,18 +615,7 @@ export function AdminPage() {
 										</table>
 									) : (
 										<div className="text-center py-12 px-6">
-											<svg
-												className="mx-auto h-12 w-12 text-neutral-400"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor">
-												<path
-													strokeLinecap="round"
-													strokeLinejoin="round"
-													strokeWidth={2}
-													d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-												/>
-											</svg>
+											<GlobeIcon className="mx-auto h-12 w-12 text-neutral-400" />
 											<h3 className="mt-2 text-sm font-medium text-neutral-900">
 												No instances discovered yet
 											</h3>

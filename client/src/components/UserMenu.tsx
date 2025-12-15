@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Avatar, Button, Card, CardContent } from '@/components/ui'
+import { Avatar, Button, Card, CardContent, ChevronDownIcon } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 export interface UserMenuProps {
@@ -152,22 +152,12 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 				<span className="hidden md:inline text-sm font-medium text-text-primary">
 					{displayName}
 				</span>
-				<svg
+				<ChevronDownIcon
 					className={cn(
 						'w-4 h-4 text-text-secondary transition-transform',
 						isOpen && 'rotate-180'
 					)}
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true">
-					<path
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth={2}
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
+				/>
 			</Button>
 
 			{isOpen && (

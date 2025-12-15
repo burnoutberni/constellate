@@ -12,7 +12,7 @@ import { MobileNav } from './MobileNav'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
 import { ThemeToggle } from './ThemeToggle'
-import { Button, SearchIcon } from './ui'
+import { Button, MenuIcon, SearchIcon } from './ui'
 import { UserMenu } from './UserMenu'
 
 type AuthenticatedUser = {
@@ -98,19 +98,7 @@ export function Navbar({
 								aria-label="Open mobile menu"
 								aria-expanded={mobileMenuOpen}
 								className="md:hidden rounded-lg p-2">
-								<svg
-									className="w-6 h-6"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M4 6h16M4 12h16M4 18h16"
-									/>
-								</svg>
+								<MenuIcon className="w-6 h-6" />
 							</Button>
 
 							{/* Logo */}

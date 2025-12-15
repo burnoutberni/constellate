@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
-import { Button } from '@/components/ui'
+import { Button, CloseIcon } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 export interface MobileNavProps {
@@ -152,19 +152,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 							onClick={onClose}
 							aria-label="Close menu"
 							className="rounded-full p-2">
-							<svg
-								className="w-5 h-5"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								aria-hidden="true">
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M6 18L18 6M6 6l12 12"
-								/>
-							</svg>
+							<CloseIcon className="w-5 h-5" />
 						</Button>
 					</div>
 

@@ -86,45 +86,47 @@ const ROUTE_CONFIG: Record<string, { label: string; href: string }> = {
 }
 
 /**
- * Special route handlers for routes that require custom logic
+ * Special route handlers for routes that require custom logic.
+ * Returns an array of BreadcrumbItems if the handler processes the path, or null otherwise.
  */
-type SpecialRouteHandler = (pathParts: string[], items: BreadcrumbItem[]) => boolean
+type SpecialRouteHandler = (pathParts: string[]) => BreadcrumbItem[] | null
 
 const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
 	// Handle instances with optional sub-path
-	(pathParts, items) => {
+	(pathParts) => {
 		if (pathParts[0] === 'instances') {
-			items.push({ label: 'Instances', href: '/instances' })
+			const items: BreadcrumbItem[] = [{ label: 'Instances', href: '/instances' }]
 			if (pathParts[1]) {
 				items.push({ label: pathParts[1] })
 			}
-			return true
+			return items
 		}
-		return false
+		return null
 	},
 
 	// Handle followers/pending
-	(pathParts, items) => {
+	(pathParts) => {
 		if (pathParts[0] === 'followers' && pathParts[1] === 'pending') {
-			items.push({ label: 'Pending Followers', href: '/followers/pending' })
-			return true
+			return [{ label: 'Pending Followers', href: '/followers/pending' }]
 		}
-		return false
+		return null
 	},
 
 	// Handle profile routes (@username)
-	(pathParts, items) => {
+	(pathParts) => {
 		if (pathParts[0]?.startsWith('@')) {
 			const username = pathParts[0].slice(1)
-			items.push({ label: `@${username}`, href: `/${pathParts[0]}` })
+			const items: BreadcrumbItem[] = [
+				{ label: `@${username}`, href: `/${pathParts[0]}` },
+			]
 
 			// If there's a second part, it's an event
 			if (pathParts[1]) {
 				items.push({ label: 'Event' })
 			}
-			return true
+			return items
 		}
-		return false
+		return null
 	},
 ]
 
@@ -146,25 +148,37 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 
 	// Try special route handlers first
 	for (const handler of SPECIAL_ROUTE_HANDLERS) {
-		if (handler(pathParts, items)) {
+		const handlerItems = handler(pathParts)
+		if (handlerItems !== null) {
+			items.push(...handlerItems)
 			return items
 		}
 	}
 
 	// Check route configuration map for simple routes
-	const firstPart = pathParts[0]
-	if (firstPart && firstPart in ROUTE_CONFIG) {
-		const config = ROUTE_CONFIG[firstPart]
-		items.push({ label: config.label, href: config.href })
-		return items
-	}
-
-	// Fallback: use path parts as labels
-	if (pathParts.length > 0) {
-		pathParts.forEach((part, index) => {
-			const href = `/${pathParts.slice(0, index + 1).join('/')}`
-			items.push({ label: part, href })
-		})
+	let processedIndex = 0
+	while (processedIndex < pathParts.length) {
+		const currentPart = pathParts[processedIndex]
+		
+		if (currentPart && currentPart in ROUTE_CONFIG) {
+			const config = ROUTE_CONFIG[currentPart]
+			const href = `/${pathParts.slice(0, processedIndex + 1).join('/')}`
+			items.push({ label: config.label, href })
+			processedIndex++
+		} else {
+			// Process remaining parts that don't match ROUTE_CONFIG
+			const remainingParts = pathParts.slice(processedIndex)
+			remainingParts.forEach((part, index) => {
+				const href = `/${pathParts.slice(0, processedIndex + index + 1).join('/')}`
+				// Capitalize first letter and replace hyphens with spaces for better display
+				const label = part
+					.split('-')
+					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+					.join(' ')
+				items.push({ label, href })
+			})
+			break
+		}
 	}
 
 	return items
