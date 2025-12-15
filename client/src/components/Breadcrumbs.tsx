@@ -184,17 +184,7 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 	}
 
 	// Check route configuration map for simple routes
-	// Iterate through each path part and check it against ROUTE_CONFIG individually
-	pathParts.forEach((part, index) => {
-		const href = `/${pathParts.slice(0, index + 1).join('/')}`
-
-		if (part && part in ROUTE_CONFIG) {
-			const config = ROUTE_CONFIG[part]
-			items.push({ label: config.label, href })
-		} else {
-			items.push({ label: formatPathPartToLabel(part), href })
-		}
-	})
+	items.push(...processSubPaths(pathParts, 0))
 
 	return items
 }
