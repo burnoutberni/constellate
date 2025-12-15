@@ -65,7 +65,7 @@ const DOMPURIFY_CONFIG = {
 	],
 	ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
 	ALLOWED_URI_REGEXP:
-		/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+\-.]+(?:[^a-z+.\-:]|$))/i,
+		/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+\-.]+(?:[^a-z+.\-:]|$))/i,
 }
 
 /**
