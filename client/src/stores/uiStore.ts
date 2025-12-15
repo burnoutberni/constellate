@@ -16,26 +16,22 @@ export interface MentionNotification {
 	createdAt: string
 }
 
-export interface ErrorToast {
+export type ToastVariant = 'error' | 'success'
+
+export interface Toast {
 	id: string
 	message: string
-	// createdAt is optional in input (ISO string format), but always set by addErrorToast
+	variant: ToastVariant
+	// createdAt is optional in input (ISO string format), but always set by addToast
 	// If not provided, it will be automatically set to the current time as an ISO string
 	createdAt?: string
 }
 
-export interface SuccessToast {
-	id: string
-	message: string
-	// createdAt is optional in input (ISO string format), but always set by addSuccessToast
-	// If not provided, it will be automatically set to the current time as an ISO string
-	createdAt?: string
-}
+// Stored toasts always have createdAt set
+export type StoredToast = Toast & { createdAt: string }
 
-// Stored error toasts always have createdAt set
-type StoredErrorToast = ErrorToast & { createdAt: string }
-// Stored success toasts always have createdAt set
-type StoredSuccessToast = SuccessToast & { createdAt: string }
+export const MAX_TOASTS = 5
+export const MAX_MESSAGE_LENGTH = 1000 // Maximum length for toast messages to prevent UI issues
 
 interface UIState {
 	// Create Event Modal
@@ -58,8 +54,7 @@ interface UIState {
 	followersModalUsername: string | null
 	followersModalType: 'followers' | 'following' | null
 	mentionNotifications: MentionNotification[]
-	errorToasts: StoredErrorToast[]
-	successToasts: StoredSuccessToast[]
+	toasts: StoredToast[]
 
 	// Actions
 	openCreateEventModal: () => void
@@ -74,10 +69,9 @@ interface UIState {
 	closeFollowersModal: () => void
 	addMentionNotification: (notification: MentionNotification) => void
 	dismissMentionNotification: (id: string) => void
-	addErrorToast: (toast: ErrorToast) => void
-	dismissErrorToast: (id: string) => void
-	addSuccessToast: (toast: SuccessToast) => void
-	dismissSuccessToast: (id: string) => void
+	addToast: (toast: Toast) => void
+	dismissToast: (id: string) => void
+	clearToasts: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -93,8 +87,7 @@ export const useUIStore = create<UIState>((set) => ({
 	followersModalUsername: null,
 	followersModalType: null,
 	mentionNotifications: [],
-	errorToasts: [],
-	successToasts: [],
+	toasts: [],
 
 	// Actions
 	openCreateEventModal: () => set({ createEventModalOpen: true }),
@@ -131,43 +124,39 @@ export const useUIStore = create<UIState>((set) => ({
 		set((state) => ({
 			mentionNotifications: state.mentionNotifications.filter((item) => item.id !== id),
 		})),
-	addErrorToast: (toast) =>
+	addToast: (toast) =>
 		set((state) => {
 			// Filter out any existing toast with the same ID to prevent duplicates
-			// If the same error occurs multiple times with different IDs (via crypto.randomUUID()),
+			// If the same toast occurs multiple times with different IDs (via crypto.randomUUID()),
 			// both will be shown. Only exact ID matches are removed.
-			const existing = state.errorToasts.filter((item) => item.id !== toast.id)
+			const existing = state.toasts.filter((item) => item.id !== toast.id)
+
+			// Validate and truncate message length to prevent UI issues and potential abuse
+			const message =
+				typeof toast.message === 'string' && toast.message.length > 0
+					? toast.message.slice(0, MAX_MESSAGE_LENGTH)
+					: 'Notification'
+
+			// Validate variant to prevent invalid values (defensive programming)
+			const variant: ToastVariant =
+				toast.variant === 'error' || toast.variant === 'success' ? toast.variant : 'success'
+
 			// Ensure createdAt is always set as an ISO string (never a number/timestamp)
-			const toastWithTimestamp: StoredErrorToast = {
+			const toastWithTimestamp: StoredToast = {
 				...toast,
+				message,
+				variant,
 				createdAt: toast.createdAt || new Date().toISOString(),
 			}
-			// Keep the most recent 5 toasts to balance visibility with memory usage
-			// New toasts are added at the beginning, so slice(0, 5) keeps the 5 most recent
+			// Keep the most recent toasts to balance visibility with memory usage
+			// New toasts are added at the beginning, so slice(0, MAX_TOASTS) keeps the most recent
 			return {
-				errorToasts: [toastWithTimestamp, ...existing].slice(0, 5),
+				toasts: [toastWithTimestamp, ...existing].slice(0, MAX_TOASTS),
 			}
 		}),
-	dismissErrorToast: (id) =>
+	dismissToast: (id) =>
 		set((state) => ({
-			errorToasts: state.errorToasts.filter((item) => item.id !== id),
+			toasts: state.toasts.filter((item) => item.id !== id),
 		})),
-	addSuccessToast: (toast) =>
-		set((state) => {
-			// Filter out any existing toast with the same ID to prevent duplicates
-			const existing = state.successToasts.filter((item) => item.id !== toast.id)
-			// Ensure createdAt is always set as an ISO string (never a number/timestamp)
-			const toastWithTimestamp: StoredSuccessToast = {
-				...toast,
-				createdAt: toast.createdAt || new Date().toISOString(),
-			}
-			// Keep the most recent 5 toasts to balance visibility with memory usage
-			return {
-				successToasts: [toastWithTimestamp, ...existing].slice(0, 5),
-			}
-		}),
-	dismissSuccessToast: (id) =>
-		set((state) => ({
-			successToasts: state.successToasts.filter((item) => item.id !== id),
-		})),
+	clearToasts: () => set({ toasts: [] }),
 }))

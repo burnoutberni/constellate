@@ -6,7 +6,7 @@ import { createTestWrapper, clearQueryClient } from '../testUtils'
 
 // Mock dependencies
 const mockUser = { id: 'user1', username: 'testuser', name: 'Test User' }
-const mockAddErrorToast = vi.fn()
+const mockAddToast = vi.fn()
 const mockSaveDraft = vi.fn()
 const mockLoadDraft = vi.fn()
 const mockClearDraft = vi.fn()
@@ -25,7 +25,10 @@ vi.mock('../../hooks/useAuth', () => ({
 
 vi.mock('../../stores', () => ({
 	useUIStore: () => ({
-		addErrorToast: mockAddErrorToast,
+		addToast: mockAddToast,
+		dismissToast: vi.fn(),
+		clearToasts: vi.fn(),
+		toasts: [],
 	}),
 }))
 

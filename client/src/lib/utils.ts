@@ -9,3 +9,16 @@ import { twMerge } from 'tailwind-merge'
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs))
 }
+
+/**
+ * Generates a unique ID using crypto.randomUUID() with a fallback for environments
+ * that don't support it (e.g., older browsers, jsdom in tests)
+ * @returns A unique string identifier
+ */
+export function generateId(): string {
+	if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+		return crypto.randomUUID()
+	}
+	// Fallback for environments without crypto.randomUUID support
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}

@@ -39,7 +39,7 @@ const mockUseEventDetail = vi.fn()
 const mockUseUpdateEvent = vi.fn()
 const mockUseLocationSuggestions = vi.fn()
 const mockNavigate = vi.fn(() => {}) // Stable function reference
-const mockAddErrorToast = vi.fn(() => {}) // Stable function reference
+const mockAddToast = vi.fn(() => {}) // Stable function reference
 
 vi.mock('../../hooks/useAuth', () => ({
 	useAuth: () => ({
@@ -98,7 +98,10 @@ vi.mock('react-router-dom', async () => {
 
 // Create a stable mock state object
 const mockUIStoreState = {
-	addErrorToast: mockAddErrorToast,
+	addToast: mockAddToast,
+	dismissToast: vi.fn(),
+	clearToasts: vi.fn(),
+	toasts: [],
 }
 
 // Type for selector function - parameter name required by TypeScript but unused
@@ -217,11 +220,13 @@ describe('EditEventPage', () => {
 		render(<EditEventPage />, { wrapper })
 
 		// Check that user is redirected (user-visible behavior - they can't access the edit page)
-		// Also check that error toast was shown
+		// Also check that error toast was shown with correct variant
 		await waitFor(
 			() => {
 				expect(mockNavigate).toHaveBeenCalledWith('/@testuser/event1', { replace: true })
-				expect(mockAddErrorToast).toHaveBeenCalled()
+				expect(mockAddToast).toHaveBeenCalledWith(
+					expect.objectContaining({ variant: 'error' })
+				)
 			},
 			{ timeout: 2000 }
 		)
@@ -596,7 +601,7 @@ describe('EditEventPage', () => {
 
 		await waitFor(
 			() => {
-				expect(mockAddErrorToast).toHaveBeenCalled()
+				expect(mockAddToast).toHaveBeenCalled()
 			},
 			{ timeout: 2000 }
 		)
@@ -667,7 +672,7 @@ describe('EditEventPage', () => {
 
 		await waitFor(
 			() => {
-				expect(mockAddErrorToast).toHaveBeenCalled()
+				expect(mockAddToast).toHaveBeenCalled()
 			},
 			{ timeout: 2000 }
 		)

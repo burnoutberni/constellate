@@ -3,9 +3,8 @@ import { useEffect, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { ErrorToasts } from './components/ErrorToasts'
 import { MentionNotifications } from './components/MentionNotifications'
-import { SuccessToasts } from './components/SuccessToasts'
+import { Toasts } from './components/Toast'
 import { PageLoader } from './components/ui'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
@@ -13,6 +12,8 @@ import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
+import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
+import { generateId } from './lib/utils'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
 import { CalendarPage } from './pages/CalendarPage'
@@ -31,6 +32,7 @@ import { RemindersPage } from './pages/RemindersPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
 function AppContent() {
 	// Global SSE connection
@@ -38,6 +40,7 @@ function AppContent() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [checkingSetup, setCheckingSetup] = useState(true)
+	const addToast = useUIStore((state) => state.addToast)
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
@@ -56,6 +59,48 @@ function AppContent() {
 			.catch((error) => logger.error('Failed to check setup status:', error))
 			.finally(() => setCheckingSetup(false))
 	}, [navigate, location.pathname])
+
+	// Check for toast messages stored in sessionStorage (e.g., after redirect)
+	useEffect(() => {
+		const toastData = sessionStorage.getItem(TOAST_ON_LOAD_KEY)
+		if (toastData) {
+			try {
+				const parsed = JSON.parse(toastData)
+
+				// Validate the structure and types of the parsed data
+				// Also validate message length to prevent UI issues and potential abuse
+				if (
+					typeof parsed === 'object' &&
+					parsed !== null &&
+					!Array.isArray(parsed) &&
+					typeof parsed.message === 'string' &&
+					parsed.message.length > 0 &&
+					parsed.message.length <= MAX_MESSAGE_LENGTH &&
+					typeof parsed.variant === 'string' &&
+					(parsed.variant === 'error' || parsed.variant === 'success')
+				) {
+					addToast({
+						id: generateId(),
+						message: parsed.message,
+						variant: parsed.variant,
+					})
+				} else {
+					logger.error('Invalid toast data structure in sessionStorage', {
+						hasMessage: typeof parsed?.message === 'string',
+						messageLength:
+							typeof parsed?.message === 'string' ? parsed.message.length : undefined,
+						hasVariant: typeof parsed?.variant === 'string',
+						variantValue: parsed?.variant,
+					})
+				}
+			} catch (e) {
+				logger.error('Failed to parse toast data from sessionStorage', e)
+			} finally {
+				// Always remove the item from storage, regardless of success or failure
+				sessionStorage.removeItem(TOAST_ON_LOAD_KEY)
+			}
+		}
+	}, [addToast])
 
 	if (checkingSetup) {
 		return <PageLoader />
@@ -84,8 +129,7 @@ function AppContent() {
 				<Route path="/*" element={<ProfileOrEventPage />} />
 			</Routes>
 			<MentionNotifications />
-			<ErrorToasts />
-			<SuccessToasts />
+			<Toasts />
 		</ErrorBoundary>
 	)
 }

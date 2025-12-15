@@ -1,38 +1,46 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import React, { useState, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 
-import { Toasts, type Toast } from './Toast'
+import { useUIStore, type Toast } from '@/stores'
 
-// Interactive wrapper for Docs page
-const InteractiveWrapper = (args: React.ComponentProps<typeof Toasts>) => {
-	const [toasts, setToasts] = useState<Toast[]>([
-		{
-			id: 'doc-toast-1',
-			message: 'This is a sample toast message for the Docs page',
-			createdAt: new Date().toISOString(),
-		},
-	])
+import { Toasts } from './Toast'
 
-	// Keep toast visible by re-adding it if it gets dismissed
+/**
+ * Custom hook to set up toasts for Storybook stories.
+ * Clears existing toasts and adds the provided toasts on mount.
+ */
+function useStoryToasts(toasts: Toast[]) {
+	const addToast = useUIStore((state) => state.addToast)
+	const clearToasts = useUIStore((state) => state.clearToasts)
+	const initialized = useRef(false)
+	// Store toasts in ref to capture initial value and avoid dependency issues
+	const toastsRef = useRef(toasts)
+
 	useEffect(() => {
-		if (toasts.length === 0) {
-			// Use setTimeout to avoid synchronous setState in effect
-			const timer = setTimeout(() => {
-				setToasts([
-					{
-						id: 'doc-toast-1',
-						message: 'This is a sample toast message for the Docs page',
-						createdAt: new Date().toISOString(),
-					},
-				])
-			}, 0)
-			return () => clearTimeout(timer)
-		}
-	}, [toasts.length])
+		if (!initialized.current) {
+			// Clear existing toasts first
+			clearToasts()
 
-	const handleDismiss = (id: string) => {
-		setToasts((prev) => prev.filter((t) => t.id !== id))
-	}
+			// Add provided toasts
+			toastsRef.current.forEach((toast) => {
+				addToast(toast)
+			})
+
+			initialized.current = true
+		}
+
+		// Clean up toasts when component unmounts to prevent story bleed-through
+		return () => {
+			clearToasts()
+		}
+	}, [addToast, clearToasts])
+}
+
+/**
+ * Wrapper component for toast stories that sets up toasts and renders the Toasts component.
+ */
+function ToastStoryWrapper({ toasts }: { toasts: Toast[] }) {
+	useStoryToasts(toasts)
 
 	return (
 		<div
@@ -43,8 +51,28 @@ const InteractiveWrapper = (args: React.ComponentProps<typeof Toasts>) => {
 				width: '100%',
 				overflow: 'visible',
 			}}>
-			<Toasts variant={args.variant} toasts={toasts} onDismiss={handleDismiss} />
+			<Toasts />
 		</div>
+	)
+}
+
+// Interactive preview for Docs page
+const DocsWrapper = () => {
+	return (
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'doc-success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'doc-error-1',
+					message: 'Failed to save changes',
+					variant: 'error',
+				},
+			]}
+		/>
 	)
 }
 
@@ -57,48 +85,33 @@ const meta = {
 			canvas: {
 				height: '300px',
 			},
+			story: {
+				inline: false,
+			},
 		},
 	},
 	tags: ['autodocs'],
-	render: InteractiveWrapper,
-	args: {
-		toasts: [],
-		variant: 'success',
-		onDismiss: () => {},
-	},
-	argTypes: {
-		onDismiss: {
-			control: false,
-		},
-	},
 } satisfies Meta<typeof Toasts>
 
 export default meta
 type Story = StoryObj<typeof Toasts>
 
-const ToastWrapper = ({ variant }: { variant: 'error' | 'success' }) => {
-	const [toasts, setToasts] = useState<Toast[]>([{ id: '1', message: 'This is a toast message' }])
-
-	const handleDismiss = (id: string) => {
-		setToasts((prev) => prev.filter((t) => t.id !== id))
-	}
-
+const SuccessToastWrapper = () => {
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts toasts={toasts} variant={variant} onDismiss={handleDismiss} />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Operation completed successfully',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
-export const Default: Story = {
-	render: (args) => <InteractiveWrapper {...args} />,
+export const Success: Story = {
+	render: () => <SuccessToastWrapper />,
 	parameters: {
 		docs: {
 			story: {
@@ -108,19 +121,22 @@ export const Default: Story = {
 	},
 }
 
-export const Success: Story = {
-	render: () => <ToastWrapper variant="success" />,
-	parameters: {
-		docs: {
-			story: {
-				inline: true,
-			},
-		},
-	},
+const ErrorToastWrapper = () => {
+	return (
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'error-1',
+					message: 'An error occurred while processing your request',
+					variant: 'error',
+				},
+			]}
+		/>
+	)
 }
 
 export const Error: Story = {
-	render: () => <ToastWrapper variant="error" />,
+	render: () => <ErrorToastWrapper />,
 	parameters: {
 		docs: {
 			story: {
@@ -131,27 +147,26 @@ export const Error: Story = {
 }
 
 const MultipleSuccessWrapper = () => {
-	const [toasts, setToasts] = useState<Toast[]>([
-		{ id: '1', message: 'Event created successfully' },
-		{ id: '2', message: 'Profile updated' },
-		{ id: '3', message: 'Settings saved' },
-	])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts
-				toasts={toasts}
-				variant="success"
-				onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-			/>
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'success-2',
+					message: 'Profile updated',
+					variant: 'success',
+				},
+				{
+					id: 'success-3',
+					message: 'Settings saved',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
@@ -167,27 +182,26 @@ export const MultipleSuccess: Story = {
 }
 
 const MultipleErrorWrapper = () => {
-	const [toasts, setToasts] = useState<Toast[]>([
-		{ id: '1', message: 'Failed to create event' },
-		{ id: '2', message: 'Network error occurred' },
-		{ id: '3', message: 'Invalid input provided' },
-	])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts
-				toasts={toasts}
-				variant="error"
-				onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-			/>
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'error-1',
+					message: 'Failed to create event',
+					variant: 'error',
+				},
+				{
+					id: 'error-2',
+					message: 'Network error occurred',
+					variant: 'error',
+				},
+				{
+					id: 'error-3',
+					message: 'Invalid input provided',
+					variant: 'error',
+				},
+			]}
+		/>
 	)
 }
 
@@ -202,35 +216,69 @@ export const MultipleError: Story = {
 	},
 }
 
-const LongMessageWrapper = () => {
-	const [toasts, setToasts] = useState<Toast[]>([
-		{
-			id: '1',
-			message:
-				'This is a very long toast message that demonstrates how the component handles longer text content that might wrap to multiple lines.',
-		},
-	])
-
+const MixedToastsWrapper = () => {
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts
-				toasts={toasts}
-				variant="success"
-				onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-			/>
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'error-1',
+					message: 'Failed to send notification',
+					variant: 'error',
+				},
+				{
+					id: 'success-2',
+					message: 'Settings saved',
+					variant: 'success',
+				},
+			]}
+		/>
+	)
+}
+
+export const MixedToasts: Story = {
+	render: () => <MixedToastsWrapper />,
+	parameters: {
+		docs: {
+			story: {
+				inline: true,
+			},
+		},
+	},
+}
+
+const LongMessageWrapper = () => {
+	return (
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message:
+						'This is a very long toast message that demonstrates how the component handles longer text content that might wrap to multiple lines.',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
 export const LongMessage: Story = {
 	render: () => <LongMessageWrapper />,
+	parameters: {
+		docs: {
+			story: {
+				inline: true,
+			},
+		},
+	},
+}
+
+export const Default: Story = {
+	render: DocsWrapper,
 	parameters: {
 		docs: {
 			story: {

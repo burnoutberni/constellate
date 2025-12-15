@@ -7,6 +7,7 @@ import { Button, Input, Textarea, Modal } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { Navbar } from '../components/Navbar'
@@ -245,7 +246,7 @@ export function TemplatesPage() {
 	const { user, logout } = useAuth()
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
-	const addErrorToast = useUIStore((state) => state.addErrorToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [previewTemplate, setPreviewTemplate] = useState<EventTemplate | null>(null)
 	const [editTemplate, setEditTemplate] = useState<EventTemplate | null>(null)
 
@@ -279,9 +280,10 @@ export function TemplatesPage() {
 			queryClient.invalidateQueries({ queryKey: queryKeys.templates.list(user?.id) })
 		},
 		onError: (error) => {
-			addErrorToast({
-				id: crypto.randomUUID(),
+			addToast({
+				id: generateId(),
 				message: error instanceof Error ? error.message : 'Failed to delete template',
+				variant: 'error',
 			})
 		},
 	})

@@ -7,6 +7,7 @@ import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
 
@@ -75,7 +76,7 @@ export function AdminPage() {
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
-	const addSuccessToast = useUIStore((state) => state.addSuccessToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances'>('users')
 	const [showCreateUserModal, setShowCreateUserModal] = useState(false)
 	const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
@@ -696,9 +697,10 @@ export function AdminPage() {
 											navigator.clipboard.writeText
 										) {
 											await navigator.clipboard.writeText(newApiKey)
-											addSuccessToast({
-												id: crypto.randomUUID(),
+											addToast({
+												id: generateId(),
 												message: 'Copied to clipboard!',
+												variant: 'success',
 											})
 										} else {
 											// Fallback: create temporary textarea and copy
@@ -710,9 +712,10 @@ export function AdminPage() {
 											textarea.select()
 											try {
 												document.execCommand('copy')
-												addSuccessToast({
-													id: crypto.randomUUID(),
+												addToast({
+													id: generateId(),
 													message: 'Copied to clipboard!',
+													variant: 'success',
 												})
 											} catch (err) {
 												logger.error('Failed to copy to clipboard:', err)
@@ -741,10 +744,11 @@ export function AdminPage() {
 											const selection = window.getSelection()
 											selection?.removeAllRanges()
 											selection?.addRange(range)
-											addSuccessToast({
-												id: crypto.randomUUID(),
+											addToast({
+												id: generateId(),
 												message:
 													'Text selected - press Ctrl+C (or Cmd+C) to copy',
+												variant: 'success',
 											})
 										} else {
 											handleError(

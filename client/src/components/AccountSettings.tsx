@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
+import { TOAST_ON_LOAD_KEY } from '@/lib/storageConstants'
+import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { useAuth } from '../hooks/useAuth'
@@ -19,7 +21,7 @@ interface AccountSettingsProps {
 export function AccountSettings({ profile }: AccountSettingsProps) {
 	const { logout } = useAuth()
 	const handleError = useErrorHandler()
-	const addSuccessToast = useUIStore((state) => state.addSuccessToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [showPasswordChange, setShowPasswordChange] = useState(false)
 	const [currentPassword, setCurrentPassword] = useState('')
 	const [newPassword, setNewPassword] = useState('')
@@ -64,7 +66,11 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			)
 
 			// Success
-			addSuccessToast({ id: crypto.randomUUID(), message: 'Password changed successfully!' })
+			addToast({
+				id: generateId(),
+				message: 'Password changed successfully!',
+				variant: 'success',
+			})
 			setShowPasswordChange(false)
 			setCurrentPassword('')
 			setNewPassword('')
@@ -98,8 +104,18 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			// Note: This endpoint may need to be implemented in the backend
 			await api.delete('/profile', undefined, 'Failed to delete account')
 
-			// Log out and redirect
-			addSuccessToast({ id: crypto.randomUUID(), message: 'Your account has been deleted.' })
+			// Store toast message in sessionStorage to display after redirect
+			// IMPORTANT: message must be a static, trusted string (no user input or backend error messages)
+			// This prevents XSS if sessionStorage is compromised via other vulnerabilities
+			sessionStorage.setItem(
+				TOAST_ON_LOAD_KEY,
+				JSON.stringify({
+					message: 'Your account has been deleted.',
+					variant: 'success',
+				})
+			)
+
+			// Log out and redirect immediately
 			await logout()
 			window.location.href = '/'
 		} catch (error) {
