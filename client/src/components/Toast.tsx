@@ -17,9 +17,13 @@ interface ToastItemProps {
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	const [isVisible, setIsVisible] = useState(false)
 	const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const hasMountedRef = useRef(false)
 
 	// Trigger animation on mount and set up auto-dismiss
 	useEffect(() => {
+		// Mark as mounted after first render
+		hasMountedRef.current = true
+
 		// Trigger animation on mount (use requestAnimationFrame to ensure DOM is ready for smooth animation)
 		const rafId = requestAnimationFrame(() => {
 			setIsVisible(true)
@@ -44,7 +48,9 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			dismissTimerRef.current = null
 		}
 
-		if (!isVisible) {
+		// Only run dismissal logic after component has mounted
+		// This prevents the race condition on initial render where isVisible is false
+		if (!isVisible && hasMountedRef.current) {
 			// Wait for animation to complete before removing from store
 			dismissTimerRef.current = setTimeout(() => {
 				dismissTimerRef.current = null
