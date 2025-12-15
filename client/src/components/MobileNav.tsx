@@ -197,6 +197,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 											<li key={link.to}>
 												<Link
 													to={link.to}
+													onClick={onClose}
 													className={getLinkClassName(isActive)}>
 													{link.label}
 												</Link>

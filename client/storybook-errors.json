@@ -1,0 +1,150 @@
+{
+	"buildErrors": ["│  Vite storybook-static/assets/errorHandling-G8TZdDWJ.js"],
+	"runtimeErrors": [
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-manager/runtime.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-manager/runtime.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/storybook-core-server-presets-0/common-manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/storybook-core-server-presets-0/common-manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/chromatic-com-storybook-1/manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/chromatic-com-storybook-1/manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/vitest-2/manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/vitest-2/manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/a11y-3/manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/a11y-3/manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/docs-4/manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/docs-4/manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/onboarding-5/manager-bundle.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-addons/onboarding-5/manager-bundle.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Access to script at 'file:///Users/nini/Projects/constellate/client/storybook-static/sb-manager/globals-runtime.js' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-untrusted, data, http, https.",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/index.html",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		},
+		{
+			"type": "console",
+			"text": "Failed to load resource: net::ERR_FAILED",
+			"location": {
+				"url": "file:///Users/nini/Projects/constellate/client/storybook-static/sb-manager/globals-runtime.js",
+				"lineNumber": 0,
+				"columnNumber": 0
+			}
+		}
+	],
+	"timestamp": "2025-12-13T15:57:35.170Z"
+}
