@@ -1,1 +1,7 @@
-export { useUIStore, type MentionNotification, type Toast, type ToastVariant } from './uiStore'
+export {
+	useUIStore,
+	type MentionNotification,
+	type Toast,
+	type ToastVariant,
+	type StoredToast,
+} from './uiStore'

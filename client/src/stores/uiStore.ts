@@ -28,7 +28,7 @@ export interface Toast {
 }
 
 // Stored toasts always have createdAt set
-type StoredToast = Toast & { createdAt: string }
+export type StoredToast = Toast & { createdAt: string }
 
 interface UIState {
 	// Create Event Modal

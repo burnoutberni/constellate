@@ -1,17 +1,21 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useRef, useEffect } from 'react'
 
-import { useUIStore } from '@/stores'
+import { useUIStore, type Toast } from '@/stores'
 
 import { Toasts } from './Toast'
 
-// Interactive preview for Docs page
-const DocsWrapper = () => {
+/**
+ * Custom hook to set up toasts for Storybook stories.
+ * Clears existing toasts and adds the provided toasts on mount.
+ */
+function useStoryToasts(toasts: Toast[]) {
 	const addToast = useUIStore((state) => state.addToast)
 	const dismissToast = useUIStore((state) => state.dismissToast)
 	const initialized = useRef(false)
+	// Store toasts in ref to capture initial value and avoid dependency issues
+	const toastsRef = useRef(toasts)
 
-	// Set up toasts in useEffect to ensure component has subscribed to store
 	useEffect(() => {
 		if (!initialized.current) {
 			const store = useUIStore.getState()
@@ -21,20 +25,21 @@ const DocsWrapper = () => {
 				dismissToast(t.id)
 			})
 
-			// Add mock toasts for Docs page
-			addToast({
-				id: 'doc-success-1',
-				message: 'Event created successfully',
-				variant: 'success',
+			// Add provided toasts
+			toastsRef.current.forEach((toast) => {
+				addToast(toast)
 			})
-			addToast({
-				id: 'doc-error-1',
-				message: 'Failed to save changes',
-				variant: 'error',
-			})
+
 			initialized.current = true
 		}
 	}, [addToast, dismissToast])
+}
+
+/**
+ * Wrapper component for toast stories that sets up toasts and renders the Toasts component.
+ */
+function ToastStoryWrapper({ toasts }: { toasts: Toast[] }) {
+	useStoryToasts(toasts)
 
 	return (
 		<div
@@ -47,6 +52,26 @@ const DocsWrapper = () => {
 			}}>
 			<Toasts />
 		</div>
+	)
+}
+
+// Interactive preview for Docs page
+const DocsWrapper = () => {
+	return (
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'doc-success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'doc-error-1',
+					message: 'Failed to save changes',
+					variant: 'error',
+				},
+			]}
+		/>
 	)
 }
 
@@ -71,40 +96,16 @@ export default meta
 type Story = StoryObj<typeof Toasts>
 
 const SuccessToastWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add success toast
-			addToast({
-				id: 'success-1',
-				message: 'Operation completed successfully',
-				variant: 'success',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Operation completed successfully',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
@@ -120,40 +121,16 @@ export const Success: Story = {
 }
 
 const ErrorToastWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add error toast
-			addToast({
-				id: 'error-1',
-				message: 'An error occurred while processing your request',
-				variant: 'error',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'error-1',
+					message: 'An error occurred while processing your request',
+					variant: 'error',
+				},
+			]}
+		/>
 	)
 }
 
@@ -169,50 +146,26 @@ export const Error: Story = {
 }
 
 const MultipleSuccessWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add multiple success toasts
-			addToast({
-				id: 'success-1',
-				message: 'Event created successfully',
-				variant: 'success',
-			})
-			addToast({
-				id: 'success-2',
-				message: 'Profile updated',
-				variant: 'success',
-			})
-			addToast({
-				id: 'success-3',
-				message: 'Settings saved',
-				variant: 'success',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'success-2',
+					message: 'Profile updated',
+					variant: 'success',
+				},
+				{
+					id: 'success-3',
+					message: 'Settings saved',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
@@ -228,50 +181,26 @@ export const MultipleSuccess: Story = {
 }
 
 const MultipleErrorWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add multiple error toasts
-			addToast({
-				id: 'error-1',
-				message: 'Failed to create event',
-				variant: 'error',
-			})
-			addToast({
-				id: 'error-2',
-				message: 'Network error occurred',
-				variant: 'error',
-			})
-			addToast({
-				id: 'error-3',
-				message: 'Invalid input provided',
-				variant: 'error',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'error-1',
+					message: 'Failed to create event',
+					variant: 'error',
+				},
+				{
+					id: 'error-2',
+					message: 'Network error occurred',
+					variant: 'error',
+				},
+				{
+					id: 'error-3',
+					message: 'Invalid input provided',
+					variant: 'error',
+				},
+			]}
+		/>
 	)
 }
 
@@ -287,50 +216,26 @@ export const MultipleError: Story = {
 }
 
 const MixedToastsWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add mixed toasts
-			addToast({
-				id: 'success-1',
-				message: 'Event created successfully',
-				variant: 'success',
-			})
-			addToast({
-				id: 'error-1',
-				message: 'Failed to send notification',
-				variant: 'error',
-			})
-			addToast({
-				id: 'success-2',
-				message: 'Settings saved',
-				variant: 'success',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message: 'Event created successfully',
+					variant: 'success',
+				},
+				{
+					id: 'error-1',
+					message: 'Failed to send notification',
+					variant: 'error',
+				},
+				{
+					id: 'success-2',
+					message: 'Settings saved',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 
@@ -346,41 +251,17 @@ export const MixedToasts: Story = {
 }
 
 const LongMessageWrapper = () => {
-	const addToast = useUIStore((state) => state.addToast)
-	const dismissToast = useUIStore((state) => state.dismissToast)
-	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			const store = useUIStore.getState()
-
-			// Clear existing toasts first
-			store.toasts.forEach((t) => {
-				dismissToast(t.id)
-			})
-
-			// Add toast with long message
-			addToast({
-				id: 'success-1',
-				message:
-					'This is a very long toast message that demonstrates how the component handles longer text content that might wrap to multiple lines.',
-				variant: 'success',
-			})
-			initialized.current = true
-		}
-	}, [addToast, dismissToast])
-
 	return (
-		<div
-			style={{
-				position: 'relative',
-				minHeight: '300px',
-				height: '300px',
-				width: '100%',
-				overflow: 'visible',
-			}}>
-			<Toasts />
-		</div>
+		<ToastStoryWrapper
+			toasts={[
+				{
+					id: 'success-1',
+					message:
+						'This is a very long toast message that demonstrates how the component handles longer text content that might wrap to multiple lines.',
+					variant: 'success',
+				},
+			]}
+		/>
 	)
 }
 

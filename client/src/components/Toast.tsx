@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 
 import { cn } from '@/lib/utils'
-import { useUIStore, type Toast, type ToastVariant } from '@/stores'
+import { useUIStore, type StoredToast, type ToastVariant } from '@/stores'
 
 import { Stack } from './layout'
 import { Button, CloseIcon } from './ui'
 
 interface ToastItemProps {
-	toast: Toast & { createdAt: string }
+	toast: StoredToast
 	onDismiss: (id: string) => void
 }
 
@@ -88,8 +88,9 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 				size="sm"
 				className={cn(
 					'flex-shrink-0 h-6 w-6 p-0 rounded-md',
-					'hover:bg-error-100 dark:hover:bg-error-900',
-					toast.variant === 'success' && 'hover:bg-success-100 dark:hover:bg-success-900',
+					toast.variant === 'error'
+						? 'hover:bg-error-100 dark:hover:bg-error-900'
+						: 'hover:bg-success-100 dark:hover:bg-success-900',
 					'focus:outline-none focus:ring-2 focus:ring-offset-2',
 					toast.variant === 'error' ? 'focus:ring-error-500' : 'focus:ring-success-500',
 					'transition-colors duration-150'
