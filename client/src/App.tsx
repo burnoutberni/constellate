@@ -64,11 +64,32 @@ function AppContent() {
 		const toastData = sessionStorage.getItem(TOAST_ON_LOAD_KEY)
 		if (toastData) {
 			try {
-				const { message, variant } = JSON.parse(toastData)
-				addToast({ id: crypto.randomUUID(), message, variant })
-				sessionStorage.removeItem(TOAST_ON_LOAD_KEY)
+				const parsed = JSON.parse(toastData)
+
+				// Validate the structure and types of the parsed data
+				if (
+					typeof parsed === 'object' &&
+					parsed !== null &&
+					typeof parsed.message === 'string' &&
+					typeof parsed.variant === 'string' &&
+					(parsed.variant === 'error' || parsed.variant === 'success')
+				) {
+					addToast({
+						id: crypto.randomUUID(),
+						message: parsed.message,
+						variant: parsed.variant,
+					})
+				} else {
+					logger.error('Invalid toast data structure in sessionStorage', {
+						hasMessage: typeof parsed?.message === 'string',
+						hasVariant: typeof parsed?.variant === 'string',
+						variantValue: parsed?.variant,
+					})
+				}
 			} catch (e) {
 				logger.error('Failed to parse toast data from sessionStorage', e)
+			} finally {
+				// Always remove the item from storage, regardless of success or failure
 				sessionStorage.removeItem(TOAST_ON_LOAD_KEY)
 			}
 		}
