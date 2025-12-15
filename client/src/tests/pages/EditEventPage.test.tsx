@@ -98,7 +98,7 @@ vi.mock('react-router-dom', async () => {
 
 // Create a stable mock state object
 const mockUIStoreState = {
-	addErrorToast: mockAddErrorToast,
+	addToast: mockAddErrorToast,
 }
 
 // Type for selector function - parameter name required by TypeScript but unused

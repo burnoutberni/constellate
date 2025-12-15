@@ -53,7 +53,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../stores', () => ({
 	useUIStore: () => ({
-		addErrorToast: mockAddErrorToast,
+		addToast: mockAddErrorToast,
 	}),
 }))
 

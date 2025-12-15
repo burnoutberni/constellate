@@ -19,7 +19,7 @@ interface AccountSettingsProps {
 export function AccountSettings({ profile }: AccountSettingsProps) {
 	const { logout } = useAuth()
 	const handleError = useErrorHandler()
-	const addSuccessToast = useUIStore((state) => state.addSuccessToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [showPasswordChange, setShowPasswordChange] = useState(false)
 	const [currentPassword, setCurrentPassword] = useState('')
 	const [newPassword, setNewPassword] = useState('')
@@ -64,7 +64,11 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			)
 
 			// Success
-			addSuccessToast({ id: crypto.randomUUID(), message: 'Password changed successfully!' })
+			addToast({
+				id: crypto.randomUUID(),
+				message: 'Password changed successfully!',
+				variant: 'success',
+			})
 			setShowPasswordChange(false)
 			setCurrentPassword('')
 			setNewPassword('')
@@ -99,7 +103,11 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			await api.delete('/profile', undefined, 'Failed to delete account')
 
 			// Log out and redirect
-			addSuccessToast({ id: crypto.randomUUID(), message: 'Your account has been deleted.' })
+			addToast({
+				id: crypto.randomUUID(),
+				message: 'Your account has been deleted.',
+				variant: 'success',
+			})
 			await logout()
 			window.location.href = '/'
 		} catch (error) {

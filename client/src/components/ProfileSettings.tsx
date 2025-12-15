@@ -26,7 +26,7 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
 	const colors = useThemeColors()
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
-	const addSuccessToast = useUIStore((state) => state.addSuccessToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [name, setName] = useState(profile.name || '')
 	const [bio, setBio] = useState(profile.bio || '')
 	const [profileImageUrl, setProfileImageUrl] = useState(profile.profileImage || '')
@@ -69,7 +69,11 @@ export function ProfileSettings({ profile, userId }: ProfileSettingsProps) {
 				headerImage: headerImageUrl.trim() || undefined,
 				displayColor,
 			})
-			addSuccessToast({ id: crypto.randomUUID(), message: 'Profile updated successfully!' })
+			addToast({
+				id: crypto.randomUUID(),
+				message: 'Profile updated successfully!',
+				variant: 'success',
+			})
 		} catch (error) {
 			handleError(error, 'Failed to update profile. Please try again.', {
 				context: 'ProfileSettings.handleSave',

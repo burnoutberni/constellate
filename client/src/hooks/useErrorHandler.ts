@@ -61,7 +61,7 @@ export interface ErrorHandlerOptions {
  * @returns A memoized error handler function
  */
 export function useErrorHandler() {
-	const addErrorToast = useUIStore((state) => state.addErrorToast)
+	const addToast = useUIStore((state) => state.addToast)
 
 	return useCallback(
 		(error: unknown, message?: string, options?: ErrorHandlerOptions) => {
@@ -82,13 +82,14 @@ export function useErrorHandler() {
 
 			// Show toast unless silent option is used
 			if (!options?.silent) {
-				addErrorToast({
+				addToast({
 					id: crypto.randomUUID(),
 					message: finalMessage,
+					variant: 'error',
 				})
 			}
 		},
-		[addErrorToast]
+		[addToast]
 	)
 }
 

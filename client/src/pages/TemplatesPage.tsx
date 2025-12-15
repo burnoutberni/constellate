@@ -245,7 +245,7 @@ export function TemplatesPage() {
 	const { user, logout } = useAuth()
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
-	const addErrorToast = useUIStore((state) => state.addErrorToast)
+	const addToast = useUIStore((state) => state.addToast)
 	const [previewTemplate, setPreviewTemplate] = useState<EventTemplate | null>(null)
 	const [editTemplate, setEditTemplate] = useState<EventTemplate | null>(null)
 
@@ -279,9 +279,10 @@ export function TemplatesPage() {
 			queryClient.invalidateQueries({ queryKey: queryKeys.templates.list(user?.id) })
 		},
 		onError: (error) => {
-			addErrorToast({
+			addToast({
 				id: crypto.randomUUID(),
 				message: error instanceof Error ? error.message : 'Failed to delete template',
+				variant: 'error',
 			})
 		},
 	})

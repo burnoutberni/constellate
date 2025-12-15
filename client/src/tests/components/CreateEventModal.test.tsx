@@ -25,7 +25,7 @@ vi.mock('../../hooks/useAuth', () => ({
 
 vi.mock('../../stores', () => ({
 	useUIStore: () => ({
-		addErrorToast: mockAddErrorToast,
+		addToast: mockAddErrorToast,
 	}),
 }))
 
