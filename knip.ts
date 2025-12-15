@@ -16,6 +16,8 @@ const config: KnipConfig = {
 		'src/tests/**/*.ts',
 		// Exclude client directory - it has its own knip.ts config
 		'client/**/*',
+		// Exclude GitHub workflows - they use binaries that aren't part of the codebase
+		'.github/**/*',
 		// Public API types that may be used externally (ActivityPub types, Session type)
 		'src/lib/activitypubSchemas.ts',
 		'src/auth.ts',
