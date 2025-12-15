@@ -28,6 +28,11 @@ function useStoryToasts(toasts: Toast[]) {
 
 			initialized.current = true
 		}
+
+		// Clean up toasts when component unmounts to prevent story bleed-through
+		return () => {
+			clearToasts()
+		}
 	}, [addToast, clearToasts])
 }
 

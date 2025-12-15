@@ -38,13 +38,18 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	// Handle dismissal when isVisible becomes false
 	// This ensures proper cleanup if component unmounts during the exit animation
 	useEffect(() => {
+		let dismissTimer: ReturnType<typeof setTimeout> | null = null
+
 		if (!isVisible) {
 			// Wait for animation to complete before removing from store
-			const dismissTimer = setTimeout(() => {
+			dismissTimer = setTimeout(() => {
 				onDismiss(toast.id)
 			}, ANIMATION_DURATION) // Match the animation duration
+		}
 
-			return () => {
+		// Always register cleanup to clear timer when effect re-runs or component unmounts
+		return () => {
+			if (dismissTimer) {
 				clearTimeout(dismissTimer)
 			}
 		}
