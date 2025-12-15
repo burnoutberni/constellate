@@ -1,7 +1,13 @@
 /**
  * Bell/notification icon component
  */
-export function BellIcon({ hasUnread = false, className = 'w-6 h-6' }: { hasUnread?: boolean; className?: string }) {
+export function BellIcon({
+	hasUnread = false,
+	className = 'w-6 h-6',
+}: {
+	hasUnread?: boolean
+	className?: string
+}) {
 	return (
 		<svg
 			className={className}
@@ -18,4 +24,3 @@ export function BellIcon({ hasUnread = false, className = 'w-6 h-6' }: { hasUnre
 		</svg>
 	)
 }
-

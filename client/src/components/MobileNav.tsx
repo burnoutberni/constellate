@@ -20,12 +20,7 @@ export interface MobileNavProps {
  * MobileNav component - slide-out navigation menu for mobile devices.
  * Fully accessible with keyboard navigation, focus trap, and ARIA support.
  */
-export function MobileNav({
-	isOpen,
-	onClose,
-	user,
-	isAdmin = false,
-}: MobileNavProps) {
+export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavProps) {
 	const navRef = useRef<HTMLElement>(null)
 	const location = useLocation()
 
@@ -47,9 +42,7 @@ export function MobileNav({
 
 		// Focus first focusable element
 		if (nav) {
-			const firstFocusable = nav.querySelector<HTMLElement>(
-				'a[href], button:not([disabled])'
-			)
+			const firstFocusable = nav.querySelector<HTMLElement>('a[href], button:not([disabled])')
 			firstFocusable?.focus()
 		}
 
@@ -65,9 +58,7 @@ export function MobileNav({
 					'a[href], button:not([disabled])'
 				)
 				const focusableArray = Array.from(focusableElements)
-				const currentIndex = focusableArray.findIndex(
-					(el) => el === document.activeElement
-				)
+				const currentIndex = focusableArray.findIndex((el) => el === document.activeElement)
 
 				if (event.shiftKey) {
 					// Shift + Tab
@@ -211,7 +202,8 @@ export function MobileNav({
 											onClick={onClose}
 											className={cn(
 												'block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-												location.pathname === `/@${user.username || user.id}`
+												location.pathname ===
+													`/@${user.username || user.id}`
 													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
 													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
 											)}>
@@ -281,4 +273,3 @@ export function MobileNav({
 		</>
 	)
 }
-

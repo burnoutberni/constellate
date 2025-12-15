@@ -1,11 +1,18 @@
 import { Link } from 'react-router-dom'
 
+import {
+	AttendeesIcon,
+	LikeIcon,
+	CommentIcon,
+	LocationIcon,
+	CalendarIcon,
+	Card,
+	Badge,
+	Avatar,
+} from '@/components/ui'
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
-
-import { AttendeesIcon, LikeIcon, CommentIcon, LocationIcon, CalendarIcon } from '@/components/ui'
-import { Card, Badge, Avatar } from './ui'
 
 interface EventCardProps {
 	event: Event

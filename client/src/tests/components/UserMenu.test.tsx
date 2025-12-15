@@ -165,4 +165,3 @@ describe('UserMenu Component', () => {
 		expect(avatar).toBeInTheDocument()
 	})
 })
-

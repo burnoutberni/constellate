@@ -114,4 +114,3 @@ describe('Breadcrumbs Component', () => {
 		expect(screen.getByText('example.com')).toBeInTheDocument()
 	})
 })
-

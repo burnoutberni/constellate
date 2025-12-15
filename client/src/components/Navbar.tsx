@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
@@ -12,8 +12,16 @@ import { MobileNav } from './MobileNav'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
 import { ThemeToggle } from './ThemeToggle'
-import { Button } from './ui'
+import { Button, SearchIcon } from './ui'
 import { UserMenu } from './UserMenu'
+
+type AuthenticatedUser = {
+	name?: string
+	email?: string
+	id: string
+	username?: string
+	image?: string | null
+}
 
 export function Navbar({
 	isConnected,
@@ -21,11 +29,12 @@ export function Navbar({
 	onLogout,
 }: {
 	isConnected?: boolean
-	user?: { name?: string; email?: string; id?: string; username?: string; image?: string | null } | null
+	user?: AuthenticatedUser | null
 	onLogout?: () => void
 }) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const location = useLocation()
+	const navigate = useNavigate()
 
 	// Check if current user is admin
 	const { data: currentUserProfile } = useQuery<UserProfile | null>({
@@ -104,7 +113,9 @@ export function Navbar({
 							</Link>
 
 							{/* Desktop Navigation Links */}
-							<nav className="hidden md:flex items-center gap-1" aria-label="Desktop navigation">
+							<nav
+								className="hidden md:flex items-center gap-1"
+								aria-label="Desktop navigation">
 								{navLinks.map((link) => {
 									const isActive = location.pathname === link.to
 									return (
@@ -138,23 +149,11 @@ export function Navbar({
 								size="sm"
 								onClick={() => {
 									// Navigate to search page on mobile
-									window.location.href = '/search'
+									navigate('/search')
 								}}
 								aria-label="Search"
 								className="lg:hidden rounded-lg p-2">
-								<svg
-									className="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-									/>
-								</svg>
+								<SearchIcon className="w-5 h-5" />
 							</Button>
 
 							<ThemeToggle />
@@ -162,23 +161,24 @@ export function Navbar({
 							{user ? (
 								<>
 									<NotificationBell userId={user.id} />
-									{user.id && (
-										<UserMenu
-											user={{
-												id: user.id,
-												name: user.name,
-												email: user.email,
-												username: user.username,
-												image: user.image,
-											}}
-											isAdmin={isAdmin}
-											onLogout={onLogout}
-										/>
-									)}
+									<UserMenu
+										user={{
+											id: user.id,
+											name: user.name,
+											email: user.email,
+											username: user.username,
+											image: user.image,
+										}}
+										isAdmin={isAdmin}
+										onLogout={onLogout}
+									/>
 								</>
 							) : (
 								<Link to="/login">
-									<Button variant="primary" size="sm" className="whitespace-nowrap">
+									<Button
+										variant="primary"
+										size="sm"
+										className="whitespace-nowrap">
 										Sign In
 									</Button>
 								</Link>
@@ -212,7 +212,16 @@ export function Navbar({
 			<MobileNav
 				isOpen={mobileMenuOpen}
 				onClose={() => setMobileMenuOpen(false)}
-				user={user ? { id: user.id || '', name: user.name, email: user.email, username: user.username } : null}
+				user={
+					user
+						? {
+								id: user.id,
+								name: user.name,
+								email: user.email,
+								username: user.username,
+							}
+						: null
+				}
 				isAdmin={isAdmin}
 			/>
 		</>

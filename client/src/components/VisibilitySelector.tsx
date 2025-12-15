@@ -2,6 +2,8 @@ import { EventVisibility } from '@/types'
 
 import { VISIBILITY_OPTIONS } from '../lib/visibility'
 
+import { EyeIcon } from './ui'
+
 interface VisibilitySelectorProps {
 	value: EventVisibility
 	onChange: (value: EventVisibility) => void
@@ -14,7 +16,8 @@ interface VisibilitySelectorProps {
 export function VisibilitySelector({ value, onChange }: VisibilitySelectorProps) {
 	return (
 		<div>
-			<label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+			<label className="flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+				<EyeIcon className="w-4 h-4" />
 				Visibility
 			</label>
 			<div className="grid gap-2">

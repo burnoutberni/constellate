@@ -224,4 +224,3 @@ describe('Navbar Component', () => {
 		expect(searchButton).toBeInTheDocument()
 	})
 })
-

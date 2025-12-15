@@ -48,9 +48,7 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
 								</span>
 							)}
 							{isLast ? (
-								<span
-									className="text-text-primary font-medium"
-									aria-current="page">
+								<span className="text-text-primary font-medium" aria-current="page">
 									{item.label}
 								</span>
 							) : item.href ? (
@@ -71,6 +69,66 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
 }
 
 /**
+ * Route configuration for simple routes that map directly to breadcrumb labels
+ */
+const ROUTE_CONFIG: Record<string, { label: string; href: string }> = {
+	feed: { label: 'Feed', href: '/feed' },
+	calendar: { label: 'Calendar', href: '/calendar' },
+	search: { label: 'Search', href: '/search' },
+	events: { label: 'Events', href: '/events' },
+	templates: { label: 'Templates', href: '/templates' },
+	settings: { label: 'Settings', href: '/settings' },
+	notifications: { label: 'Notifications', href: '/notifications' },
+	reminders: { label: 'Reminders', href: '/reminders' },
+	admin: { label: 'Admin', href: '/admin' },
+	about: { label: 'About', href: '/about' },
+	edit: { label: 'Edit Event', href: '/edit' },
+}
+
+/**
+ * Special route handlers for routes that require custom logic
+ */
+type SpecialRouteHandler = (pathParts: string[], items: BreadcrumbItem[]) => boolean
+
+const SPECIAL_ROUTE_HANDLERS: SpecialRouteHandler[] = [
+	// Handle instances with optional sub-path
+	(pathParts, items) => {
+		if (pathParts[0] === 'instances') {
+			items.push({ label: 'Instances', href: '/instances' })
+			if (pathParts[1]) {
+				items.push({ label: pathParts[1] })
+			}
+			return true
+		}
+		return false
+	},
+
+	// Handle followers/pending
+	(pathParts, items) => {
+		if (pathParts[0] === 'followers' && pathParts[1] === 'pending') {
+			items.push({ label: 'Pending Followers', href: '/followers/pending' })
+			return true
+		}
+		return false
+	},
+
+	// Handle profile routes (@username)
+	(pathParts, items) => {
+		if (pathParts[0]?.startsWith('@')) {
+			const username = pathParts[0].slice(1)
+			items.push({ label: `@${username}`, href: `/${pathParts[0]}` })
+
+			// If there's a second part, it's an event
+			if (pathParts[1]) {
+				items.push({ label: 'Event' })
+			}
+			return true
+		}
+		return false
+	},
+]
+
+/**
  * Generates breadcrumb items from a route path
  */
 function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
@@ -86,85 +144,18 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 
 	const pathParts = pathname.split('/').filter(Boolean)
 
-	// Handle special routes
-	if (pathParts[0] === 'feed') {
-		items.push({ label: 'Feed', href: '/feed' })
-		return items
-	}
-
-	if (pathParts[0] === 'calendar') {
-		items.push({ label: 'Calendar', href: '/calendar' })
-		return items
-	}
-
-	if (pathParts[0] === 'search') {
-		items.push({ label: 'Search', href: '/search' })
-		return items
-	}
-
-	if (pathParts[0] === 'events') {
-		items.push({ label: 'Events', href: '/events' })
-		return items
-	}
-
-	if (pathParts[0] === 'templates') {
-		items.push({ label: 'Templates', href: '/templates' })
-		return items
-	}
-
-	if (pathParts[0] === 'instances') {
-		items.push({ label: 'Instances', href: '/instances' })
-		if (pathParts[1]) {
-			items.push({ label: pathParts[1] })
+	// Try special route handlers first
+	for (const handler of SPECIAL_ROUTE_HANDLERS) {
+		if (handler(pathParts, items)) {
+			return items
 		}
-		return items
 	}
 
-	if (pathParts[0] === 'settings') {
-		items.push({ label: 'Settings', href: '/settings' })
-		return items
-	}
-
-	if (pathParts[0] === 'notifications') {
-		items.push({ label: 'Notifications', href: '/notifications' })
-		return items
-	}
-
-	if (pathParts[0] === 'reminders') {
-		items.push({ label: 'Reminders', href: '/reminders' })
-		return items
-	}
-
-	if (pathParts[0] === 'admin') {
-		items.push({ label: 'Admin', href: '/admin' })
-		return items
-	}
-
-	if (pathParts[0] === 'about') {
-		items.push({ label: 'About', href: '/about' })
-		return items
-	}
-
-	if (pathParts[0] === 'followers' && pathParts[1] === 'pending') {
-		items.push({ label: 'Pending Followers', href: '/followers/pending' })
-		return items
-	}
-
-	// Handle profile routes (@username)
-	if (pathParts[0]?.startsWith('@')) {
-		const username = pathParts[0].slice(1)
-		items.push({ label: `@${username}`, href: `/${pathParts[0]}` })
-
-		// If there's a second part, it's an event
-		if (pathParts[1]) {
-			items.push({ label: 'Event' })
-		}
-		return items
-	}
-
-	// Handle edit routes
-	if (pathParts[0] === 'edit') {
-		items.push({ label: 'Edit Event', href: '/edit' })
+	// Check route configuration map for simple routes
+	const firstPart = pathParts[0]
+	if (firstPart && firstPart in ROUTE_CONFIG) {
+		const config = ROUTE_CONFIG[firstPart]
+		items.push({ label: config.label, href: config.href })
 		return items
 	}
 
@@ -178,4 +169,3 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 
 	return items
 }
-

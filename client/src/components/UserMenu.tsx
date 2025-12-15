@@ -239,4 +239,3 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 		</div>
 	)
 }
-

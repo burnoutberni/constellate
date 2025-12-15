@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import { Container, Stack } from '@/components/layout'
-import { Button, Card, Badge, Spinner } from '@/components/ui'
+import { Button, Card, Badge, Spinner, AddIcon } from '@/components/ui'
 import {
 	useEvents,
 	useActivityFeed,
@@ -342,7 +342,11 @@ export function FeedPage() {
 			<Container size="xl" className="py-4">
 				{/* Create Event Button */}
 				<div className="flex justify-end mb-4">
-					<Button variant="primary" size="md" onClick={openCreateEventModal}>
+					<Button
+						variant="primary"
+						size="md"
+						onClick={openCreateEventModal}
+						leftIcon={<AddIcon />}>
 						Create Event
 					</Button>
 				</div>

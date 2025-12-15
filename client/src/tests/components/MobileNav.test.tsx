@@ -78,13 +78,17 @@ describe('MobileNav Component', () => {
 	})
 
 	it('should show admin link when user is admin', () => {
-		render(<MobileNav isOpen={true} onClose={vi.fn()} user={mockUser} isAdmin={true} />, { wrapper })
+		render(<MobileNav isOpen={true} onClose={vi.fn()} user={mockUser} isAdmin={true} />, {
+			wrapper,
+		})
 
 		expect(screen.getByText('Admin')).toBeInTheDocument()
 	})
 
 	it('should not show admin link when user is not admin', () => {
-		render(<MobileNav isOpen={true} onClose={vi.fn()} user={mockUser} isAdmin={false} />, { wrapper })
+		render(<MobileNav isOpen={true} onClose={vi.fn()} user={mockUser} isAdmin={false} />, {
+			wrapper,
+		})
 
 		expect(screen.queryByText('Admin')).not.toBeInTheDocument()
 	})
@@ -148,4 +152,3 @@ describe('MobileNav Component', () => {
 		expect(firstLink).toBeInTheDocument()
 	})
 })
-

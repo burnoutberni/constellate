@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
 import { User, Event } from '@/types'
-
-import { SearchIcon } from '@/components/ui'
-import { Button, Input, Spinner } from './ui'
 
 const log = createLogger('[SearchBar]')
 
@@ -308,18 +306,7 @@ export function SearchBar() {
 									selectedIndex === selectableItems.length - 1 ? 'bg-info-50' : ''
 								}`}>
 								<div className="w-10 h-10 rounded-full bg-info-100 flex items-center justify-center">
-									<svg
-										className="w-6 h-6 text-info-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-										/>
-									</svg>
+									<GlobeIcon className="w-6 h-6 text-info-600" />
 								</div>
 								<div className="flex-1 text-left">
 									<div className="font-medium text-neutral-900">
