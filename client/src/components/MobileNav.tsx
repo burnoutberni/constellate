@@ -178,10 +178,7 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 								const isActive = location.pathname === link.to
 								return (
 									<li key={link.to}>
-										<Link
-											to={link.to}
-											onClick={onClose}
-											className={getLinkClassName(isActive)}>
+										<Link to={link.to} className={getLinkClassName(isActive)}>
 											{link.label}
 										</Link>
 									</li>
@@ -200,7 +197,6 @@ export function MobileNav({ isOpen, onClose, user, isAdmin = false }: MobileNavP
 											<li key={link.to}>
 												<Link
 													to={link.to}
-													onClick={onClose}
 													className={getLinkClassName(isActive)}>
 													{link.label}
 												</Link>
