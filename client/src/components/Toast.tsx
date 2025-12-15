@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { useUIStore, type StoredToast, type ToastVariant } from '@/stores'
@@ -16,6 +16,7 @@ interface ToastItemProps {
 
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	const [isVisible, setIsVisible] = useState(false)
+	const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	// Trigger animation on mount and set up auto-dismiss
 	useEffect(() => {
@@ -36,24 +37,41 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	}, [toast.createdAt])
 
 	// Handle dismissal when isVisible becomes false
-	// This ensures proper cleanup if component unmounts during the exit animation
 	useEffect(() => {
-		let dismissTimer: ReturnType<typeof setTimeout> | null = null
+		// Clear any existing timer
+		if (dismissTimerRef.current) {
+			clearTimeout(dismissTimerRef.current)
+			dismissTimerRef.current = null
+		}
 
 		if (!isVisible) {
 			// Wait for animation to complete before removing from store
-			dismissTimer = setTimeout(() => {
+			dismissTimerRef.current = setTimeout(() => {
+				dismissTimerRef.current = null
 				onDismiss(toast.id)
 			}, ANIMATION_DURATION) // Match the animation duration
 		}
 
-		// Always register cleanup to clear timer when effect re-runs or component unmounts
+		// Cleanup: clear timer when effect re-runs
 		return () => {
-			if (dismissTimer) {
-				clearTimeout(dismissTimer)
+			if (dismissTimerRef.current) {
+				clearTimeout(dismissTimerRef.current)
+				dismissTimerRef.current = null
 			}
 		}
 	}, [isVisible, toast.id, onDismiss])
+
+	// Handle cleanup on unmount: ensure onDismiss is called if dismissal is pending
+	useEffect(() => {
+		return () => {
+			// If component unmounts while dismissal is pending, call onDismiss immediately
+			if (dismissTimerRef.current) {
+				clearTimeout(dismissTimerRef.current)
+				dismissTimerRef.current = null
+				onDismiss(toast.id)
+			}
+		}
+	}, [toast.id, onDismiss])
 
 	const variantStyles: Record<
 		ToastVariant,
