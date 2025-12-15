@@ -113,4 +113,17 @@ describe('Breadcrumbs Component', () => {
 		expect(screen.getByText('Instances')).toBeInTheDocument()
 		expect(screen.getByText('example.com')).toBeInTheDocument()
 	})
+
+	it('should correctly handle nested routes with configured segments after unconfigured ones', () => {
+		render(
+			<MemoryRouter initialEntries={['/events/some-event/edit']}>
+				<Breadcrumbs />
+			</MemoryRouter>
+		)
+
+		expect(screen.getByText('Home')).toBeInTheDocument()
+		expect(screen.getByText('Events')).toBeInTheDocument()
+		expect(screen.getByText('Some Event')).toBeInTheDocument()
+		expect(screen.getByText('Edit Event')).toBeInTheDocument()
+	})
 })

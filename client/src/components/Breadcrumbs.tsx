@@ -156,30 +156,22 @@ function generateBreadcrumbsFromRoute(pathname: string): BreadcrumbItem[] {
 	}
 
 	// Check route configuration map for simple routes
-	let processedIndex = 0
-	while (processedIndex < pathParts.length) {
-		const currentPart = pathParts[processedIndex]
+	// Iterate through each path part and check it against ROUTE_CONFIG individually
+	pathParts.forEach((part, index) => {
+		const href = `/${pathParts.slice(0, index + 1).join('/')}`
 		
-		if (currentPart && currentPart in ROUTE_CONFIG) {
-			const config = ROUTE_CONFIG[currentPart]
-			const href = `/${pathParts.slice(0, processedIndex + 1).join('/')}`
+		if (part && part in ROUTE_CONFIG) {
+			const config = ROUTE_CONFIG[part]
 			items.push({ label: config.label, href })
-			processedIndex++
 		} else {
-			// Process remaining parts that don't match ROUTE_CONFIG
-			const remainingParts = pathParts.slice(processedIndex)
-			remainingParts.forEach((part, index) => {
-				const href = `/${pathParts.slice(0, processedIndex + index + 1).join('/')}`
-				// Capitalize first letter and replace hyphens with spaces for better display
-				const label = part
-					.split('-')
-					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-					.join(' ')
-				items.push({ label, href })
-			})
-			break
+			// Capitalize first letter and replace hyphens with spaces for better display
+			const label = part
+				.split('-')
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(' ')
+			items.push({ label, href })
 		}
-	}
+	})
 
 	return items
 }

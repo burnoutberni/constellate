@@ -25,7 +25,7 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 	const menuRef = useRef<HTMLDivElement>(null)
 	const buttonRef = useRef<HTMLButtonElement>(null)
 
-	// Close menu when clicking outside
+	// Handle outside clicks and keyboard interactions
 	useEffect(() => {
 		if (!isOpen) {
 			return undefined
@@ -43,27 +43,14 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 		}
 
 		function handleKeyDown(event: KeyboardEvent) {
+			// Handle Escape key to close menu
 			if (event.key === 'Escape') {
 				setIsOpen(false)
 				buttonRef.current?.focus()
+				return
 			}
-		}
 
-		document.addEventListener('mousedown', handleClickOutside)
-		document.addEventListener('keydown', handleKeyDown)
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside)
-			document.removeEventListener('keydown', handleKeyDown)
-		}
-	}, [isOpen])
-
-	// Keyboard navigation within menu
-	useEffect(() => {
-		if (!isOpen) {
-			return undefined
-		}
-
-		function handleKeyDown(event: KeyboardEvent) {
+			// Handle keyboard navigation within menu
 			const menu = menuRef.current
 			if (!menu) {
 				return
@@ -106,8 +93,10 @@ export function UserMenu({ user, isAdmin = false, onLogout }: UserMenuProps) {
 			}
 		}
 
+		document.addEventListener('mousedown', handleClickOutside)
 		document.addEventListener('keydown', handleKeyDown)
 		return () => {
+			document.removeEventListener('mousedown', handleClickOutside)
 			document.removeEventListener('keydown', handleKeyDown)
 		}
 	}, [isOpen])
