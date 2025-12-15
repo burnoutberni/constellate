@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import { playwright } from '@vitest/browser-playwright'
+import { getPathAliases } from './vite.config'
 
 const dirname =
 	typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
@@ -13,24 +14,7 @@ export default defineConfig({
 		host: 'localhost', // Use localhost for browser tests (0.0.0.0 can cause WebSocket issues)
 	},
 	resolve: {
-		alias: {
-			'better-auth/react': path.resolve(
-				dirname,
-				'./node_modules/better-auth/dist/client/react/index.mjs'
-			),
-			// Path aliases - enforce barrel file imports
-			'@/components/ui': path.resolve(dirname, './src/components/ui/index.ts'),
-			'@/components/layout': path.resolve(dirname, './src/components/layout/index.ts'),
-			'@/design-system': path.resolve(dirname, './src/design-system/index.ts'),
-			'@/types': path.resolve(dirname, './src/types/index.ts'),
-			'@/hooks/queries': path.resolve(dirname, './src/hooks/queries/index.ts'),
-			'@/stores': path.resolve(dirname, './src/stores/index.ts'),
-			'@/lib': path.resolve(dirname, './src/lib'),
-			'@/components': path.resolve(dirname, './src/components'),
-			'@/hooks': path.resolve(dirname, './src/hooks'),
-			'@/pages': path.resolve(dirname, './src/pages'),
-			'@/contexts': path.resolve(dirname, './src/contexts'),
-		},
+		alias: getPathAliases(),
 	},
 	test: {
 		globals: true,

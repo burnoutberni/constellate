@@ -1,6 +1,6 @@
 import type { StorybookConfig } from '@storybook/react-vite'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,31 +21,20 @@ const config: StorybookConfig = {
 	},
 	staticDirs: [],
 	viteFinal: async (config) => {
-		// Add path aliases from vite.config.ts
+		// Import path aliases from vite.config.ts dynamically to avoid ESM conflicts
+		const viteConfigPath = path.resolve(__dirname, '../vite.config.ts')
+		const viteConfig = await import(pathToFileURL(viteConfigPath).href)
+		const { getPathAliases } = viteConfig
+
+		// Resolve paths relative to the client directory (parent of .storybook)
+		const aliases = getPathAliases(path.resolve(__dirname, '..'))
+
+		// Add path aliases
 		if (!config.resolve) {
 			config.resolve = {}
 		}
 		if (!config.resolve.alias) {
 			config.resolve.alias = {}
-		}
-
-		const aliases = {
-			'better-auth/react': path.resolve(
-				__dirname,
-				'../node_modules/better-auth/dist/client/react/index.mjs'
-			),
-			'@/components/ui': path.resolve(__dirname, '../src/components/ui/index.ts'),
-			'@/components/layout': path.resolve(__dirname, '../src/components/layout/index.ts'),
-			'@/components/icons': path.resolve(__dirname, '../src/components/icons/index.ts'),
-			'@/design-system': path.resolve(__dirname, '../src/design-system/index.ts'),
-			'@/types': path.resolve(__dirname, '../src/types/index.ts'),
-			'@/hooks/queries': path.resolve(__dirname, '../src/hooks/queries/index.ts'),
-			'@/stores': path.resolve(__dirname, '../src/stores/index.ts'),
-			'@/lib': path.resolve(__dirname, '../src/lib'),
-			'@/components': path.resolve(__dirname, '../src/components'),
-			'@/hooks': path.resolve(__dirname, '../src/hooks'),
-			'@/pages': path.resolve(__dirname, '../src/pages'),
-			'@/contexts': path.resolve(__dirname, '../src/contexts'),
 		}
 
 		Object.assign(config.resolve.alias, aliases)
