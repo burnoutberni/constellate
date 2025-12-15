@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { SafeHTML } from '../../components/ui'
 
 describe('SafeHTML Component', () => {
@@ -35,7 +35,7 @@ describe('SafeHTML Component', () => {
 		expect(listItems[3]).toHaveTextContent('Second')
 	})
 
-	it('should render links that users can click with security attributes', () => {
+	it('should render links that users can click with security attributes', async () => {
 		render(
 			<SafeHTML html='<p>Visit <a href="https://example.com">Example</a> for more info.</p>' />
 		)
@@ -43,7 +43,12 @@ describe('SafeHTML Component', () => {
 		const link = screen.getByRole('link', { name: 'Example' })
 		expect(link).toBeInTheDocument()
 		expect(link).toHaveAttribute('href', 'https://example.com')
-		expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+
+		// Wait for useEffect to add target and rel attributes
+		await waitFor(() => {
+			expect(link).toHaveAttribute('target', '_blank')
+			expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+		})
 	})
 
 	it('should block dangerous scripts and prevent XSS attacks', () => {
@@ -187,7 +192,7 @@ describe('SafeHTML Component', () => {
 		expect(paragraph).not.toHaveAttribute('style')
 	})
 
-	it('should handle multiple links in the same content', () => {
+	it('should handle multiple links in the same content', async () => {
 		render(
 			<SafeHTML html='<p>Visit <a href="https://site1.com">Site 1</a> and <a href="https://site2.com">Site 2</a>.</p>' />
 		)
@@ -196,10 +201,16 @@ describe('SafeHTML Component', () => {
 		expect(links).toHaveLength(2)
 		expect(links[0]).toHaveTextContent('Site 1')
 		expect(links[0]).toHaveAttribute('href', 'https://site1.com')
-		expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
 		expect(links[1]).toHaveTextContent('Site 2')
 		expect(links[1]).toHaveAttribute('href', 'https://site2.com')
-		expect(links[1]).toHaveAttribute('rel', 'noopener noreferrer')
+
+		// Wait for useEffect to add target and rel attributes
+		await waitFor(() => {
+			expect(links[0]).toHaveAttribute('target', '_blank')
+			expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
+			expect(links[1]).toHaveAttribute('target', '_blank')
+			expect(links[1]).toHaveAttribute('rel', 'noopener noreferrer')
+		})
 	})
 
 	it('should preserve line breaks that affect layout', () => {

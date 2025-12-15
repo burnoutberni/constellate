@@ -1,5 +1,5 @@
 import DOMPurify from 'dompurify'
-import { useMemo, type ElementType } from 'react'
+import { useMemo, useEffect, useRef, type ElementType } from 'react'
 
 export interface SafeHTMLProps {
 	/**
@@ -26,6 +26,8 @@ export interface SafeHTMLProps {
  * ```
  */
 export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
+	const containerRef = useRef<HTMLElement>(null)
+
 	const sanitizedHTML = useMemo(() => {
 		if (!html) {
 			return ''
@@ -65,24 +67,37 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 				/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+\-.]+(?:[^a-z+.\-:]|$))/i,
 		})
 
-		// Post-process the sanitized HTML to safely add attributes to external links.
-		// This is safer than using regex on HTML strings.
-		if (typeof window === 'undefined') {
-			return sanitized // Cannot post-process on the server, return sanitized HTML.
-		}
-		const doc = new DOMParser().parseFromString(sanitized, 'text/html')
-		doc.querySelectorAll('a[href^="http"]').forEach((link) => {
-			link.setAttribute('target', '_blank')
-			link.setAttribute('rel', 'noopener noreferrer')
-		})
-		// Only return the content of the body, to avoid returning <html><head></head><body>...</body></html>
-		return doc.body.innerHTML
+		// Return sanitized HTML without post-processing to ensure SSR/CSR consistency
+		// Post-processing will be done in useEffect after mount
+		return sanitized
 	}, [html])
+
+	// Post-process the sanitized HTML after mount to add target="_blank" to external links
+	// This ensures the initial render matches the server, avoiding hydration errors
+	useEffect(() => {
+		if (!containerRef.current) {
+			return
+		}
+
+		// Find all external links and add target="_blank" and rel="noopener noreferrer"
+		containerRef.current
+			.querySelectorAll<HTMLAnchorElement>('a[href^="http"]')
+			.forEach((link) => {
+				link.setAttribute('target', '_blank')
+				link.setAttribute('rel', 'noopener noreferrer')
+			})
+	}, [sanitizedHTML])
 
 	// If no HTML content, return null
 	if (!sanitizedHTML) {
 		return null
 	}
 
-	return <Tag className={className} dangerouslySetInnerHTML={{ __html: sanitizedHTML }} />
+	return (
+		<Tag
+			ref={containerRef}
+			className={className}
+			dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
+		/>
+	)
 }
