@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react'
 import {
 	AddIcon,
 	ArrowRightIcon,
@@ -12,7 +12,7 @@ import {
 	ListViewIcon,
 	LocationIcon,
 	SearchIcon,
-} from '@/components/ui';
+} from '@/components/ui'
 
 const meta = {
 	title: 'Base/Icons',
@@ -20,10 +20,10 @@ const meta = {
 		layout: 'padded',
 	},
 	tags: ['autodocs'],
-} satisfies Meta;
+} satisfies Meta
 
-export default meta;
-type Story = StoryObj<typeof meta>;
+export default meta
+type Story = StoryObj<typeof meta>
 
 const allIcons = [
 	{ name: 'AddIcon', component: AddIcon },
@@ -38,7 +38,7 @@ const allIcons = [
 	{ name: 'ListViewIcon', component: ListViewIcon },
 	{ name: 'LocationIcon', component: LocationIcon },
 	{ name: 'SearchIcon', component: SearchIcon },
-];
+]
 
 export const AllIcons: Story = {
 	render: () => (
@@ -48,12 +48,14 @@ export const AllIcons: Story = {
 					key={name}
 					className="flex flex-col items-center justify-center p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg bg-background-primary">
 					<Icon className="w-8 h-8 text-text-primary mb-2" />
-					<span className="text-xs text-text-secondary text-center font-mono">{name}</span>
+					<span className="text-xs text-text-secondary text-center font-mono">
+						{name}
+					</span>
 				</div>
 			))}
 		</div>
 	),
-};
+}
 
 export const Sizes: Story = {
 	render: () => (
@@ -91,7 +93,7 @@ export const Sizes: Story = {
 			))}
 		</div>
 	),
-};
+}
 
 export const Colors: Story = {
 	render: () => (
@@ -106,12 +108,14 @@ export const Colors: Story = {
 						<Icon className="w-6 h-6 text-success-600" />
 						<Icon className="w-6 h-6 text-error-600" />
 					</div>
-					<span className="text-xs text-text-secondary text-center font-mono">{name}</span>
+					<span className="text-xs text-text-secondary text-center font-mono">
+						{name}
+					</span>
 				</div>
 			))}
 		</div>
 	),
-};
+}
 
 export const InButtons: Story = {
 	render: () => (
@@ -154,7 +158,7 @@ export const InButtons: Story = {
 			</div>
 		</div>
 	),
-};
+}
 
 export const IconList: Story = {
 	render: () => (
@@ -167,13 +171,16 @@ export const IconList: Story = {
 					<div className="flex-1">
 						<div className="font-mono text-sm text-text-primary">{name}</div>
 						<div className="text-xs text-text-secondary">
-							Import: <code className="bg-neutral-100 dark:bg-neutral-800 px-1 rounded">import {'{'}{name}{'}'} from '@/components/ui'</code>
+							Import:{' '}
+							<code className="bg-neutral-100 dark:bg-neutral-800 px-1 rounded">
+								import {'{'}
+								{name}
+								{'}'} from '@/components/ui'
+							</code>
 						</div>
 					</div>
 				</div>
 			))}
 		</div>
 	),
-};
-
-
+}

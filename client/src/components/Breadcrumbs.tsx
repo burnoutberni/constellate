@@ -48,9 +48,7 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
 								</span>
 							)}
 							{isLast ? (
-								<span
-									className="text-text-primary font-medium"
-									aria-current="page">
+								<span className="text-text-primary font-medium" aria-current="page">
 									{item.label}
 								</span>
 							) : item.href ? (
