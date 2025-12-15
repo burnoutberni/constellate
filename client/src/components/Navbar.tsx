@@ -156,17 +156,7 @@ export function Navbar({
 							{user ? (
 								<>
 									<NotificationBell userId={user.id} />
-									<UserMenu
-										user={{
-											id: user.id,
-											name: user.name,
-											email: user.email,
-											username: user.username,
-											image: user.image,
-										}}
-										isAdmin={isAdmin}
-										onLogout={onLogout}
-									/>
+									<UserMenu user={user} isAdmin={isAdmin} onLogout={onLogout} />
 								</>
 							) : (
 								<Link to="/login">
@@ -204,16 +194,7 @@ export function Navbar({
 			<MobileNav
 				isOpen={mobileMenuOpen}
 				onClose={handleCloseMobileMenu}
-				user={
-					user
-						? {
-								id: user.id,
-								name: user.name,
-								email: user.email,
-								username: user.username,
-							}
-						: null
-				}
+				user={user}
 				isAdmin={isAdmin}
 			/>
 		</>
