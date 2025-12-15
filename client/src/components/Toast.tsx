@@ -32,7 +32,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			clearTimeout(timer)
 			cancelAnimationFrame(rafId)
 		}
-	}, [toast.id, onDismiss])
+	}, [toast.id, toast.createdAt, onDismiss])
 
 	const variantStyles: Record<
 		ToastVariant,
@@ -42,6 +42,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			icon: string
 			ariaLive: 'polite' | 'assertive'
 			ariaLabel: string
+			buttonClasses: string
 		}
 	> = {
 		error: {
@@ -51,6 +52,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			icon: 'text-error-600 dark:text-error-400',
 			ariaLive: 'assertive',
 			ariaLabel: 'Error notification',
+			buttonClasses: 'hover:bg-error-100 dark:hover:bg-error-900 focus:ring-error-500',
 		},
 		success: {
 			container:
@@ -59,6 +61,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 			icon: 'text-success-600 dark:text-success-400',
 			ariaLive: 'polite',
 			ariaLabel: 'Success notification',
+			buttonClasses: 'hover:bg-success-100 dark:hover:bg-success-900 focus:ring-success-500',
 		},
 	}
 
@@ -88,12 +91,9 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 				size="sm"
 				className={cn(
 					'flex-shrink-0 h-6 w-6 p-0 rounded-md',
-					toast.variant === 'error'
-						? 'hover:bg-error-100 dark:hover:bg-error-900'
-						: 'hover:bg-success-100 dark:hover:bg-success-900',
 					'focus:outline-none focus:ring-2 focus:ring-offset-2',
-					toast.variant === 'error' ? 'focus:ring-error-500' : 'focus:ring-success-500',
-					'transition-colors duration-150'
+					'transition-colors duration-150',
+					styles.buttonClasses
 				)}
 				aria-label={`Dismiss ${toast.variant} notification`}>
 				<CloseIcon className={cn('w-4 h-4', styles.icon)} />
