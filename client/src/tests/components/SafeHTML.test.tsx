@@ -213,4 +213,50 @@ describe('SafeHTML Component', () => {
 		// Check that br tag exists in the rendered HTML
 		expect(paragraph.innerHTML).toContain('<br>')
 	})
+
+	it('should block javascript: protocol URLs', () => {
+		render(
+			<SafeHTML html="<p>Click <a href=&quot;javascript:alert('XSS')&quot;>here</a> for danger.</p>" />
+		)
+
+		const link = screen.queryByRole('link', { name: 'here' })
+		// javascript: protocol should be blocked by DOMPurify
+		// Link might not exist or href should be removed/stripped
+		if (link) {
+			expect(link).not.toHaveAttribute('href', expect.stringContaining('javascript:'))
+		}
+	})
+
+	it('should handle protocol-relative URLs as external links', () => {
+		render(<SafeHTML html='<p>Visit <a href="//example.com">Example</a> for more info.</p>' />)
+
+		const link = screen.getByRole('link', { name: 'Example' })
+		expect(link).toBeInTheDocument()
+		expect(link).toHaveAttribute('href', '//example.com')
+		// Protocol-relative URLs should be treated as external
+		expect(link).toHaveAttribute('target', '_blank')
+		expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+	})
+
+	it('should block data: protocol URLs for security', () => {
+		render(
+			<SafeHTML html='<p>Click <a href="data:text/html,<script>alert(1)</script>">here</a>.</p>' />
+		)
+
+		const link = screen.queryByRole('link', { name: 'here' })
+		// data: protocol should be blocked by DOMPurify
+		if (link) {
+			expect(link).not.toHaveAttribute('href', expect.stringContaining('data:'))
+		}
+	})
+
+	it('should handle relative URLs without target="_blank"', () => {
+		render(<SafeHTML html='<p>Visit <a href="/events">Events</a> page.</p>' />)
+
+		const link = screen.getByRole('link', { name: 'Events' })
+		expect(link).toBeInTheDocument()
+		expect(link).toHaveAttribute('href', '/events')
+		// Relative URLs should not have target="_blank"
+		expect(link).not.toHaveAttribute('target', '_blank')
+	})
 })
