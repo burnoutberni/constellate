@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
+
 import { CalendarNavigation } from './CalendarNavigation'
 
 const meta = {

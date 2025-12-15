@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { AuthProvider } from '@/contexts/AuthContext'
-import { InstanceList } from './InstanceList'
 import type { InstanceWithStats } from '@/types'
+
+import { InstanceList } from './InstanceList'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -96,17 +98,29 @@ const mockInstances: InstanceWithStats[] = [
 export const Default: Story = {
 	args: {
 		instances: mockInstances,
-		onBlock: (domain) => console.log('Block', domain),
-		onUnblock: (domain) => console.log('Unblock', domain),
-		onRefresh: (domain) => console.log('Refresh', domain),
+		onBlock: (_domain) => {
+			// Block handler
+		},
+		onUnblock: (_domain) => {
+			// Unblock handler
+		},
+		onRefresh: (_domain) => {
+			// Refresh handler
+		},
 	},
 }
 
 export const Empty: Story = {
 	args: {
 		instances: [],
-		onBlock: (domain) => console.log('Block', domain),
-		onUnblock: (domain) => console.log('Unblock', domain),
-		onRefresh: (domain) => console.log('Refresh', domain),
+		onBlock: (_domain) => {
+			// Block handler
+		},
+		onUnblock: (_domain) => {
+			// Unblock handler
+		},
+		onRefresh: (_domain) => {
+			// Refresh handler
+		},
 	},
 }

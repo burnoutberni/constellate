@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { InstanceStats } from './InstanceStats'
+
 import type { InstanceWithStats } from '@/types'
+
+import { InstanceStats } from './InstanceStats'
 
 const meta = {
 	title: 'Components/InstanceStats',
@@ -17,10 +19,10 @@ type Story = StoryObj<typeof InstanceStats>
 const mockInstance: InstanceWithStats = {
 	id: '1',
 	domain: 'example.com',
-	lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-	blocked: false,
-	userCount: 42,
-	eventCount: 128,
+	baseUrl: 'https://example.com',
+	isBlocked: false,
+	createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+	updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
 	stats: {
 		remoteUsers: 15,
 		remoteEvents: 35,
@@ -52,8 +54,6 @@ export const LargeNumbers: Story = {
 	args: {
 		instance: {
 			...mockInstance,
-			userCount: 1234,
-			eventCount: 5678,
 			stats: {
 				remoteUsers: 567,
 				remoteEvents: 1234,

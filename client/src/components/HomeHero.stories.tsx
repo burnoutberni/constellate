@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { HomeHero } from './HomeHero'
 
 const meta = {

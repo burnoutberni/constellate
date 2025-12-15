@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
+
+import type { Event } from '@/types'
+
 import { CalendarEventPopup } from './CalendarEventPopup'
 import { Button } from './ui'
-import type { Event } from '@/types'
 
 const mockEvent: Event = {
 	id: '1',
@@ -13,14 +15,15 @@ const mockEvent: Event = {
 	location: 'Central Park, New York',
 	url: 'https://example.com/festival',
 	visibility: 'PUBLIC',
+	timezone: 'America/New_York',
+	tags: [],
 	user: {
 		id: 'user1',
 		username: 'johndoe',
 		name: 'John Doe',
 		profileImage: 'https://i.pravatar.cc/150?img=12',
+		isRemote: false,
 	},
-	createdAt: new Date().toISOString(),
-	updatedAt: new Date().toISOString(),
 }
 
 // Interactive preview for Docs page - renders popup open by default
@@ -113,12 +116,16 @@ const PopupWrapper = () => {
 					event={mockEvent}
 					position={{ x: 400, y: 200 }}
 					onClose={() => setIsOpen(false)}
-					onNavigateToEvent={(id) => {
-						console.log('Navigate to', id)
+					onNavigateToEvent={(_id) => {
+						// Navigate handler
 						setIsOpen(false)
 					}}
-					onExportICS={(id) => console.log('Export ICS', id)}
-					onExportGoogle={(id) => console.log('Export Google', id)}
+					onExportICS={(_id) => {
+						// Export ICS handler
+					}}
+					onExportGoogle={(_id) => {
+						// Export Google handler
+					}}
 				/>
 			)}
 		</>

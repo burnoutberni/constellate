@@ -17,7 +17,6 @@ import {
 	useMarkAllNotificationsRead,
 } from '@/hooks/queries'
 
-import { BellIcon } from '@/components/ui'
 import { NotificationItem } from './NotificationItem'
 
 interface NotificationBellProps {

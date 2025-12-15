@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { TemplateList, type EventTemplate } from './TemplateList'
+
+import { type EventTemplate } from './TemplateCard'
+import { TemplateList } from './TemplateList'
 
 const meta = {
 	title: 'Components/TemplateList',
@@ -23,6 +25,8 @@ const mockTemplates: EventTemplate[] = [
 			summary: 'Weekly team synchronization',
 			location: 'Conference Room A',
 		},
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
 	},
 	{
 		id: '2',
@@ -33,6 +37,8 @@ const mockTemplates: EventTemplate[] = [
 			summary: 'Annual technology conference',
 			location: 'Convention Center',
 		},
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
 	},
 	{
 		id: '3',
@@ -42,16 +48,26 @@ const mockTemplates: EventTemplate[] = [
 			title: 'Design Workshop',
 			summary: 'Interactive design workshop',
 		},
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
 	},
 ]
 
 export const Default: Story = {
 	args: {
 		templates: mockTemplates,
-		onEdit: (template) => console.log('Edit', template),
-		onDelete: (id) => console.log('Delete', id),
-		onPreview: (template) => console.log('Preview', template),
-		onUse: (template) => console.log('Use', template),
+		onEdit: (_template) => {
+			// Edit handler
+		},
+		onDelete: (_id) => {
+			// Delete handler
+		},
+		onPreview: (_template) => {
+			// Preview handler
+		},
+		onUse: (_template) => {
+			// Use handler
+		},
 	},
 }
 
@@ -59,10 +75,18 @@ export const Loading: Story = {
 	args: {
 		templates: [],
 		loading: true,
-		onEdit: (template) => console.log('Edit', template),
-		onDelete: (id) => console.log('Delete', id),
-		onPreview: (template) => console.log('Preview', template),
-		onUse: (template) => console.log('Use', template),
+		onEdit: (_template) => {
+			// Edit handler
+		},
+		onDelete: (_id) => {
+			// Delete handler
+		},
+		onPreview: (_template) => {
+			// Preview handler
+		},
+		onUse: (_template) => {
+			// Use handler
+		},
 	},
 }
 
@@ -70,9 +94,17 @@ export const Empty: Story = {
 	args: {
 		templates: [],
 		loading: false,
-		onEdit: (template) => console.log('Edit', template),
-		onDelete: (id) => console.log('Delete', id),
-		onPreview: (template) => console.log('Preview', template),
-		onUse: (template) => console.log('Use', template),
+		onEdit: (_template) => {
+			// Edit handler
+		},
+		onDelete: (_id) => {
+			// Delete handler
+		},
+		onPreview: (_template) => {
+			// Preview handler
+		},
+		onUse: (_template) => {
+			// Use handler
+		},
 	},
 }

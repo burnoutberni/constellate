@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useEffect } from 'react'
+
 import { useUIStore } from '@/stores'
+
 import { ErrorToasts } from './ErrorToasts'
 
 const meta = {
@@ -19,8 +21,8 @@ const ToastWrapper = () => {
 	const addErrorToast = useUIStore((state) => state.addErrorToast)
 
 	useEffect(() => {
-		addErrorToast('An error occurred')
-		addErrorToast('Another error occurred', { duration: 5000 })
+		addErrorToast({ id: crypto.randomUUID(), message: 'An error occurred' })
+		addErrorToast({ id: crypto.randomUUID(), message: 'Another error occurred' })
 	}, [addErrorToast])
 
 	return <ErrorToasts />

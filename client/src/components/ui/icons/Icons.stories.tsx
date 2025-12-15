@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import {
 	AddIcon,
 	ArrowRightIcon,
@@ -175,7 +176,7 @@ export const IconList: Story = {
 							<code className="bg-neutral-100 dark:bg-neutral-800 px-1 rounded">
 								import {'{'}
 								{name}
-								{'}'} from '@/components/ui'
+								{'}'} from &apos;@/components/ui&apos;
 							</code>
 						</div>
 					</div>

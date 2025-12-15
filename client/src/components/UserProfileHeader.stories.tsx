@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { MemoryRouter } from 'react-router-dom'
-import { UserProfileHeader } from './UserProfileHeader'
+
 import type { UserProfile } from '@/types'
+
+import { UserProfileHeader } from './UserProfileHeader'
 
 const meta = {
 	title: 'Components/UserProfileHeader',
@@ -28,10 +30,11 @@ const mockUser: UserProfile = {
 	name: 'John Doe',
 	bio: 'Event organizer and music enthusiast',
 	profileImage: 'https://i.pravatar.cc/150?img=12',
-	displayColor: null,
+	displayColor: '#3b82f6',
 	isRemote: false,
 	externalActorUrl: null,
 	createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+	timezone: 'America/New_York',
 }
 
 export const Default: Story = {
@@ -42,10 +45,18 @@ export const Default: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => console.log('Follow'),
-		onUnfollowClick: () => console.log('Unfollow'),
-		onFollowersClick: () => console.log('Followers'),
-		onFollowingClick: () => console.log('Following'),
+		onFollowClick: () => {
+			// Follow handler
+		},
+		onUnfollowClick: () => {
+			// Unfollow handler
+		},
+		onFollowersClick: () => {
+			// Followers handler
+		},
+		onFollowingClick: () => {
+			// Following handler
+		},
 	},
 }
 
@@ -57,8 +68,12 @@ export const OwnProfile: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: false,
-		onFollowersClick: () => console.log('Followers'),
-		onFollowingClick: () => console.log('Following'),
+		onFollowersClick: () => {
+			// Followers handler
+		},
+		onFollowingClick: () => {
+			// Following handler
+		},
 	},
 }
 
@@ -71,7 +86,9 @@ export const Following: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onUnfollowClick: () => console.log('Unfollow'),
+		onUnfollowClick: () => {
+			// Unfollow handler
+		},
 	},
 }
 
@@ -96,7 +113,9 @@ export const WithHeaderImage: Story = {
 		eventCount: 8,
 		showFollowButton: true,
 		headerImageUrl: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbaf53?w=1200',
-		onFollowClick: () => console.log('Follow'),
+		onFollowClick: () => {
+			// Follow handler
+		},
 	},
 }
 
@@ -112,7 +131,9 @@ export const RemoteUser: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => console.log('Follow'),
+		onFollowClick: () => {
+			// Follow handler
+		},
 	},
 }
 
@@ -127,6 +148,8 @@ export const NoBio: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => console.log('Follow'),
+		onFollowClick: () => {
+			// Follow handler
+		},
 	},
 }

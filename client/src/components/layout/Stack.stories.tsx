@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Stack } from './Stack'
+import React from 'react'
+
 import { Card } from '../ui'
+
+import { Stack } from './Stack'
 
 const meta = {
 	title: 'Layout/Stack',

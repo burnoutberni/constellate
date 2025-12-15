@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
 import { api } from '@/lib/api-client'
+
 import { SearchSuggestions } from './SearchSuggestions'
 
 const queryClient = new QueryClient({
@@ -12,10 +14,15 @@ const queryClient = new QueryClient({
 
 // Mock API responses for Storybook
 const originalGet = api.get.bind(api)
-;(api.get as any) = async (url: string, params?: any) => {
+;(api.get as typeof api.get) = async <T,>(
+	url: string,
+	queryParams?: Record<string, string | number | boolean | undefined>,
+	options?: RequestInit,
+	baseErrorMessage?: string
+): Promise<T> => {
 	if (url === '/search/suggestions') {
 		// Return mock suggestions based on query
-		const query = params?.q || ''
+		const query = (queryParams?.q as string) || ''
 		return {
 			tags: [
 				{ tag: 'music', count: 42 },
@@ -25,9 +32,9 @@ const originalGet = api.get.bind(api)
 			locations: ['New York', 'San Francisco', 'Los Angeles'].filter((loc) =>
 				loc.toLowerCase().includes(query.toLowerCase())
 			),
-		}
+		} as T
 	}
-	return originalGet(url, params)
+	return originalGet<T>(url, queryParams, options, baseErrorMessage)
 }
 
 // Mock localStorage for recent searches
@@ -60,20 +67,26 @@ type Story = StoryObj<typeof SearchSuggestions>
 export const Default: Story = {
 	args: {
 		query: 'music',
-		onSelect: (suggestion) => console.log('Select', suggestion),
+		onSelect: (_suggestion) => {
+			// Select handler
+		},
 	},
 }
 
 export const ShortQuery: Story = {
 	args: {
 		query: 'm',
-		onSelect: (suggestion) => console.log('Select', suggestion),
+		onSelect: (_suggestion) => {
+			// Select handler
+		},
 	},
 }
 
 export const EmptyQuery: Story = {
 	args: {
 		query: '',
-		onSelect: (suggestion) => console.log('Select', suggestion),
+		onSelect: (_suggestion) => {
+			// Select handler
+		},
 	},
 }

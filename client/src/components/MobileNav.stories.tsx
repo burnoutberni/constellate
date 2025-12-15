@@ -1,18 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { MemoryRouter } from 'react-router-dom'
+
 import { MobileNav } from './MobileNav'
 import { Button } from './ui'
 
 // Simple wrapper that prevents route-change closes in Storybook
-const StoryWrapper = (args: React.ComponentProps<typeof MobileNav>) => {
-	return (
-		<MemoryRouter initialEntries={['/']}>
-			<StoryWrapperInner {...args} />
-		</MemoryRouter>
-	)
-}
-
 const StoryWrapperInner = (args: React.ComponentProps<typeof MobileNav>) => {
 	const [isOpen, setIsOpen] = useState(true)
 	const ignoreRouteCloseRef = useRef(true)
@@ -82,7 +75,8 @@ const StoryWrapperInner = (args: React.ComponentProps<typeof MobileNav>) => {
 				const containers = document.querySelectorAll(selector)
 				containers.forEach((container) => {
 					if (container) {
-						;(container as HTMLElement).scrollTop = 0
+						const element = container as HTMLElement
+						element.scrollTop = 0
 					}
 				})
 			}
@@ -123,6 +117,14 @@ const StoryWrapperInner = (args: React.ComponentProps<typeof MobileNav>) => {
 			<Button onClick={() => setIsOpen(true)}>Open Mobile Nav</Button>
 			<MobileNav {...restArgs} isOpen={isOpen} onClose={handleClose} />
 		</div>
+	)
+}
+
+const StoryWrapper = (args: React.ComponentProps<typeof MobileNav>) => {
+	return (
+		<MemoryRouter initialEntries={['/']}>
+			<StoryWrapperInner {...args} />
+		</MemoryRouter>
 	)
 }
 
@@ -174,14 +176,6 @@ export const Default: Story = {
 		},
 		layout: 'fullscreen',
 	},
-}
-
-const WithAdminWrapper = () => {
-	return (
-		<MemoryRouter initialEntries={['/']}>
-			<WithAdminWrapperInner />
-		</MemoryRouter>
-	)
 }
 
 const WithAdminWrapperInner = () => {
@@ -256,6 +250,14 @@ const WithAdminWrapperInner = () => {
 	)
 }
 
+const WithAdminWrapper = () => {
+	return (
+		<MemoryRouter initialEntries={['/']}>
+			<WithAdminWrapperInner />
+		</MemoryRouter>
+	)
+}
+
 export const WithAdmin: Story = {
 	render: () => <WithAdminWrapper />,
 	parameters: {
@@ -269,14 +271,6 @@ export const WithAdmin: Story = {
 		},
 		layout: 'fullscreen',
 	},
-}
-
-const NoUserWrapper = () => {
-	return (
-		<MemoryRouter initialEntries={['/']}>
-			<NoUserWrapperInner />
-		</MemoryRouter>
-	)
 }
 
 const NoUserWrapperInner = () => {
@@ -341,6 +335,14 @@ const NoUserWrapperInner = () => {
 			<Button onClick={() => setIsOpen(true)}>Open Menu</Button>
 			<MobileNav isOpen={isOpen} onClose={handleClose} />
 		</div>
+	)
+}
+
+const NoUserWrapper = () => {
+	return (
+		<MemoryRouter initialEntries={['/']}>
+			<NoUserWrapperInner />
+		</MemoryRouter>
 	)
 }
 

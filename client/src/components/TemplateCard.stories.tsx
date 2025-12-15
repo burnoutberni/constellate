@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { TemplateCard, type EventTemplate } from './TemplateCard'
 
 const meta = {
@@ -43,20 +44,36 @@ const minimalTemplate: EventTemplate = {
 export const Default: Story = {
 	args: {
 		template: mockTemplate,
-		onEdit: (template) => console.log('Edit', template),
-		onDelete: (id) => console.log('Delete', id),
-		onPreview: (template) => console.log('Preview', template),
-		onUse: (template) => console.log('Use', template),
+		onEdit: (_template) => {
+			// Edit handler
+		},
+		onDelete: (_id) => {
+			// Delete handler
+		},
+		onPreview: (_template) => {
+			// Preview handler
+		},
+		onUse: (_template) => {
+			// Use handler
+		},
 	},
 }
 
 export const Minimal: Story = {
 	args: {
 		template: minimalTemplate,
-		onEdit: (template) => console.log('Edit', template),
-		onDelete: (id) => console.log('Delete', id),
-		onPreview: (template) => console.log('Preview', template),
-		onUse: (template) => console.log('Use', template),
+		onEdit: (_template) => {
+			// Edit handler
+		},
+		onDelete: (_id) => {
+			// Delete handler
+		},
+		onPreview: (_template) => {
+			// Preview handler
+		},
+		onUse: (_template) => {
+			// Use handler
+		},
 	},
 }
 
@@ -65,17 +82,33 @@ export const Grid: Story = {
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			<TemplateCard
 				template={mockTemplate}
-				onEdit={(t) => console.log('Edit', t)}
-				onDelete={(id) => console.log('Delete', id)}
-				onPreview={(t) => console.log('Preview', t)}
-				onUse={(t) => console.log('Use', t)}
+				onEdit={(_t) => {
+					// Edit handler
+				}}
+				onDelete={(_id) => {
+					// Delete handler
+				}}
+				onPreview={(_t) => {
+					// Preview handler
+				}}
+				onUse={(_t) => {
+					// Use handler
+				}}
 			/>
 			<TemplateCard
 				template={minimalTemplate}
-				onEdit={(t) => console.log('Edit', t)}
-				onDelete={(id) => console.log('Delete', id)}
-				onPreview={(t) => console.log('Preview', t)}
-				onUse={(t) => console.log('Use', t)}
+				onEdit={(_t) => {
+					// Edit handler
+				}}
+				onDelete={(_id) => {
+					// Delete handler
+				}}
+				onPreview={(_t) => {
+					// Preview handler
+				}}
+				onUse={(_t) => {
+					// Use handler
+				}}
 			/>
 			<TemplateCard
 				template={{
@@ -84,10 +117,18 @@ export const Grid: Story = {
 					name: 'Conference Template',
 					description: 'Template for conference events',
 				}}
-				onEdit={(t) => console.log('Edit', t)}
-				onDelete={(id) => console.log('Delete', id)}
-				onPreview={(t) => console.log('Preview', t)}
-				onUse={(t) => console.log('Use', t)}
+				onEdit={(_t) => {
+					// Edit handler
+				}}
+				onDelete={(_id) => {
+					// Delete handler
+				}}
+				onPreview={(_t) => {
+					// Preview handler
+				}}
+				onUse={(_t) => {
+					// Use handler
+				}}
 			/>
 		</div>
 	),

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
 import { AuthContext } from '@/contexts/AuthContext'
 import { queryKeys } from '@/hooks/queries'
+
 import { FollowButton } from './FollowButton'
 
 const queryClient = new QueryClient({

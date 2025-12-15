@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { AuthProvider } from '@/contexts/AuthContext'
+
 import { AccountSettings } from './AccountSettings'
 
 const queryClient = new QueryClient({

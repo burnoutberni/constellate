@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { api } from '@/lib/api-client'
+
 import { queryKeys } from '@/hooks/queries'
+import { api } from '@/lib/api-client'
 import type { EventRecommendationPayload } from '@/types'
+
 import { RecommendedEvents } from './RecommendedEvents'
 
 // Mock recommendations data
@@ -76,9 +78,14 @@ const mockRecommendations: EventRecommendationPayload[] = [
 
 // Mock API call for recommendations
 const originalGet = api.get.bind(api)
-;(api.get as any) = async (url: string, params?: any) => {
+;(api.get as typeof api.get) = async <T,>(
+	url: string,
+	queryParams?: Record<string, string | number | boolean | undefined>,
+	options?: RequestInit,
+	baseErrorMessage?: string
+): Promise<T> => {
 	if (url === '/recommendations') {
-		const limit = params?.limit || 6
+		const limit = (queryParams?.limit as number) || 6
 		return {
 			recommendations: limit === 3 ? mockRecommendations.slice(0, 3) : mockRecommendations,
 			metadata: {
@@ -89,9 +96,9 @@ const originalGet = api.get.bind(api)
 					followed: 1,
 				},
 			},
-		}
+		} as T
 	}
-	return originalGet(url, params)
+	return originalGet<T>(url, queryParams, options, baseErrorMessage)
 }
 
 // Create a function to set up the query client with mock data
@@ -102,7 +109,7 @@ const createQueryClient = () => {
 				retry: false,
 				// Use cached data and don't refetch
 				staleTime: Infinity,
-				cacheTime: Infinity,
+				gcTime: Infinity,
 			},
 			mutations: { retry: false },
 		},

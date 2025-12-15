@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
 import { PrivacySettings } from './PrivacySettings'
 
 const queryClient = new QueryClient({

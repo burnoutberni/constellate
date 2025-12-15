@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
+
 import { EyeIcon, SearchIcon } from '@/components/ui'
+
 import { Input } from './Input'
 
 const meta = {

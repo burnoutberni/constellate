@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
-import { VisibilitySelector } from './VisibilitySelector'
+
 import type { EventVisibility } from '@/types'
+
+import { VisibilitySelector } from './VisibilitySelector'
 
 const meta = {
 	title: 'Components/VisibilitySelector',
@@ -33,30 +35,38 @@ export const Default: Story = {
 	render: () => <SelectorWrapper />,
 }
 
+const PublicWrapper = () => {
+	const [value, setValue] = useState<EventVisibility>('PUBLIC')
+	return <VisibilitySelector value={value} onChange={setValue} />
+}
+
 export const Public: Story = {
-	render: () => {
-		const [value, setValue] = useState<EventVisibility>('PUBLIC')
-		return <VisibilitySelector value={value} onChange={setValue} />
-	},
+	render: () => <PublicWrapper />,
+}
+
+const FollowersWrapper = () => {
+	const [value, setValue] = useState<EventVisibility>('FOLLOWERS')
+	return <VisibilitySelector value={value} onChange={setValue} />
 }
 
 export const Followers: Story = {
-	render: () => {
-		const [value, setValue] = useState<EventVisibility>('FOLLOWERS')
-		return <VisibilitySelector value={value} onChange={setValue} />
-	},
+	render: () => <FollowersWrapper />,
+}
+
+const UnlistedWrapper = () => {
+	const [value, setValue] = useState<EventVisibility>('UNLISTED')
+	return <VisibilitySelector value={value} onChange={setValue} />
 }
 
 export const Unlisted: Story = {
-	render: () => {
-		const [value, setValue] = useState<EventVisibility>('UNLISTED')
-		return <VisibilitySelector value={value} onChange={setValue} />
-	},
+	render: () => <UnlistedWrapper />,
+}
+
+const PrivateWrapper = () => {
+	const [value, setValue] = useState<EventVisibility>('PRIVATE')
+	return <VisibilitySelector value={value} onChange={setValue} />
 }
 
 export const Private: Story = {
-	render: () => {
-		const [value, setValue] = useState<EventVisibility>('PRIVATE')
-		return <VisibilitySelector value={value} onChange={setValue} />
-	},
+	render: () => <PrivateWrapper />,
 }

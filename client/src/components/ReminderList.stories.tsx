@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { ReminderList } from './ReminderList'
+
 import type { ReminderWithEvent } from '@/types'
+
+import { ReminderList } from './ReminderList'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -117,6 +119,8 @@ export const Empty: Story = {
 export const WithDelete: Story = {
 	args: {
 		reminders: mockReminders,
-		onDelete: (reminderId, eventId) => console.log('Delete', reminderId, eventId),
+		onDelete: (_reminderId, _eventId) => {
+			// Delete handler
+		},
 	},
 }

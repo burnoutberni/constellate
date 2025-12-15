@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
+
 import { ReminderSelector } from './ReminderSelector'
 
 const meta = {
@@ -48,7 +49,9 @@ export const Default: Story = {
 export const NotAuthenticated: Story = {
 	args: {
 		value: null,
-		onChange: (v) => console.log('Change', v),
+		onChange: (_v) => {
+			// Change handler
+		},
 		isAuthenticated: false,
 		canManageReminder: false,
 		isPending: false,
@@ -59,7 +62,9 @@ export const NotAuthenticated: Story = {
 export const CannotManage: Story = {
 	args: {
 		value: null,
-		onChange: (v) => console.log('Change', v),
+		onChange: (_v) => {
+			// Change handler
+		},
 		isAuthenticated: true,
 		canManageReminder: false,
 		isPending: false,
@@ -70,7 +75,9 @@ export const CannotManage: Story = {
 export const Pending: Story = {
 	args: {
 		value: 30,
-		onChange: (v) => console.log('Change', v),
+		onChange: (_v) => {
+			// Change handler
+		},
 		isAuthenticated: true,
 		canManageReminder: true,
 		isPending: true,
@@ -81,7 +88,9 @@ export const Pending: Story = {
 export const EventStarted: Story = {
 	args: {
 		value: null,
-		onChange: (v) => console.log('Change', v),
+		onChange: (_v) => {
+			// Change handler
+		},
 		isAuthenticated: true,
 		canManageReminder: true,
 		isPending: false,

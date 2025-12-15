@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { AuthProvider } from '@/contexts/AuthContext'
-import { InstanceCard } from './InstanceCard'
 import type { InstanceWithStats } from '@/types'
+
+import { InstanceCard } from './InstanceCard'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -36,21 +38,32 @@ export default meta
 type Story = StoryObj<typeof InstanceCard>
 
 const mockInstance: InstanceWithStats = {
+	id: '1',
 	domain: 'example.com',
-	lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-	blocked: false,
+	baseUrl: 'https://example.com',
+	isBlocked: false,
+	createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+	updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
 	stats: {
-		userCount: 42,
-		eventCount: 128,
+		remoteUsers: 42,
+		remoteEvents: 128,
+		localFollowing: 15,
+		localFollowers: 8,
 	},
 }
 
 export const Default: Story = {
 	args: {
 		instance: mockInstance,
-		onBlock: (domain) => console.log('Block', domain),
-		onUnblock: (domain) => console.log('Unblock', domain),
-		onRefresh: (domain) => console.log('Refresh', domain),
+		onBlock: (_domain) => {
+			// Block handler
+		},
+		onUnblock: (_domain) => {
+			// Unblock handler
+		},
+		onRefresh: (_domain) => {
+			// Refresh handler
+		},
 	},
 }
 
@@ -58,11 +71,17 @@ export const Blocked: Story = {
 	args: {
 		instance: {
 			...mockInstance,
-			blocked: true,
+			isBlocked: true,
 		},
-		onBlock: (domain) => console.log('Block', domain),
-		onUnblock: (domain) => console.log('Unblock', domain),
-		onRefresh: (domain) => console.log('Refresh', domain),
+		onBlock: (_domain) => {
+			// Block handler
+		},
+		onUnblock: (_domain) => {
+			// Unblock handler
+		},
+		onRefresh: (_domain) => {
+			// Refresh handler
+		},
 	},
 }
 
@@ -70,10 +89,20 @@ export const NoStats: Story = {
 	args: {
 		instance: {
 			...mockInstance,
-			stats: null,
+			stats: {
+				remoteUsers: 0,
+				remoteEvents: 0,
+				localFollowing: 0,
+			},
 		},
-		onBlock: (domain) => console.log('Block', domain),
-		onUnblock: (domain) => console.log('Unblock', domain),
-		onRefresh: (domain) => console.log('Refresh', domain),
+		onBlock: (_domain) => {
+			// Block handler
+		},
+		onUnblock: (_domain) => {
+			// Unblock handler
+		},
+		onRefresh: (_domain) => {
+			// Refresh handler
+		},
 	},
 }

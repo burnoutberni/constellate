@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
 import { CommentForm } from './CommentForm'
 
 const queryClient = new QueryClient({
@@ -30,8 +31,7 @@ type Story = StoryObj<typeof CommentForm>
 
 export const Default: Story = {
 	args: {
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
 			await new Promise((resolve) => setTimeout(resolve, 1000))
 		},
 	},
@@ -40,8 +40,8 @@ export const Default: Story = {
 export const WithPlaceholder: Story = {
 	args: {
 		placeholder: 'Write your comment here...',
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
+			// Submit handler
 		},
 	},
 }
@@ -49,8 +49,8 @@ export const WithPlaceholder: Story = {
 export const WithInitialValue: Story = {
 	args: {
 		initialValue: 'This is a pre-filled comment',
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
+			// Submit handler
 		},
 	},
 }
@@ -58,25 +58,27 @@ export const WithInitialValue: Story = {
 export const CustomLabel: Story = {
 	args: {
 		submitLabel: 'Reply',
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
+			// Submit handler
 		},
 	},
 }
 
 export const WithCancel: Story = {
 	args: {
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
+			// Submit handler
 		},
-		onCancel: () => console.log('Canceled'),
+		onCancel: () => {
+			// Cancel handler
+		},
 	},
 }
 
 export const Submitting: Story = {
 	args: {
 		isSubmitting: true,
-		onSubmit: async (content) => {
+		onSubmit: async (_content) => {
 			await new Promise((resolve) => setTimeout(resolve, 2000))
 		},
 	},
@@ -85,8 +87,8 @@ export const Submitting: Story = {
 export const AutoFocus: Story = {
 	args: {
 		autoFocus: true,
-		onSubmit: async (content) => {
-			console.log('Submit:', content)
+		onSubmit: async (_content) => {
+			// Submit handler
 		},
 	},
 }

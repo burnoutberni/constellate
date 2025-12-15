@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import { CommentList } from './CommentList'
+
 import type { CommentWithMentions } from '@/types'
+
+import { CommentList } from './CommentList'
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -42,6 +44,7 @@ const mockComments: CommentWithMentions[] = [
 			username: 'alice',
 			name: 'Alice Smith',
 			profileImage: 'https://i.pravatar.cc/150?img=1',
+			isRemote: false,
 		},
 		mentions: [],
 	},
@@ -54,6 +57,7 @@ const mockComments: CommentWithMentions[] = [
 			username: 'bob',
 			name: 'Bob Johnson',
 			profileImage: 'https://i.pravatar.cc/150?img=2',
+			isRemote: false,
 		},
 		mentions: [],
 	},
@@ -63,13 +67,15 @@ export const Default: Story = {
 	args: {
 		comments: mockComments,
 		isAuthenticated: true,
-		onAddComment: async (content) => {
-			console.log('Add comment:', content)
+		onAddComment: async (_content) => {
+			// Add comment handler
 		},
-		onReply: async (parentId, content) => {
-			console.log('Reply to', parentId, ':', content)
+		onReply: async (_parentId, _content) => {
+			// Reply handler
 		},
-		onDelete: (id) => console.log('Delete', id),
+		onDelete: (_id) => {
+			// Delete handler
+		},
 	},
 }
 
@@ -77,8 +83,8 @@ export const Empty: Story = {
 	args: {
 		comments: [],
 		isAuthenticated: true,
-		onAddComment: async (content) => {
-			console.log('Add comment:', content)
+		onAddComment: async (_content) => {
+			// Add comment handler
 		},
 	},
 }
@@ -87,7 +93,9 @@ export const NotAuthenticated: Story = {
 	args: {
 		comments: mockComments,
 		isAuthenticated: false,
-		onSignUpPrompt: () => console.log('Sign up'),
+		onSignUpPrompt: () => {
+			// Sign up prompt handler
+		},
 	},
 }
 
@@ -96,7 +104,7 @@ export const AddingComment: Story = {
 		comments: mockComments,
 		isAuthenticated: true,
 		isAddingComment: true,
-		onAddComment: async (content) => {
+		onAddComment: async (_content) => {
 			await new Promise((resolve) => setTimeout(resolve, 2000))
 		},
 	},

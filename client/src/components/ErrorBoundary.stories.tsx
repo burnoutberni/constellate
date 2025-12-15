@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import React, { useState } from 'react'
+import { useState } from 'react'
+
 import { ErrorBoundary } from './ErrorBoundary'
 import { Button } from './ui'
 
@@ -42,8 +43,8 @@ const InteractiveWrapper = () => {
 			<ErrorBoundary
 				key={key}
 				resetKeys={[shouldThrow ? 'error' : 'normal']}
-				onError={(error, errorInfo) => {
-					console.log('Error caught:', error, errorInfo)
+				onError={(_error, _errorInfo) => {
+					// Error caught handler
 				}}>
 				<ThrowError shouldThrow={shouldThrow} />
 			</ErrorBoundary>
@@ -82,8 +83,8 @@ export const Default: Story = {
 export const WithError: Story = {
 	args: {
 		children: <ThrowErrorSimple />,
-		onError: (error, errorInfo) => {
-			console.log('Error caught:', error, errorInfo)
+		onError: (_error, _errorInfo) => {
+			// Error caught handler
 		},
 	},
 }

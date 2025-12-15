@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+
 import { queryKeys } from '@/hooks/queries'
 import type { Event } from '@/types'
+
 import { TrendingEvents } from './TrendingEvents'
 
 // Mock trending events data
