@@ -62,26 +62,21 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 			],
 			ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
 			ALLOWED_URI_REGEXP:
-				/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
-			// Add security attributes to links
-			ADD_ATTR: ['target', 'rel'],
+				/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+\-.]+(?:[^a-z+.\-:]|$))/i,
 		})
 
-		// Post-process to ensure all external links have rel="noopener noreferrer"
-		// This is a safety measure in case DOMPurify doesn't add it automatically
-		return sanitized.replace(/<a\s+([^>]*href=["'][^"']*["'][^>]*)>/gi, (match, attrs) => {
-			// Check if it's an external link (starts with http:// or https://)
-			if (/href=["']https?:\/\//i.test(attrs)) {
-				// Add rel="noopener noreferrer" if not already present
-				if (!/rel=/i.test(attrs)) {
-					return `<a ${attrs} rel="noopener noreferrer">`
-				} else if (!/rel=["'][^"']*noopener/i.test(attrs)) {
-					// Add noopener to existing rel attribute
-					return match.replace(/rel=["']([^"']*)["']/i, 'rel="$1 noopener noreferrer"')
-				}
-			}
-			return match
+		// Post-process the sanitized HTML to safely add attributes to external links.
+		// This is safer than using regex on HTML strings.
+		if (typeof window === 'undefined') {
+			return sanitized // Cannot post-process on the server, return sanitized HTML.
+		}
+		const doc = new DOMParser().parseFromString(sanitized, 'text/html')
+		doc.querySelectorAll('a[href^="http"]').forEach((link) => {
+			link.setAttribute('target', '_blank')
+			link.setAttribute('rel', 'noopener noreferrer')
 		})
+		// Only return the content of the body, to avoid returning <html><head></head><body>...</body></html>
+		return doc.body.innerHTML
 	}, [html])
 
 	// If no HTML content, return null

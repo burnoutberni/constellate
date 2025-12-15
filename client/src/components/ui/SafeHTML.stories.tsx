@@ -64,12 +64,8 @@ export const Headings: Story = {
 export const Lists: Story = {
 	render: () => (
 		<div className="space-y-4">
-			<SafeHTML
-				html="<ul><li>Unordered list item 1</li><li>Unordered list item 2</li><li>Unordered list item 3</li></ul>"
-			/>
-			<SafeHTML
-				html="<ol><li>Ordered list item 1</li><li>Ordered list item 2</li><li>Ordered list item 3</li></ol>"
-			/>
+			<SafeHTML html="<ul><li>Unordered list item 1</li><li>Unordered list item 2</li><li>Unordered list item 3</li></ul>" />
+			<SafeHTML html="<ol><li>Ordered list item 1</li><li>Ordered list item 2</li><li>Ordered list item 3</li></ol>" />
 		</div>
 	),
 }
@@ -78,11 +74,10 @@ export const Links: Story = {
 	render: () => (
 		<div className="space-y-2">
 			<SafeHTML html='<p>Visit <a href="https://example.com">Example.com</a> for more info.</p>' />
-			<SafeHTML
-				html='<p>Email us at <a href="mailto:contact@example.com">contact@example.com</a></p>'
-			/>
+			<SafeHTML html='<p>Email us at <a href="mailto:contact@example.com">contact@example.com</a></p>' />
 			<p className="text-sm text-gray-500 mt-4">
-				Note: External links automatically get rel="noopener noreferrer" for security.
+				Note: External links automatically get rel=&quot;noopener noreferrer&quot; for
+				security.
 			</p>
 		</div>
 	),
@@ -92,9 +87,7 @@ export const CodeBlocks: Story = {
 	render: () => (
 		<div className="space-y-4">
 			<SafeHTML html="<p>Use <code>console.log()</code> to debug.</p>" />
-			<SafeHTML
-				html='<pre><code>function hello() {\n  console.log("Hello, world!");\n}</code></pre>'
-			/>
+			<SafeHTML html='<pre><code>function hello() {\n  console.log("Hello, world!");\n}</code></pre>' />
 		</div>
 	),
 }
@@ -127,25 +120,23 @@ export const XSSProtection: Story = {
 		<div className="space-y-4">
 			<div>
 				<p className="text-sm font-semibold mb-2">Dangerous content is stripped:</p>
-				<SafeHTML
-					html='<p>Safe content</p><script>alert("XSS")</script><p>More safe content</p>'
-				/>
+				<SafeHTML html='<p>Safe content</p><script>alert("XSS")</script><p>More safe content</p>' />
 				<p className="text-xs text-gray-500 mt-2">
 					The {'<script>'} tag was removed - check the rendered output above.
 				</p>
 			</div>
 			<div>
 				<p className="text-sm font-semibold mb-2">Iframes are blocked:</p>
-				<SafeHTML
-					html='<p>Safe content</p><iframe src="evil.com"></iframe><p>More safe content</p>'
-				/>
+				<SafeHTML html='<p>Safe content</p><iframe src="evil.com"></iframe><p>More safe content</p>' />
 				<p className="text-xs text-gray-500 mt-2">
 					The {'<iframe>'} tag was removed for security.
 				</p>
 			</div>
 			<div>
 				<p className="text-sm font-semibold mb-2">Event handlers are removed:</p>
-				<SafeHTML html={'<p onclick="alert(\\\'XSS\\\')">Click me (no alert will fire)</p>'} />
+				<SafeHTML
+					html={'<p onclick="alert(\\\'XSS\\\')">Click me (no alert will fire)</p>'}
+				/>
 				<p className="text-xs text-gray-500 mt-2">
 					The onclick attribute was stripped from the paragraph tag.
 				</p>
@@ -155,8 +146,7 @@ export const XSSProtection: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story:
-					'SafeHTML protects against XSS attacks by stripping dangerous tags and attributes. Scripts, iframes, and event handlers are automatically removed.',
+				story: 'SafeHTML protects against XSS attacks by stripping dangerous tags and attributes. Scripts, iframes, and event handlers are automatically removed.',
 			},
 		},
 	},
@@ -188,4 +178,3 @@ export const WithCustomClassName: Story = {
 		className: 'text-lg text-blue-600 font-semibold',
 	},
 }
-
