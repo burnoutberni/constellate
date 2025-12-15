@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
@@ -59,6 +59,11 @@ export function Navbar({
 
 	const isAdmin = currentUserProfile?.isAdmin || false
 
+	// Memoize the mobile menu close handler to prevent unnecessary re-renders
+	const handleCloseMobileMenu = useCallback(() => {
+		setMobileMenuOpen(false)
+	}, [])
+
 	// Navigation links
 	const navLinks = [
 		{ to: '/feed', label: 'Feed' },
@@ -72,6 +77,9 @@ export function Navbar({
 			: []),
 		{ to: '/about', label: 'About' },
 	]
+
+	// Derive top-level paths from navLinks (plus home page)
+	const topLevelPaths = ['/', ...navLinks.map((link) => link.to)]
 
 	return (
 		<>
@@ -197,21 +205,18 @@ export function Navbar({
 					</div>
 
 					{/* Breadcrumbs (Desktop only, shown on deeper pages) */}
-					{location.pathname !== '/' &&
-						location.pathname !== '/feed' &&
-						location.pathname !== '/calendar' &&
-						location.pathname !== '/search' && (
-							<div className="hidden md:block pb-3">
-								<Breadcrumbs />
-							</div>
-						)}
+					{!topLevelPaths.includes(location.pathname) && (
+						<div className="hidden md:block pb-3">
+							<Breadcrumbs />
+						</div>
+					)}
 				</div>
 			</nav>
 
 			{/* Mobile Navigation Menu */}
 			<MobileNav
 				isOpen={mobileMenuOpen}
-				onClose={() => setMobileMenuOpen(false)}
+				onClose={handleCloseMobileMenu}
 				user={
 					user
 						? {
