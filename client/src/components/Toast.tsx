@@ -14,25 +14,38 @@ interface ToastItemProps {
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	const [isVisible, setIsVisible] = useState(false)
 
+	// Trigger animation on mount and set up auto-dismiss
 	useEffect(() => {
 		// Trigger animation on mount (use requestAnimationFrame to ensure DOM is ready for smooth animation)
 		const rafId = requestAnimationFrame(() => {
 			setIsVisible(true)
 		})
 
-		const timer = setTimeout(() => {
+		// Auto-dismiss after 5 seconds
+		const autoDismissTimer = setTimeout(() => {
 			setIsVisible(false)
-			// Wait for animation to complete before removing
-			setTimeout(() => {
-				onDismiss(toast.id)
-			}, 200)
-		}, 5000) // Auto-dismiss after 5 seconds
+		}, 5000)
 
 		return () => {
-			clearTimeout(timer)
+			clearTimeout(autoDismissTimer)
 			cancelAnimationFrame(rafId)
 		}
-	}, [toast.id, toast.createdAt, onDismiss])
+	}, [toast.id, toast.createdAt])
+
+	// Handle dismissal when isVisible becomes false
+	// This ensures proper cleanup if component unmounts during the exit animation
+	useEffect(() => {
+		if (!isVisible) {
+			// Wait for animation to complete before removing from store
+			const dismissTimer = setTimeout(() => {
+				onDismiss(toast.id)
+			}, 200) // Match the animation duration
+
+			return () => {
+				clearTimeout(dismissTimer)
+			}
+		}
+	}, [isVisible, toast.id, onDismiss])
 
 	const variantStyles: Record<
 		ToastVariant,
@@ -85,7 +98,6 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 				type="button"
 				onClick={() => {
 					setIsVisible(false)
-					setTimeout(() => onDismiss(toast.id), 200)
 				}}
 				variant="ghost"
 				size="sm"
