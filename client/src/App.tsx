@@ -30,6 +30,7 @@ import { RemindersPage } from './pages/RemindersPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { useUIStore } from './stores'
 
 function AppContent() {
 	// Global SSE connection
@@ -37,6 +38,7 @@ function AppContent() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [checkingSetup, setCheckingSetup] = useState(true)
+	const addToast = useUIStore((state) => state.addToast)
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
@@ -55,6 +57,21 @@ function AppContent() {
 			.catch((error) => logger.error('Failed to check setup status:', error))
 			.finally(() => setCheckingSetup(false))
 	}, [navigate, location.pathname])
+
+	// Check for toast messages stored in sessionStorage (e.g., after redirect)
+	useEffect(() => {
+		const toastData = sessionStorage.getItem('toastOnLoad')
+		if (toastData) {
+			try {
+				const { message, variant } = JSON.parse(toastData)
+				addToast({ id: crypto.randomUUID(), message, variant })
+				sessionStorage.removeItem('toastOnLoad')
+			} catch (e) {
+				console.error('Failed to parse toast data from sessionStorage', e)
+				sessionStorage.removeItem('toastOnLoad')
+			}
+		}
+	}, [addToast])
 
 	if (checkingSetup) {
 		return <PageLoader />

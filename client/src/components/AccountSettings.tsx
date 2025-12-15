@@ -102,17 +102,16 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			// Note: This endpoint may need to be implemented in the backend
 			await api.delete('/profile', undefined, 'Failed to delete account')
 
-			// Show success toast
-			addToast({
-				id: crypto.randomUUID(),
-				message: 'Your account has been deleted.',
-				variant: 'success',
-			})
+			// Store toast message in sessionStorage to display after redirect
+			sessionStorage.setItem(
+				'toastOnLoad',
+				JSON.stringify({
+					message: 'Your account has been deleted.',
+					variant: 'success',
+				})
+			)
 
-			// Wait for toast to be visible (2 seconds) before redirecting
-			await new Promise((resolve) => setTimeout(resolve, 2000))
-
-			// Log out and redirect
+			// Log out and redirect immediately
 			await logout()
 			window.location.href = '/'
 		} catch (error) {
