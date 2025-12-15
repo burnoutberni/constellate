@@ -13,6 +13,7 @@ interface HomeHeroProps {
 /**
  * HomeHero component - Hero section for the homepage
  * Explains the platform and provides clear CTAs
+ * Features self-hosting information and federation messaging
  */
 export function HomeHero({ isAuthenticated }: HomeHeroProps) {
 	return (
@@ -21,39 +22,58 @@ export function HomeHero({ isAuthenticated }: HomeHeroProps) {
 			variant="accent"
 			padding="xl"
 			className="border-b border-border-default">
-			<div className="text-center space-y-6">
+			<div className="text-center space-y-8">
 				{/* Hero Title */}
-				<div className="space-y-3">
+				<div className="space-y-4">
 					<h1 className="text-5xl sm:text-6xl font-bold text-text-primary tracking-tight">
 						Discover Events in the{' '}
 						<span className="text-primary-600 dark:text-primary-400">Fediverse</span>
 					</h1>
 					<p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto">
-						A federated event platform built on ActivityPub. Create, discover, and
-						attend events across the decentralized web.
+						Constellate is a federated event platform built on ActivityPub. Create,
+						discover, and attend events across the decentralized web.
 					</p>
 				</div>
 
-				{/* Features */}
-				<div className="flex flex-wrap justify-center gap-4 text-sm sm:text-base text-text-secondary">
-					<div className="flex items-center gap-2">
-						<span className="text-2xl" role="img" aria-label="Calendar">
-							📅
-						</span>
-						<span>Public Events</span>
+				{/* Key Features */}
+				<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+					<div className="p-4 rounded-lg bg-background-secondary/50">
+						<div className="text-3xl mb-2">📅</div>
+						<h3 className="font-semibold text-text-primary mb-1">Event Management</h3>
+						<p className="text-sm text-text-secondary">
+							Create, manage, and share events
+						</p>
 					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-2xl" role="img" aria-label="Globe">
-							🌐
-						</span>
-						<span>Federated Network</span>
+					<div className="p-4 rounded-lg bg-background-secondary/50">
+						<div className="text-3xl mb-2">🌐</div>
+						<h3 className="font-semibold text-text-primary mb-1">Federated Network</h3>
+						<p className="text-sm text-text-secondary">
+							Connect with events across servers
+						</p>
 					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-2xl" role="img" aria-label="People">
-							👥
-						</span>
-						<span>Community Driven</span>
+					<div className="p-4 rounded-lg bg-background-secondary/50">
+						<div className="text-3xl mb-2">🔐</div>
+						<h3 className="font-semibold text-text-primary mb-1">Self-Hosted</h3>
+						<p className="text-sm text-text-secondary">
+							Run your own instance, own your data
+						</p>
 					</div>
+				</div>
+
+				{/* Self-hosting callout */}
+				<div className="max-w-2xl mx-auto p-4 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/10">
+					<p className="text-sm text-text-secondary">
+						<span className="font-semibold text-text-primary">
+							Self-hosting available:
+						</span>{' '}
+						Want to run Constellate on your own infrastructure? Learn about{' '}
+						<Link
+							to="/about"
+							className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+							self-hosting options
+						</Link>
+						.
+					</p>
 				</div>
 
 				{/* CTAs */}
@@ -94,15 +114,19 @@ export function HomeHero({ isAuthenticated }: HomeHeroProps) {
 				</Stack>
 
 				{/* Learn More Link */}
-				{!isAuthenticated && (
-					<div className="pt-2">
-						<Link
-							to="/about"
-							className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
-							Learn more about federation →
-						</Link>
-					</div>
-				)}
+				<div className="pt-2 flex justify-center gap-4 flex-wrap text-sm">
+					<Link
+						to="/about"
+						className="text-primary-600 dark:text-primary-400 hover:underline">
+						Learn more about federation →
+					</Link>
+					<span className="text-text-tertiary">•</span>
+					<Link
+						to="/about"
+						className="text-primary-600 dark:text-primary-400 hover:underline">
+						Deployment guide →
+					</Link>
+				</div>
 			</div>
 		</Section>
 	)
