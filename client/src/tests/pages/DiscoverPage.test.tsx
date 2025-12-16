@@ -14,9 +14,13 @@ vi.mock('../../hooks/useAuth', () => ({
 	useAuth: () => mockUseAuth(),
 }))
 
-vi.mock('../../hooks/queries', () => ({
-	useEventSearch: () => mockUseEventSearch(),
-}))
+vi.mock('../../hooks/queries', async () => {
+	const actual = await vi.importActual('../../hooks/queries')
+	return {
+		...actual,
+		useEventSearch: () => mockUseEventSearch(),
+	}
+})
 
 vi.mock('@tanstack/react-query', async () => {
 	const actual = await vi.importActual('@tanstack/react-query')
@@ -67,7 +71,11 @@ describe('DiscoverPage', () => {
 			logout: vi.fn(),
 		})
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [], total: 0, page: 1, totalPages: 1 },
+			data: {
+				events: [],
+				pagination: { total: 0, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -105,13 +113,19 @@ describe('DiscoverPage', () => {
 	it('user can see sort options', () => {
 		render(<DiscoverPage />, { wrapper })
 
-		const sortSelect = screen.getByLabelText(/sort/i)
+		// The Select doesn't have a label, so we find it by its options
+		const sortSelect = screen.getByRole('combobox')
 		expect(sortSelect).toBeInTheDocument()
+		expect(sortSelect).toHaveValue('date')
 	})
 
 	it('user can see events when search returns results', async () => {
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [mockEvent], total: 1, page: 1, totalPages: 1 },
+			data: {
+				events: [mockEvent],
+				pagination: { total: 1, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -141,7 +155,11 @@ describe('DiscoverPage', () => {
 
 	it('user can see empty state when no events found', async () => {
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [], total: 0, page: 1, totalPages: 1 },
+			data: {
+				events: [],
+				pagination: { total: 0, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -157,7 +175,11 @@ describe('DiscoverPage', () => {
 	it('user can clear filters from empty state', async () => {
 		const user = userEvent.setup()
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [], total: 0, page: 1, totalPages: 1 },
+			data: {
+				events: [],
+				pagination: { total: 0, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -169,7 +191,9 @@ describe('DiscoverPage', () => {
 			expect(screen.getByText(/No events found/i)).toBeInTheDocument()
 		})
 
-		const clearButton = screen.getByRole('button', { name: /Clear Filters/i })
+		const clearButtons = screen.getAllByRole('button', { name: /Clear Filters/i })
+		// Click the one in the empty state (should be the last one)
+		const clearButton = clearButtons[clearButtons.length - 1]
 		await user.click(clearButton)
 
 		// Filters should be cleared (URL should update)
@@ -193,7 +217,17 @@ describe('DiscoverPage', () => {
 
 	it('user can reload page from error state', async () => {
 		const user = userEvent.setup()
-		const reloadSpy = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
+		const originalReload = window.location.reload
+		const reloadSpy = vi.fn()
+
+		// Mock window.location.reload
+		Object.defineProperty(window, 'location', {
+			writable: true,
+			value: {
+				...window.location,
+				reload: reloadSpy,
+			},
+		})
 
 		mockUseEventSearch.mockReturnValue({
 			data: undefined,
@@ -212,12 +246,24 @@ describe('DiscoverPage', () => {
 		await user.click(reloadButton)
 
 		expect(reloadSpy).toHaveBeenCalled()
-		reloadSpy.mockRestore()
+
+		// Restore original
+		Object.defineProperty(window, 'location', {
+			writable: true,
+			value: {
+				...window.location,
+				reload: originalReload,
+			},
+		})
 	})
 
 	it('user can see pagination when multiple pages exist', async () => {
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [mockEvent], total: 25, page: 1, totalPages: 3 },
+			data: {
+				events: [mockEvent],
+				pagination: { total: 25, page: 1, pages: 3, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -233,7 +279,11 @@ describe('DiscoverPage', () => {
 	it('user can navigate to next page', async () => {
 		const user = userEvent.setup()
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [mockEvent], total: 25, page: 1, totalPages: 3 },
+			data: {
+				events: [mockEvent],
+				pagination: { total: 25, page: 1, pages: 3, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -257,14 +307,20 @@ describe('DiscoverPage', () => {
 
 	it('user can navigate to previous page', async () => {
 		const user = userEvent.setup()
+		const { wrapper: testWrapper } = createTestWrapper(['/discover?page=2'])
+
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [mockEvent], total: 25, page: 2, totalPages: 3 },
+			data: {
+				events: [mockEvent],
+				pagination: { total: 25, page: 2, pages: 3, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
 		})
 
-		render(<DiscoverPage />, { wrapper })
+		render(<DiscoverPage />, { wrapper: testWrapper })
 
 		await waitFor(() => {
 			expect(screen.getByText(/Page 2 of 3/i)).toBeInTheDocument()
@@ -284,7 +340,11 @@ describe('DiscoverPage', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/discover?q=test&location=SF'])
 
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [], total: 0, page: 1, totalPages: 1 },
+			data: {
+				events: [],
+				pagination: { total: 0, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,
@@ -303,7 +363,11 @@ describe('DiscoverPage', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/discover?q=test'])
 
 		mockUseEventSearch.mockReturnValue({
-			data: { events: [], total: 0, page: 1, totalPages: 1 },
+			data: {
+				events: [],
+				pagination: { total: 0, page: 1, pages: 1, limit: 20 },
+				filters: {},
+			},
 			isLoading: false,
 			isError: false,
 			error: null,

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { SearchFilters, type SearchFiltersState } from '../../components/SearchFilters'
 
 describe('SearchFilters', () => {
@@ -37,50 +38,54 @@ describe('SearchFilters', () => {
 
 	it('user can enter search keywords', async () => {
 		const user = userEvent.setup()
-		const onFiltersChange = vi.fn()
 		const onApply = vi.fn()
 		const onClear = vi.fn()
 
-		render(
-			<SearchFilters
-				filters={defaultFilters}
-				onFiltersChange={onFiltersChange}
-				onApply={onApply}
-				onClear={onClear}
-			/>
-		)
+		const TestWrapper = () => {
+			const [filters, setFilters] = useState<SearchFiltersState>(defaultFilters)
+			return (
+				<SearchFilters
+					filters={filters}
+					onFiltersChange={setFilters}
+					onApply={onApply}
+					onClear={onClear}
+				/>
+			)
+		}
+
+		render(<TestWrapper />)
 
 		const keywordInput = screen.getByLabelText('Keyword')
 		await user.type(keywordInput, 'conference')
 
-		expect(onFiltersChange).toHaveBeenCalledWith({
-			...defaultFilters,
-			q: 'conference',
-		})
+		// After typing, the input should have the full value
+		expect(keywordInput).toHaveValue('conference')
 	})
 
 	it('user can enter location', async () => {
 		const user = userEvent.setup()
-		const onFiltersChange = vi.fn()
 		const onApply = vi.fn()
 		const onClear = vi.fn()
 
-		render(
-			<SearchFilters
-				filters={defaultFilters}
-				onFiltersChange={onFiltersChange}
-				onApply={onApply}
-				onClear={onClear}
-			/>
-		)
+		const TestWrapper = () => {
+			const [filters, setFilters] = useState<SearchFiltersState>(defaultFilters)
+			return (
+				<SearchFilters
+					filters={filters}
+					onFiltersChange={setFilters}
+					onApply={onApply}
+					onClear={onClear}
+				/>
+			)
+		}
+
+		render(<TestWrapper />)
 
 		const locationInput = screen.getByLabelText('Location')
 		await user.type(locationInput, 'San Francisco')
 
-		expect(onFiltersChange).toHaveBeenCalledWith({
-			...defaultFilters,
-			location: 'San Francisco',
-		})
+		// After typing, the input should have the full value
+		expect(locationInput).toHaveValue('San Francisco')
 	})
 
 	it('user can select date range', async () => {
@@ -109,22 +114,28 @@ describe('SearchFilters', () => {
 
 	it('user can see custom date inputs when custom date range is selected', async () => {
 		const user = userEvent.setup()
-		const onFiltersChange = vi.fn()
 		const onApply = vi.fn()
 		const onClear = vi.fn()
 
-		render(
-			<SearchFilters
-				filters={defaultFilters}
-				onFiltersChange={onFiltersChange}
-				onApply={onApply}
-				onClear={onClear}
-			/>
-		)
+		const TestWrapper = () => {
+			const [filters, setFilters] = useState<SearchFiltersState>(defaultFilters)
+			return (
+				<SearchFilters
+					filters={filters}
+					onFiltersChange={setFilters}
+					onApply={onApply}
+					onClear={onClear}
+				/>
+			)
+		}
+
+		render(<TestWrapper />)
 
 		const dateRangeSelect = screen.getByLabelText('When')
 		await user.selectOptions(dateRangeSelect, 'custom')
 
+		// Wait for the inputs to appear after state update
+		await screen.findByLabelText('From')
 		expect(screen.getByLabelText('From')).toBeInTheDocument()
 		expect(screen.getByLabelText('Until')).toBeInTheDocument()
 	})

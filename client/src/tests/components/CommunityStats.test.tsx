@@ -37,12 +37,7 @@ describe('CommunityStats', () => {
 
 	it('user can see loading state', () => {
 		render(
-			<CommunityStats
-				totalEvents={0}
-				totalUsers={0}
-				totalInstances={0}
-				isLoading={true}
-			/>
+			<CommunityStats totalEvents={0} totalUsers={0} totalInstances={0} isLoading={true} />
 		)
 
 		// Loading spinner should be visible
@@ -52,12 +47,7 @@ describe('CommunityStats', () => {
 
 	it('user can see zero values when no data exists', () => {
 		render(
-			<CommunityStats
-				totalEvents={0}
-				totalUsers={0}
-				totalInstances={0}
-				isLoading={false}
-			/>
+			<CommunityStats totalEvents={0} totalUsers={0} totalInstances={0} isLoading={false} />
 		)
 
 		expect(screen.getByText('Events Created')).toBeInTheDocument()
