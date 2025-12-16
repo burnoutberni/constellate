@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
 import { CommunityStats } from '@/components/CommunityStats'
@@ -42,6 +43,20 @@ export function HomePage() {
 	const totalUsers = statsData?.totalUsers ?? 0
 	const totalInstances = statsData?.totalInstances ?? 0
 
+	// Stable keys for skeleton loaders
+	const trendingSkeletonKeys = useMemo(
+		() => Array.from({ length: 3 }, (_, i) => `trending-skeleton-${i}`),
+		[]
+	)
+	const recSkeletonKeys = useMemo(
+		() => Array.from({ length: 3 }, (_, i) => `rec-skeleton-${i}`),
+		[]
+	)
+	const eventsSkeletonKeys = useMemo(
+		() => Array.from({ length: 4 }, (_, i) => `events-skeleton-${i}`),
+		[]
+	)
+
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -85,8 +100,8 @@ export function HomePage() {
 
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 						{trendingLoading
-							? Array.from({ length: 3 }).map((_, i) => (
-									<div key={`trending-skeleton-${i}`} className="h-full">
+							? trendingSkeletonKeys.map((key) => (
+									<div key={key} className="h-full">
 										<Skeleton className="h-64 w-full rounded-xl" />
 									</div>
 								))
@@ -123,8 +138,8 @@ export function HomePage() {
 
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 							{recommendationsLoading
-								? Array.from({ length: 3 }).map((_, i) => (
-										<div key={`rec-skeleton-${i}`} className="h-full">
+								? recSkeletonKeys.map((key) => (
+										<div key={key} className="h-full">
 											<Skeleton className="h-64 w-full rounded-xl" />
 										</div>
 									))
@@ -164,8 +179,8 @@ export function HomePage() {
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 						{eventsLoading
-							? Array.from({ length: 4 }).map((_, i) => (
-									<div key={`events-skeleton-${i}`} className="h-full">
+							? eventsSkeletonKeys.map((key) => (
+									<div key={key} className="h-full">
 										<Skeleton className="h-48 w-full rounded-xl" />
 									</div>
 								))

@@ -3,7 +3,8 @@
 ## Commands
 
 - **Run Tests:** `npm test` (or `vitest run`). Single: `vitest run src/path/to/test.ts`
-- **Lint:** `npm run lint` | **Format:** `npm run format` (Prettier)
+- **Lint:** `npm run lint` | **Format:** `npm run format` (Prettier) | **Analyze:** `npx knip`
+  – **Note:** This needs to be run in the root folder for the server code and in `/client` for client code or both if both were edited.
 - **Build:** `npm run build` (builds server & client) | **DB:** `npm run db:push` (Prisma)
 - **Start:** `npm run dev:app` (Server+Client)
 

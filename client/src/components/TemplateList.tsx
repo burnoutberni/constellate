@@ -1,6 +1,6 @@
 import { Grid } from './layout'
 import { TemplateCard, type EventTemplate } from './TemplateCard'
-import { DocumentIcon, Skeleton } from './ui'
+import { DocumentIcon, Skeleton, Card } from './ui'
 
 interface TemplateListProps {
 	templates: EventTemplate[]
@@ -32,9 +32,7 @@ export function TemplateList({
 		return (
 			<Grid cols={1} colsMd={2} colsLg={3} gap="md">
 				{skeletonKeys.map((key) => (
-					<div
-						key={key}
-						className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 space-y-3">
+					<Card key={key} className="p-4 space-y-3">
 						<Skeleton className="h-6 w-3/4" />
 						<Skeleton className="h-4 w-full" />
 						<Skeleton className="h-4 w-5/6" />
@@ -42,7 +40,7 @@ export function TemplateList({
 							<Skeleton className="h-8 w-20" />
 							<Skeleton className="h-8 w-20" />
 						</div>
-					</div>
+					</Card>
 				))}
 			</Grid>
 		)
@@ -50,13 +48,13 @@ export function TemplateList({
 
 	if (templates.length === 0) {
 		return (
-			<div className="text-center py-12">
-				<DocumentIcon className="mx-auto h-12 w-12 text-neutral-400" />
-				<h3 className="mt-2 text-sm font-medium text-neutral-900">No templates yet</h3>
-				<p className="mt-1 text-sm text-neutral-500">
+			<Card padding="xl" className="text-center bg-background-secondary border-dashed">
+				<DocumentIcon className="mx-auto h-12 w-12 text-text-tertiary" />
+				<h3 className="mt-2 text-sm font-medium text-text-primary">No templates yet</h3>
+				<p className="mt-1 text-sm text-text-secondary">
 					Get started by creating an event and saving it as a template.
 				</p>
-			</div>
+			</Card>
 		)
 	}
 

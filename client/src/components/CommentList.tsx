@@ -1,7 +1,9 @@
 import type { CommentWithMentions } from '@/types'
 
+
 import { CommentForm } from './CommentForm'
 import { CommentThread } from './CommentThread'
+import { Stack } from './layout'
 import { SignUpPrompt } from './SignUpPrompt'
 
 interface CommentListProps {
@@ -28,7 +30,7 @@ export function CommentList({
 	onSignUpPrompt,
 }: CommentListProps) {
 	return (
-		<div className="space-y-6">
+		<Stack direction="column" gap="lg">
 			<h2 className="text-xl font-bold text-text-primary">Comments ({comments.length})</h2>
 
 			{/* Comment Form */}
@@ -50,7 +52,7 @@ export function CommentList({
 					No comments yet. Be the first to comment!
 				</p>
 			) : (
-				<div className="space-y-4">
+				<Stack direction="column" gap="md">
 					{comments.map((comment) => (
 						<CommentThread
 							key={comment.id}
@@ -62,8 +64,8 @@ export function CommentList({
 							depth={0}
 						/>
 					))}
-				</div>
+				</Stack>
 			)}
-		</div>
+		</Stack>
 	)
 }

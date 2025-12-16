@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores'
 
 import { useAuth } from '../hooks/useAuth'
 
+import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
 
 interface AccountSettingsProps {
@@ -133,32 +134,38 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 				<CardTitle>Account Management</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div className="space-y-6">
+				<Stack gap="lg">
 					{/* Email Display */}
-					<div>
-						<label className="block text-sm font-medium text-text-secondary mb-1">
+					<Stack gap="xs">
+						<label className="block text-sm font-medium text-text-secondary">
 							Email Address
 						</label>
 						<p className="text-text-primary">{profile.email || 'No email set'}</p>
-						<p className="text-sm text-text-tertiary mt-1">
+						<p className="text-sm text-text-tertiary">
 							Email changes are not yet supported. Contact your instance administrator
 							if you need to change your email.
 						</p>
-					</div>
+					</Stack>
 
 					{/* Password Change */}
-					<div className="border-t border-border-default pt-6">
-						<h3 className="font-medium text-text-primary mb-2">Change Password</h3>
-						<p className="text-sm text-text-tertiary mb-4">
-							Update your password to keep your account secure.
-						</p>
+					<Stack gap="md" className="border-t border-border-default pt-6">
+						<div>
+							<h3 className="font-medium text-text-primary mb-1">Change Password</h3>
+							<p className="text-sm text-text-tertiary">
+								Update your password to keep your account secure.
+							</p>
+						</div>
 
 						{!showPasswordChange ? (
-							<Button variant="secondary" onClick={() => setShowPasswordChange(true)}>
-								Change Password
-							</Button>
+							<div>
+								<Button
+									variant="secondary"
+									onClick={() => setShowPasswordChange(true)}>
+									Change Password
+								</Button>
+							</div>
 						) : (
-							<div className="space-y-4 bg-background-secondary p-4 rounded-lg">
+							<Stack gap="md" className="bg-background-secondary p-4 rounded-lg">
 								<Input
 									type="password"
 									label="Current Password"
@@ -212,25 +219,32 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 										Cancel
 									</Button>
 								</div>
-							</div>
+							</Stack>
 						)}
-					</div>
+					</Stack>
 
 					{/* Delete Account */}
-					<div className="border-t border-border-default pt-6">
-						<h3 className="font-medium text-error-600 dark:text-error-400 mb-2">
-							Danger Zone
-						</h3>
-						<p className="text-sm text-text-tertiary mb-4">
-							Once you delete your account, there is no going back. Please be certain.
-						</p>
+					<Stack gap="md" className="border-t border-border-default pt-6">
+						<div>
+							<h3 className="font-medium text-error-600 dark:text-error-400 mb-1">
+								Danger Zone
+							</h3>
+							<p className="text-sm text-text-tertiary">
+								Once you delete your account, there is no going back. Please be
+								certain.
+							</p>
+						</div>
 
 						{!showDeleteConfirm ? (
-							<Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-								Delete Account
-							</Button>
+							<div>
+								<Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+									Delete Account
+								</Button>
+							</div>
 						) : (
-							<div className="space-y-4 bg-error-50 dark:bg-error-950 p-4 rounded-lg border border-error-200 dark:border-error-800">
+							<Stack
+								gap="md"
+								className="bg-error-50 dark:bg-error-950 p-4 rounded-lg border border-error-200 dark:border-error-800">
 								<p className="text-sm text-error-700 dark:text-error-300 font-medium">
 									This action cannot be undone. This will permanently delete your
 									account and remove all your data from our servers.
@@ -263,10 +277,10 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 										Cancel
 									</Button>
 								</div>
-							</div>
+							</Stack>
 						)}
-					</div>
-				</div>
+					</Stack>
+				</Stack>
 			</CardContent>
 		</Card>
 	)

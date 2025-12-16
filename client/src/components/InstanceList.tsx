@@ -1,6 +1,8 @@
 import type { InstanceWithStats } from '@/types'
 
 import { InstanceCard } from './InstanceCard'
+import { Stack } from './layout'
+import { Card } from './ui'
 
 interface InstanceListProps {
 	instances: InstanceWithStats[]
@@ -12,14 +14,14 @@ interface InstanceListProps {
 export function InstanceList({ instances, onBlock, onUnblock, onRefresh }: InstanceListProps) {
 	if (instances.length === 0) {
 		return (
-			<div className="text-center py-12">
-				<p className="text-neutral-600 dark:text-neutral-400">No instances found</p>
-			</div>
+			<Card padding="xl" className="text-center bg-background-secondary border-dashed">
+				<p className="text-text-secondary">No instances found</p>
+			</Card>
 		)
 	}
 
 	return (
-		<div className="space-y-4">
+		<Stack direction="column" gap="md">
 			{instances.map((instance) => (
 				<InstanceCard
 					key={instance.id}
@@ -29,6 +31,6 @@ export function InstanceList({ instances, onBlock, onUnblock, onRefresh }: Insta
 					onRefresh={onRefresh}
 				/>
 			))}
-		</div>
+		</Stack>
 	)
 }

@@ -84,15 +84,15 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 	const today = new Date()
 
 	return (
-		<div className="card p-4">
+		<div className="p-4 bg-background-primary border border-border-default rounded-lg">
 			<div className="flex items-center justify-between mb-3">
-				<h3 className="font-bold text-sm">{monthName}</h3>
+				<h3 className="font-bold text-sm text-text-primary">{monthName}</h3>
 				<div className="flex items-center gap-1">
 					<Button
 						onClick={previousMonth}
 						variant="ghost"
 						size="sm"
-						className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
+						className="p-1 hover:bg-background-secondary rounded text-text-secondary"
 						aria-label="Previous month">
 						←
 					</Button>
@@ -100,7 +100,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 						onClick={nextMonth}
 						variant="ghost"
 						size="sm"
-						className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
+						className="p-1 hover:bg-background-secondary rounded text-text-secondary"
 						aria-label="Next month">
 						→
 					</Button>
@@ -122,7 +122,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 					return (
 						<div
 							key={`day-header-${dayNames[index]}`}
-							className="text-center text-xs font-semibold text-neutral-500 py-1">
+							className="text-center text-xs font-semibold text-text-tertiary py-1">
 							{day}
 						</div>
 					)
@@ -163,14 +163,18 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 							onClick={() => handleDayClick(day)}
 							variant="ghost"
 							size="sm"
-							className={`aspect-square text-xs rounded hover:bg-info-50 transition-colors relative ${
-								isToday ? 'ring-1 ring-blue-500 font-semibold' : ''
-							} ${isSelected ? 'bg-info-600 text-white hover:bg-info-700' : 'text-neutral-700'}`}>
+							className={`aspect-square text-xs rounded hover:bg-background-secondary transition-colors relative ${
+								isToday ? 'ring-1 ring-primary-500 font-semibold' : ''
+							} ${
+								isSelected
+									? 'bg-primary-600 text-white hover:bg-primary-700'
+									: 'text-text-primary'
+							}`}>
 							{day}
 							{dayEvents.length > 0 && (
 								<div
 									className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-										isSelected ? 'bg-white' : 'bg-info-500'
+										isSelected ? 'bg-white' : 'bg-primary-500'
 									}`}
 								/>
 							)}
@@ -183,7 +187,7 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 				onClick={goToToday}
 				variant="ghost"
 				size="sm"
-				className="mt-3 w-full text-xs text-info-600 hover:text-info-700 hover:underline">
+				className="mt-3 w-full text-xs text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300">
 				Go to today
 			</Button>
 		</div>

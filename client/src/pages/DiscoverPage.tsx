@@ -341,6 +341,12 @@ export function DiscoverPage() {
 		return chips
 	}, [searchParams])
 
+	// Stable keys for skeleton loaders
+	const skeletonKeys = useMemo(
+		() => Array.from({ length: 6 }, (_, i) => `skeleton-grid-${viewMode}-${i}`),
+		[viewMode]
+	)
+
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -462,9 +468,9 @@ export function DiscoverPage() {
 											? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
 											: 'space-y-4'
 									}>
-									{Array.from({ length: 6 }).map((_, i) => (
+									{skeletonKeys.map((key) => (
 										<div
-											key={`skeleton-grid-${i}`}
+											key={key}
 											className="space-y-3 p-4 border border-border-default rounded-xl bg-background-primary">
 											<Skeleton className="h-48 w-full rounded-lg" />
 											<Skeleton className="h-6 w-3/4" />

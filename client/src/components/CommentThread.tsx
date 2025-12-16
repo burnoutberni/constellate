@@ -5,6 +5,7 @@ import type { CommentWithMentions } from '@/types'
 
 import { CommentForm } from './CommentForm'
 import { CommentItem } from './CommentItem'
+import { Stack } from './layout'
 
 const log = createLogger('[CommentThread]')
 
@@ -53,7 +54,7 @@ export function CommentThread({
 	}
 
 	return (
-		<div className="space-y-3">
+		<Stack direction="column" gap="sm">
 			<CommentItem
 				comment={comment}
 				currentUserId={currentUserId}
@@ -77,7 +78,10 @@ export function CommentThread({
 			)}
 
 			{comment.replies && comment.replies.length > 0 && (
-				<div className="ml-11 space-y-3 border-l-2 border-border-default pl-4">
+				<Stack
+					direction="column"
+					gap="sm"
+					className="ml-11 border-l-2 border-border-default pl-4">
 					{comment.replies.map((reply) => (
 						<CommentThread
 							key={reply.id}
@@ -89,8 +93,8 @@ export function CommentThread({
 							depth={depth + 1}
 						/>
 					))}
-				</div>
+				</Stack>
 			)}
-		</div>
+		</Stack>
 	)
 }
