@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Input, Button } from '@/components/ui'
+import { Input, Button, Card, CardContent } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
 
@@ -47,82 +47,91 @@ export function LoginPage() {
 	const submitText = isLogin ? 'Sign In' : 'Sign Up'
 
 	return (
-		<div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
-			<div className="card w-full max-w-md p-8 bg-white shadow-xl rounded-xl">
-				<div className="text-center mb-8">
-					<h1 className="text-3xl font-bold text-info-600 mb-2">Constellate</h1>
-					<p className="text-neutral-600">
-						{isLogin ? 'Sign in to manage your events' : 'Create an account'}
-					</p>
-				</div>
-
-				{error && (
-					<div className="bg-error-50 text-error-600 p-3 rounded-lg mb-6 text-sm">
-						{error}
+		<div className="min-h-screen bg-background-secondary flex items-center justify-center p-4">
+			<Card className="w-full max-w-md shadow-xl">
+				<CardContent className="p-8">
+					<div className="text-center mb-8">
+						<h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">
+							Constellate
+						</h1>
+						<p className="text-text-secondary">
+							{isLogin ? 'Sign in to manage your events' : 'Create an account'}
+						</p>
 					</div>
-				)}
 
-				<form onSubmit={handleSubmit} className="space-y-4">
-					{!isLogin && (
-						<>
-							<Input
-								type="text"
-								label="Username"
-								value={username}
-								onChange={(e) => setUsername(e.target.value)}
-								placeholder="alice"
-								pattern="^[a-zA-Z0-9_\-]+$"
-								title="Username can only contain letters, numbers, underscores, and hyphens"
-								required={!isLogin}
-							/>
-							<Input
-								type="text"
-								label="Name"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								placeholder="Alice Smith"
-								required={!isLogin}
-							/>
-						</>
+					{error && (
+						<div className="bg-error-50 dark:bg-error-900/20 text-error-600 dark:text-error-400 p-3 rounded-lg mb-6 text-sm border border-error-200 dark:border-error-800">
+							{error}
+						</div>
 					)}
 
-					<Input
-						type="email"
-						label="Email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						placeholder="alice@example.com"
-						required
-					/>
+					<form onSubmit={handleSubmit} className="space-y-4">
+						{!isLogin && (
+							<>
+								<Input
+									type="text"
+									label="Username"
+									value={username}
+									onChange={(e) => setUsername(e.target.value)}
+									placeholder="alice"
+									pattern="^[a-zA-Z0-9_\-]+$"
+									title="Username can only contain letters, numbers, underscores, and hyphens"
+									required={!isLogin}
+								/>
+								<Input
+									type="text"
+									label="Name"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									placeholder="Alice Smith"
+									required={!isLogin}
+								/>
+							</>
+						)}
 
-					<Input
-						type="password"
-						label="Password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						placeholder="••••••••"
-						required
-						minLength={8}
-					/>
+						<Input
+							type="email"
+							label="Email"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							placeholder="alice@example.com"
+							required
+						/>
 
-					<Button type="submit" disabled={loading} loading={loading} fullWidth size="lg">
-						{submitText}
-					</Button>
-				</form>
+						<Input
+							type="password"
+							label="Password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							placeholder="••••••••"
+							required
+							minLength={8}
+						/>
 
-				<div className="mt-6 text-center text-sm text-neutral-500">
-					<p>
-						{isLogin ? "Don't have an account? " : 'Already have an account? '}
 						<Button
-							onClick={() => setIsLogin(!isLogin)}
-							variant="ghost"
-							size="sm"
-							className="text-info-600 hover:underline h-auto p-0">
-							{isLogin ? 'Sign up' : 'Sign in'}
+							type="submit"
+							disabled={loading}
+							loading={loading}
+							fullWidth
+							size="lg">
+							{submitText}
 						</Button>
-					</p>
-				</div>
-			</div>
+					</form>
+
+					<div className="mt-6 text-center text-sm text-text-tertiary">
+						<p>
+							{isLogin ? "Don't have an account? " : 'Already have an account? '}
+							<Button
+								onClick={() => setIsLogin(!isLogin)}
+								variant="ghost"
+								size="sm"
+								className="text-primary-600 hover:underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 h-auto p-0">
+								{isLogin ? 'Sign up' : 'Sign in'}
+							</Button>
+						</p>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

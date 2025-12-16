@@ -104,6 +104,14 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
 						aria-label="Next month">
 						→
 					</Button>
+					<Button
+						onClick={nextMonth}
+						variant="ghost"
+						size="sm"
+						className="p-1 hover:bg-background-secondary rounded text-text-secondary"
+						aria-label="Next month">
+						→
+					</Button>
 				</div>
 			</div>
 

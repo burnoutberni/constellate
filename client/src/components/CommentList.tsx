@@ -1,6 +1,5 @@
 import type { CommentWithMentions } from '@/types'
 
-
 import { CommentForm } from './CommentForm'
 import { CommentThread } from './CommentThread'
 import { Stack } from './layout'

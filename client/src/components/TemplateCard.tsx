@@ -43,13 +43,18 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
 	}
 
 	return (
-		<Card variant="outlined" padding="md" className="hover:shadow-md transition-shadow">
+		<Card
+			variant="outlined"
+			padding="md"
+			className="hover:shadow-md transition-shadow dark:bg-background-primary">
 			<div className="space-y-3">
 				<div className="flex items-start justify-between">
 					<div className="flex-1">
-						<h3 className="text-lg font-semibold text-neutral-900">{template.name}</h3>
+						<h3 className="text-lg font-semibold text-text-primary">{template.name}</h3>
 						{template.description && (
-							<p className="text-sm text-neutral-600 mt-1">{template.description}</p>
+							<p className="text-sm text-text-secondary mt-1">
+								{template.description}
+							</p>
 						)}
 					</div>
 				</div>
@@ -58,32 +63,32 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
 				<div className="space-y-2 text-sm">
 					{template.data.title && (
 						<div>
-							<span className="font-medium text-neutral-700">Title: </span>
-							<span className="text-neutral-600">{template.data.title}</span>
+							<span className="font-medium text-text-secondary">Title: </span>
+							<span className="text-text-primary">{template.data.title}</span>
 						</div>
 					)}
 					{template.data.location && (
 						<div>
-							<span className="font-medium text-neutral-700">Location: </span>
-							<span className="text-neutral-600">{template.data.location}</span>
+							<span className="font-medium text-text-secondary">Location: </span>
+							<span className="text-text-primary">{template.data.location}</span>
 						</div>
 					)}
 					{template.data.url && (
 						<div>
-							<span className="font-medium text-neutral-700">URL: </span>
+							<span className="font-medium text-text-secondary">URL: </span>
 							<a
 								href={template.data.url}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="text-primary-600 hover:underline">
+								className="text-primary-600 hover:underline dark:text-primary-400">
 								{template.data.url}
 							</a>
 						</div>
 					)}
 					{template.data.summary && (
 						<div>
-							<span className="font-medium text-neutral-700">Description: </span>
-							<span className="text-neutral-600 line-clamp-2">
+							<span className="font-medium text-text-secondary">Description: </span>
+							<span className="text-text-primary line-clamp-2">
 								{template.data.summary}
 							</span>
 						</div>
@@ -91,7 +96,7 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
 				</div>
 
 				{/* Metadata */}
-				<div className="flex items-center gap-2 text-xs text-neutral-500">
+				<div className="flex items-center gap-2 text-xs text-text-tertiary">
 					<Badge variant="default" size="sm">
 						Updated {new Date(template.updatedAt).toLocaleDateString()}
 					</Badge>
@@ -127,8 +132,8 @@ export function TemplateCard({ template, onEdit, onDelete, onPreview, onUse }: T
 						</Button>
 					</div>
 				) : (
-					<div className="bg-error-50 border border-error-200 rounded-lg p-3">
-						<p className="text-sm text-error-700 mb-2">
+					<div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-3">
+						<p className="text-sm text-error-700 dark:text-error-300 mb-2">
 							Are you sure you want to delete this template? This action cannot be
 							undone.
 						</p>

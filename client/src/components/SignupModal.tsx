@@ -70,20 +70,20 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 
 	return (
 		<Modal isOpen={isOpen} onClose={onClose} maxWidth="md">
-			<div className="card w-full p-8 bg-white shadow-2xl rounded-xl max-h-[90vh] overflow-y-auto">
+			<div className="card w-full p-8 bg-background-primary shadow-2xl rounded-xl max-h-[90vh] overflow-y-auto border border-border-default">
 				{/* Header */}
 				<div className="text-center mb-6">
 					<div className="text-5xl mb-3">✨</div>
-					<h2 className="text-2xl font-bold text-neutral-900 mb-2">
+					<h2 className="text-2xl font-bold text-text-primary mb-2">
 						{isLogin ? 'Welcome back!' : 'Join Constellate'}
 					</h2>
-					<p className="text-neutral-600">
+					<p className="text-text-secondary">
 						{isLogin ? 'Sign in to continue' : `Sign up to ${getActionText()}`}
 					</p>
 				</div>
 
 				{error && (
-					<div className="bg-error-50 text-error-600 p-3 rounded-lg mb-4 text-sm border border-error-200">
+					<div className="bg-error-50 dark:bg-error-900/20 text-error-600 dark:text-error-400 p-3 rounded-lg mb-4 text-sm border border-error-200 dark:border-error-800">
 						{error}
 					</div>
 				)}
@@ -153,20 +153,20 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 						}}
 						variant="ghost"
 						size="sm"
-						className="text-sm text-info-600 hover:underline">
+						className="text-sm text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300">
 						{isLogin
 							? "Don't have an account? Sign up"
 							: 'Already have an account? Sign in'}
 					</Button>
 				</div>
 
-				<div className="mt-4 pt-4 border-t border-neutral-200">
+				<div className="mt-4 pt-4 border-t border-border-default">
 					<Button
 						onClick={onClose}
 						variant="ghost"
 						size="sm"
 						fullWidth
-						className="text-sm text-neutral-500 hover:text-neutral-700">
+						className="text-sm text-text-secondary hover:text-text-primary">
 						Cancel
 					</Button>
 				</div>

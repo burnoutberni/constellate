@@ -22,14 +22,14 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
 		return (
 			<Card className={className}>
 				<div className="p-6">
-					<h3 className="text-lg font-semibold text-neutral-900 mb-4">
+					<h3 className="text-lg font-semibold text-text-primary mb-4">
 						✨ Recommended for You
 					</h3>
 					<div className="space-y-3">
 						{['first', 'second', 'third'].map((position) => (
 							<div key={`recommended-skeleton-${position}`} className="animate-pulse">
-								<div className="h-4 bg-neutral-200 rounded w-3/4 mb-2" />
-								<div className="h-3 bg-neutral-100 rounded w-1/2" />
+								<div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 mb-2" />
+								<div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded w-1/2" />
 							</div>
 						))}
 					</div>
@@ -81,11 +81,11 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
 		<Card className={className}>
 			<div className="p-6">
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-lg font-semibold text-neutral-900">
+					<h3 className="text-lg font-semibold text-text-primary">
 						✨ Recommended for You
 					</h3>
 					{data.metadata ? (
-						<span className="text-xs text-neutral-500">
+						<span className="text-xs text-text-tertiary">
 							Based on{' '}
 							{data.metadata.signals.tags +
 								data.metadata.signals.hosts +
@@ -107,8 +107,8 @@ export function RecommendedEvents({ limit = 6, className }: RecommendedEventsPro
 				</div>
 
 				<Link
-					to="/search"
-					className="block text-center text-sm text-info-600 hover:text-info-700 mt-4 font-medium">
+					to="/discover"
+					className="block text-center text-sm text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300 mt-4 font-medium">
 					Explore more events →
 				</Link>
 			</div>
@@ -139,15 +139,21 @@ function RecommendedEventItem({
 	return (
 		<Link
 			to={eventPath}
-			className="block p-3 rounded-lg hover:bg-neutral-50 transition-colors border border-neutral-100">
+			className="block p-3 rounded-lg hover:bg-background-secondary transition-colors border border-border-default">
 			<div className="flex items-start justify-between gap-2">
 				<div className="flex-1 min-w-0">
-					<h4 className="font-medium text-neutral-900 text-sm truncate">{event.title}</h4>
-					<p className="text-xs text-neutral-500 mt-1">
+					<h4 className="font-medium text-text-primary text-sm truncate">
+						{event.title}
+					</h4>
+					<p className="text-xs text-text-secondary mt-1">
 						{formatDate(event.startTime)}
 						{event.location && <span> • {event.location}</span>}
 					</p>
-					{reasonLabel && <p className="text-xs text-info-600 mt-1">{reasonLabel}</p>}
+					{reasonLabel && (
+						<p className="text-xs text-info-600 dark:text-info-400 mt-1">
+							{reasonLabel}
+						</p>
+					)}
 					{event.tags.length > 0 && (
 						<div className="flex flex-wrap gap-1 mt-2">
 							{event.tags.slice(0, 2).map((tag) => (
@@ -159,7 +165,7 @@ function RecommendedEventItem({
 					)}
 				</div>
 				{score > 0 && (
-					<div className="flex items-center gap-1 text-xs text-neutral-400 shrink-0">
+					<div className="flex items-center gap-1 text-xs text-text-tertiary shrink-0">
 						<span>⭐</span>
 						<span>{score.toFixed(1)}</span>
 					</div>

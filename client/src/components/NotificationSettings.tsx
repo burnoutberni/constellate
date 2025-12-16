@@ -165,7 +165,7 @@ export function NotificationSettings({
                                         ${
 											localPreferences[type]
 												? 'bg-primary-600'
-												: 'bg-background-tertiary'
+												: 'bg-neutral-200 dark:bg-neutral-700'
 										}
                                     `}>
 									<span className="sr-only">

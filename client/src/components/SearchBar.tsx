@@ -194,10 +194,10 @@ export function SearchBar() {
 			/>
 
 			{isOpen && results && (
-				<div className="absolute z-50 w-full mt-2 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+				<div className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
 					{results.users.length > 0 && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase bg-neutral-50">
+							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
 								Users
 							</div>
 							{results.users.map((user, index) => {
@@ -210,8 +210,8 @@ export function SearchBar() {
 											handleItemClick({ type: 'user', data: user })
 										}
 										variant="ghost"
-										className={`w-full px-4 py-3 justify-start gap-3 hover:bg-neutral-50 transition-colors ${
-											isSelected ? 'bg-info-50' : ''
+										className={`w-full px-4 py-3 justify-start gap-3 hover:bg-background-secondary transition-colors ${
+											isSelected ? 'bg-info-50 dark:bg-info-900/20' : ''
 										}`}>
 										{user.profileImage ? (
 											<img
@@ -232,13 +232,13 @@ export function SearchBar() {
 											</div>
 										)}
 										<div className="flex-1 text-left">
-											<div className="font-medium text-neutral-900">
+											<div className="font-medium text-text-primary">
 												{user.name || user.username}
 											</div>
-											<div className="text-sm text-neutral-500">
+											<div className="text-sm text-text-secondary">
 												@{user.username}
 												{user.isRemote && (
-													<span className="ml-2 text-xs text-info-600">
+													<span className="ml-2 text-xs text-info-600 dark:text-info-400">
 														Remote
 													</span>
 												)}
@@ -252,7 +252,7 @@ export function SearchBar() {
 
 					{results.events.length > 0 && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase bg-neutral-50">
+							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
 								Events
 							</div>
 							{results.events.map((event, index) => {
@@ -265,18 +265,18 @@ export function SearchBar() {
 											handleItemClick({ type: 'event', data: event })
 										}
 										variant="ghost"
-										className={`w-full px-4 py-3 justify-start hover:bg-neutral-50 transition-colors ${
-											isSelected ? 'bg-info-50' : ''
+										className={`w-full px-4 py-3 justify-start hover:bg-background-secondary transition-colors ${
+											isSelected ? 'bg-info-50 dark:bg-info-900/20' : ''
 										}`}>
-										<div className="font-medium text-neutral-900">
+										<div className="font-medium text-text-primary">
 											{event.title}
 										</div>
-										<div className="text-sm text-neutral-500 mt-1">
+										<div className="text-sm text-text-secondary mt-1">
 											{new Date(event.startTime).toLocaleDateString()} •{' '}
 											{event.location || 'No location'}
 										</div>
 										{event.user && (
-											<div className="text-xs text-neutral-400 mt-1">
+											<div className="text-xs text-text-tertiary mt-1">
 												by @{event.user.username}
 											</div>
 										)}
@@ -288,7 +288,7 @@ export function SearchBar() {
 
 					{results.remoteAccountSuggestion && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase bg-neutral-50">
+							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
 								Remote Account
 							</div>
 							<Button
@@ -302,17 +302,19 @@ export function SearchBar() {
 								}}
 								disabled={isResolving}
 								variant="ghost"
-								className={`w-full px-4 py-3 justify-start gap-3 hover:bg-neutral-50 transition-colors ${
-									selectedIndex === selectableItems.length - 1 ? 'bg-info-50' : ''
+								className={`w-full px-4 py-3 justify-start gap-3 hover:bg-background-secondary transition-colors ${
+									selectedIndex === selectableItems.length - 1
+										? 'bg-info-50 dark:bg-info-900/20'
+										: ''
 								}`}>
-								<div className="w-10 h-10 rounded-full bg-info-100 flex items-center justify-center">
-									<GlobeIcon className="w-6 h-6 text-info-600" />
+								<div className="w-10 h-10 rounded-full bg-info-100 dark:bg-info-900/40 flex items-center justify-center">
+									<GlobeIcon className="w-6 h-6 text-info-600 dark:text-info-400" />
 								</div>
 								<div className="flex-1 text-left">
-									<div className="font-medium text-neutral-900">
+									<div className="font-medium text-text-primary">
 										{isResolving ? 'Resolving...' : 'Lookup remote account'}
 									</div>
-									<div className="text-sm text-info-600">
+									<div className="text-sm text-info-600 dark:text-info-400">
 										{results.remoteAccountSuggestion.handle}
 									</div>
 								</div>
@@ -323,7 +325,7 @@ export function SearchBar() {
 					{results.users.length === 0 &&
 						results.events.length === 0 &&
 						!results.remoteAccountSuggestion && (
-							<div className="px-4 py-8 text-center text-neutral-500">
+							<div className="px-4 py-8 text-center text-text-secondary">
 								No results found
 							</div>
 						)}

@@ -22,14 +22,14 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
 		return (
 			<Card className={className}>
 				<div className="p-6">
-					<h3 className="text-lg font-semibold text-neutral-900 mb-4">
+					<h3 className="text-lg font-semibold text-text-primary mb-4">
 						🔥 Trending Events
 					</h3>
 					<div className="space-y-3">
 						{['first', 'second', 'third'].map((position) => (
 							<div key={`trending-skeleton-${position}`} className="animate-pulse">
-								<div className="h-4 bg-neutral-200 rounded w-3/4 mb-2" />
-								<div className="h-3 bg-neutral-100 rounded w-1/2" />
+								<div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 mb-2" />
+								<div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded w-1/2" />
 							</div>
 						))}
 					</div>
@@ -68,8 +68,8 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
 		<Card className={className}>
 			<div className="p-6">
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-lg font-semibold text-neutral-900">🔥 Trending Events</h3>
-					<span className="text-xs text-neutral-500">Last {data.windowDays} days</span>
+					<h3 className="text-lg font-semibold text-text-primary">🔥 Trending Events</h3>
+					<span className="text-xs text-text-tertiary">Last {data.windowDays} days</span>
 				</div>
 
 				<div className="space-y-3">
@@ -83,8 +83,8 @@ export function TrendingEvents({ limit = 5, windowDays = 7, className }: Trendin
 				</div>
 
 				<Link
-					to="/search"
-					className="block text-center text-sm text-info-600 hover:text-info-700 mt-4 font-medium">
+					to="/discover?sort=trending"
+					className="block text-center text-sm text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300 mt-4 font-medium">
 					View all events →
 				</Link>
 			</div>
@@ -113,11 +113,13 @@ function TrendingEventItem({
 	return (
 		<Link
 			to={eventPath}
-			className="block p-3 rounded-lg hover:bg-neutral-50 transition-colors border border-neutral-100">
+			className="block p-3 rounded-lg hover:bg-background-secondary transition-colors border border-border-default">
 			<div className="flex items-start justify-between gap-2">
 				<div className="flex-1 min-w-0">
-					<h4 className="font-medium text-neutral-900 text-sm truncate">{event.title}</h4>
-					<p className="text-xs text-neutral-500 mt-1">
+					<h4 className="font-medium text-text-primary text-sm truncate">
+						{event.title}
+					</h4>
+					<p className="text-xs text-text-secondary mt-1">
 						{formatDate(event.startTime)}
 						{event.location && <span> • {event.location}</span>}
 					</p>
@@ -132,7 +134,7 @@ function TrendingEventItem({
 					)}
 				</div>
 				{engagementCount > 0 && (
-					<div className="flex items-center gap-1 text-xs text-neutral-500 shrink-0">
+					<div className="flex items-center gap-1 text-xs text-text-tertiary shrink-0">
 						<span>🔥</span>
 						<span>{engagementCount}</span>
 					</div>

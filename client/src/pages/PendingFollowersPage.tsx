@@ -68,10 +68,10 @@ export function PendingFollowersPage() {
 		})
 
 	return (
-		<div className="min-h-screen bg-neutral-50">
+		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={false} user={user} onLogout={logout} />
 			<div className="max-w-4xl mx-auto px-4 py-8">
-				<h1 className="text-3xl font-bold text-neutral-900 mb-8">
+				<h1 className="text-3xl font-bold text-text-primary mb-8">
 					Pending Follow Requests
 				</h1>
 
@@ -82,7 +82,7 @@ export function PendingFollowersPage() {
 				)}
 
 				{error && (
-					<div className="bg-error-50 border border-error-200 rounded-lg p-4 text-error-700">
+					<div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-4 text-error-700 dark:text-error-400">
 						{error instanceof Error
 							? error.message
 							: 'Failed to load pending followers'}
@@ -91,7 +91,7 @@ export function PendingFollowersPage() {
 
 				{data &&
 					(data.followers.length === 0 ? (
-						<div className="bg-white rounded-lg shadow-sm p-8 text-center text-neutral-500">
+						<div className="bg-background-primary rounded-lg shadow-sm p-8 text-center text-text-secondary">
 							No pending follow requests
 						</div>
 					) : (
@@ -99,7 +99,7 @@ export function PendingFollowersPage() {
 							{data.followers.map((follower) => (
 								<div
 									key={follower.followerId}
-									className="bg-white rounded-lg shadow-sm p-6">
+									className="bg-background-primary rounded-lg shadow-sm p-6">
 									<div className="flex items-start gap-4">
 										{follower.profileImage ? (
 											<img
@@ -125,23 +125,23 @@ export function PendingFollowersPage() {
 												<div>
 													<Link
 														to={`/@${follower.username}`}
-														className="text-lg font-semibold text-neutral-900 hover:text-info-600">
+														className="text-lg font-semibold text-text-primary hover:text-primary-600 dark:hover:text-primary-400">
 														{follower.name || follower.username}
 													</Link>
-													<p className="text-sm text-neutral-500">
+													<p className="text-sm text-text-secondary">
 														@{follower.username}
 														{follower.isRemote && (
-															<span className="ml-2 text-xs bg-info-100 text-info-700 px-2 py-1 rounded">
+															<span className="ml-2 text-xs bg-info-100 dark:bg-info-900/30 text-info-700 dark:text-info-300 px-2 py-1 rounded">
 																Remote
 															</span>
 														)}
 													</p>
 													{follower.bio && (
-														<p className="text-sm text-neutral-600 mt-2">
+														<p className="text-sm text-text-secondary mt-2">
 															{follower.bio}
 														</p>
 													)}
-													<p className="text-xs text-neutral-400 mt-2">
+													<p className="text-xs text-text-tertiary mt-2">
 														Requested {formatDate(follower.createdAt)}
 													</p>
 												</div>

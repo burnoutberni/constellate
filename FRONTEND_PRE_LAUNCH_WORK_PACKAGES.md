@@ -9,18 +9,20 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Refocus homepage on event discovery with marketing elements
 
 **Tasks:**
+
 - Remove calendar widget from HomePage (redirect to `/calendar` for calendar view)
 - Add hero section explaining Constellate (what it is, self-hosting mention)
 - Show relevant events in sections:
-  - Location-based events (if location available)
-  - Trending events
-  - Upcoming events (soonest first)
-  - Recommended events (if authenticated)
+    - Location-based events (if location available)
+    - Trending events
+    - Upcoming events (soonest first)
+    - Recommended events (if authenticated)
 - Add platform statistics display
 - Add strategic sign-up CTAs
 - Add link to About page for self-hosting details
 
 **Files:**
+
 - `client/src/pages/HomePage.tsx` - Major refactor
 - `client/src/components/HomeHero.tsx` - Enhance with self-hosting info
 
@@ -33,6 +35,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Combine SearchPage and EventDiscoveryPage into single `/discover` page
 
 **Tasks:**
+
 - Create new `DiscoverPage.tsx` combining best features from both pages
 - Include advanced search filters
 - Include grid/list view toggle
@@ -44,6 +47,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Delete old `SearchPage.tsx` and `EventDiscoveryPage.tsx` after migration
 
 **Files:**
+
 - `client/src/pages/DiscoverPage.tsx` (new)
 - `client/src/App.tsx` - Add `/discover` route, redirects
 - `client/src/lib/navigation.ts` - Update nav links
@@ -60,6 +64,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Better integrate About page with self-hosting and WordPress plugin info
 
 **Tasks:**
+
 - Enhance About page with detailed self-hosting information
 - Add section about running your own instance
 - Add conceptual section about future WordPress plugin integration
@@ -67,6 +72,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Consider adding to navbar (less prominent) or keep in footer
 
 **Files:**
+
 - `client/src/pages/AboutPage.tsx` - Major enhancement
 - Create or enhance footer component with About link
 - `client/src/components/Navbar.tsx` - Optional About link
@@ -80,12 +86,14 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Move dark mode toggle from navbar to settings page
 
 **Tasks:**
+
 - Remove ThemeToggle from Navbar
 - Add theme settings section to SettingsPage
 - Include dark mode toggle in settings
 - Optionally add system preference detection UI
 
 **Files:**
+
 - `client/src/components/Navbar.tsx` - Remove ThemeToggle
 - `client/src/pages/SettingsPage.tsx` - Add theme settings section
 - `client/src/components/ThemeToggle.tsx` - Reuse or create SettingsThemeToggle variant
@@ -101,6 +109,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Implement comprehensive loading states (WP-121 from roadmap)
 
 **Tasks:**
+
 - Create skeleton component library
 - Add skeletons for event cards, lists, profiles
 - Add loading states for all async operations
@@ -108,6 +117,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add loading indicators for forms
 
 **Files:**
+
 - `client/src/components/ui/Skeleton.tsx` (new)
 - `client/src/components/EventCardSkeleton.tsx` (new)
 - `client/src/components/ProfileSkeleton.tsx` (new)
@@ -122,6 +132,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Implement comprehensive error handling (WP-122 from roadmap)
 
 **Tasks:**
+
 - Create `ErrorBoundary` component (may already exist, enhance if needed)
 - Add error pages (404, 500, etc.)
 - Create user-friendly error messages
@@ -130,6 +141,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Create error toast notifications
 
 **Files:**
+
 - `client/src/components/ErrorBoundary.tsx` (enhance if exists)
 - `client/src/pages/NotFoundPage.tsx` (new)
 - `client/src/pages/ErrorPage.tsx` (new)
@@ -145,17 +157,19 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Ensure all core pages work perfectly on mobile (WP-123 from roadmap)
 
 **Tasks:**
+
 - Audit and fix mobile layouts for:
-  - HomePage
-  - EventDetailPage
-  - DiscoverPage (new)
-  - UserProfilePage
+    - HomePage
+    - EventDetailPage
+    - DiscoverPage (new)
+    - UserProfilePage
 - Improve touch targets (minimum 44x44px)
 - Optimize images for mobile
 - Test on various screen sizes (320px to 768px)
 - Ensure proper viewport meta tags
 
 **Files:**
+
 - All page components
 - `client/index.html` (viewport meta)
 
@@ -168,6 +182,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Optimize navigation and forms for mobile (WP-124 from roadmap)
 
 **Tasks:**
+
 - Create mobile-optimized navigation drawer
 - Optimize all forms for mobile (event creation, comments, search)
 - Add mobile-friendly date/time pickers
@@ -176,6 +191,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Test on real mobile devices
 
 **Files:**
+
 - `client/src/components/MobileNav.tsx` (refactor)
 - All form components
 - `client/src/components/MobileDatePicker.tsx` (new)
@@ -189,6 +205,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Ensure full keyboard accessibility (WP-125 from roadmap)
 
 **Tasks:**
+
 - Audit all interactive elements for keyboard access
 - Add keyboard shortcuts for common actions
 - Implement proper focus management
@@ -198,6 +215,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Test with keyboard-only navigation
 
 **Files:**
+
 - All interactive components
 - `client/src/lib/keyboardShortcuts.ts` (new)
 - `client/src/components/SkipLink.tsx` (new)
@@ -211,6 +229,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Add comprehensive ARIA support (WP-126 from roadmap)
 
 **Tasks:**
+
 - Audit all components for ARIA labels
 - Add proper roles and landmarks
 - Improve form labels and error messages
@@ -220,6 +239,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Test with screen readers (NVDA, JAWS, VoiceOver)
 
 **Files:**
+
 - All components
 - `client/src/lib/aria.ts` (new for ARIA utilities)
 
@@ -232,6 +252,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Complete dark mode theme support (WP-127 from roadmap)
 
 **Tasks:**
+
 - Create dark mode color scheme using design tokens
 - Add theme toggle in settings (WP-203)
 - Implement theme persistence (localStorage)
@@ -241,6 +262,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Test all pages in dark mode
 
 **Files:**
+
 - `client/src/contexts/ThemeContext.tsx` (enhance)
 - `client/src/design-system/tokens.ts` (enhance)
 - All components (update for dark mode)
@@ -255,6 +277,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Add map-based event discovery (WP-128 from roadmap)
 
 **Tasks:**
+
 - Integrate map library (e.g., Leaflet, Mapbox)
 - Create map view for events
 - Show events as markers on map
@@ -264,6 +287,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Make map responsive
 
 **Files:**
+
 - `client/src/components/EventMap.tsx` (new)
 - `client/src/pages/MapViewPage.tsx` (new)
 - `client/src/components/MapEventMarker.tsx` (new)
@@ -277,6 +301,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Enhance real-time features with better UI feedback (WP-129 from roadmap)
 
 **Tasks:**
+
 - Improve SSE connection status display
 - Add connection retry logic
 - Show real-time update indicators
@@ -286,6 +311,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Handle offline/online states
 
 **Files:**
+
 - `client/src/hooks/useRealtimeSSE.ts` (refactor)
 - `client/src/components/ConnectionStatus.tsx` (new)
 - `client/src/lib/optimisticUpdates.ts` (new)
@@ -299,6 +325,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Redesign admin interface (WP-130 from roadmap)
 
 **Tasks:**
+
 - Redesign `AdminPage` with better layout
 - Add moderation queue interface
 - Add instance settings management
@@ -308,6 +335,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add instance blocking interface
 
 **Files:**
+
 - `client/src/pages/AdminPage.tsx` (refactor)
 - `client/src/components/ModerationQueue.tsx` (new)
 - `client/src/components/UserManagement.tsx` (new)
@@ -323,6 +351,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Set up comprehensive frontend testing (WP-131 from roadmap)
 
 **Tasks:**
+
 - Set up React Testing Library (may already exist, enhance)
 - Create test utilities and helpers
 - Add component test templates
@@ -333,6 +362,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Document testing patterns
 
 **Files:**
+
 - `client/src/test-utils/` (new directory or enhance)
 - `client/vitest.config.ts` (enhance)
 - Test files for all components
@@ -346,6 +376,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Document all components and design system (WP-132 from roadmap)
 
 **Tasks:**
+
 - Create component documentation (Storybook or similar)
 - Document design system usage
 - Add code examples for all components
@@ -355,6 +386,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add usage guidelines
 
 **Files:**
+
 - `client/src/design-system/README.md` (enhance)
 - Component documentation files
 - `client/STORYBOOK.md` (if using Storybook)
@@ -370,6 +402,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Allow users to export all their data (GDPR Article 15)
 
 **Tasks:**
+
 - Create backend endpoint `/users/me/export` that returns all user data in JSON format
 - Create frontend UI in Settings page for data export
 - Include all user data: profile, events, comments, attendance, likes, follows, etc.
@@ -378,6 +411,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Show export status and progress
 
 **Files:**
+
 - `src/profile.ts` or new file - Backend export endpoint
 - `client/src/components/DataExportSettings.tsx` (new)
 - `client/src/pages/SettingsPage.tsx` - Add data export section
@@ -392,6 +426,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Ensure account deletion is fully functional and GDPR compliant
 
 **Tasks:**
+
 - Verify backend `/profile` DELETE endpoint works correctly
 - Ensure all user data is properly deleted (cascade deletes)
 - Add confirmation flow with clear warnings
@@ -401,6 +436,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add deletion confirmation email (optional)
 
 **Files:**
+
 - `src/profile.ts` - Enhance DELETE endpoint if needed
 - `client/src/components/AccountSettings.tsx` - Enhance deletion UI
 - Database schema - Verify cascade deletes
@@ -414,20 +450,22 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Create ToS and Privacy Policy pages (DSA requirement)
 
 **Tasks:**
+
 - Create Terms of Service page
 - Create Privacy Policy page
 - Include information about:
-  - Data collection and usage
-  - Cookie usage
-  - Third-party services
-  - User rights (GDPR)
-  - Content moderation policies
-  - Dispute resolution
+    - Data collection and usage
+    - Cookie usage
+    - Third-party services
+    - User rights (GDPR)
+    - Content moderation policies
+    - Dispute resolution
 - Add links in footer
 - Add acceptance checkbox during signup
 - Store acceptance timestamp
 
 **Files:**
+
 - `client/src/pages/TermsOfServicePage.tsx` (new)
 - `client/src/pages/PrivacyPolicyPage.tsx` (new)
 - `client/src/components/Footer.tsx` (new or enhance)
@@ -443,15 +481,16 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Allow users to flag illegal/non-ToC compliant content (DSA requirement)
 
 **Tasks:**
+
 - Create report/flag UI component
 - Add "Report" button to events, comments, user profiles
 - Create report form with categories:
-  - Illegal content
-  - Hate speech
-  - Harassment
-  - Spam
-  - Copyright violation
-  - Other (with text field)
+    - Illegal content
+    - Hate speech
+    - Harassment
+    - Spam
+    - Copyright violation
+    - Other (with text field)
 - Create backend endpoint for reports
 - Store reports in database
 - Add admin interface for reviewing reports (WP-213)
@@ -459,6 +498,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Handle anonymous reports (if allowed)
 
 **Files:**
+
 - `client/src/components/ReportContentModal.tsx` (new)
 - `client/src/components/ReportButton.tsx` (new)
 - `client/src/pages/EventDetailPage.tsx` - Add report button
@@ -476,16 +516,18 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Display moderation practices and ToC compliance info (DSA requirement)
 
 **Tasks:**
+
 - Create Moderation Practices page explaining:
-  - What content is allowed/prohibited
-  - How moderation works
-  - Appeal process
-  - Transparency reports (if applicable)
+    - What content is allowed/prohibited
+    - How moderation works
+    - Appeal process
+    - Transparency reports (if applicable)
 - Add link in footer and About page
 - Display moderation status on content (if applicable)
 - Show moderation history for admins
 
 **Files:**
+
 - `client/src/pages/ModerationPracticesPage.tsx` (new)
 - `client/src/pages/AboutPage.tsx` - Add moderation link
 - `client/src/components/Footer.tsx` - Add moderation link
@@ -500,6 +542,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Implement appeal/redress mechanism for moderation decisions (DSA requirement)
 
 **Tasks:**
+
 - Create appeal submission form
 - Allow users to appeal moderation decisions (content removal, account suspension)
 - Create backend endpoint for appeals
@@ -510,6 +553,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Document appeal process in Moderation Practices page
 
 **Files:**
+
 - `client/src/components/AppealModal.tsx` (new)
 - `client/src/pages/AppealsPage.tsx` (new, for users to view their appeals)
 - `client/src/pages/ModerationPracticesPage.tsx` - Add appeal info
@@ -527,6 +571,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Ensure proper SEO for public pages
 
 **Tasks:**
+
 - Add proper meta tags to all pages
 - Add Open Graph tags
 - Add Twitter Card tags
@@ -537,6 +582,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add canonical URLs
 
 **Files:**
+
 - `client/src/lib/seo.ts` (enhance)
 - `client/index.html` - Meta tags
 - `client/public/sitemap.xml` (new)
@@ -552,6 +598,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Optimize frontend performance for launch
 
 **Tasks:**
+
 - Implement code splitting
 - Optimize bundle size
 - Add lazy loading for images
@@ -562,6 +609,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Optimize re-renders
 
 **Files:**
+
 - `client/vite.config.ts` - Build optimization
 - All components - Performance optimizations
 - `client/src/lib/api-client.ts` - Caching
@@ -575,6 +623,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Set up analytics and error monitoring
 
 **Tasks:**
+
 - Add privacy-respecting analytics (optional, GDPR compliant)
 - Set up error monitoring (Sentry, etc.)
 - Add performance monitoring
@@ -583,6 +632,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add logging for critical errors
 
 **Files:**
+
 - `client/src/lib/analytics.ts` (new)
 - `client/src/lib/monitoring.ts` (new)
 - Configuration files
@@ -596,6 +646,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Ensure proper security headers
 
 **Tasks:**
+
 - Verify security headers are set (CSP, HSTS, etc.)
 - Test XSS protection
 - Test CSRF protection
@@ -604,6 +655,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Review and update CORS settings
 
 **Files:**
+
 - `src/middleware/security.ts` (verify)
 - `client/public/.well-known/security.txt` (new)
 
@@ -616,6 +668,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Comprehensive accessibility audit
 
 **Tasks:**
+
 - Run automated accessibility tests (axe-core, Lighthouse)
 - Fix all critical accessibility issues
 - Test with screen readers
@@ -626,6 +679,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Test with various assistive technologies
 
 **Files:**
+
 - All components
 - `client/src/lib/accessibility.ts` (new utilities if needed)
 
@@ -638,6 +692,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Set up i18n infrastructure for future translations
 
 **Tasks:**
+
 - Choose i18n library (react-i18next, etc.)
 - Set up translation file structure
 - Extract all user-facing strings
@@ -647,6 +702,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Document translation process
 
 **Files:**
+
 - `client/src/lib/i18n.ts` (new)
 - `client/src/locales/` (new directory)
 - All components - Use translation keys
@@ -660,6 +716,7 @@ This document outlines all remaining frontend work packages needed before launch
 **Scope:** Add all required legal pages
 
 **Tasks:**
+
 - Terms of Service (WP-302)
 - Privacy Policy (WP-302)
 - Cookie Policy
@@ -670,6 +727,7 @@ This document outlines all remaining frontend work packages needed before launch
 - Add all to footer
 
 **Files:**
+
 - `client/src/pages/TermsOfServicePage.tsx` (WP-302)
 - `client/src/pages/PrivacyPolicyPage.tsx` (WP-302)
 - `client/src/pages/CookiePolicyPage.tsx` (new)
@@ -686,6 +744,7 @@ This document outlines all remaining frontend work packages needed before launch
 ## Implementation Priority
 
 ### Phase 1: Critical (Pre-Launch Blockers)
+
 - WP-200: Homepage Redesign
 - WP-201: Merge Search and Discovery
 - WP-300: Data Export
@@ -698,6 +757,7 @@ This document outlines all remaining frontend work packages needed before launch
 - WP-403: Security Headers
 
 ### Phase 2: Important (Launch Quality)
+
 - WP-202: About Page Enhancement
 - WP-203: Dark Mode Toggle Relocation
 - WP-204: Loading States
@@ -708,6 +768,7 @@ This document outlines all remaining frontend work packages needed before launch
 - WP-404: Accessibility Audit
 
 ### Phase 3: Nice to Have (Post-Launch)
+
 - WP-208: Keyboard Navigation
 - WP-209: ARIA Labels
 - WP-210: Dark Mode Full Implementation
@@ -736,4 +797,3 @@ This document outlines all remaining frontend work packages needed before launch
 - Maintain backward compatibility where possible
 - Document any breaking changes
 - Update this document as packages are completed
-
