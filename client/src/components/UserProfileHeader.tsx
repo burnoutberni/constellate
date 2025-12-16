@@ -1,7 +1,7 @@
 import type { UserProfile } from '@/types'
 
 import { formatDate } from '../lib/formatUtils'
-
+import { ReportButton } from './ReportButton'
 import { Stack } from './layout'
 import { Avatar, Badge, Button, Card } from './ui'
 
@@ -20,6 +20,7 @@ interface UserProfileHeaderProps {
 	isFollowLoading?: boolean
 	showFollowButton: boolean
 	headerImageUrl?: string | null
+	isAuthenticated?: boolean
 }
 
 /**
@@ -41,6 +42,7 @@ export function UserProfileHeader({
 	isFollowLoading,
 	showFollowButton,
 	headerImageUrl,
+	isAuthenticated,
 }: UserProfileHeaderProps) {
 	// Extract instance hostname from external actor URL
 	const getInstanceHostname = () => {
@@ -112,30 +114,43 @@ export function UserProfileHeader({
 								</div>
 							</div>
 
-							{/* Follow Button */}
-							{!isOwnProfile && showFollowButton && (
-								<div className="flex-shrink-0">
-									{isFollowing ? (
-										<Button
-											variant="secondary"
-											size="md"
-											onClick={onUnfollowClick}
-											loading={isFollowLoading}
-											disabled={isFollowLoading}>
-											Unfollow
-										</Button>
-									) : (
-										<Button
-											variant="primary"
-											size="md"
-											onClick={onFollowClick}
-											loading={isFollowLoading}
-											disabled={isFollowLoading || isFollowPending}>
-											{isFollowPending ? 'Pending' : 'Follow'}
-										</Button>
-									)}
-								</div>
-							)}
+							<div className="flex flex-shrink-0 items-center gap-2">
+								{/* Follow Button */}
+								{!isOwnProfile && showFollowButton && (
+									<div>
+										{isFollowing ? (
+											<Button
+												variant="secondary"
+												size="md"
+												onClick={onUnfollowClick}
+												loading={isFollowLoading}
+												disabled={isFollowLoading}>
+												Unfollow
+											</Button>
+										) : (
+											<Button
+												variant="primary"
+												size="md"
+												onClick={onFollowClick}
+												loading={isFollowLoading}
+												disabled={isFollowLoading || isFollowPending}>
+												{isFollowPending ? 'Pending' : 'Follow'}
+											</Button>
+										)}
+									</div>
+								)}
+
+								{/* Report Button */}
+								{!isOwnProfile && isAuthenticated && (
+									<ReportButton
+										targetType="user"
+										targetId={user.id}
+										contentTitle={user.name || user.username}
+										variant="ghost"
+										size="md"
+									/>
+								)}
+							</div>
 						</Stack>
 
 						{/* Bio */}

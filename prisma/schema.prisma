@@ -69,6 +69,7 @@ model User {
   sessions Session[]
   accounts Account[]
   apiKeys  ApiKey[]
+  appeals  Appeal[]
 
   @@index([username])
   @@index([externalActorUrl])
@@ -595,4 +596,36 @@ model Instance {
   @@index([domain])
   @@index([isBlocked])
   @@index([lastActivityAt])
+}
+
+// Appeal model for moderation decisions
+model Appeal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The user filing the appeal
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What is being appealed (e.g. "Account Suspension", "Content Removal")
+  type String
+
+  // Reference to the original decision or report (optional, JSON for flexibility)
+  referenceId   String?
+  referenceType String? // e.g. "report", "blocked_user"
+
+  // User's explanation
+  reason String
+
+  // Status tracking
+  status     String    @default("pending") // pending, approved, rejected
+  resolvedAt DateTime?
+  resolvedBy String? // Admin user ID who resolved it
+
+  // Admin notes (internal only)
+  adminNotes String?
+
+  @@index([userId])
+  @@index([status])
 }

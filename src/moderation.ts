@@ -351,3 +351,127 @@ app.get('/block/check/:username', async (c) => {
 })
 
 export default app
+// Appeal schema
+const AppealSchema = z.object({
+	type: z.string(),
+	reason: z.string().min(1).max(2000),
+	referenceId: z.string().optional(),
+	referenceType: z.string().optional(),
+})
+
+// Create an appeal
+app.post('/appeals', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const body = await c.req.json()
+		const { type, reason, referenceId, referenceType } = AppealSchema.parse(body)
+
+		const appeal = await prisma.appeal.create({
+			data: {
+				userId,
+				type,
+				reason,
+				referenceId,
+				referenceType,
+				status: 'pending',
+			},
+		})
+
+		return c.json(appeal, 201)
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+		}
+		console.error('Error creating appeal:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get my appeals
+app.get('/appeals', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const appeals = await prisma.appeal.findMany({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+		})
+		return c.json({ appeals })
+	} catch (error) {
+		console.error('Error getting user appeals:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get all appeals (admin only)
+app.get('/admin/appeals', async (c) => {
+	try {
+		await requireAdmin(c)
+		const status = c.req.query('status')
+		const page = parseInt(c.req.query('page') || '1')
+		const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100)
+		const skip = (page - 1) * limit
+
+		const where = status ? { status } : {}
+
+		const [appeals, total] = await Promise.all([
+			prisma.appeal.findMany({
+				where,
+				include: {
+					user: {
+						select: { id: true, username: true, name: true },
+					},
+				},
+				orderBy: { createdAt: 'desc' },
+				skip,
+				take: limit,
+			}),
+			prisma.appeal.count({ where }),
+		])
+
+		return c.json({
+			appeals,
+			pagination: {
+				page,
+				limit,
+				total,
+				pages: Math.ceil(total / limit),
+			},
+		})
+	} catch (error) {
+		console.error('Error getting admin appeals:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Resolve appeal (admin only)
+app.put('/admin/appeals/:id', async (c) => {
+	try {
+		const adminId = await requireAdmin(c)
+		const { id } = c.req.param()
+		const body = await c.req.json()
+		const { status, adminNotes } = z
+			.object({
+				status: z.enum(['approved', 'rejected']),
+				adminNotes: z.string().optional(),
+			})
+			.parse(body)
+
+		const appeal = await prisma.appeal.update({
+			where: { id },
+			data: {
+				status,
+				adminNotes,
+				resolvedAt: new Date(),
+				resolvedBy: adminId,
+			},
+		})
+
+		return c.json(appeal)
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
+		}
+		console.error('Error resolving appeal:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})

@@ -6,6 +6,7 @@ import { formatDate, formatTime } from '../lib/formatUtils'
 import { getRecurrenceLabel } from '../lib/recurrence'
 import { getVisibilityMeta } from '../lib/visibility'
 
+import { ReportButton } from './ReportButton'
 import { Badge, SafeHTML } from './ui'
 
 interface EventInfoProps {
@@ -13,6 +14,7 @@ interface EventInfoProps {
 	 * Event details to display
 	 */
 	event: {
+		id: string
 		title: string
 		summary?: string | null
 		startTime: string
@@ -33,6 +35,10 @@ interface EventInfoProps {
 	 * Event's timezone (if different from viewer)
 	 */
 	eventTimezone?: string
+	/**
+	 * Whether the viewer is authenticated and can report the event
+	 */
+	isAuthenticated?: boolean
 }
 
 /**
@@ -41,7 +47,12 @@ interface EventInfoProps {
  *
  * Handles timezone display and formatting.
  */
-export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoProps) {
+export function EventInfo({
+	event,
+	viewerTimezone,
+	eventTimezone,
+	isAuthenticated,
+}: EventInfoProps) {
 	const visibilityMeta = useMemo(() => {
 		// Ensure we always have a valid visibility meta, defaulting to PUBLIC
 		return getVisibilityMeta(event.visibility || 'PUBLIC')
@@ -72,15 +83,28 @@ export function EventInfo({ event, viewerTimezone, eventTimezone }: EventInfoPro
 	return (
 		<div className="space-y-6">
 			{/* Event Title and Visibility */}
-			<div>
-				<div className="flex flex-wrap items-center gap-3 mb-2">
-					<h1 className="text-3xl font-bold text-text-primary">{event.title}</h1>
-					<Badge variant="secondary" size="md">
-						{visibilityMeta.icon} {visibilityMeta.label}
-					</Badge>
+			<div className="flex justify-between items-start gap-4">
+				<div className="flex-1 min-w-0">
+					<div className="flex flex-wrap items-center gap-3 mb-2">
+						<h1 className="text-3xl font-bold text-text-primary break-words">
+							{event.title}
+						</h1>
+						<Badge variant="secondary" size="md">
+							{visibilityMeta.icon} {visibilityMeta.label}
+						</Badge>
+					</div>
+					{visibilityMeta.helper && (
+						<p className="text-sm text-text-secondary">{visibilityMeta.helper}</p>
+					)}
 				</div>
-				{visibilityMeta.helper && (
-					<p className="text-sm text-text-secondary">{visibilityMeta.helper}</p>
+				{isAuthenticated && (
+					<ReportButton
+						targetType="event"
+						targetId={event.id}
+						contentTitle={event.title}
+						variant="ghost"
+						size="sm"
+					/>
 				)}
 			</div>
 
