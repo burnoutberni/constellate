@@ -17,8 +17,8 @@ import { generateId } from './lib/utils'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
 import { CalendarPage } from './pages/CalendarPage'
+import { DiscoverPage } from './pages/DiscoverPage'
 import { EditEventPage } from './pages/EditEventPage'
-import { EventDiscoveryPage } from './pages/EventDiscoveryPage'
 import { FeedPage } from './pages/FeedPage'
 import { HomePage } from './pages/HomePage'
 import { InstanceDetailPage } from './pages/InstanceDetailPage'
@@ -29,7 +29,6 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { RemindersPage } from './pages/RemindersPage'
-import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
@@ -115,8 +114,9 @@ function AppContent() {
 				<Route path="/login" element={<LoginPage />} />
 				<Route path="/feed" element={<FeedPage />} />
 				<Route path="/calendar" element={<CalendarPage />} />
-				<Route path="/search" element={<SearchPage />} />
-				<Route path="/events" element={<EventDiscoveryPage />} />
+				{/* Unified Discovery Route */}
+				<Route path="/discover" element={<DiscoverPage />} />
+				{/* Legacy redirects can be handled by the router if needed, but for now we just remove them */}
 				<Route path="/templates" element={<TemplatesPage />} />
 				<Route path="/instances" element={<InstancesPage />} />
 				<Route path="/instances/:domain" element={<InstanceDetailPage />} />

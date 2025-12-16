@@ -1,6 +1,8 @@
 import DOMPurify from 'dompurify'
 import { useMemo, type ElementType } from 'react'
 
+import { cn } from '../../lib/utils'
+
 // Regular expression to match external URLs (http://, https://, or protocol-relative //)
 const EXTERNAL_URL_REGEX = /^(https?:\/\/|\/\/)/i
 
@@ -40,19 +42,14 @@ export interface SafeHTMLProps {
 // DOMPurify configuration for safe HTML sanitization
 // This allows common formatting tags like <p>, <strong>, <em>, <br>, <a>, etc.
 // but blocks dangerous tags like <script>, <iframe>, etc.
-// The afterSanitizeAttributes hook (added at module level) will automatically
-// add target="_blank" and rel="noopener noreferrer" to external links
-//
-// ALLOWED_URI_REGEXP explanation:
-// - Allows safe protocols: http, https, mailto, tel
-// - Allows relative URLs (starting with /)
-// - DOMPurify automatically blocks dangerous protocols like javascript:, data:, etc.
 const DOMPURIFY_CONFIG = {
 	ALLOWED_TAGS: [
 		'p',
 		'br',
 		'strong',
+		'b',
 		'em',
+		'i',
 		'u',
 		's',
 		'strike',
@@ -74,9 +71,6 @@ const DOMPURIFY_CONFIG = {
 		'div',
 	],
 	ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-	// Only allow safe, commonly-used protocols for event summaries
-	// DOMPurify automatically blocks javascript:, data:, and other dangerous protocols
-	// This tighter regex reduces attack surface while supporting common use cases
 	ALLOWED_URI_REGEXP: /^(https?:|mailto:|tel:|\/)/i,
 }
 
@@ -84,15 +78,7 @@ const DOMPURIFY_CONFIG = {
  * SafeHTML component renders HTML content after sanitizing it with DOMPurify
  * to prevent XSS attacks. Only safe HTML tags and attributes are allowed.
  *
- * Note: This component is client-only and requires a browser environment.
- * The wrapper tag defaults to 'div' but can be customized (e.g., 'p' for paragraphs).
- * Be aware that changing the tag may affect CSS styling (margins, line-height, etc.).
- *
- * @example
- * ```tsx
- * <SafeHTML html="<p>Hello <strong>world</strong>!</p>" />
- * <SafeHTML html="<p>Content</p>" tag="p" className="text-lg" />
- * ```
+ * It automatically applies prose typography styles for consistency.
  */
 export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 	const sanitizedHTML = useMemo(() => {
@@ -102,8 +88,6 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 
 		// Guard against non-browser environments (defensive programming)
 		if (typeof window === 'undefined') {
-			// In SSR/non-browser environments, return empty string
-			// This component is designed for client-side only
 			return ''
 		}
 
@@ -115,5 +99,18 @@ export function SafeHTML({ html, className, tag: Tag = 'div' }: SafeHTMLProps) {
 		return null
 	}
 
-	return <Tag className={className} dangerouslySetInnerHTML={{ __html: sanitizedHTML }} />
+	return (
+		<Tag
+			className={cn(
+				'prose prose-sm dark:prose-invert max-w-none',
+				'prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline',
+				'prose-headings:font-semibold prose-headings:text-text-primary',
+				'prose-p:text-text-secondary',
+				'prose-strong:text-text-primary',
+				'prose-code:text-primary-700 dark:prose-code:text-primary-300 prose-code:bg-primary-50 dark:prose-code:bg-primary-900/30 prose-code:px-1 prose-code:rounded',
+				className
+			)}
+			dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
+		/>
+	)
 }

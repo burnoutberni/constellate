@@ -11,8 +11,8 @@ export type NavLink = {
 export function getNavLinks(hasUser: boolean): NavLink[] {
 	return [
 		{ to: '/feed', label: 'Feed' },
+		{ to: '/discover', label: 'Discover' },
 		{ to: '/calendar', label: 'Calendar' },
-		{ to: '/search', label: 'Search' },
 		...(hasUser
 			? [
 					{ to: '/templates', label: 'Templates' },

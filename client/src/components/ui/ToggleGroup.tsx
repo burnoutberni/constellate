@@ -2,8 +2,6 @@ import React, { createContext, useContext } from 'react'
 
 import { cn } from '../../lib/utils'
 
-import { Button } from './Button'
-
 interface ToggleGroupContextValue {
 	value: string | null
 	onValueChange: (value: string) => void
@@ -43,9 +41,9 @@ export const ToggleGroup = React.forwardRef<HTMLDivElement, ToggleGroupProps>(
 				<div
 					ref={ref}
 					className={cn(
-						'flex gap-1',
-						'border border-border-default rounded-md p-1',
-						'bg-background-primary',
+						'inline-flex p-1 rounded-lg',
+						'bg-neutral-100 dark:bg-neutral-800',
+						'border border-neutral-200 dark:border-neutral-700',
 						className
 					)}
 					role="group"
@@ -101,29 +99,37 @@ export const ToggleButton = React.forwardRef<HTMLButtonElement, ToggleButtonProp
 		}
 
 		return (
-			<Button
+			<button
 				ref={ref}
 				type="button"
 				onClick={handleClick}
-				variant={isSelected ? 'primary' : 'ghost'}
-				size="sm"
 				className={cn(
-					'p-1.5 rounded',
-					'transition-colors duration-200',
+					'inline-flex items-center justify-center',
+					'px-3 py-1.5 rounded-md text-sm font-medium',
+					'transition-all duration-200 ease-in-out',
+					'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
 					isSelected
-						? ['bg-primary-600 text-white', 'dark:bg-primary-500 dark:text-white']
+						? [
+								'bg-white dark:bg-neutral-700',
+								'text-primary-700 dark:text-primary-300',
+								'shadow-sm',
+							]
 						: [
 								'text-text-secondary',
-								'hover:bg-background-secondary',
-								'dark:hover:bg-background-tertiary',
+								'hover:text-text-primary',
+								'hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50',
 							],
 					className
 				)}
 				aria-pressed={isSelected}
 				{...props}>
-				{icon && <span className="flex items-center justify-center">{icon}</span>}
+				{icon && (
+					<span className={cn('flex items-center justify-center', children && 'mr-2')}>
+						{icon}
+					</span>
+				)}
 				{children}
-			</Button>
+			</button>
 		)
 	}
 )

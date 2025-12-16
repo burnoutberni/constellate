@@ -15,7 +15,7 @@ export interface PageLoaderProps {
 	 * Size of the spinner
 	 * @default 'lg'
 	 */
-	spinnerSize?: 'sm' | 'md' | 'lg'
+	spinnerSize?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 /**
@@ -26,12 +26,16 @@ export interface PageLoaderProps {
 export function PageLoader({ message, className, spinnerSize = 'lg' }: PageLoaderProps) {
 	return (
 		<div
-			className={cn('flex flex-col items-center justify-center min-h-screen', className)}
+			className={cn('flex flex-col items-center justify-center min-h-screen p-4', className)}
 			role="status"
 			aria-label={message || 'Loading page'}
 			aria-live="polite">
-			<Spinner size={spinnerSize} />
-			{message && <p className="mt-4 text-text-secondary text-sm">{message}</p>}
+			<Spinner size={spinnerSize} variant="primary" />
+			{message && (
+				<p className="mt-4 text-neutral-600 dark:text-neutral-400 text-sm font-medium animate-pulse">
+					{message}
+				</p>
+			)}
 		</div>
 	)
 }

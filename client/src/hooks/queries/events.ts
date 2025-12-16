@@ -9,6 +9,12 @@ import { queryKeys } from './keys'
 
 interface EventsResponse {
 	events: Event[]
+	pagination: {
+		page: number
+		limit: number
+		total: number
+		pages: number
+	}
 }
 
 interface RecommendationsResponse {
@@ -33,6 +39,8 @@ interface PlatformStatsResponse {
 	totalEvents: number
 	upcomingEvents: number
 	todayEvents: number
+	totalUsers?: number
+	totalInstances?: number
 }
 
 interface UseTrendingEventsOptions {

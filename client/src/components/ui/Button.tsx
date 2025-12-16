@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils'
 
 import { Spinner } from './Spinner'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -67,49 +67,67 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		const baseStyles = [
 			'inline-flex items-center justify-center',
 			'font-medium',
-			'border border-transparent',
 			'rounded-lg',
-			'transition-all duration-200',
-			'focus:outline-none focus:ring-2 focus:ring-offset-2',
-			'disabled:opacity-50 disabled:cursor-not-allowed',
-			'focus:ring-offset-background-primary',
+			'transition-all duration-200 ease-in-out',
+			'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+			'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
+			'active:scale-[0.98]',
 		]
 
 		// Variant styles
 		const variantStyles = {
 			primary: [
 				'bg-primary-600 text-white',
-				'hover:bg-primary-700',
+				'hover:bg-primary-700 hover:shadow-md hover:shadow-primary-600/20',
 				'active:bg-primary-800',
-				'focus:ring-primary-500',
-				'dark:bg-primary-500 dark:hover:bg-primary-600 dark:active:bg-primary-700',
+				'focus-visible:ring-primary-500',
+				'dark:bg-primary-500 dark:hover:bg-primary-400 dark:hover:shadow-primary-500/20 dark:active:bg-primary-600',
+				'border border-transparent',
 			],
 			secondary: [
-				'bg-background-tertiary text-text-primary',
-				'hover:bg-background-secondary',
-				'active:bg-background-secondary',
-				'focus:ring-border-default',
+				'bg-white text-text-primary',
+				'border border-border-default',
+				'hover:bg-neutral-50 hover:border-border-hover hover:shadow-sm',
+				'active:bg-neutral-100',
+				'focus-visible:ring-neutral-400',
+				'dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100',
+				'dark:hover:bg-neutral-750 dark:hover:border-neutral-600',
+				'dark:active:bg-neutral-700',
 			],
 			ghost: [
 				'bg-transparent text-text-secondary',
-				'hover:bg-background-secondary',
-				'active:bg-background-tertiary',
-				'focus:ring-border-default',
+				'hover:bg-neutral-100 hover:text-text-primary',
+				'active:bg-neutral-200',
+				'focus-visible:ring-neutral-400',
+				'dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200',
+				'dark:active:bg-neutral-700',
+				'border border-transparent',
 			],
 			danger: [
 				'bg-error-600 text-white',
-				'hover:bg-error-700',
+				'hover:bg-error-700 hover:shadow-md hover:shadow-error-600/20',
 				'active:bg-error-800',
-				'focus:ring-error-500',
-				'dark:bg-error-500 dark:hover:bg-error-600 dark:active:bg-error-700',
+				'focus-visible:ring-error-500',
+				'dark:bg-error-600 dark:hover:bg-error-500 dark:active:bg-error-700',
+				'border border-transparent',
+			],
+			outline: [
+				'bg-transparent text-primary-600',
+				'border border-primary-600',
+				'hover:bg-primary-50',
+				'active:bg-primary-100',
+				'focus-visible:ring-primary-500',
+				'dark:text-primary-400 dark:border-primary-400',
+				'dark:hover:bg-primary-950/30',
+				'dark:active:bg-primary-900/50',
 			],
 		}
 
 		// Size styles
 		const sizeStyles = {
 			sm: ['text-sm px-3 py-1.5 gap-1.5', 'min-h-[32px]'],
-			md: ['text-base px-4 py-2 gap-2', 'min-h-[40px]'],
-			lg: ['text-lg px-6 py-3 gap-2.5', 'min-h-[48px]'],
+			md: ['text-sm px-4 py-2 gap-2', 'min-h-[40px]'],
+			lg: ['text-base px-6 py-2.5 gap-2.5', 'min-h-[48px]'],
 		}
 
 		const classes = cn(
@@ -129,10 +147,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				aria-busy={loading}
 				aria-disabled={isDisabled}
 				{...props}>
-				{loading && <Spinner size="sm" className="h-4 w-4" />}
-				{!loading && leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
+				{loading && <Spinner size="sm" className="text-current" />}
+				{!loading && leftIcon && <span className="flex-shrink-0 -ml-1">{leftIcon}</span>}
 				<span className={loading ? 'opacity-0' : ''}>{children}</span>
-				{!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+				{!loading && rightIcon && <span className="flex-shrink-0 -mr-1">{rightIcon}</span>}
 			</button>
 		)
 	}

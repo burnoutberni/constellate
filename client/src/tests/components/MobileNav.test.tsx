@@ -62,7 +62,7 @@ describe('MobileNav Component', () => {
 
 		expect(screen.getByText('Feed')).toBeInTheDocument()
 		expect(screen.getByText('Calendar')).toBeInTheDocument()
-		expect(screen.getByText('Search')).toBeInTheDocument()
+		expect(screen.getByText('Discover')).toBeInTheDocument()
 		expect(screen.getByText('About')).toBeInTheDocument()
 	})
 
