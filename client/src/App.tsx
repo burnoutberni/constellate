@@ -114,9 +114,7 @@ function AppContent() {
 				<Route path="/login" element={<LoginPage />} />
 				<Route path="/feed" element={<FeedPage />} />
 				<Route path="/calendar" element={<CalendarPage />} />
-				{/* Unified Discovery Route */}
 				<Route path="/discover" element={<DiscoverPage />} />
-				{/* Legacy redirects can be handled by the router if needed, but for now we just remove them */}
 				<Route path="/templates" element={<TemplatesPage />} />
 				<Route path="/instances" element={<InstancesPage />} />
 				<Route path="/instances/:domain" element={<InstanceDetailPage />} />
