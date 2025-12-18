@@ -76,8 +76,13 @@ export async function canViewPrivateProfile(
 	const baseUrl = getBaseUrl()
 
 	// Build the profile owner's actor URL
+	// For remote users, we need a valid externalActorUrl
+	if (profileIsRemote && !profileExternalActorUrl) {
+		return false
+	}
+
 	const profileActorUrl = profileIsRemote
-		? profileExternalActorUrl!
+		? profileExternalActorUrl
 		: `${baseUrl}/users/${profileUsername}`
 
 	if (!profileActorUrl) {
