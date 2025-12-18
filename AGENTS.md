@@ -7,7 +7,7 @@
 - **Lint:** `npm run lint` (for both) | `npm run lint:server` | `npm run lint:client`
 - **Typecheck:** `npm run typecheck` (for both) | `npm run typecheck:server` | `npm run typecheck:client`
 - **Analyze (Knip):** `npm run knip` (for both) | `npm run knip:server` | `npm run knip:client`
-- **Format:** `npm run format` (Prettier for both)
+- **Format:** `npm run format` (Prettier for both) (ALWAYS RUN BEFORE COMMITTING!)
 - **Build:** `npm run build` (builds server & client) | **DB:** `npm run db:push` (Prisma)
 - **Start:** `npm run dev:app` (Server+Client)
 
@@ -16,7 +16,7 @@
 - **Stack:** Node.js/Hono (Backend), React/Vite/Tailwind (Frontend), Prisma (ORM).
 - **Imports (Server):** MUST use `.js` extension for local imports (e.g., `from './auth.js'`).
 - **Imports (Client):** Do NOT use extensions for imports.
-- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix.
+- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix, ALWAYS RUN BEFORE COMMITTING.
 - **TypeScript:** Strict mode enabled. Use explicit types for exports/public APIs.
 - **Naming:** `camelCase` for variables/functions. `PascalCase` for React components.
 - **Error Handling:** Use `try/catch`. On server, use `handleError` from `lib/errors.js`.
