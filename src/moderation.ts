@@ -298,7 +298,6 @@ app.get('/block/check/:username', async (c) => {
 	})
 })
 
-export default app
 // Appeal schema
 const AppealSchema = z.object({
 	type: z.nativeEnum(AppealType),
@@ -348,22 +347,18 @@ app.get('/admin/appeals', async (c) => {
 	// Validate and convert status query parameter to enum value
 	let statusEnum: AppealStatus | undefined
 	if (statusParam) {
-		try {
-			// Accept lowercase strings and convert to enum
-			const validated = z
-				.enum(['pending', 'approved', 'rejected'])
-				.transform((val) => {
-					if (val === 'pending') return AppealStatus.PENDING
-					if (val === 'approved') return AppealStatus.APPROVED
-					if (val === 'rejected') return AppealStatus.REJECTED
-					throw new Error(`Invalid status: ${val}`)
-				})
-				.parse(statusParam.toLowerCase())
-			statusEnum = validated
-		} catch {
-			// Invalid status, will be undefined and filtered out
-			statusEnum = undefined
-		}
+		// Accept lowercase strings and convert to enum
+		// Invalid values will throw an error, caught by global error handler
+		const validated = z
+			.enum(['pending', 'approved', 'rejected'])
+			.transform((val) => {
+				if (val === 'pending') return AppealStatus.PENDING
+				if (val === 'approved') return AppealStatus.APPROVED
+				if (val === 'rejected') return AppealStatus.REJECTED
+				throw new Error(`Invalid status: ${val}`)
+			})
+			.parse(statusParam.toLowerCase())
+		statusEnum = validated
 	}
 
 	const where = statusEnum ? { status: statusEnum } : {}
@@ -434,3 +429,5 @@ app.put('/admin/appeals/:id', async (c) => {
 
 	return c.json(appeal)
 })
+
+export default app

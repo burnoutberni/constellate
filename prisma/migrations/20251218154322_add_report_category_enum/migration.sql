@@ -2,8 +2,11 @@
 CREATE TYPE "ReportCategory" AS ENUM ('spam', 'harassment', 'inappropriate', 'other');
 
 -- AlterTable
-ALTER TABLE "Report" ALTER COLUMN "category" TYPE "ReportCategory" USING "category"::"ReportCategory";
-ALTER TABLE "Report" ALTER COLUMN "category" SET DEFAULT 'other';
+-- Add the category column first (it doesn't exist yet)
+ALTER TABLE "Report" ADD COLUMN "category" "ReportCategory" NOT NULL DEFAULT 'other';
+
+-- CreateIndex
+CREATE INDEX "Report_category_idx" ON "Report"("category");
 
 -- CreateEnum
 CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');

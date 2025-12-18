@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -36,6 +36,15 @@ export function ReportContentModal({
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const addToast = useUIStore((state) => state.addToast)
 	const handleError = useErrorHandler()
+
+	// Reset state when modal is closed
+	useEffect(() => {
+		if (!isOpen) {
+			setReason('')
+			setCategory('spam')
+			setIsSubmitting(false)
+		}
+	}, [isOpen])
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
