@@ -401,13 +401,13 @@ app.get('/profile/:username/followers', async (c) => {
 		const isOwnProfile = currentUserId === user.id
 		const canView =
 			isOwnProfile ||
-			user.isPublicProfile ||
 			(await canViewPrivateProfile({
 				viewerId: currentUserId,
 				profileUserId: user.id,
 				profileIsRemote: user.isRemote,
 				profileExternalActorUrl: user.externalActorUrl,
 				profileUsername: user.username,
+				profileIsPublic: user.isPublicProfile,
 			}))
 
 		if (!canView) {
@@ -512,13 +512,13 @@ app.get('/profile/:username/following', async (c) => {
 		const isOwnProfile = currentUserId === user.id
 		const canView =
 			isOwnProfile ||
-			user.isPublicProfile ||
 			(await canViewPrivateProfile({
 				viewerId: currentUserId,
 				profileUserId: user.id,
 				profileIsRemote: user.isRemote,
 				profileExternalActorUrl: user.externalActorUrl,
 				profileUsername: user.username,
+				profileIsPublic: user.isPublicProfile,
 			}))
 
 		if (!canView) {
@@ -815,13 +815,13 @@ app.get('/profile/:username', async (c) => {
 		const isOwnProfile = currentUserId === user.id
 		const canViewFullProfile =
 			isOwnProfile ||
-			user.isPublicProfile ||
 			(await canViewPrivateProfile({
 				viewerId: currentUserId,
 				profileUserId: user.id,
 				profileIsRemote: user.isRemote,
 				profileExternalActorUrl: user.externalActorUrl,
 				profileUsername: user.username,
+				profileIsPublic: user.isPublicProfile,
 			}))
 
 		// If private profile and viewer can't see it, return minimal data
