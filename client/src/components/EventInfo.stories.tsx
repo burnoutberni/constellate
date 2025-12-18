@@ -15,7 +15,6 @@ export default meta
 type Story = StoryObj<typeof EventInfo>
 
 const mockEvent = {
-	id: 'evt_123',
 	title: 'Summer Music Festival',
 	summary: 'A fantastic outdoor music festival',
 	startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),

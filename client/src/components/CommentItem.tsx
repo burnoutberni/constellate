@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 
 import type { CommentWithMentions } from '@/types'
 
-import { ReportButton } from './ReportButton'
 import { Avatar, Button } from './ui'
 
 const mentionSplitRegex = /(@[\w.-]+(?:@[\w.-]+)?)/g
@@ -14,7 +13,6 @@ interface CommentItemProps {
 	onReply?: (commentId: string) => void
 	isDeleting?: boolean
 	depth?: number
-	isAuthenticated?: boolean
 }
 
 export function CommentItem({
@@ -24,7 +22,6 @@ export function CommentItem({
 	onReply,
 	isDeleting = false,
 	depth = 0,
-	isAuthenticated,
 }: CommentItemProps) {
 	const isOwner = currentUserId === comment.author.id
 	const canReply = depth < 2 // Only allow replies up to 2 levels deep
@@ -83,38 +80,24 @@ export function CommentItem({
 				className="flex-shrink-0"
 			/>
 			<div className="flex-1 min-w-0">
-				<div className="bg-background-secondary rounded-lg p-3 group relative">
+				<div className="bg-background-secondary rounded-lg p-3">
 					<div className="flex items-center justify-between mb-1 gap-2">
 						<Link
 							to={`/@${comment.author.username}`}
 							className="font-semibold text-sm text-text-primary hover:underline truncate">
 							{comment.author.name || comment.author.username}
 						</Link>
-						<div className="flex items-center gap-2">
-							{isAuthenticated && !isOwner && (
-								<div className="opacity-0 group-hover:opacity-100 transition-opacity">
-									<ReportButton
-										targetType="comment"
-										targetId={comment.id}
-										contentTitle={`Comment by ${comment.author.username}`}
-										variant="ghost"
-										size="sm"
-										className="h-6 w-6 p-0"
-									/>
-								</div>
-							)}
-							{isOwner && onDelete && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => onDelete(comment.id)}
-									disabled={isDeleting}
-									className="text-error-500 hover:text-error-700 text-xs flex-shrink-0 h-6 w-6 p-0"
-									aria-label="Delete comment">
-									🗑️
-								</Button>
-							)}
-						</div>
+						{isOwner && onDelete && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => onDelete(comment.id)}
+								disabled={isDeleting}
+								className="text-error-500 hover:text-error-700 text-xs flex-shrink-0"
+								aria-label="Delete comment">
+								🗑️
+							</Button>
+						)}
 					</div>
 					<p className="text-text-primary break-words">
 						{renderCommentContent(comment.content, comment.mentions)}

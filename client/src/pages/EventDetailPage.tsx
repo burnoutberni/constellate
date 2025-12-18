@@ -498,7 +498,6 @@ export function EventDetailPage() {
 						<div className="mt-6">
 							<EventInfo
 								event={{
-									id: event.id,
 									title: displayedEvent.title,
 									summary: displayedEvent.summary,
 									startTime: displayedEvent.startTime,
@@ -513,7 +512,6 @@ export function EventDetailPage() {
 								}}
 								viewerTimezone={viewerTimezone}
 								eventTimezone={eventTimezone}
-								isAuthenticated={Boolean(user)}
 							/>
 						</div>
 

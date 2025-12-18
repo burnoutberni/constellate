@@ -61,7 +61,7 @@ jobs:
               run: npm ci --prefix client
 
             - name: Run knip (server-side analysis)
-              run: npm run knip:server
+              run: npm run analyze:unused
 
             - name: Run knip (client-side analysis)
               working-directory: client

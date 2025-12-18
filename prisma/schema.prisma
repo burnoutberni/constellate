@@ -69,7 +69,6 @@ model User {
   sessions Session[]
   accounts Account[]
   apiKeys  ApiKey[]
-  appeals  Appeal[]
 
   @@index([username])
   @@index([externalActorUrl])
@@ -437,13 +436,6 @@ model BlockedDomain {
   @@index([domain])
 }
 
-enum ReportCategory {
-  spam
-  harassment
-  inappropriate
-  other
-}
-
 // Content reports
 model Report {
   id        String   @id @default(cuid())
@@ -458,13 +450,11 @@ model Report {
 
   contentUrl String? // URL of reported content
   reason     String
-  category   ReportCategory @default(other)
-  status     String         @default("pending") // pending, reviewed, resolved
+  status     String  @default("pending") // pending, reviewed, resolved
 
   @@index([reporterId])
   @@index([reportedUserId])
   @@index([status])
-  @@index([category])
 }
 
 // Better-Auth Models
@@ -543,17 +533,6 @@ enum ReminderStatus {
   CANCELLED
 }
 
-enum AppealStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum AppealType {
-  ACCOUNT_SUSPENSION
-  CONTENT_REMOVAL
-}
-
 // Event reminders - scheduled notifications for users
 model EventReminder {
   id        String   @id @default(cuid())
@@ -616,36 +595,4 @@ model Instance {
   @@index([domain])
   @@index([isBlocked])
   @@index([lastActivityAt])
-}
-
-// Appeal model for moderation decisions
-model Appeal {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // The user filing the appeal
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // What is being appealed (e.g. "Account Suspension", "Content Removal")
-  type AppealType
-
-  // Reference to the original decision or report (optional, JSON for flexibility)
-  referenceId   String?
-  referenceType String? // e.g. "report", "blocked_user"
-
-  // User's explanation
-  reason String
-
-  // Status tracking
-  status     AppealStatus @default(PENDING)
-  resolvedAt DateTime?
-  resolvedBy String? // Admin user ID who resolved it
-
-  // Admin notes (internal only)
-  adminNotes String?
-
-  @@index([userId])
-  @@index([status])
 }

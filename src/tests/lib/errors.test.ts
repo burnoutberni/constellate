@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Context } from 'hono'
 import { AppError, handleError, Errors } from '../../lib/errors.js'
 import { ZodError } from 'zod'
-import { Prisma } from '@prisma/client'
 import { config } from '../../config.js'
 
 // Mock config
@@ -171,78 +170,6 @@ describe('Error Handling', () => {
 				{
 					error: 'INTERNAL_ERROR',
 					message: 'An internal error occurred',
-				},
-				500
-			)
-
-			consoleErrorSpy.mockRestore()
-		})
-
-		it('should handle Prisma P2025 error (record not found)', () => {
-			const prismaError = new Prisma.PrismaClientKnownRequestError(
-				'Record to update not found.',
-				{
-					code: 'P2025',
-					clientVersion: '5.0.0',
-					meta: {},
-				}
-			)
-
-			handleError(prismaError, mockContext)
-
-			expect(mockJson).toHaveBeenCalledWith(
-				{
-					error: 'NOT_FOUND',
-					message: 'Resource not found',
-				},
-				404
-			)
-		})
-
-		it('should handle Prisma P2002 error (unique constraint violation)', () => {
-			const prismaError = new Prisma.PrismaClientKnownRequestError(
-				'Unique constraint failed on the fields: (`username`)',
-				{
-					code: 'P2002',
-					clientVersion: '5.0.0',
-					meta: {
-						target: ['username'],
-					},
-				}
-			)
-
-			handleError(prismaError, mockContext)
-
-			expect(mockJson).toHaveBeenCalledWith(
-				{
-					error: 'CONFLICT',
-					message: 'Resource already exists',
-				},
-				409
-			)
-		})
-
-		it('should handle other Prisma errors generically', () => {
-			const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-			const prismaError = new Prisma.PrismaClientKnownRequestError(
-				'Database connection failed',
-				{
-					code: 'P1001',
-					clientVersion: '5.0.0',
-					meta: {},
-				}
-			)
-
-			handleError(prismaError, mockContext)
-
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Error Handler] Prisma error:',
-				prismaError
-			)
-			expect(mockJson).toHaveBeenCalledWith(
-				{
-					error: 'DATABASE_ERROR',
-					message: 'A database error occurred',
 				},
 				500
 			)

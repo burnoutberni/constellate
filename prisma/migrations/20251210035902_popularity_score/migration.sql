@@ -16,4 +16,3 @@ SET "popularityScore" = (
 
 
 
-

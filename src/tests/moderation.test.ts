@@ -6,11 +6,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import { ZodError } from 'zod'
-import { AppealStatus } from '@prisma/client'
 import moderationApp from '../moderation.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
-import { handleError } from '../lib/errors.js'
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -41,12 +39,6 @@ vi.mock('../lib/prisma.js', () => ({
 		comment: {
 			findUnique: vi.fn(),
 		},
-		appeal: {
-			create: vi.fn(),
-			findMany: vi.fn(),
-			count: vi.fn(),
-			update: vi.fn(),
-		},
 	},
 }))
 
@@ -55,19 +47,9 @@ vi.mock('../middleware/auth.js', () => ({
 	requireAdmin: vi.fn(),
 }))
 
-vi.mock('../config.js', () => ({
-	config: {
-		isDevelopment: true,
-	},
-}))
-
 // Create test app
 const app = new Hono()
 app.route('/api/moderation', moderationApp)
-// Add global error handler like in server.ts
-app.onError((err, c) => {
-	return handleError(err, c)
-})
 
 describe('Moderation API', () => {
 	const mockUser = {
@@ -193,9 +175,8 @@ describe('Moderation API', () => {
 			})
 
 			expect(res.status).toBe(400)
-			const body = (await res.json()) as { error: string; message: string; details?: unknown }
-			expect(body.error).toBe('VALIDATION_ERROR')
-			expect(body.message).toBe('Invalid input data')
+			const body = (await res.json()) as { error: string; details?: unknown }
+			expect(body.error).toBe('Validation failed')
 			expect(body.details).toBeDefined()
 		})
 
@@ -209,9 +190,8 @@ describe('Moderation API', () => {
 			})
 
 			expect(res.status).toBe(500)
-			const body = (await res.json()) as { error: string; message: string }
-			expect(body.error).toBe('INTERNAL_ERROR')
-			expect(body.message).toBe('An internal error occurred')
+			const body = (await res.json()) as { error: string }
+			expect(body.error).toBe('Internal server error')
 		})
 	})
 
@@ -477,7 +457,6 @@ describe('Moderation API', () => {
 					reportedUserId: 'user_456',
 					contentUrl: 'user:user_456',
 					reason: 'Harassment',
-					category: 'harassment',
 					status: 'pending',
 				},
 			})
@@ -520,7 +499,6 @@ describe('Moderation API', () => {
 					reportedUserId: null,
 					contentUrl: 'event:event_123',
 					reason: 'Inappropriate content',
-					category: 'inappropriate',
 					status: 'pending',
 				},
 			})
@@ -557,83 +535,6 @@ describe('Moderation API', () => {
 			})
 
 			expect(res.status).toBe(201)
-		})
-
-		it('should default category to "other" when not provided', async () => {
-			const mockReport = {
-				id: 'report_123',
-				reporterId: 'user_123',
-				reportedUserId: 'user_456',
-				contentUrl: 'user:user_456',
-				reason: 'Some reason',
-				category: 'other',
-				status: 'pending',
-				createdAt: new Date(),
-			}
-
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockTargetUser as any)
-			vi.mocked(prisma.report.create).mockResolvedValue(mockReport as any)
-
-			const res = await app.request('/api/moderation/report', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					targetType: 'user',
-					targetId: 'user_456',
-					reason: 'Some reason',
-				}),
-			})
-
-			expect(res.status).toBe(201)
-			expect(prisma.report.create).toHaveBeenCalledWith({
-				data: {
-					reporterId: 'user_123',
-					reportedUserId: 'user_456',
-					contentUrl: 'user:user_456',
-					reason: 'Some reason',
-					category: 'other',
-					status: 'pending',
-				},
-			})
-		})
-
-		it('should use provided category when specified', async () => {
-			const mockReport = {
-				id: 'report_123',
-				reporterId: 'user_123',
-				reportedUserId: 'user_456',
-				contentUrl: 'user:user_456',
-				reason: 'Harassment',
-				category: 'harassment',
-				status: 'pending',
-				createdAt: new Date(),
-			}
-
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockTargetUser as any)
-			vi.mocked(prisma.report.create).mockResolvedValue(mockReport as any)
-
-			const res = await app.request('/api/moderation/report', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					targetType: 'user',
-					targetId: 'user_456',
-					reason: 'Harassment',
-					category: 'harassment',
-				}),
-			})
-
-			expect(res.status).toBe(201)
-			expect(prisma.report.create).toHaveBeenCalledWith({
-				data: {
-					reporterId: 'user_123',
-					reportedUserId: 'user_456',
-					contentUrl: 'user:user_456',
-					reason: 'Harassment',
-					category: 'harassment',
-					status: 'pending',
-				},
-			})
 		})
 
 		it('should return 404 when target user not found', async () => {
@@ -911,421 +812,6 @@ describe('Moderation API', () => {
 			vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error('Database error'))
 
 			const res = await app.request('/api/moderation/block/check/bob')
-
-			expect(res.status).toBe(500)
-		})
-	})
-
-	describe('POST /appeals', () => {
-		it('should create an appeal successfully', async () => {
-			const mockAppeal = {
-				id: 'appeal_123',
-				userId: 'user_123',
-				type: 'CONTENT_REMOVAL',
-				reason: 'My content was removed incorrectly',
-				referenceId: 'event_123',
-				referenceType: 'event',
-				status: AppealStatus.PENDING,
-				createdAt: new Date(),
-			}
-
-			vi.mocked(prisma.appeal.create).mockResolvedValue(mockAppeal as any)
-
-			const res = await app.request('/api/moderation/appeals', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'CONTENT_REMOVAL',
-					reason: 'My content was removed incorrectly',
-					referenceId: 'event_123',
-					referenceType: 'event',
-				}),
-			})
-
-			expect(res.status).toBe(201)
-			const body = (await res.json()) as typeof mockAppeal
-			expect(body.id).toBe('appeal_123')
-			expect(prisma.appeal.create).toHaveBeenCalledWith({
-				data: {
-					userId: 'user_123',
-					type: 'CONTENT_REMOVAL',
-					reason: 'My content was removed incorrectly',
-					referenceId: 'event_123',
-					referenceType: 'event',
-					status: AppealStatus.PENDING,
-				},
-			})
-		})
-
-		it('should create an appeal without optional fields', async () => {
-			const mockAppeal = {
-				id: 'appeal_123',
-				userId: 'user_123',
-				type: 'ACCOUNT_SUSPENSION',
-				reason: 'I believe my account was suspended in error',
-				referenceId: null,
-				referenceType: null,
-				status: AppealStatus.PENDING,
-				createdAt: new Date(),
-			}
-
-			vi.mocked(prisma.appeal.create).mockResolvedValue(mockAppeal as any)
-
-			const res = await app.request('/api/moderation/appeals', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'ACCOUNT_SUSPENSION',
-					reason: 'I believe my account was suspended in error',
-				}),
-			})
-
-			expect(res.status).toBe(201)
-			expect(prisma.appeal.create).toHaveBeenCalledWith({
-				data: {
-					userId: 'user_123',
-					type: 'ACCOUNT_SUSPENSION',
-					reason: 'I believe my account was suspended in error',
-					referenceId: undefined,
-					referenceType: undefined,
-					status: AppealStatus.PENDING,
-				},
-			})
-		})
-
-		it('should return 400 for invalid request body', async () => {
-			const res = await app.request('/api/moderation/appeals', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'invalid_type',
-					reason: '',
-				}),
-			})
-
-			expect(res.status).toBe(400)
-		})
-
-		it('should return 400 when reason is too long', async () => {
-			const longReason = 'a'.repeat(2001)
-
-			const res = await app.request('/api/moderation/appeals', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'CONTENT_REMOVAL',
-					reason: longReason,
-				}),
-			})
-
-			expect(res.status).toBe(400)
-		})
-
-		it('should handle errors gracefully', async () => {
-			vi.mocked(prisma.appeal.create).mockRejectedValue(new Error('Database error'))
-
-			const res = await app.request('/api/moderation/appeals', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'CONTENT_REMOVAL',
-					reason: 'Test reason',
-				}),
-			})
-
-			expect(res.status).toBe(500)
-		})
-	})
-
-	describe('GET /appeals', () => {
-		it('should return list of user appeals', async () => {
-			const mockAppeals = [
-				{
-					id: 'appeal_1',
-					userId: 'user_123',
-					type: 'CONTENT_REMOVAL',
-					reason: 'First appeal',
-					status: AppealStatus.PENDING,
-					createdAt: new Date(),
-				},
-				{
-					id: 'appeal_2',
-					userId: 'user_123',
-					type: 'ACCOUNT_SUSPENSION',
-					reason: 'Second appeal',
-					status: AppealStatus.APPROVED,
-					createdAt: new Date(),
-				},
-			]
-
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue(mockAppeals as any)
-
-			const res = await app.request('/api/moderation/appeals')
-
-			expect(res.status).toBe(200)
-			const body = (await res.json()) as { appeals: unknown[] }
-			expect(body.appeals).toHaveLength(2)
-			expect(prisma.appeal.findMany).toHaveBeenCalledWith({
-				where: { userId: 'user_123' },
-				orderBy: { createdAt: 'desc' },
-			})
-		})
-
-		it('should return empty list when no appeals', async () => {
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue([])
-
-			const res = await app.request('/api/moderation/appeals')
-
-			expect(res.status).toBe(200)
-			const body = (await res.json()) as { appeals: unknown[] }
-			expect(body.appeals).toHaveLength(0)
-		})
-
-		it('should handle errors gracefully', async () => {
-			vi.mocked(prisma.appeal.findMany).mockRejectedValue(new Error('Database error'))
-
-			const res = await app.request('/api/moderation/appeals')
-
-			expect(res.status).toBe(500)
-		})
-	})
-
-	describe('GET /admin/appeals', () => {
-		it('should return list of all appeals (admin only)', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			const mockAppeals = [
-				{
-					id: 'appeal_1',
-					userId: 'user_123',
-					type: 'CONTENT_REMOVAL',
-					reason: 'First appeal',
-					status: AppealStatus.PENDING,
-					createdAt: new Date(),
-					user: {
-						id: 'user_123',
-						username: 'alice',
-						name: 'Alice',
-					},
-				},
-			]
-
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue(mockAppeals as any)
-			vi.mocked(prisma.appeal.count).mockResolvedValue(1)
-
-			const res = await app.request('/api/moderation/admin/appeals')
-
-			expect(res.status).toBe(200)
-			const body = (await res.json()) as {
-				appeals: unknown[]
-				pagination: { page: number; limit: number; total: number; pages: number }
-			}
-			expect(body.appeals).toHaveLength(1)
-			expect(body.pagination.total).toBe(1)
-			expect(body.pagination.page).toBe(1)
-			expect(prisma.appeal.findMany).toHaveBeenCalledWith({
-				where: {},
-				include: {
-					user: {
-						select: { id: true, username: true, name: true },
-					},
-				},
-				orderBy: { createdAt: 'desc' },
-				skip: 0,
-				take: 20,
-			})
-		})
-
-		it('should filter appeals by status', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue([])
-			vi.mocked(prisma.appeal.count).mockResolvedValue(0)
-
-			const res = await app.request('/api/moderation/admin/appeals?status=pending')
-
-			expect(res.status).toBe(200)
-			expect(prisma.appeal.findMany).toHaveBeenCalledWith({
-				where: { status: AppealStatus.PENDING },
-				include: {
-					user: {
-						select: { id: true, username: true, name: true },
-					},
-				},
-				orderBy: { createdAt: 'desc' },
-				skip: 0,
-				take: 20,
-			})
-		})
-
-		it('should handle pagination', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue([])
-			vi.mocked(prisma.appeal.count).mockResolvedValue(50)
-
-			const res = await app.request('/api/moderation/admin/appeals?page=2&limit=10')
-
-			expect(res.status).toBe(200)
-			expect(prisma.appeal.findMany).toHaveBeenCalledWith(
-				expect.objectContaining({
-					skip: 10,
-					take: 10,
-				})
-			)
-			const body = (await res.json()) as {
-				pagination: { page: number; limit: number; total: number; pages: number }
-			}
-			expect(body.pagination.pages).toBe(5)
-		})
-
-		it('should limit max page size to 100', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			vi.mocked(prisma.appeal.findMany).mockResolvedValue([])
-			vi.mocked(prisma.appeal.count).mockResolvedValue(0)
-
-			const res = await app.request('/api/moderation/admin/appeals?limit=200')
-
-			expect(res.status).toBe(200)
-			expect(prisma.appeal.findMany).toHaveBeenCalledWith(
-				expect.objectContaining({
-					take: 100,
-				})
-			)
-		})
-
-		it('should handle errors gracefully', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			vi.mocked(prisma.appeal.findMany).mockRejectedValue(new Error('Database error'))
-
-			const res = await app.request('/api/moderation/admin/appeals')
-
-			expect(res.status).toBe(500)
-		})
-	})
-
-	describe('PUT /admin/appeals/:id', () => {
-		it('should resolve appeal successfully (admin only)', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			const mockAppeal = {
-				id: 'appeal_123',
-				userId: 'user_123',
-				type: 'CONTENT_REMOVAL',
-				reason: 'Test reason',
-				status: AppealStatus.APPROVED,
-				adminNotes: 'Appeal approved after review',
-				resolvedAt: new Date(),
-				resolvedBy: 'admin_123',
-			}
-
-			vi.mocked(prisma.appeal.update).mockResolvedValue(mockAppeal as any)
-
-			const res = await app.request('/api/moderation/admin/appeals/appeal_123', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					status: 'approved',
-					adminNotes: 'Appeal approved after review',
-				}),
-			})
-
-			expect(res.status).toBe(200)
-			const body = (await res.json()) as typeof mockAppeal
-			expect(body.status).toBe(AppealStatus.APPROVED)
-			expect(body.adminNotes).toBe('Appeal approved after review')
-			expect(prisma.appeal.update).toHaveBeenCalledWith({
-				where: { id: 'appeal_123' },
-				data: {
-					status: AppealStatus.APPROVED,
-					adminNotes: 'Appeal approved after review',
-					resolvedAt: expect.any(Date),
-					resolvedBy: 'admin_123',
-				},
-			})
-		})
-
-		it('should reject appeal successfully', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			const mockAppeal = {
-				id: 'appeal_123',
-				userId: 'user_123',
-				type: 'CONTENT_REMOVAL',
-				reason: 'Test reason',
-				status: AppealStatus.REJECTED,
-				adminNotes: 'Appeal rejected - content violated terms',
-				resolvedAt: new Date(),
-				resolvedBy: 'admin_123',
-			}
-
-			vi.mocked(prisma.appeal.update).mockResolvedValue(mockAppeal as any)
-
-			const res = await app.request('/api/moderation/admin/appeals/appeal_123', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					status: 'rejected',
-					adminNotes: 'Appeal rejected - content violated terms',
-				}),
-			})
-
-			expect(res.status).toBe(200)
-			const body = (await res.json()) as typeof mockAppeal
-			expect(body.status).toBe(AppealStatus.REJECTED)
-		})
-
-		it('should resolve appeal without admin notes', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			const mockAppeal = {
-				id: 'appeal_123',
-				status: AppealStatus.APPROVED,
-				resolvedAt: new Date(),
-				resolvedBy: 'admin_123',
-			}
-
-			vi.mocked(prisma.appeal.update).mockResolvedValue(mockAppeal as any)
-
-			const res = await app.request('/api/moderation/admin/appeals/appeal_123', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					status: 'approved',
-				}),
-			})
-
-			expect(res.status).toBe(200)
-			expect(prisma.appeal.update).toHaveBeenCalledWith({
-				where: { id: 'appeal_123' },
-				data: {
-					status: AppealStatus.APPROVED,
-					adminNotes: undefined,
-					resolvedAt: expect.any(Date),
-					resolvedBy: 'admin_123',
-				},
-			})
-		})
-
-		it('should return 400 for invalid status', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-
-			const res = await app.request('/api/moderation/admin/appeals/appeal_123', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					status: 'invalid',
-				}),
-			})
-
-			expect(res.status).toBe(400)
-		})
-
-		it('should handle errors gracefully', async () => {
-			vi.mocked(requireAuth).mockReturnValue('admin_123')
-			vi.mocked(prisma.appeal.update).mockRejectedValue(new Error('Database error'))
-
-			const res = await app.request('/api/moderation/admin/appeals/appeal_123', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					status: 'approved',
-				}),
-			})
 
 			expect(res.status).toBe(500)
 		})
