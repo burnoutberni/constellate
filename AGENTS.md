@@ -16,7 +16,7 @@
 - **Stack:** Node.js/Hono (Backend), React/Vite/Tailwind (Frontend), Prisma (ORM).
 - **Imports (Server):** MUST use `.js` extension for local imports (e.g., `from './auth.js'`).
 - **Imports (Client):** Do NOT use extensions for imports.
-- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix, ALWAYS RUN BEFORE
+- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix, ALWAYS RUN BEFORE COMMITTING!
 - **TypeScript:** Strict mode enabled. Use explicit types for exports/public APIs.
 - **Naming:** `camelCase` for variables/functions. `PascalCase` for React components.
 - **Error Handling:** Use `try/catch`. On server, use `handleError` from `lib/errors.js`.

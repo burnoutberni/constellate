@@ -20,7 +20,9 @@ const REPORT_REASONS = [
 	{ value: 'harassment', label: 'Harassment or Bullying' },
 	{ value: 'inappropriate', label: 'Inappropriate Content' },
 	{ value: 'other', label: 'Other' },
-]
+] as const
+
+type ReportCategory = (typeof REPORT_REASONS)[number]['value']
 
 export function ReportContentModal({
 	isOpen,
@@ -30,7 +32,7 @@ export function ReportContentModal({
 	contentTitle,
 }: ReportContentModalProps) {
 	const [reason, setReason] = useState('')
-	const [category, setCategory] = useState<string>('spam')
+	const [category, setCategory] = useState<ReportCategory>('spam')
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const addToast = useUIStore((state) => state.addToast)
 	const handleError = useErrorHandler()
@@ -81,7 +83,7 @@ export function ReportContentModal({
 					<Select
 						label="Reason"
 						value={category}
-						onChange={(e) => setCategory(e.target.value)}
+						onChange={(e) => setCategory(e.target.value as ReportCategory)}
 						required>
 						{REPORT_REASONS.map((option) => (
 							<option key={option.value} value={option.value}>

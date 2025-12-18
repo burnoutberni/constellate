@@ -22,6 +22,11 @@ export function ReportButton({
 }: ReportButtonProps) {
 	const [isOpen, setIsOpen] = useState(false)
 
+	const getAriaLabel = () => {
+		const targetName = contentTitle || `this ${targetType}`
+		return `Report ${targetName}`
+	}
+
 	return (
 		<>
 			<Button
@@ -29,7 +34,7 @@ export function ReportButton({
 				size={size}
 				onClick={() => setIsOpen(true)}
 				className={className}
-				aria-label="Report content">
+				aria-label={getAriaLabel()}>
 				🚩 Report
 			</Button>
 
