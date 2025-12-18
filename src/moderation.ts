@@ -349,16 +349,14 @@ app.get('/admin/appeals', async (c) => {
 	if (statusParam) {
 		// Accept lowercase strings and convert to enum
 		// Invalid values will throw an error, caught by global error handler
-		const validated = z
+		statusEnum = z
 			.enum(['pending', 'approved', 'rejected'])
 			.transform((val) => {
 				if (val === 'pending') return AppealStatus.PENDING
 				if (val === 'approved') return AppealStatus.APPROVED
-				if (val === 'rejected') return AppealStatus.REJECTED
-				throw new Error(`Invalid status: ${val}`)
+				return AppealStatus.REJECTED
 			})
 			.parse(statusParam.toLowerCase())
-		statusEnum = validated
 	}
 
 	const where = statusEnum ? { status: statusEnum } : {}
