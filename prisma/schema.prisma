@@ -451,11 +451,13 @@ model Report {
 
   contentUrl String? // URL of reported content
   reason     String
+  category   String  @default("other") // spam, harassment, inappropriate, other
   status     String  @default("pending") // pending, reviewed, resolved
 
   @@index([reporterId])
   @@index([reportedUserId])
   @@index([status])
+  @@index([category])
 }
 
 // Better-Auth Models

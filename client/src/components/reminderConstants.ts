@@ -9,4 +9,3 @@ export const REMINDER_OPTIONS: ReminderOption[] = [
 	{ label: '2 hours before', value: 120 },
 	{ label: '1 day before', value: 1440 },
 ]
-

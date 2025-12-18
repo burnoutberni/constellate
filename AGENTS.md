@@ -16,9 +16,32 @@
 - **Stack:** Node.js/Hono (Backend), React/Vite/Tailwind (Frontend), Prisma (ORM).
 - **Imports (Server):** MUST use `.js` extension for local imports (e.g., `from './auth.js'`).
 - **Imports (Client):** Do NOT use extensions for imports.
-- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix, ALWAYS RUN BEFORE COMMITTING.
+- **Formatting:** No semicolons. Single quotes preferred. Run `npm run format` to fix, ALWAYS RUN BEFORE
 - **TypeScript:** Strict mode enabled. Use explicit types for exports/public APIs.
 - **Naming:** `camelCase` for variables/functions. `PascalCase` for React components.
 - **Error Handling:** Use `try/catch`. On server, use `handleError` from `lib/errors.js`.
 - **Testing:** Write tests in `src/tests/` for server code or co-located with components in `client/src/` for client code. Use `vi` from Vitest. Run all tests with `npm test`, or target specific files as noted above.
 - **Structure:** `client/` is the frontend. `src/` is the backend.
+
+## Frontend Changes
+
+If you make frontend changes, always update our Storybook accordingly. This means, adding new stories for new components, removing old stories if we remove components or updating existing stories if we update components.
+
+Add new test if we add new components, remove old tests if we remove components or update existing tests if we update components. All frontend tests need to be "good" tests:
+
+✅ Good tests:
+“User can submit a form and see success”
+“Invalid input shows an error”
+“Keyboard navigation works”
+“Loading state appears and disappears”
+“Error fallback renders”
+
+🚫 Bad tests:
+“State variable X equals Y”
+“Hook returns Z”
+Snapshot tests of large trees
+Testing internal component structure
+
+## Backend Changes
+
+Add new test if we add new backend code, remove old tests if we remove the tested backend code or update existing tests if we update backend code. All API endpoints need to be documented in our OpenAPI/Scalar docs (`src/openapi.json`).

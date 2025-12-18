@@ -717,6 +717,112 @@
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 1000
+					},
+					"category": {
+						"type": "string",
+						"enum": ["spam", "harassment", "inappropriate", "other"],
+						"description": "Report category (defaults to 'other' if not provided)"
+					}
+				}
+			},
+			"AppealInput": {
+				"type": "object",
+				"required": ["type", "reason"],
+				"properties": {
+					"type": {
+						"type": "string",
+						"description": "Type of appeal (e.g., 'content_removal', 'account_suspension')"
+					},
+					"reason": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 2000,
+						"description": "Reason for the appeal"
+					},
+					"referenceId": {
+						"type": "string",
+						"description": "Optional reference ID (e.g., event ID, report ID)"
+					},
+					"referenceType": {
+						"type": "string",
+						"description": "Optional reference type (e.g., 'event', 'report')"
+					}
+				}
+			},
+			"AppealUpdateInput": {
+				"type": "object",
+				"required": ["status"],
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["approved", "rejected"],
+						"description": "Appeal resolution status"
+					},
+					"adminNotes": {
+						"type": "string",
+						"description": "Optional admin notes about the resolution"
+					}
+				}
+			},
+			"Appeal": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"userId": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"reason": {
+						"type": "string"
+					},
+					"referenceId": {
+						"type": "string",
+						"nullable": true
+					},
+					"referenceType": {
+						"type": "string",
+						"nullable": true
+					},
+					"status": {
+						"type": "string",
+						"enum": ["pending", "approved", "rejected"]
+					},
+					"adminNotes": {
+						"type": "string",
+						"nullable": true
+					},
+					"resolvedAt": {
+						"type": "string",
+						"format": "date-time",
+						"nullable": true
+					},
+					"resolvedBy": {
+						"type": "string",
+						"nullable": true
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"user": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"username": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string",
+								"nullable": true
+							}
+						},
+						"description": "User information (included in admin endpoints)"
 					}
 				}
 			},
@@ -3188,6 +3294,254 @@
 				"responses": {
 					"200": {
 						"description": "Report updated"
+					}
+				}
+			}
+		},
+		"/api/moderation/appeals": {
+			"post": {
+				"tags": ["Moderation"],
+				"summary": "Create an appeal",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AppealInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Appeal created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Appeal"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"tags": ["Moderation"],
+				"summary": "Get my appeals",
+				"responses": {
+					"200": {
+						"description": "List of user appeals",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"appeals": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Appeal"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/moderation/admin/appeals": {
+			"get": {
+				"tags": ["Moderation"],
+				"summary": "Get all appeals (admin only)",
+				"parameters": [
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["pending", "approved", "rejected"]
+						},
+						"description": "Filter by appeal status"
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1
+						},
+						"description": "Page number"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 20
+						},
+						"description": "Items per page (max 100)"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of appeals with pagination",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"appeals": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Appeal"
+											}
+										},
+										"pagination": {
+											"type": "object",
+											"properties": {
+												"page": {
+													"type": "integer"
+												},
+												"limit": {
+													"type": "integer"
+												},
+												"total": {
+													"type": "integer"
+												},
+												"pages": {
+													"type": "integer"
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden (admin only)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/moderation/admin/appeals/{id}": {
+			"put": {
+				"tags": ["Moderation"],
+				"summary": "Resolve appeal (admin only)",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AppealUpdateInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Appeal updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Appeal"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden (admin only)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}

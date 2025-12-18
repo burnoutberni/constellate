@@ -22,4 +22,3 @@ export const BACKEND_DATE_RANGES = [
 ] as const
 export type BackendDateRange = (typeof BACKEND_DATE_RANGES)[number]
 export type DateRangeSelection = 'anytime' | 'custom' | BackendDateRange
-

@@ -89,4 +89,3 @@ export const NoPadding: Story = {
 		),
 	},
 }
-

@@ -8,4 +8,3 @@
  * after a page redirect (e.g., after account deletion)
  */
 export const TOAST_ON_LOAD_KEY = 'toastOnLoad'
-

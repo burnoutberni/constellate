@@ -157,4 +157,3 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 )
 
 Modal.displayName = 'Modal'
-
