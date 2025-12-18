@@ -41,6 +41,66 @@ export interface CanViewPrivateProfileOptions {
 }
 
 /**
+ * Builds the profile owner's actor URL
+ */
+function buildProfileActorUrl(
+	profileIsRemote: boolean,
+	profileExternalActorUrl: string | null,
+	profileUsername: string
+): string | null {
+	if (profileIsRemote) {
+		return profileExternalActorUrl
+	}
+
+	const baseUrl = getBaseUrl()
+	return `${baseUrl}/users/${profileUsername}`
+}
+
+/**
+ * Checks if the viewer is the profile owner
+ */
+function isViewerProfileOwner(
+	viewerId: string | undefined,
+	viewerActorUrl: string | undefined,
+	profileUserId: string,
+	profileActorUrl: string | null
+): boolean {
+	if (viewerId && viewerId === profileUserId) {
+		return true
+	}
+
+	return Boolean(viewerActorUrl && viewerActorUrl === profileActorUrl)
+}
+
+/**
+ * Resolves the viewer's user ID from their actor URL if needed
+ */
+async function resolveViewerId(
+	viewerId: string | undefined,
+	viewerActorUrl: string | undefined
+): Promise<string | null> {
+	if (viewerId) {
+		return viewerId
+	}
+
+	if (!viewerActorUrl) {
+		return null
+	}
+
+	const viewerUser = await prisma.user.findFirst({
+		where: {
+			OR: [
+				{ externalActorUrl: viewerActorUrl },
+				{ username: viewerActorUrl.split('/').pop() || '', isRemote: false },
+			],
+		},
+		select: { id: true },
+	})
+
+	return viewerUser?.id ?? null
+}
+
+/**
  * Checks if a viewer can view a private profile.
  * Returns true if:
  * - The profile is public (if profileIsPublic is provided and true)
@@ -73,52 +133,29 @@ export async function canViewPrivateProfile(
 		return false
 	}
 
-	const baseUrl = getBaseUrl()
-
 	// Build the profile owner's actor URL
 	// For remote users, we need a valid externalActorUrl
 	if (profileIsRemote && !profileExternalActorUrl) {
 		return false
 	}
 
-	const profileActorUrl = profileIsRemote
-		? profileExternalActorUrl
-		: `${baseUrl}/users/${profileUsername}`
+	const profileActorUrl = buildProfileActorUrl(
+		profileIsRemote,
+		profileExternalActorUrl,
+		profileUsername
+	)
 
 	if (!profileActorUrl) {
 		return false
 	}
 
 	// Check if viewer is the profile owner
-	if (viewerId && viewerId === profileUserId) {
-		return true
-	}
-
-	// Check by actor URL if provided
-	if (viewerActorUrl && viewerActorUrl === profileActorUrl) {
+	if (isViewerProfileOwner(viewerId, viewerActorUrl, profileUserId, profileActorUrl)) {
 		return true
 	}
 
 	// Resolve viewer user ID from actor URL if needed
-	let resolvedViewerId = viewerId
-
-	if (!resolvedViewerId && viewerActorUrl) {
-		const viewerUser = await prisma.user.findFirst({
-			where: {
-				OR: [
-					{ externalActorUrl: viewerActorUrl },
-					{ username: viewerActorUrl.split('/').pop() || '', isRemote: false },
-				],
-			},
-			select: { id: true },
-		})
-
-		if (!viewerUser) {
-			return false
-		}
-
-		resolvedViewerId = viewerUser.id
-	}
+	const resolvedViewerId = await resolveViewerId(viewerId, viewerActorUrl)
 
 	if (!resolvedViewerId) {
 		return false

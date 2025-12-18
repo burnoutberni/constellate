@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores'
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 
-const EXPORT_STATUS_POLL_INTERVAL_MS = 5000 // Poll every 5 seconds
+const EXPORT_STATUS_POLL_INTERVAL_MS = 35000 // Poll every 35 seconds (backend processor runs every 30 seconds)
 
 type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 

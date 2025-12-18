@@ -750,11 +750,7 @@ async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
 
 async function filterEventsByVisibility<
 	T extends Awaited<ReturnType<typeof prisma.event.findMany>>,
->(events: T, currentUserId: string | undefined, isPublicProfile: boolean): Promise<T> {
-	if (!currentUserId && isPublicProfile) {
-		return events
-	}
-
+>(events: T, currentUserId: string | undefined): Promise<T> {
 	const { canUserViewEvent } = await import('./lib/eventVisibility.js')
 	const filtered = await Promise.all(
 		events.map(async (event) => {
@@ -909,7 +905,7 @@ app.get('/profile/:username', async (c) => {
 		})
 
 		// Filter events by visibility - only show events the viewer can see
-		events = await filterEventsByVisibility(events, currentUserId, user.isPublicProfile)
+		events = await filterEventsByVisibility(events, currentUserId)
 
 		// If remote user has no cached events, fetch from their outbox
 		if (isRemote && events.length === 0 && user.externalActorUrl) {
@@ -941,11 +937,7 @@ app.get('/profile/:username', async (c) => {
 			})
 
 			// Filter events by visibility
-			fetchedEvents = await filterEventsByVisibility(
-				fetchedEvents,
-				currentUserId,
-				user.isPublicProfile
-			)
+			fetchedEvents = await filterEventsByVisibility(fetchedEvents, currentUserId)
 
 			events = fetchedEvents
 		}
