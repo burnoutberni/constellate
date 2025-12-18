@@ -3,18 +3,30 @@ import type { KnipConfig } from 'knip'
 const config: KnipConfig = {
 	ignoreExportsUsedInFile: true, // Allow exports that are only used in the same file
 
-	entry: ['index.html', 'src/main.tsx'],
+	entry: ['src/main.tsx'],
 	project: ['src/**/*.{ts,tsx}'],
 
 	ignore: [
 		'**/*.d.ts',
 		'**/*.stories.{ts,tsx}', // Storybook story files
 
+		// Test files - dependencies used in tests are valid
+		'src/tests/**/*.{ts,tsx}',
+
+		// Exclude server files (they're analyzed separately)
+		'../src/**/*',
+
+		// GitHub workflows - they use binaries that aren't part of the codebase
+		'../.github/**/*',
+
 		// Design system public API - exported for external use as design system is built
 		'src/design-system/**/*.ts',
 
 		// Type definitions that are part of public API
 		'src/types/**/*.ts',
+
+		// Test helpers (may be referenced only in test runs)
+		'src/tests/helpers/**',
 
 		// ============================================================================
 		// BARREL FILES - PUBLIC API (IGNORE COMPLETELY)
@@ -61,6 +73,11 @@ const config: KnipConfig = {
 	// Reinclude barrel files in treeshaking analysis
 	// This ensures we can still detect if a component itself is unused
 	includeEntryExports: true,
+
+	// Ignore dependency issues in test files (dependencies are valid in tests)
+	ignoreIssues: {
+		'src/tests/**/*.{ts,tsx}': ['dependencies'],
+	},
 }
 
 export default config
