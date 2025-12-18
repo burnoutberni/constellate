@@ -32,7 +32,7 @@ import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
 import { csrfProtection } from './middleware/csrf.js'
-import { strictRateLimit } from './middleware/rateLimit.js'
+import { strictRateLimit, globalRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
@@ -108,7 +108,15 @@ app.use(
 		credentials: true,
 	})
 )
+// Apply global rate limiting to all API routes to prevent DoS
+// This uses a separate "global" namespace so it doesn't conflict with strict limits on auth
+// Place before authMiddleware to reject traffic cheaply before auth checks
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+	app.use('/api/*', globalRateLimit)
+}
+
 app.use('*', authMiddleware)
+
 // Apply CSRF protection to all API routes (state-changing operations)
 // Skip CSRF in test environment to allow tests to run without tokens
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {

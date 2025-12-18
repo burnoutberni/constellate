@@ -65,6 +65,7 @@ export interface RateLimitConfig {
 	keyGenerator?: (c: Context) => string // Custom key generator
 	skipSuccessfulRequests?: boolean // Don't count successful requests
 	skipFailedRequests?: boolean // Don't count failed requests
+	namespace?: string // Namespace to isolate limits (e.g. 'auth', 'global')
 }
 
 /**
@@ -95,6 +96,11 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 			key = `user:${userId}`
 		} else {
 			key = `ip:${ip}`
+		}
+
+		// Apply namespace if provided
+		if (finalConfig.namespace) {
+			key = `${finalConfig.namespace}:${key}`
 		}
 
 		const now = Date.now()
@@ -149,6 +155,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 export const strictRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
+	namespace: 'strict',
 })
 
 /**
@@ -157,6 +164,7 @@ export const strictRateLimit = rateLimit({
 export const moderateRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	namespace: 'moderate',
 })
 
 /**
@@ -165,4 +173,15 @@ export const moderateRateLimit = rateLimit({
 export const lenientRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
+	namespace: 'lenient',
+})
+
+/**
+ * Global rate limit for all API requests
+ * 300 requests per 15 minutes
+ */
+export const globalRateLimit = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	maxRequests: 300,
+	namespace: 'global',
 })
