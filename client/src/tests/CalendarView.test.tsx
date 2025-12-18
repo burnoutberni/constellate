@@ -1,4 +1,8 @@
+import React from 'react'
 import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { CalendarView } from '../components/CalendarView'
+import type { Event } from '@/types'
 
 /**
  * Test CalendarView helper functions and date calculation logic
@@ -104,5 +108,41 @@ describe('CalendarView date calculations', () => {
 
 		expect(daysInMonth).toBe(31) // December has 31 days
 		expect(startingDayOfWeek).toBe(1) // December 1, 2025 is Monday
+	})
+})
+
+describe('CalendarView Rendering', () => {
+	const mockEvent: Event = {
+		id: '1',
+		title: 'Test Event',
+		startTime: new Date('2025-12-15T10:00:00').toISOString(),
+		endTime: new Date('2025-12-15T11:00:00').toISOString(),
+		timezone: 'UTC',
+		tags: [],
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		creatorId: 'user1',
+		instanceId: 'instance1',
+		slug: 'test-event',
+	}
+
+	it('renders events in Month view', () => {
+		const date = new Date('2025-12-15T12:00:00')
+		render(
+			<CalendarView view="month" currentDate={date} events={[mockEvent]} loading={false} />
+		)
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
+	})
+
+	it('renders events in Week view', () => {
+		const date = new Date('2025-12-15T12:00:00')
+		render(<CalendarView view="week" currentDate={date} events={[mockEvent]} loading={false} />)
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
+	})
+
+	it('renders events in Day view', () => {
+		const date = new Date('2025-12-15T12:00:00')
+		render(<CalendarView view="day" currentDate={date} events={[mockEvent]} loading={false} />)
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
 	})
 })
