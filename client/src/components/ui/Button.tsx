@@ -148,9 +148,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				aria-disabled={isDisabled}
 				{...props}>
 				{loading && <Spinner size="sm" className="text-current" />}
-				{!loading && leftIcon && <span className="flex-shrink-0 -ml-1">{leftIcon}</span>}
+				{!loading && leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
 				<span className={loading ? 'opacity-0' : ''}>{children}</span>
-				{!loading && rightIcon && <span className="flex-shrink-0 -mr-1">{rightIcon}</span>}
+				{!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
 			</button>
 		)
 	}

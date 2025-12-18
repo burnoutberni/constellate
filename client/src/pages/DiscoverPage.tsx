@@ -338,6 +338,15 @@ export function DiscoverPage() {
 			})
 		)
 
+		parseCommaList(searchParams.get('tags')).forEach((t) =>
+			chips.push({
+				key: 'tags',
+				label: 'Tag',
+				value: t,
+				removableValue: t,
+			})
+		)
+
 		return chips
 	}, [searchParams])
 
