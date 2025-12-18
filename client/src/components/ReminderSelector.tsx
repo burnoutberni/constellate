@@ -76,25 +76,25 @@ export function ReminderSelector({
 
 	return (
 		<div className="mb-6 pb-4 border-b border-border-default">
-			<div className="flex items-center gap-3">
-				<Select
-					label="Reminder"
-					value={value !== null ? String(value) : ''}
-					onChange={handleChange}
-					disabled={!isAuthenticated || !canManageReminder || isPending}
-					aria-label="Reminder notification timing"
-					helperText={getHelperText()}>
-					{options.map((option) => (
-						<option
-							key={option.label}
-							value={option.value !== null ? option.value : ''}>
-							{option.label}
-						</option>
-					))}
-				</Select>
-				{isPending && (
-					<span className="text-sm text-text-secondary mt-7 self-start">Saving...</span>
-				)}
+			<div className="flex items-end gap-3">
+				<div className="flex-1">
+					<Select
+						label="Reminder"
+						value={value !== null ? String(value) : ''}
+						onChange={handleChange}
+						disabled={!isAuthenticated || !canManageReminder || isPending}
+						aria-label="Reminder notification timing"
+						helperText={getHelperText()}>
+						{options.map((option) => (
+							<option
+								key={option.label}
+								value={option.value !== null ? option.value : ''}>
+								{option.label}
+							</option>
+						))}
+					</Select>
+				</div>
+				{isPending && <span className="text-sm text-text-secondary mb-1.5">Saving...</span>}
 			</div>
 		</div>
 	)

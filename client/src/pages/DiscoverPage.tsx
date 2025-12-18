@@ -469,13 +469,11 @@ export function DiscoverPage() {
 											: 'space-y-4'
 									}>
 									{skeletonKeys.map((key) => (
-										<div
-											key={key}
-											className="space-y-3 p-4 border border-border-default rounded-xl bg-background-primary">
+										<Card key={key} padding="sm" className="space-y-3">
 											<Skeleton className="h-48 w-full rounded-lg" />
 											<Skeleton className="h-6 w-3/4" />
 											<Skeleton className="h-4 w-1/2" />
-										</div>
+										</Card>
 									))}
 								</div>
 							) : events.length > 0 ? (
