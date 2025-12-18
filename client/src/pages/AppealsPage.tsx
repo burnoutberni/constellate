@@ -1,29 +1,29 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { AppealModal } from '@/components/AppealModal'
 import { Container, Stack } from '@/components/layout'
 import { Navbar } from '@/components/Navbar'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api-client'
-
-interface Appeal {
-	id: string
-	type: string
-	reason: string
-	status: 'PENDING' | 'APPROVED' | 'REJECTED'
-	createdAt: string
-	resolvedAt?: string
-	adminNotes?: string
-}
+import { APPEAL_TYPE_LABELS } from '@/lib/appealConstants'
+import { type Appeal } from '@/types'
 
 export function AppealsPage() {
 	const { user, logout } = useAuth()
+	const queryClient = useQueryClient()
+	const [isModalOpen, setIsModalOpen] = useState(false)
 
 	const { data, isLoading } = useQuery<{ appeals: Appeal[] }>({
 		queryKey: ['appeals'],
 		queryFn: () => api.get('/appeals'),
 	})
+
+	const handleAppealSuccess = () => {
+		queryClient.invalidateQueries({ queryKey: ['appeals'] })
+	}
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -47,9 +47,12 @@ export function AppealsPage() {
 							Track the status of your moderation appeals
 						</p>
 					</div>
-					<Link to="/settings">
-						<Button variant="ghost">Back to Settings</Button>
-					</Link>
+					<div className="flex gap-2">
+						<Button onClick={() => setIsModalOpen(true)}>Submit New Appeal</Button>
+						<Link to="/settings">
+							<Button variant="ghost">Back to Settings</Button>
+						</Link>
+					</div>
 				</div>
 
 				{isLoading ? (
@@ -69,7 +72,7 @@ export function AppealsPage() {
 								<Card key={appeal.id}>
 									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 										<CardTitle className="text-lg font-medium">
-											{appeal.type.replace('_', ' ')}
+											{APPEAL_TYPE_LABELS[appeal.type] || appeal.type}
 										</CardTitle>
 										<Badge variant={getStatusColor(appeal.status)}>
 											{appeal.status}
@@ -81,7 +84,9 @@ export function AppealsPage() {
 												<p className="text-sm font-medium text-text-secondary">
 													Reason
 												</p>
-												<p className="text-text-primary mt-1">{appeal.reason}</p>
+												<p className="text-text-primary mt-1">
+													{appeal.reason}
+												</p>
 											</div>
 											<div className="text-sm text-text-tertiary">
 												Submitted on{' '}
@@ -93,11 +98,14 @@ export function AppealsPage() {
 														Resolution
 													</p>
 													<p className="text-text-primary mt-1">
-														{appeal.adminNotes || 'No additional notes provided.'}
+														{appeal.adminNotes ||
+															'No additional notes provided.'}
 													</p>
 													<p className="text-xs text-text-tertiary mt-1">
 														Resolved on{' '}
-														{new Date(appeal.resolvedAt).toLocaleDateString()}
+														{new Date(
+															appeal.resolvedAt
+														).toLocaleDateString()}
 													</p>
 												</div>
 											)}
@@ -108,6 +116,12 @@ export function AppealsPage() {
 						)}
 					</Stack>
 				)}
+
+				<AppealModal
+					isOpen={isModalOpen}
+					onClose={() => setIsModalOpen(false)}
+					onSuccess={handleAppealSuccess}
+				/>
 			</Container>
 		</div>
 	)

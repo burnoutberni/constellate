@@ -191,112 +191,105 @@ app.get('/users/me/reminders', async (c) => {
 	}
 })
 
-// Export user data (GDPR)
-app.get('/users/me/export', async (c) => {
+// Request user data export (GDPR) - creates an async job
+app.post('/users/me/export', async (c) => {
 	try {
 		const userId = requireAuth(c)
 
-		// Fetch all user data
-		const [
-			profile,
-			events,
-			comments,
-			following,
-			followers,
-			attendance,
-			likes,
-			reports,
-			appeals,
-		] = await Promise.all([
-			// 1. Profile
-			prisma.user.findUnique({
-				where: { id: userId },
-				select: {
-					id: true,
-					username: true,
-					email: true,
-					name: true,
-					bio: true,
-					displayColor: true,
-					profileImage: true,
-					headerImage: true,
-					timezone: true,
-					createdAt: true,
-					updatedAt: true,
-					isAdmin: true,
-					autoAcceptFollowers: true,
+		// Check if user already has a pending or processing export
+		const existingExport = await prisma.dataExport.findFirst({
+			where: {
+				userId,
+				status: {
+					in: ['PENDING', 'PROCESSING'],
 				},
-			}),
-			// 2. Events created
-			prisma.event.findMany({
-				where: { userId },
-				include: { tags: true },
-			}),
-			// 3. Comments
-			prisma.comment.findMany({
-				where: { authorId: userId },
-			}),
-			// 4. Following
-			prisma.following.findMany({
-				where: { userId },
-			}),
-			// 5. Followers
-			prisma.follower.findMany({
-				where: { userId },
-			}),
-			// 6. Event Attendance
-			prisma.eventAttendance.findMany({
-				where: { userId },
-				include: { event: { select: { title: true, startTime: true } } },
-			}),
-			// 7. Event Likes
-			prisma.eventLike.findMany({
-				where: { userId },
-				include: { event: { select: { title: true, startTime: true } } },
-			}),
-			// 8. Reports made
-			prisma.report.findMany({
-				where: { reporterId: userId },
-			}),
-			// 9. Appeals
-			prisma.appeal.findMany({
-				where: { userId },
-			}),
-		])
+			},
+			orderBy: { createdAt: 'desc' },
+		})
 
-		if (!profile) {
-			return c.json({ error: 'User not found' }, 404)
+		if (existingExport) {
+			return c.json(
+				{
+					exportId: existingExport.id,
+					status: existingExport.status,
+					message: 'Export already in progress',
+				},
+				200
+			)
 		}
 
-		// Construct the export object
-		const exportData = {
-			_meta: {
-				exportedAt: new Date().toISOString(),
-				version: '1.0',
+		// Create a new export job
+		const dataExport = await prisma.dataExport.create({
+			data: {
+				userId,
+				status: 'PENDING',
 			},
-			profile,
-			events,
-			comments,
-			social: {
-				following,
-				followers,
-			},
-			activity: {
-				attendance,
-				likes,
-			},
-			moderation: {
-				reportsFiled: reports,
-				appeals,
-			},
-		}
+		})
 
-		return c.json(exportData)
+		return c.json(
+			{
+				exportId: dataExport.id,
+				status: dataExport.status,
+				message: 'Export job created. You will be notified when it is ready.',
+			},
+			202
+		)
 	} catch (error) {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error exporting user data:', error)
+		console.error('Error creating export job:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get export status and download
+app.get('/users/me/export/:exportId', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const { exportId } = c.req.param()
+
+		const dataExport = await prisma.dataExport.findUnique({
+			where: { id: exportId },
+			include: { user: true },
+		})
+
+		if (!dataExport) {
+			return c.json({ error: 'Export not found' }, 404)
+		}
+
+		// Verify the export belongs to the requesting user
+		if (dataExport.userId !== userId) {
+			return c.json({ error: 'Unauthorized' }, 403)
+		}
+
+		// Check if export has expired
+		if (dataExport.expiresAt && dataExport.expiresAt < new Date()) {
+			return c.json({ error: 'Export has expired' }, 410)
+		}
+
+		// Return status if not completed
+		if (dataExport.status !== 'COMPLETED') {
+			return c.json({
+				exportId: dataExport.id,
+				status: dataExport.status,
+				createdAt: dataExport.createdAt.toISOString(),
+				updatedAt: dataExport.updatedAt.toISOString(),
+				errorMessage: dataExport.errorMessage,
+			})
+		}
+
+		// Return the export data
+		if (!dataExport.data) {
+			return c.json({ error: 'Export data not available' }, 500)
+		}
+
+		return c.json(dataExport.data)
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error getting export:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

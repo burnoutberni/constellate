@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			name,
 			username,
 			tosAcceptedAt: tosAccepted ? new Date() : undefined,
-		} as unknown as Parameters<typeof authClient.signUp.email>[0])
+		})
 
 		if (error) {
 			throw error

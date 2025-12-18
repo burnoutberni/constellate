@@ -128,8 +128,19 @@ export function SettingsPage() {
 						<CardHeader>
 							<CardTitle>Moderation & Appeals</CardTitle>
 						</CardHeader>
-						<CardContent>
+						<CardContent className="space-y-4">
 							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium text-text-primary">My Reports</p>
+									<p className="text-sm text-text-secondary">
+										View the status of your content reports.
+									</p>
+								</div>
+								<Link to="/reports">
+									<Button variant="outline">View Reports</Button>
+								</Link>
+							</div>
+							<div className="flex items-center justify-between pt-4 border-t border-border-default">
 								<div>
 									<p className="font-medium text-text-primary">My Appeals</p>
 									<p className="text-sm text-text-secondary">

@@ -32,6 +32,7 @@ import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { RemindersPage } from './pages/RemindersPage'
+import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { TermsOfServicePage } from './pages/TermsOfServicePage'
@@ -116,6 +117,7 @@ function AppContent() {
 				<Route path="/" element={<HomePage />} />
 				<Route path="/about" element={<AboutPage />} />
 				<Route path="/appeals" element={<AppealsPage />} />
+				<Route path="/reports" element={<ReportsPage />} />
 				<Route path="/moderation" element={<ModerationPracticesPage />} />
 				<Route path="/terms" element={<TermsOfServicePage />} />
 				<Route path="/privacy" element={<PrivacyPolicyPage />} />

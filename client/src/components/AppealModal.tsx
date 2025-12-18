@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { APPEAL_TYPE, APPEAL_TYPE_LABELS, type AppealType } from '@/lib/appealConstants'
 import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
@@ -22,7 +23,7 @@ export function AppealModal({
 	referenceId,
 	referenceType,
 }: AppealModalProps) {
-	const [type, setType] = useState('CONTENT_REMOVAL')
+	const [type, setType] = useState<AppealType>(APPEAL_TYPE.CONTENT_REMOVAL)
 	const [reason, setReason] = useState('')
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const handleError = useErrorHandler()
@@ -57,7 +58,7 @@ export function AppealModal({
 			onSuccess?.()
 			onClose()
 			setReason('')
-			setType('CONTENT_REMOVAL')
+			setType(APPEAL_TYPE.CONTENT_REMOVAL)
 		} catch (error) {
 			handleError(error, 'Failed to submit appeal', { context: 'AppealModal.handleSubmit' })
 		} finally {
@@ -70,9 +71,13 @@ export function AppealModal({
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<div className="space-y-2">
 					<label className="text-sm font-medium text-text-primary">Appeal Type</label>
-					<Select value={type} onChange={(e) => setType(e.target.value)}>
-						<option value="CONTENT_REMOVAL">Content Removal</option>
-						<option value="ACCOUNT_SUSPENSION">Account Suspension</option>
+					<Select value={type} onChange={(e) => setType(e.target.value as AppealType)}>
+						<option value={APPEAL_TYPE.CONTENT_REMOVAL}>
+							{APPEAL_TYPE_LABELS[APPEAL_TYPE.CONTENT_REMOVAL]}
+						</option>
+						<option value={APPEAL_TYPE.ACCOUNT_SUSPENSION}>
+							{APPEAL_TYPE_LABELS[APPEAL_TYPE.ACCOUNT_SUSPENSION]}
+						</option>
 					</Select>
 				</div>
 

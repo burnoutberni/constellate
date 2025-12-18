@@ -42,6 +42,7 @@ describe('Profile API', () => {
 	}
 
 	beforeEach(async () => {
+		await prisma.dataExport.deleteMany({})
 		await prisma.following.deleteMany({})
 		await prisma.follower.deleteMany({})
 		await prisma.event.deleteMany({})
@@ -588,12 +589,91 @@ describe('Profile API', () => {
 		})
 	})
 
-	describe('GET /users/me/export', () => {
-		it('exports user data', async () => {
+	describe('POST /users/me/export', () => {
+		it('creates an export job', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(202)
+
+			const data = (await response.json()) as any
+			expect(data.exportId).toBeDefined()
+			expect(data.status).toBe('PENDING')
+			expect(data.message).toBeDefined()
+
+			// Verify job was created in database
+			const exportJob = await prisma.dataExport.findUnique({
+				where: { id: data.exportId },
+			})
+			expect(exportJob).toBeDefined()
+			expect(exportJob?.userId).toBe(testUser.id)
+			expect(exportJob?.status).toBe('PENDING')
+		})
+
+		it('returns existing job if one is already pending', async () => {
+			mockAuth(testUser)
+
+			// Create an existing export job
+			const existingExport = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.exportId).toBe(existingExport.id)
+			expect(data.status).toBe('PENDING')
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('GET /users/me/export/:exportId', () => {
+		it('returns export status when pending', async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.exportId).toBe(exportJob.id)
+			expect(data.status).toBe('PENDING')
+			expect(data.createdAt).toBeDefined()
+		})
+
+		it('returns export data when completed', async () => {
 			mockAuth(testUser)
 
 			// Create some data to export
-			await prisma.event.create({
+			const testEvent = await prisma.event.create({
 				data: {
 					title: 'Test Event',
 					startTime: new Date(),
@@ -601,7 +681,30 @@ describe('Profile API', () => {
 				},
 			})
 
-			const response = await app.request('/api/users/me/export', {
+			const exportData = {
+				_meta: {
+					exportedAt: new Date().toISOString(),
+					version: '1.0',
+				},
+				profile: testUser,
+				events: [testEvent],
+				comments: [],
+				social: { following: [], followers: [] },
+				activity: { attendance: [], likes: [] },
+				moderation: { reportsFiled: [], appeals: [] },
+			}
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'COMPLETED',
+					data: exportData as any,
+					completedAt: new Date(),
+					expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
 				method: 'GET',
 				headers: { 'Content-Type': 'application/json' },
 			})
@@ -614,10 +717,64 @@ describe('Profile API', () => {
 			expect(data._meta).toBeDefined()
 		})
 
+		it('returns 404 for non-existent export', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/users/me/export/non-existent-id', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(404)
+		})
+
+		it("returns 403 when accessing another user's export", async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: otherUser.id,
+					status: 'COMPLETED',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(403)
+		})
+
+		it('returns 410 for expired export', async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'COMPLETED',
+					data: { test: 'data' } as any,
+					completedAt: new Date(),
+					expiresAt: new Date(Date.now() - 1000), // Expired
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(410)
+		})
+
 		it('returns 401 when not authenticated', async () => {
 			mockNoAuth()
 
-			const response = await app.request('/api/users/me/export', {
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
 				method: 'GET',
 				headers: { 'Content-Type': 'application/json' },
 			})
