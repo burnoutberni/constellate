@@ -73,7 +73,9 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 							disabled={updateProfileMutation.isPending}
 							variant="ghost"
 							className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary ${
-								autoAcceptFollowers ? 'bg-primary-600' : 'bg-background-tertiary'
+								autoAcceptFollowers
+									? 'bg-primary-600'
+									: 'bg-neutral-200 dark:bg-neutral-700'
 							}`}
 							role="switch"
 							aria-checked={autoAcceptFollowers}

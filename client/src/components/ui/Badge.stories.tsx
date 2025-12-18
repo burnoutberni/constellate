@@ -20,7 +20,7 @@ const meta = {
 				'warning',
 				'error',
 				'info',
-				'outlined',
+				'outline',
 			],
 		},
 		size: {
@@ -87,10 +87,10 @@ export const Info: Story = {
 	},
 }
 
-export const Outlined: Story = {
+export const Outline: Story = {
 	args: {
-		variant: 'outlined',
-		children: 'Outlined',
+		variant: 'outline',
+		children: 'Outline',
 	},
 }
 
@@ -132,7 +132,7 @@ export const AllVariants: Story = {
 			<Badge variant="warning">Warning</Badge>
 			<Badge variant="error">Error</Badge>
 			<Badge variant="info">Info</Badge>
-			<Badge variant="outlined">Outlined</Badge>
+			<Badge variant="outline">Outline</Badge>
 		</div>
 	),
 	parameters: {

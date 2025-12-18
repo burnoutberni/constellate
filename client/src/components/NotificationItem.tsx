@@ -68,7 +68,7 @@ export function NotificationItem({
 				className={`flex w-full items-start gap-3 px-4 py-3 justify-start transition-colors ${
 					notification.read
 						? 'bg-background-primary hover:bg-background-secondary'
-						: 'bg-primary-50 hover:bg-primary-100'
+						: 'bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/10 dark:hover:bg-primary-900/20'
 				}`}>
 				<div
 					className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-base ${meta.iconClass}`}>
@@ -100,7 +100,11 @@ export function NotificationItem({
 		<Card
 			variant={notification.read ? 'default' : 'elevated'}
 			padding="lg"
-			className={notification.read ? '' : 'bg-primary-50 border-primary-200'}>
+			className={
+				notification.read
+					? ''
+					: 'bg-primary-50 border-primary-200 dark:bg-primary-900/10 dark:border-primary-800'
+			}>
 			<CardContent>
 				<Stack direction="column" directionMd="row" gap="md">
 					<div

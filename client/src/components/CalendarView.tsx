@@ -126,8 +126,8 @@ function MonthEventButton({
 			size="sm"
 			className={`text-xs px-2 py-1 rounded truncate w-full justify-start transition-colors ${
 				isAttending
-					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500'
-					: 'bg-info-50 text-info-700 hover:bg-info-100'
+					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50'
+					: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
 			}`}
 			title={title || event.title}
 			onClick={handleClick}
@@ -183,7 +183,9 @@ function MonthView({
 			{/* Day headers */}
 			<div className="grid grid-cols-7 gap-2 mb-4">
 				{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-					<div key={day} className="text-center text-sm font-semibold text-info-600 py-2">
+					<div
+						key={day}
+						className="text-center text-sm font-semibold text-info-600 dark:text-info-400 py-2">
 						{day}
 					</div>
 				))}
@@ -228,10 +230,10 @@ function MonthView({
 							return (
 								<div
 									key={day}
-									className={`aspect-square rounded-lg border bg-white p-2 relative overflow-hidden ${isToday ? 'ring-2 ring-info-600' : ''}`}>
+									className={`aspect-square rounded-lg border bg-background-primary p-2 relative overflow-hidden dark:border-border-default ${isToday ? 'ring-2 ring-info-600 dark:ring-info-400' : ''}`}>
 									<div className="flex flex-col h-full">
 										<div
-											className={`text-sm font-semibold mb-1 ${isToday ? 'text-info-600' : 'text-neutral-700'}`}>
+											className={`text-sm font-semibold mb-1 ${isToday ? 'text-info-600 dark:text-info-400' : 'text-text-secondary'}`}>
 											{day}
 										</div>
 										<div className="flex-1 overflow-y-auto space-y-1">
@@ -248,7 +250,7 @@ function MonthView({
 												/>
 											))}
 											{dayEvents.length > 3 && (
-												<div className="text-xs text-neutral-400 px-2">
+												<div className="text-xs text-text-tertiary px-2">
 													+{dayEvents.length - 3} more
 												</div>
 											)}
@@ -282,15 +284,15 @@ function WeekEventButton({
 			size="sm"
 			className={`text-xs px-2 py-1 mb-1 rounded truncate w-full justify-start transition-colors ${
 				isAttending
-					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500'
-					: 'bg-info-50 text-info-700 hover:bg-info-100'
+					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50'
+					: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
 			}`}
 			title={title || event.title}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
 			<div className="font-medium">{event.title}</div>
-			<div className="text-[10px] text-neutral-600">
+			<div className="text-[10px] text-text-secondary">
 				{new Date(event.startTime).toLocaleTimeString('en-US', {
 					hour: 'numeric',
 					minute: '2-digit',
@@ -386,15 +388,17 @@ function WeekView({
 			) : (
 				<div className="min-w-[800px]">
 					{/* Day headers */}
-					<div className="grid grid-cols-8 gap-2 mb-2 sticky top-0 bg-white z-10">
-						<div className="text-sm font-semibold text-neutral-600 py-2" />
+					<div className="grid grid-cols-8 gap-2 mb-2 sticky top-0 bg-background-primary z-10">
+						<div className="text-sm font-semibold text-text-secondary py-2" />
 						{weekDays.map((day) => {
 							const isToday = day.toDateString() === today.toDateString()
 							return (
 								<div
 									key={day.toISOString()}
 									className={`text-center text-sm font-semibold py-2 rounded ${
-										isToday ? 'bg-info-600 text-white' : 'text-neutral-700'
+										isToday
+											? 'bg-info-600 text-white dark:bg-info-500'
+											: 'text-text-primary'
 									}`}>
 									<div className="text-xs uppercase">
 										{day.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -408,7 +412,7 @@ function WeekView({
 					{/* Time slots */}
 					{hours.map((hour) => (
 						<div key={hour} className="grid grid-cols-8 gap-2 mb-1">
-							<div className="text-xs text-neutral-500 py-2 text-right pr-2">
+							<div className="text-xs text-text-tertiary py-2 text-right pr-2">
 								{formatHourLabel(hour)}
 							</div>
 							{weekDays.map((day) => {
@@ -417,7 +421,7 @@ function WeekView({
 								return (
 									<div
 										key={`${day.toISOString()}-${hour}`}
-										className="min-h-[60px] border rounded bg-white p-1">
+										className="min-h-[60px] border border-border-default rounded bg-background-primary p-1">
 										{dayEvents.map((event) => (
 											<WeekEventButton
 												key={event.id}
@@ -450,16 +454,16 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
 		<Button
 			key={event.id}
 			variant="ghost"
-			className={`p-3 rounded border w-full justify-start transition-colors ${
+			className={`p-3 rounded border border-border-default w-full justify-start transition-colors ${
 				isAttending
-					? 'bg-primary-50 border-primary-300 hover:bg-primary-100'
-					: 'bg-info-50 border-info-100 hover:bg-info-100'
+					? 'bg-primary-50 border-primary-200 hover:bg-primary-100 dark:bg-primary-900/20 dark:border-primary-800 dark:hover:bg-primary-900/30'
+					: 'bg-background-primary hover:bg-background-secondary'
 			}`}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
-			<div className="font-medium text-info-900">{event.title}</div>
-			<div className="text-sm text-neutral-600 mt-1">
+			<div className="font-medium text-text-primary">{event.title}</div>
+			<div className="text-sm text-text-secondary mt-1">
 				{new Date(event.startTime).toLocaleTimeString('en-US', {
 					hour: 'numeric',
 					minute: '2-digit',
@@ -468,10 +472,10 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
 					` - ${new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
 			</div>
 			{event.location && (
-				<div className="text-sm text-neutral-500 mt-1">📍 {event.location}</div>
+				<div className="text-sm text-text-secondary mt-1">📍 {event.location}</div>
 			)}
 			{event.summary && (
-				<div className="text-sm text-neutral-600 mt-2">
+				<div className="text-sm text-text-tertiary mt-2">
 					<SafeHTML html={event.summary} />
 				</div>
 			)}
@@ -537,7 +541,9 @@ function DayView({
 					{/* Day header */}
 					<div
 						className={`text-center text-lg font-semibold py-4 mb-4 rounded ${
-							isToday ? 'bg-info-600 text-white' : 'bg-neutral-100 text-neutral-700'
+							isToday
+								? 'bg-info-600 text-white dark:bg-info-500'
+								: 'bg-background-tertiary text-text-primary'
 						}`}>
 						<div className="text-sm uppercase">
 							{currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
@@ -557,12 +563,12 @@ function DayView({
 							const hourEvents = eventsByHour.get(hour) || []
 							return (
 								<div key={hour} className="flex gap-4">
-									<div className="w-20 text-sm text-neutral-500 py-2 text-right flex-shrink-0">
+									<div className="w-20 text-sm text-text-tertiary py-2 text-right flex-shrink-0">
 										{formatHourLabel(hour)}
 									</div>
-									<div className="flex-1 min-h-[80px] border rounded bg-white p-3">
+									<div className="flex-1 min-h-[80px] border border-border-default rounded bg-background-primary p-3">
 										{hourEvents.length === 0 ? (
-											<div className="text-neutral-300 text-sm">
+											<div className="text-text-disabled text-sm">
 												No events
 											</div>
 										) : (

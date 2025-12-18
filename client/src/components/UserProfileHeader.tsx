@@ -144,7 +144,7 @@ export function UserProfileHeader({
 						)}
 
 						{/* Stats */}
-						<div className="flex flex-wrap gap-4 sm:gap-6 text-sm">
+						<Stack direction="row" gap="md" className="flex-wrap text-sm">
 							<div className="flex items-center gap-1.5">
 								<span className="font-semibold text-text-primary">
 									{eventCount}
@@ -175,7 +175,7 @@ export function UserProfileHeader({
 								</span>
 								<span className="text-text-secondary">Following</span>
 							</Button>
-						</div>
+						</Stack>
 
 						{/* Join Date */}
 						{user.createdAt && (

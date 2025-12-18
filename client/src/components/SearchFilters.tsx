@@ -2,9 +2,9 @@ import { useState, KeyboardEvent, type ReactNode } from 'react'
 
 import { DATE_RANGE_LABELS, type DateRangeSelection } from '../lib/searchConstants'
 
-import { Button, Input, Badge, Select, ChevronDownIcon } from './ui'
+import { Button, Input, Badge, Select, ChevronDownIcon, Card } from './ui'
 
-interface SearchFilters {
+export interface SearchFiltersState {
 	q: string
 	location: string
 	dateRange: DateRangeSelection
@@ -15,9 +15,9 @@ interface SearchFilters {
 	categories: string[]
 }
 
-interface AdvancedSearchFiltersProps {
-	filters: SearchFilters
-	onFiltersChange: (filters: SearchFilters) => void
+interface SearchFiltersProps {
+	filters: SearchFiltersState
+	onFiltersChange: (filters: SearchFiltersState) => void
 	onApply: () => void
 	onClear: () => void
 	className?: string
@@ -34,30 +34,30 @@ const DATE_RANGE_OPTIONS: Array<{ value: DateRangeSelection; label: string }> = 
 ]
 
 const ATTENDANCE_MODE_OPTIONS = [
-	{ value: '', label: 'Any' },
-	{ value: 'OfflineEventAttendanceMode', label: 'In person' },
+	{ value: '', label: 'Any Mode' },
+	{ value: 'OfflineEventAttendanceMode', label: 'In Person' },
 	{ value: 'OnlineEventAttendanceMode', label: 'Online' },
 	{ value: 'MixedEventAttendanceMode', label: 'Hybrid' },
 ] as const
 
 const STATUS_OPTIONS = [
-	{ value: '', label: 'Any' },
+	{ value: '', label: 'Any Status' },
 	{ value: 'EventScheduled', label: 'Scheduled' },
 	{ value: 'EventPostponed', label: 'Postponed' },
 	{ value: 'EventCancelled', label: 'Cancelled' },
 ] as const
 
 /**
- * AdvancedSearchFilters component with collapsible sections.
- * Provides comprehensive filtering options for event search.
+ * SearchFilters component - Consolidated filter sidebar for the discovery page.
+ * Uses the new visual system for a clean, modern look.
  */
-export function AdvancedSearchFilters({
+export function SearchFilters({
 	filters,
 	onFiltersChange,
 	onApply,
 	onClear,
 	className,
-}: AdvancedSearchFiltersProps) {
+}: SearchFiltersProps) {
 	const [categoryInput, setCategoryInput] = useState('')
 	const [expandedSections, setExpandedSections] = useState({
 		basic: true,
@@ -110,40 +110,43 @@ export function AdvancedSearchFilters({
 
 	return (
 		<div className={className}>
-			<div className="bg-white rounded-lg border border-neutral-200 shadow-sm">
-				<div className="p-4 border-b border-neutral-200">
+			<Card className="border border-border-default shadow-sm overflow-hidden" padding="none">
+				<div className="p-4 border-b border-border-default bg-background-secondary/50">
 					<div className="flex items-center justify-between">
 						<div>
-							<h2 className="text-lg font-semibold text-neutral-900">
-								Advanced Filters
-							</h2>
-							<p className="text-sm text-neutral-500 mt-1">
-								{(() => {
-									if (activeFiltersCount === 0) {
-										return 'Refine your search'
-									}
-									const filterWord =
-										activeFiltersCount === 1 ? 'filter' : 'filters'
-									return `${activeFiltersCount} ${filterWord} applied`
-								})()}
+							<h2 className="text-lg font-bold text-text-primary">Filters</h2>
+							<p className="text-xs text-text-secondary mt-0.5">
+								{activeFiltersCount === 0
+									? 'Refine your search'
+									: `${activeFiltersCount} active ${activeFiltersCount === 1 ? 'filter' : 'filters'}`}
 							</p>
 						</div>
+						{activeFiltersCount > 0 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onClear}
+								className="text-xs h-8 px-2 text-text-tertiary hover:text-text-primary">
+								Reset
+							</Button>
+						)}
 					</div>
 				</div>
 
-				<div className="divide-y divide-gray-200">
+				<div className="divide-y divide-border-default">
 					{/* Basic Search Section */}
 					<FilterSection
-						title="Basic Search"
+						title="Keywords & Location"
 						expanded={expandedSections.basic}
 						onToggle={() => toggleSection('basic')}>
-						<div className="space-y-4">
+						<div className="space-y-3">
 							<Input
 								label="Keyword"
 								type="text"
 								value={filters.q}
 								onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
-								placeholder="Search titles or descriptions"
+								placeholder="Search events..."
+								size="sm"
 							/>
 
 							<Input
@@ -153,26 +156,28 @@ export function AdvancedSearchFilters({
 								onChange={(e) =>
 									onFiltersChange({ ...filters, location: e.target.value })
 								}
-								placeholder="City, venue, or keyword"
+								placeholder="City, venue, or online"
+								size="sm"
 							/>
 						</div>
 					</FilterSection>
 
 					{/* Date Range Section */}
 					<FilterSection
-						title="Date Range"
+						title="Date & Time"
 						expanded={expandedSections.date}
 						onToggle={() => toggleSection('date')}>
-						<div className="space-y-4">
+						<div className="space-y-3">
 							<Select
-								label="Date range"
+								label="When"
 								value={filters.dateRange}
 								onChange={(e) =>
 									onFiltersChange({
 										...filters,
 										dateRange: e.target.value as DateRangeSelection,
 									})
-								}>
+								}
+								size="sm">
 								{DATE_RANGE_OPTIONS.map((option) => (
 									<option key={option.value} value={option.value}>
 										{option.label}
@@ -181,9 +186,9 @@ export function AdvancedSearchFilters({
 							</Select>
 
 							{filters.dateRange === 'custom' && (
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-2 gap-2 animate-fade-in">
 									<Input
-										label="Starts after"
+										label="From"
 										type="date"
 										value={filters.startDate}
 										onChange={(e) =>
@@ -192,14 +197,16 @@ export function AdvancedSearchFilters({
 												startDate: e.target.value,
 											})
 										}
+										size="sm"
 									/>
 									<Input
-										label="Ends before"
+										label="Until"
 										type="date"
 										value={filters.endDate}
 										onChange={(e) =>
 											onFiltersChange({ ...filters, endDate: e.target.value })
 										}
+										size="sm"
 									/>
 								</div>
 							)}
@@ -208,16 +215,17 @@ export function AdvancedSearchFilters({
 
 					{/* Event Details Section */}
 					<FilterSection
-						title="Event Details"
+						title="Event Type"
 						expanded={expandedSections.details}
 						onToggle={() => toggleSection('details')}>
-						<div className="space-y-4">
+						<div className="space-y-3">
 							<Select
-								label="Attendance mode"
+								label="Attendance"
 								value={filters.mode}
 								onChange={(e) =>
 									onFiltersChange({ ...filters, mode: e.target.value })
-								}>
+								}
+								size="sm">
 								{ATTENDANCE_MODE_OPTIONS.map((option) => (
 									<option key={option.value} value={option.value}>
 										{option.label}
@@ -230,7 +238,8 @@ export function AdvancedSearchFilters({
 								value={filters.status}
 								onChange={(e) =>
 									onFiltersChange({ ...filters, status: e.target.value })
-								}>
+								}
+								size="sm">
 								{STATUS_OPTIONS.map((option) => (
 									<option key={option.value} value={option.value}>
 										{option.label}
@@ -242,50 +251,50 @@ export function AdvancedSearchFilters({
 
 					{/* Categories Section */}
 					<FilterSection
-						title="Categories / Tags"
+						title="Tags"
 						expanded={expandedSections.categories}
 						onToggle={() => toggleSection('categories')}>
 						<div className="space-y-3">
 							<Input
-								label="Add category or tag"
+								label="Add Tag"
 								type="text"
 								value={categoryInput}
 								onChange={(e) => setCategoryInput(e.target.value)}
 								onKeyDown={handleCategoryKeyDown}
-								placeholder="Press Enter to add"
+								placeholder="Type and press Enter"
+								size="sm"
 							/>
 
-							{filters.categories.length > 0 && (
-								<div className="flex flex-wrap gap-2">
+							{filters.categories.length > 0 ? (
+								<div className="flex flex-wrap gap-1.5 pt-1">
 									{filters.categories.map((category) => (
-										<Badge key={category} variant="primary">
+										<Badge key={category} variant="primary" size="sm">
 											#{category}
-											<Button
+											<button
 												type="button"
 												onClick={() => handleRemoveCategory(category)}
-												variant="ghost"
-												size="sm"
-												className="ml-2 hover:text-error-600 h-auto p-0 min-w-0"
+												className="ml-1.5 hover:text-primary-900 dark:hover:text-white focus:outline-none"
 												aria-label={`Remove ${category}`}>
 												×
-											</Button>
+											</button>
 										</Badge>
 									))}
 								</div>
+							) : (
+								<p className="text-xs text-text-tertiary italic">
+									No tags selected
+								</p>
 							)}
 						</div>
 					</FilterSection>
 				</div>
 
-				<div className="p-4 bg-neutral-50 border-t border-neutral-200 flex gap-3">
+				<div className="p-4 bg-background-secondary/30 border-t border-border-default">
 					<Button variant="primary" fullWidth onClick={onApply}>
-						Apply Filters
-					</Button>
-					<Button variant="ghost" onClick={onClear}>
-						Clear
+						Show Results
 					</Button>
 				</div>
-			</div>
+			</Card>
 		</div>
 	)
 }
@@ -299,17 +308,19 @@ interface FilterSectionProps {
 
 function FilterSection({ title, expanded, onToggle, children }: FilterSectionProps) {
 	return (
-		<div>
-			<Button
+		<div className="bg-background-primary">
+			<button
+				type="button"
 				onClick={onToggle}
-				variant="ghost"
-				className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-				<span className="font-medium text-neutral-900">{title}</span>
+				className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-background-secondary/50 transition-colors focus:outline-none focus-visible:bg-background-secondary">
+				<span className="text-sm font-semibold text-text-primary">{title}</span>
 				<ChevronDownIcon
-					className={`w-5 h-5 text-neutral-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
+					className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${
+						expanded ? 'rotate-180' : ''
+					}`}
 				/>
-			</Button>
-			{expanded && <div className="px-4 pb-4">{children}</div>}
+			</button>
+			{expanded && <div className="px-4 pb-4 animate-slide-down">{children}</div>}
 		</div>
 	)
 }

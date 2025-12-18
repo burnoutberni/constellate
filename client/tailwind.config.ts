@@ -24,6 +24,7 @@ const config: Config = {
 					secondary: 'var(--color-background-secondary)',
 					tertiary: 'var(--color-background-tertiary)',
 					inverse: 'var(--color-background-inverse)',
+					overlay: 'var(--color-background-overlay)',
 				},
 				text: {
 					primary: 'var(--color-text-primary)',
@@ -62,7 +63,6 @@ const config: Config = {
 			// Shadows using CSS variables for theme-aware shadows
 			boxShadow: {
 				none: 'var(--shadow-none)',
-				xs: 'var(--shadow-xs)',
 				sm: 'var(--shadow-sm)',
 				base: 'var(--shadow-base)',
 				md: 'var(--shadow-md)',

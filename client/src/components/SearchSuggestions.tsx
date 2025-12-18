@@ -81,8 +81,8 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
 
 		return (
 			<div className={className}>
-				<div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-3 space-y-2">
-					<p className="text-xs text-neutral-500 font-medium px-2">Recent Searches</p>
+				<div className="bg-background-primary border border-border-default rounded-lg shadow-lg p-3 space-y-2">
+					<p className="text-xs text-text-tertiary font-medium px-2">Recent Searches</p>
 					{recentSearches.map((search) => (
 						<Button
 							key={`recent-${search}`}
@@ -90,8 +90,8 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
 							variant="ghost"
 							size="sm"
 							className="w-full justify-start">
-							<span className="text-neutral-400">🕐</span>
-							<span className="text-sm text-neutral-900">{search}</span>
+							<span className="text-text-tertiary">🕐</span>
+							<span className="text-sm text-text-primary">{search}</span>
 						</Button>
 					))}
 				</div>
@@ -102,10 +102,10 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
 	if (isLoading) {
 		return (
 			<div className={className}>
-				<div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-4">
+				<div className="bg-background-primary border border-border-default rounded-lg shadow-lg p-4">
 					<div className="animate-pulse space-y-2">
-						<div className="h-4 bg-neutral-200 rounded w-3/4" />
-						<div className="h-4 bg-neutral-200 rounded w-1/2" />
+						<div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+						<div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
 					</div>
 				</div>
 			</div>
@@ -118,7 +118,7 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
 
 	return (
 		<div className={className}>
-			<div className="bg-white border border-neutral-200 rounded-lg shadow-lg p-3 space-y-2">
+			<div className="bg-background-primary border border-border-default rounded-lg shadow-lg p-3 space-y-2">
 				{suggestions.map((suggestion) => (
 					<Button
 						key={`${suggestion.type}-${suggestion.value}`}
@@ -128,15 +128,15 @@ export function SearchSuggestions({ query, onSelect, className }: SearchSuggesti
 						className="w-full justify-start">
 						<div className="flex items-center gap-2 min-w-0 flex-1">
 							{suggestion.type === 'tag' && (
-								<span className="text-neutral-400 shrink-0">🏷️</span>
+								<span className="text-text-tertiary shrink-0">🏷️</span>
 							)}
 							{suggestion.type === 'location' && (
-								<span className="text-neutral-400 shrink-0">📍</span>
+								<span className="text-text-tertiary shrink-0">📍</span>
 							)}
 							{suggestion.type === 'recent' && (
-								<span className="text-neutral-400 shrink-0">🕐</span>
+								<span className="text-text-tertiary shrink-0">🕐</span>
 							)}
-							<span className="text-sm text-neutral-900 truncate">
+							<span className="text-sm text-text-primary truncate">
 								{suggestion.type === 'tag'
 									? `#${suggestion.value}`
 									: suggestion.value}

@@ -12,7 +12,6 @@ import { Breadcrumbs } from './Breadcrumbs'
 import { MobileNav } from './MobileNav'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
-import { ThemeToggle } from './ThemeToggle'
 import { Button, MenuIcon, SearchIcon } from './ui'
 import { UserMenu } from './UserMenu'
 
@@ -60,54 +59,41 @@ export function Navbar({
 
 	const isAdmin = currentUserProfile?.isAdmin || false
 
-	// Memoize the mobile menu close handler to prevent unnecessary re-renders
 	const handleCloseMobileMenu = useCallback(() => {
 		setMobileMenuOpen(false)
 	}, [])
 
-	// Navigation links
 	const navLinks = getNavLinks(Boolean(user))
 
-	/**
-	 * Top-level paths where breadcrumbs are hidden.
-	 * These are pages directly accessible from the main navigation, so showing
-	 * breadcrumbs like "Home / Feed" would be redundant. Breadcrumbs are only
-	 * shown on deeper pages (profiles, event details, nested routes) where they
-	 * provide valuable navigation context.
-	 */
 	const topLevelPaths = ['/', ...navLinks.map((link) => link.to)]
-
-	// Determine if breadcrumbs should be shown for the current route
 	const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname, topLevelPaths)
 
 	return (
 		<>
 			<nav
-				className="bg-background-primary border-b border-border-default sticky top-0 z-30 backdrop-blur-sm bg-opacity-95"
+				className="bg-background-primary/80 border-b border-border-default sticky top-0 z-30 backdrop-blur-md transition-all duration-200"
 				aria-label="Main navigation">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex items-center justify-between h-16">
-						{/* Left section: Logo and Desktop Navigation */}
-						<div className="flex items-center gap-4 lg:gap-8 flex-1 min-w-0">
-							{/* Mobile menu button */}
+					<div className="flex items-center justify-between h-16 gap-4">
+						{/* Left: Logo & Mobile Menu */}
+						<div className="flex items-center gap-3 lg:gap-8 flex-shrink-0">
 							<Button
 								variant="ghost"
 								size="sm"
 								onClick={() => setMobileMenuOpen(true)}
 								aria-label="Open mobile menu"
 								aria-expanded={mobileMenuOpen}
-								className="md:hidden rounded-lg p-2">
+								className="md:hidden p-2 -ml-2">
 								<MenuIcon className="w-6 h-6" />
 							</Button>
 
-							{/* Logo */}
 							<Link
 								to={user ? '/feed' : '/'}
-								className="text-xl sm:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 rounded flex-shrink-0">
+								className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600 hover:opacity-80 transition-opacity">
 								Constellate
 							</Link>
 
-							{/* Desktop Navigation Links */}
+							{/* Desktop Nav */}
 							<nav
 								className="hidden md:flex items-center gap-1"
 								aria-label="Desktop navigation">
@@ -118,10 +104,10 @@ export function Navbar({
 											key={link.to}
 											to={link.to}
 											className={cn(
-												'px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+												'px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
 												isActive
 													? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-													: 'text-text-secondary hover:bg-background-secondary hover:text-text-primary'
+													: 'text-text-secondary hover:text-text-primary hover:bg-neutral-50 dark:hover:bg-neutral-800'
 											)}
 											aria-current={isActive ? 'page' : undefined}>
 											{link.label}
@@ -131,66 +117,65 @@ export function Navbar({
 							</nav>
 						</div>
 
-						{/* Center section: Search Bar (Desktop) */}
-						<div className="hidden lg:block flex-1 max-w-md mx-8">
+						{/* Center: Search Bar (Desktop) */}
+						<div className="hidden lg:block flex-1 max-w-md">
 							<SearchBar />
 						</div>
 
-						{/* Right section: Actions */}
-						<div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-							{/* Search button for mobile/tablet */}
+						{/* Right: Actions */}
+						<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+							{/* Mobile Search Button */}
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => {
-									// Navigate to search page on mobile
-									navigate('/search')
-								}}
+								onClick={() => navigate('/discover')}
 								aria-label="Search"
-								className="lg:hidden rounded-lg p-2">
+								className="lg:hidden p-2">
 								<SearchIcon className="w-5 h-5" />
 							</Button>
 
-							<ThemeToggle />
-
-							{user ? (
-								<>
-									<NotificationBell userId={user.id} />
-									<UserMenu user={user} isAdmin={isAdmin} onLogout={onLogout} />
-								</>
-							) : (
-								<Link to="/login">
-									<Button
-										variant="primary"
-										size="sm"
-										className="whitespace-nowrap">
-										Sign In
-									</Button>
-								</Link>
-							)}
-
-							{/* Connection status indicator */}
+							{/* Connection Status */}
 							{isConnected && (
 								<div
-									className="hidden sm:flex items-center gap-2 text-xs text-success-600"
+									className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-full bg-success-50 text-success-700 dark:bg-success-900/20 dark:text-success-400 border border-success-200 dark:border-success-900/50 text-xs font-medium"
 									aria-label="Live connection status">
-									<div className="w-2 h-2 bg-success-600 rounded-full animate-pulse" />
+									<div className="w-1.5 h-1.5 bg-success-500 rounded-full animate-pulse" />
 									<span>Live</span>
+								</div>
+							)}
+
+							{user ? (
+								<div className="flex items-center gap-2">
+									<NotificationBell userId={user.id} />
+									<div className="w-px h-6 bg-border-default mx-1 hidden sm:block" />
+									<UserMenu user={user} isAdmin={isAdmin} onLogout={onLogout} />
+								</div>
+							) : (
+								<div className="flex items-center gap-2">
+									<Link to="/login">
+										<Button variant="ghost" size="sm" className="font-medium">
+											Log In
+										</Button>
+									</Link>
+									<Link to="/login?signup=true">
+										<Button variant="primary" size="sm" className="font-medium">
+											Sign Up
+										</Button>
+									</Link>
 								</div>
 							)}
 						</div>
 					</div>
 
-					{/* Breadcrumbs: Shown on deeper pages, hidden on top-level nav pages */}
+					{/* Breadcrumbs */}
 					{showBreadcrumbs && (
-						<div className="hidden md:block pb-3">
+						<div className="hidden md:block pb-3 animate-fade-in">
 							<Breadcrumbs />
 						</div>
 					)}
 				</div>
 			</nav>
 
-			{/* Mobile Navigation Menu */}
 			<MobileNav
 				isOpen={mobileMenuOpen}
 				onClose={handleCloseMobileMenu}

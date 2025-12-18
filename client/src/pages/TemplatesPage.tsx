@@ -27,40 +27,40 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
 	return (
 		<Modal isOpen={Boolean(template)} onClose={onClose} maxWidth="2xl">
-			<div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto">
+			<div className="bg-background-primary rounded-lg max-h-[90vh] overflow-y-auto">
 				<div className="p-6">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-bold">Template Preview</h2>
+						<h2 className="text-2xl font-bold text-text-primary">Template Preview</h2>
 						<Button
 							onClick={onClose}
 							variant="ghost"
 							size="sm"
-							className="text-neutral-500 hover:text-neutral-700 text-2xl h-auto p-0 min-w-0">
+							className="text-text-secondary hover:text-text-primary text-2xl h-auto p-0 min-w-0">
 							×
 						</Button>
 					</div>
 
 					<div className="space-y-4">
 						<div>
-							<h3 className="text-lg font-semibold text-neutral-900">
+							<h3 className="text-lg font-semibold text-text-primary">
 								{template.name}
 							</h3>
 							{template.description && (
-								<p className="text-sm text-neutral-600 mt-1">
+								<p className="text-sm text-text-secondary mt-1">
 									{template.description}
 								</p>
 							)}
 						</div>
 
-						<div className="border-t border-neutral-200 pt-4 space-y-3">
-							<h4 className="font-medium text-neutral-900">Template Data</h4>
+						<div className="border-t border-border-default pt-4 space-y-3">
+							<h4 className="font-medium text-text-primary">Template Data</h4>
 
 							{template.data.title && (
 								<div>
-									<label className="block text-sm font-medium text-neutral-700">
+									<label className="block text-sm font-medium text-text-secondary">
 										Event Title
 									</label>
-									<p className="mt-1 text-sm text-neutral-900">
+									<p className="mt-1 text-sm text-text-primary">
 										{template.data.title}
 									</p>
 								</div>
@@ -68,10 +68,10 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
 							{template.data.summary && (
 								<div>
-									<label className="block text-sm font-medium text-neutral-700">
+									<label className="block text-sm font-medium text-text-secondary">
 										Description
 									</label>
-									<p className="mt-1 text-sm text-neutral-900">
+									<p className="mt-1 text-sm text-text-primary">
 										{template.data.summary}
 									</p>
 								</div>
@@ -79,10 +79,10 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
 							{template.data.location && (
 								<div>
-									<label className="block text-sm font-medium text-neutral-700">
+									<label className="block text-sm font-medium text-text-secondary">
 										Location
 									</label>
-									<p className="mt-1 text-sm text-neutral-900">
+									<p className="mt-1 text-sm text-text-primary">
 										{template.data.location}
 									</p>
 								</div>
@@ -91,10 +91,10 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 							{template.data.locationLatitude !== undefined &&
 								template.data.locationLongitude !== undefined && (
 									<div>
-										<label className="block text-sm font-medium text-neutral-700">
+										<label className="block text-sm font-medium text-text-secondary">
 											Coordinates
 										</label>
-										<p className="mt-1 text-sm text-neutral-900">
+										<p className="mt-1 text-sm text-text-primary">
 											{template.data.locationLatitude},{' '}
 											{template.data.locationLongitude}
 										</p>
@@ -103,15 +103,15 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
 							{template.data.url && (
 								<div>
-									<label className="block text-sm font-medium text-neutral-700">
+									<label className="block text-sm font-medium text-text-secondary">
 										Event URL
 									</label>
-									<p className="mt-1 text-sm text-neutral-900">
+									<p className="mt-1 text-sm text-text-primary">
 										<a
 											href={template.data.url}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="text-primary-600 hover:underline">
+											className="text-primary-600 hover:underline dark:text-primary-400">
 											{template.data.url}
 										</a>
 									</p>
@@ -119,7 +119,7 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 							)}
 						</div>
 
-						<div className="border-t border-neutral-200 pt-4">
+						<div className="border-t border-border-default pt-4">
 							<Button variant="secondary" onClick={onClose} fullWidth>
 								Close
 							</Button>
@@ -168,21 +168,21 @@ function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps
 
 	return (
 		<Modal isOpen={Boolean(template)} onClose={onClose} maxWidth="2xl">
-			<div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto">
+			<div className="bg-background-primary rounded-lg max-h-[90vh] overflow-y-auto">
 				<div className="p-6">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-bold">Edit Template</h2>
+						<h2 className="text-2xl font-bold text-text-primary">Edit Template</h2>
 						<Button
 							onClick={onClose}
 							variant="ghost"
 							size="sm"
-							className="text-neutral-500 hover:text-neutral-700 text-2xl h-auto p-0 min-w-0">
+							className="text-text-secondary hover:text-text-primary text-2xl h-auto p-0 min-w-0">
 							×
 						</Button>
 					</div>
 
 					{error && (
-						<div className="bg-error-50 text-error-600 p-3 rounded-lg mb-4 text-sm">
+						<div className="bg-error-50 dark:bg-error-900/20 text-error-600 dark:text-error-400 p-3 rounded-lg mb-4 text-sm">
 							{error}
 						</div>
 					)}
@@ -191,7 +191,7 @@ function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps
 						<div>
 							<label
 								htmlFor="template-name"
-								className="block text-sm font-medium text-neutral-700 mb-2">
+								className="block text-sm font-medium text-text-primary mb-2">
 								Template Name *
 							</label>
 							<Input
@@ -207,7 +207,7 @@ function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps
 						<div>
 							<label
 								htmlFor="template-description"
-								className="block text-sm font-medium text-neutral-700 mb-2">
+								className="block text-sm font-medium text-text-primary mb-2">
 								Description
 							</label>
 							<Textarea
@@ -339,8 +339,8 @@ export function TemplatesPage() {
 			<PageLayout header={<Navbar isConnected={false} user={null} onLogout={logout} />}>
 				<Container className="py-8">
 					<div className="text-center">
-						<h1 className="text-2xl font-bold text-neutral-900">Sign In Required</h1>
-						<p className="mt-2 text-neutral-600">
+						<h1 className="text-2xl font-bold text-text-primary">Sign In Required</h1>
+						<p className="mt-2 text-text-secondary">
 							You need to be signed in to manage templates.
 						</p>
 						<Button
@@ -360,8 +360,8 @@ export function TemplatesPage() {
 			<PageLayout header={<Navbar isConnected={false} user={user} onLogout={logout} />}>
 				<Container className="py-8">
 					<div className="mb-8">
-						<h1 className="text-3xl font-bold text-neutral-900">Event Templates</h1>
-						<p className="mt-2 text-neutral-600">
+						<h1 className="text-3xl font-bold text-text-primary">Event Templates</h1>
+						<p className="mt-2 text-text-secondary">
 							Create and manage reusable event templates. Create an event and check
 							&quot;Save as template&quot; to add it here.
 						</p>

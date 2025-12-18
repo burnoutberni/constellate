@@ -21,7 +21,7 @@ import {
 
 import { RecurrenceSelector } from './RecurrenceSelector'
 import { TemplateSelector, type EventTemplate } from './TemplateSelector'
-import { Button, Input, Textarea, Card, Modal } from './ui'
+import { Button, Input, Textarea, Card, Modal, Select } from './ui'
 import { VisibilitySelector } from './VisibilitySelector'
 
 interface CreateEventModalProps {
@@ -551,14 +551,12 @@ export function CreateEventModal({
 			<Card className="w-full">
 				<div className="p-6">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-							Create Event
-						</h2>
+						<h2 className="text-2xl font-bold text-text-primary">Create Event</h2>
 						<Button
 							onClick={onClose}
 							variant="ghost"
 							size="sm"
-							className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 text-2xl h-auto p-0 min-w-0"
+							className="text-text-secondary hover:text-text-primary text-2xl h-auto p-0 min-w-0"
 							aria-label="Close modal">
 							×
 						</Button>
@@ -668,7 +666,7 @@ export function CreateEventModal({
 							/>
 
 							<div>
-								<label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+								<label className="block text-sm font-medium text-text-primary mb-2">
 									Coordinates (for map & nearby search)
 								</label>
 								<div className="grid md:grid-cols-2 gap-4">
@@ -722,7 +720,7 @@ export function CreateEventModal({
 										Clear coordinates
 									</Button>
 								</div>
-								<p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+								<p className="text-xs text-text-secondary mt-1">
 									Providing coordinates unlocks map displays and nearby discovery.
 								</p>
 							</div>
@@ -738,14 +736,14 @@ export function CreateEventModal({
 							/>
 							<div className="space-y-2 -mt-2">
 								{locationQueryActive && locationSuggestionsLoading && (
-									<div className="text-xs text-neutral-500 dark:text-neutral-400">
+									<div className="text-xs text-text-secondary">
 										Searching for places…
 									</div>
 								)}
 								{locationQueryActive &&
 									!locationSuggestionsLoading &&
 									locationSuggestions.length === 0 && (
-										<div className="text-xs text-neutral-400 dark:text-neutral-500">
+										<div className="text-xs text-text-tertiary">
 											No matching places yet. Keep typing for better results.
 										</div>
 									)}
@@ -755,16 +753,16 @@ export function CreateEventModal({
 										type="button"
 										onClick={() => handleSuggestionSelect(suggestion)}
 										variant="ghost"
-										className="w-full justify-start border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 hover:border-primary-400 dark:hover:border-primary-600 transition-colors">
-										<div className="font-medium text-neutral-900 dark:text-neutral-100">
+										className="w-full justify-start border border-border-default rounded-lg p-3 hover:border-primary-400 dark:hover:border-primary-600 transition-colors">
+										<div className="font-medium text-text-primary">
 											{suggestion.label}
 										</div>
 										{suggestion.hint && (
-											<div className="text-xs text-neutral-500 dark:text-neutral-400">
+											<div className="text-xs text-text-secondary">
 												{suggestion.hint}
 											</div>
 										)}
-										<div className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+										<div className="text-xs text-text-tertiary mt-1">
 											{suggestion.latitude.toFixed(4)},{' '}
 											{suggestion.longitude.toFixed(4)}
 										</div>
@@ -801,18 +799,14 @@ export function CreateEventModal({
 						/>
 
 						<div>
-							<label
-								htmlFor="timezone"
-								className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-								Timezone
-							</label>
-							<select
+							<Select
 								id="timezone"
+								label="Timezone"
 								value={formData.timezone}
 								onChange={(e) =>
 									setFormData({ ...formData, timezone: e.target.value })
 								}
-								className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+								helperText="The timezone for event start and end times">
 								{(() => {
 									// Try to use the modern API if available
 									const intl = Intl as typeof Intl & {
@@ -852,10 +846,7 @@ export function CreateEventModal({
 										</option>
 									))
 								})()}
-							</select>
-							<p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-								The timezone for event start and end times
-							</p>
+							</Select>
 						</div>
 
 						<VisibilitySelector
@@ -863,7 +854,7 @@ export function CreateEventModal({
 							onChange={(visibility) => setFormData({ ...formData, visibility })}
 						/>
 
-						<div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+						<div className="border-t border-border-default pt-4">
 							<RecurrenceSelector
 								value={{
 									pattern: formData.recurrencePattern as
@@ -885,7 +876,7 @@ export function CreateEventModal({
 						</div>
 
 						<div>
-							<label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+							<label className="block text-sm font-medium text-text-primary mb-2">
 								Tags
 							</label>
 							<div className="space-y-2">
@@ -937,14 +928,14 @@ export function CreateEventModal({
 										))}
 									</div>
 								)}
-								<p className="text-xs text-neutral-500 dark:text-neutral-400">
+								<p className="text-xs text-text-secondary">
 									Add tags to help others discover your event
 								</p>
 							</div>
 						</div>
 
 						{user && (
-							<div className="border-t border-neutral-200 pt-4">
+							<div className="border-t border-border-default pt-4">
 								<label className="flex items-start gap-3 cursor-pointer">
 									<input
 										type="checkbox"
@@ -953,10 +944,10 @@ export function CreateEventModal({
 										className="mt-1 h-4 w-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
 									/>
 									<div className="flex-1">
-										<span className="text-sm font-medium text-neutral-900">
+										<span className="text-sm font-medium text-text-primary">
 											Save as template
 										</span>
-										<p className="text-xs text-neutral-500 mt-1">
+										<p className="text-xs text-text-secondary mt-1">
 											Save this event configuration as a reusable template
 											(excludes dates and tags)
 										</p>
@@ -971,20 +962,13 @@ export function CreateEventModal({
 											onChange={(e) => setTemplateName(e.target.value)}
 											placeholder={formData.title || 'My Event Template'}
 										/>
-										<div>
-											<label className="block text-sm font-medium text-neutral-700 mb-2">
-												Template Description (optional)
-											</label>
-											<textarea
-												value={templateDescription}
-												onChange={(e) =>
-													setTemplateDescription(e.target.value)
-												}
-												className="textarea"
-												rows={2}
-												placeholder="Describe this template"
-											/>
-										</div>
+										<Textarea
+											label="Template Description (optional)"
+											value={templateDescription}
+											onChange={(e) => setTemplateDescription(e.target.value)}
+											rows={2}
+											placeholder="Describe this template"
+										/>
 									</div>
 								)}
 							</div>

@@ -21,7 +21,9 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
 	// Helper function to handle dismissal: hide toast, wait for animation, then remove from store
 	const handleDismiss = useCallback(() => {
-		if (hasDismissedRef.current) {return}
+		if (hasDismissedRef.current) {
+			return
+		}
 		hasDismissedRef.current = true
 
 		// Clear any pending dismissal timer

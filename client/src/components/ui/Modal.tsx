@@ -33,7 +33,7 @@ export interface ModalProps extends React.HTMLAttributes<HTMLDivElement> {
 	 * Maximum width of the modal content
 	 * @default 'max-w-md'
 	 */
-	maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
+	maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full'
 	/**
 	 * Whether to show animations
 	 * @default true
@@ -51,7 +51,9 @@ const maxWidthClasses = {
 	lg: 'max-w-lg',
 	xl: 'max-w-xl',
 	'2xl': 'max-w-2xl',
-	full: 'max-w-full',
+	'3xl': 'max-w-3xl',
+	'4xl': 'max-w-4xl',
+	full: 'max-w-full m-4',
 }
 
 /**
@@ -125,7 +127,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			<div
 				ref={ref}
 				className={cn(
-					'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50',
+					'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6',
+					'bg-background-overlay backdrop-blur-sm',
 					animated && 'animate-fade-in',
 					backdropClassName
 				)}
@@ -136,7 +139,10 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 				<div
 					ref={contentRef}
 					className={cn(
-						'bg-background-primary rounded-lg shadow-xl w-full',
+						'w-full relative',
+						'bg-white dark:bg-neutral-900',
+						'rounded-xl shadow-2xl',
+						'border border-neutral-200 dark:border-neutral-800',
 						maxWidthClasses[maxWidth],
 						animated && 'animate-slide-up',
 						contentClassName,

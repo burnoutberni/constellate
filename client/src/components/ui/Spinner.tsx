@@ -7,12 +7,12 @@ export interface SpinnerProps extends React.SVGProps<SVGSVGElement> {
 	 * Size of the spinner
 	 * @default 'md'
 	 */
-	size?: 'sm' | 'md' | 'lg'
+	size?: 'sm' | 'md' | 'lg' | 'xl'
 	/**
 	 * Color variant of the spinner
 	 * @default 'primary'
 	 */
-	variant?: 'primary' | 'secondary' | 'white'
+	variant?: 'primary' | 'secondary' | 'white' | 'neutral'
 	/**
 	 * Additional CSS classes to apply
 	 */
@@ -23,11 +23,13 @@ const sizeClasses = {
 	sm: 'h-4 w-4',
 	md: 'h-8 w-8',
 	lg: 'h-12 w-12',
+	xl: 'h-16 w-16',
 }
 
 const variantClasses = {
-	primary: 'text-primary-600 dark:text-primary-400',
-	secondary: 'text-neutral-600 dark:text-neutral-400',
+	primary: 'text-primary-600 dark:text-primary-500',
+	secondary: 'text-secondary-600 dark:text-secondary-500',
+	neutral: 'text-neutral-600 dark:text-neutral-400',
 	white: 'text-white',
 }
 

@@ -3,13 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { Button } from '../../components/ui'
 
 describe('Button Component', () => {
-	it('should render children text', () => {
+	it('user can see button text', () => {
 		render(<Button>Click me</Button>)
 
 		expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument()
 	})
 
-	it('should call onClick when clicked', () => {
+	it('user can click button to trigger action', () => {
 		const handleClick = vi.fn()
 		render(<Button onClick={handleClick}>Click</Button>)
 
@@ -19,7 +19,7 @@ describe('Button Component', () => {
 		expect(handleClick).toHaveBeenCalledTimes(1)
 	})
 
-	it('should be disabled when disabled prop is true', () => {
+	it('user cannot click disabled button', () => {
 		const handleClick = vi.fn()
 		render(
 			<Button disabled onClick={handleClick}>
@@ -35,7 +35,7 @@ describe('Button Component', () => {
 		expect(handleClick).not.toHaveBeenCalled()
 	})
 
-	it('should show loading state and be disabled when loading', () => {
+	it('user can see loading state and cannot click button while loading', () => {
 		render(<Button loading>Loading</Button>)
 
 		const button = screen.getByRole('button', { name: 'Loading' })
@@ -43,19 +43,19 @@ describe('Button Component', () => {
 		expect(button).toHaveAttribute('aria-busy', 'true')
 	})
 
-	it('should render left icon when provided', () => {
+	it('user can see button with left icon', () => {
 		render(<Button leftIcon={<span>←</span>}>Back</Button>)
 
 		expect(screen.getByText('Back')).toBeInTheDocument()
 	})
 
-	it('should render right icon when provided', () => {
+	it('user can see button with right icon', () => {
 		render(<Button rightIcon={<span>→</span>}>Next</Button>)
 
 		expect(screen.getByText('Next')).toBeInTheDocument()
 	})
 
-	it('should not show icons when loading', () => {
+	it('user does not see icons when button is loading', () => {
 		render(
 			<Button loading leftIcon={<span>←</span>} rightIcon={<span>→</span>}>
 				Loading
@@ -66,7 +66,7 @@ describe('Button Component', () => {
 		expect(button).toBeInTheDocument()
 	})
 
-	it('should accept standard button HTML attributes', () => {
+	it('user can submit form with button', () => {
 		render(
 			<Button type="submit" aria-label="Submit form">
 				Submit
@@ -77,7 +77,7 @@ describe('Button Component', () => {
 		expect(button).toHaveAttribute('type', 'submit')
 	})
 
-	it('should be disabled when both disabled and loading are true', () => {
+	it('user cannot interact with button when both disabled and loading', () => {
 		render(
 			<Button disabled loading>
 				Button

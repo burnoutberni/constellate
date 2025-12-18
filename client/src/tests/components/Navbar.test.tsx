@@ -64,7 +64,7 @@ describe('Navbar Component', () => {
 		// Desktop nav links are present (may also appear in mobile nav)
 		expect(screen.getAllByText('Feed').length).toBeGreaterThan(0)
 		expect(screen.getAllByText('Calendar').length).toBeGreaterThan(0)
-		expect(screen.getAllByText('Search').length).toBeGreaterThan(0)
+		expect(screen.getAllByText('Discover').length).toBeGreaterThan(0)
 		expect(screen.getAllByText('About').length).toBeGreaterThan(0)
 	})
 
@@ -87,7 +87,7 @@ describe('Navbar Component', () => {
 	it('should show sign in button when user is not logged in', () => {
 		render(<Navbar />, { wrapper })
 
-		expect(screen.getByText('Sign In')).toBeInTheDocument()
+		expect(screen.getByText('Log In')).toBeInTheDocument()
 	})
 
 	it('should show notification bell when user is logged in', () => {

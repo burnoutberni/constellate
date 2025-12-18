@@ -72,31 +72,36 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 		// Base styles
 		const baseStyles = [
 			'block w-full',
-			'border rounded-lg',
-			'transition-all duration-200',
+			'rounded-lg border',
+			'bg-white dark:bg-neutral-900',
+			'text-text-primary placeholder:text-text-disabled',
+			'transition-all duration-200 ease-in-out',
 			'focus:outline-none focus:ring-2 focus:ring-offset-0',
-			'disabled:opacity-50 disabled:cursor-not-allowed',
-			'bg-background-primary',
-			'focus:ring-offset-background-primary',
+			'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-neutral-50 dark:disabled:bg-neutral-800',
 		]
 
 		// Size styles
 		const sizeStyles = {
 			sm: ['text-sm px-3 py-1.5', 'min-h-[32px]'],
-			md: ['text-base px-4 py-2', 'min-h-[40px]'],
-			lg: ['text-lg px-4 py-2.5', 'min-h-[48px]'],
+			md: ['text-sm px-3.5 py-2', 'min-h-[40px]'],
+			lg: ['text-base px-4 py-3', 'min-h-[48px]'],
 		}
 
 		// State styles
 		const stateStyles = error
 			? [
-					'border-border-error text-error-700',
-					'focus:border-border-error focus:ring-border-error',
-					'dark:text-error-100',
+					'border-error-300 text-error-900 placeholder:text-error-300',
+					'focus:border-error-500 focus:ring-error-500/20',
+					'dark:border-error-700 dark:text-error-100 dark:placeholder:text-error-700',
+					'dark:focus:border-error-500',
 				]
 			: [
-					'border-border-default text-text-primary',
-					'focus:border-border-focus focus:ring-border-focus',
+					'border-neutral-200',
+					'focus:border-primary-500 focus:ring-primary-500/20',
+					'hover:border-neutral-300',
+					'dark:border-neutral-700',
+					'dark:hover:border-neutral-600',
+					'dark:focus:border-primary-500 dark:focus:ring-primary-500/30',
 				]
 
 		const inputClasses = cn(
@@ -108,10 +113,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			className
 		)
 
-		const containerClasses = cn('w-full', fullWidth && 'w-full')
+		const containerClasses = cn('relative', fullWidth && 'w-full')
 
 		return (
-			<div className={containerClasses}>
+			<div className={cn(fullWidth && 'w-full')}>
 				{label && (
 					<label
 						htmlFor={inputId}
@@ -124,7 +129,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 						{label}
 					</label>
 				)}
-				<div className="relative">
+				<div className={containerClasses}>
 					{leftIcon && (
 						<div
 							className={cn(
@@ -162,13 +167,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 				{error && errorMessage && (
 					<p
 						id={errorId}
-						className="mt-1.5 text-sm text-error-600 dark:text-error-400"
+						className="mt-1.5 text-xs font-medium text-error-600 dark:text-error-400"
 						role="alert">
 						{errorMessage}
 					</p>
 				)}
 				{!error && helperText && (
-					<p id={helperId} className="mt-1.5 text-sm text-text-tertiary">
+					<p id={helperId} className="mt-1.5 text-xs text-text-tertiary">
 						{helperText}
 					</p>
 				)}

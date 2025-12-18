@@ -11,7 +11,7 @@
 // ============================================================================
 
 /**
- * Primary color palette - Blue tones for main actions and branding
+ * Primary color palette - Sky Blue for optimism and clarity
  */
 const primaryColors = {
 	50: '#f0f9ff',
@@ -28,37 +28,39 @@ const primaryColors = {
 } as const
 
 /**
- * Secondary color palette - Purple/Accent tones for highlights
+ * Secondary color palette - Violet for creativity and accents
  */
 const secondaryColors = {
-	50: '#fdf4ff',
-	100: '#fae8ff',
-	200: '#f5d0fe',
-	300: '#f0abfc',
-	400: '#e879f9',
-	500: '#d946ef',
-	600: '#c026d3',
-	700: '#a21caf',
-	800: '#86198f',
-	900: '#701a75',
-	950: '#4a044e',
+	50: '#f5f3ff',
+	100: '#ede9fe',
+	200: '#ddd6fe',
+	300: '#c4b5fd',
+	400: '#a78bfa',
+	500: '#8b5cf6',
+	600: '#7c3aed',
+	700: '#6d28d9',
+	800: '#5b21b6',
+	900: '#4c1d95',
+	950: '#2e1065',
 } as const
 
 /**
- * Neutral color palette - Grays for text, backgrounds, and borders
+ * Neutral color palette - Slate for a modern, high-contrast look
  */
 const neutralColors = {
-	50: '#f9fafb',
-	100: '#f3f4f6',
-	200: '#e5e7eb',
-	300: '#d1d5db',
-	400: '#9ca3af',
-	500: '#6b7280',
-	600: '#4b5563',
-	700: '#374151',
-	800: '#1f2937',
-	900: '#111827',
-	950: '#030712',
+	0: '#ffffff',
+	25: '#fcfcfc',
+	50: '#f8fafc',
+	100: '#f1f5f9',
+	200: '#e2e8f0',
+	300: '#cbd5e1',
+	400: '#94a3b8',
+	500: '#64748b',
+	600: '#475569',
+	700: '#334155',
+	800: '#1e293b',
+	900: '#0f172a',
+	950: '#020617',
 } as const
 
 /**
@@ -136,20 +138,21 @@ const lightThemeColors = {
 	error: semanticColors.error,
 	info: semanticColors.info,
 
-	// Background colors
+	// Background surfaces
 	background: {
-		primary: '#ffffff',
-		secondary: neutralColors[50],
-		tertiary: neutralColors[100],
-		inverse: neutralColors[900],
+		primary: neutralColors[0], // White
+		secondary: neutralColors[50], // Very light gray
+		tertiary: neutralColors[100], // Light gray
+		inverse: neutralColors[900], // Dark slate
+		overlay: 'rgba(0, 0, 0, 0.5)',
 	},
 
 	// Text colors
 	text: {
 		primary: neutralColors[900],
-		secondary: neutralColors[700],
-		tertiary: neutralColors[600],
-		inverse: '#ffffff',
+		secondary: neutralColors[600],
+		tertiary: neutralColors[500],
+		inverse: neutralColors[0],
 		disabled: neutralColors[400],
 		link: primaryColors[600],
 		linkHover: primaryColors[700],
@@ -161,7 +164,7 @@ const lightThemeColors = {
 		hover: neutralColors[300],
 		focus: primaryColors[500],
 		error: semanticColors.error[500],
-		disabled: neutralColors[200],
+		disabled: neutralColors[100],
 	},
 } as const
 
@@ -169,7 +172,7 @@ const lightThemeColors = {
  * Dark theme color mappings
  */
 const darkThemeColors = {
-	// Brand colors (same as light)
+	// Brand colors (same as light, or adjusted if needed)
 	primary: primaryColors,
 	secondary: secondaryColors,
 
@@ -182,20 +185,21 @@ const darkThemeColors = {
 	error: semanticColors.error,
 	info: semanticColors.info,
 
-	// Background colors (inverted)
+	// Background surfaces
 	background: {
-		primary: neutralColors[950],
-		secondary: neutralColors[900],
-		tertiary: neutralColors[800],
-		inverse: neutralColors[50],
+		primary: neutralColors[950], // Deepest slate
+		secondary: neutralColors[900], // Dark slate
+		tertiary: neutralColors[800], // Slate
+		inverse: neutralColors[50], // Light gray
+		overlay: 'rgba(0, 0, 0, 0.7)',
 	},
 
 	// Text colors (inverted)
 	text: {
 		primary: neutralColors[50],
-		secondary: neutralColors[200],
+		secondary: neutralColors[300],
 		tertiary: neutralColors[400],
-		inverse: neutralColors[900],
+		inverse: neutralColors[950],
 		disabled: neutralColors[600],
 		link: primaryColors[400],
 		linkHover: primaryColors[300],
@@ -221,14 +225,25 @@ const darkThemeColors = {
 const fontFamilies = {
 	sans: [
 		'Inter',
+		'ui-sans-serif',
 		'system-ui',
 		'-apple-system',
 		'BlinkMacSystemFont',
 		'Segoe UI',
 		'Roboto',
+		'Helvetica Neue',
+		'Arial',
 		'sans-serif',
 	],
-	mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'monospace'],
+	mono: [
+		'JetBrains Mono',
+		'ui-monospace',
+		'SFMono-Regular',
+		'Menlo',
+		'Monaco',
+		'Consolas',
+		'monospace',
+	],
 } as const
 
 /**
@@ -341,12 +356,6 @@ const typography = {
 		lineHeight: lineHeights.normal,
 		letterSpacing: letterSpacing.wide,
 	},
-	label: {
-		fontSize: fontSizes.sm,
-		fontWeight: fontWeights.medium,
-		lineHeight: lineHeights.normal,
-		letterSpacing: letterSpacing.wide,
-	},
 } as const
 
 // ============================================================================
@@ -358,8 +367,11 @@ const typography = {
  */
 const spacing = {
 	0: '0',
+	0.5: '0.125rem', // 2px
 	1: '0.25rem', // 4px
+	1.5: '0.375rem', // 6px
 	2: '0.5rem', // 8px
+	2.5: '0.625rem', // 10px
 	3: '0.75rem', // 12px
 	4: '1rem', // 16px
 	5: '1.25rem', // 20px
@@ -385,13 +397,11 @@ const spacing = {
  */
 const borderRadius = {
 	none: '0',
-	sm: '0.125rem', // 2px
-	base: '0.25rem', // 4px
-	md: '0.375rem', // 6px
-	lg: '0.5rem', // 8px
-	xl: '0.75rem', // 12px
-	'2xl': '1rem', // 16px
-	'3xl': '1.5rem', // 24px
+	sm: '0.25rem', // 4px (refined)
+	base: '0.5rem', // 8px (refined - modern standard)
+	md: '0.75rem', // 12px
+	lg: '1rem', // 16px
+	xl: '1.5rem', // 24px
 	full: '9999px',
 } as const
 
@@ -404,28 +414,26 @@ const borderRadius = {
  */
 const shadows = {
 	none: 'none',
-	xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-	sm: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-	base: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-	md: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-	lg: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-	xl: '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-	'2xl': '0 35px 60px -15px rgb(0 0 0 / 0.3)',
+	sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+	base: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+	md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+	lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+	xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+	'2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
 	inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
 } as const
 
 /**
- * Dark mode shadows (higher opacity shadows for dark backgrounds)
+ * Dark mode shadows (more subtle, higher ambient light simulation)
  */
 const darkShadows = {
 	none: 'none',
-	xs: '0 1px 2px 0 rgb(0 0 0 / 0.3)',
-	sm: '0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4)',
-	base: '0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4)',
-	md: '0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4)',
-	lg: '0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4)',
-	xl: '0 25px 50px -12px rgb(0 0 0 / 0.5)',
-	'2xl': '0 35px 60px -15px rgb(0 0 0 / 0.6)',
+	sm: '0 1px 2px 0 rgb(0 0 0 / 0.3)',
+	base: '0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4)',
+	md: '0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4)',
+	lg: '0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4)',
+	xl: '0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5)',
+	'2xl': '0 25px 50px -12px rgb(0 0 0 / 0.6)',
 	inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.3)',
 } as const
 

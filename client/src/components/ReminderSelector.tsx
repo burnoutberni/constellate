@@ -1,6 +1,7 @@
 import { type ChangeEvent } from 'react'
 
 import { REMINDER_OPTIONS } from './reminderConstants'
+import { Select } from './ui'
 
 export interface ReminderOption {
 	label: string
@@ -75,25 +76,26 @@ export function ReminderSelector({
 
 	return (
 		<div className="mb-6 pb-4 border-b border-border-default">
-			<label className="block text-sm font-semibold text-text-primary mb-2">Reminder</label>
-			<div className="flex items-center gap-3">
-				<select
-					className="flex-1 px-3 py-2 border border-border-default rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-					value={value !== null ? String(value) : ''}
-					onChange={handleChange}
-					disabled={!isAuthenticated || !canManageReminder || isPending}
-					aria-label="Reminder notification timing">
-					{options.map((option) => (
-						<option
-							key={option.label}
-							value={option.value !== null ? option.value : ''}>
-							{option.label}
-						</option>
-					))}
-				</select>
-				{isPending && <span className="text-sm text-text-secondary">Saving...</span>}
+			<div className="flex items-end gap-3">
+				<div className="flex-1">
+					<Select
+						label="Reminder"
+						value={value !== null ? String(value) : ''}
+						onChange={handleChange}
+						disabled={!isAuthenticated || !canManageReminder || isPending}
+						aria-label="Reminder notification timing"
+						helperText={getHelperText()}>
+						{options.map((option) => (
+							<option
+								key={option.label}
+								value={option.value !== null ? option.value : ''}>
+								{option.label}
+							</option>
+						))}
+					</Select>
+				</div>
+				{isPending && <span className="text-sm text-text-secondary mb-1.5">Saving...</span>}
 			</div>
-			<p className="text-xs text-text-secondary mt-2">{getHelperText()}</p>
 		</div>
 	)
 }

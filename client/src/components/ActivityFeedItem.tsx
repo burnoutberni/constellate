@@ -113,7 +113,7 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
 		<Card
 			variant="default"
 			padding="md"
-			className="hover:border-border-hover transition-colors">
+			className="hover:border-primary-200 dark:hover:border-primary-800 transition-colors">
 			<div className="flex items-start gap-3">
 				{/* User Avatar */}
 				<Link to={`/@${activity.user.username}`} className="flex-shrink-0">

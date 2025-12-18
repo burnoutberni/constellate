@@ -224,7 +224,7 @@ export function AdminPage() {
 
 	if (isLoadingProfile) {
 		return (
-			<div className="min-h-screen bg-neutral-50">
+			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={false} user={user} onLogout={logout} />
 				<div className="max-w-6xl mx-auto px-4 py-8">
 					<div className="flex justify-center items-center py-12">
@@ -236,13 +236,13 @@ export function AdminPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-neutral-50">
+		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={false} user={user} onLogout={logout} />
 			<div className="max-w-6xl mx-auto px-4 py-8">
-				<h1 className="text-3xl font-bold text-neutral-900 mb-8">Admin Panel</h1>
+				<h1 className="text-3xl font-bold text-text-primary mb-8">Admin Panel</h1>
 
 				{/* Tabs */}
-				<div className="border-b border-neutral-200 mb-6">
+				<div className="border-b border-border-default mb-6">
 					<nav className="-mb-px flex space-x-8">
 						<Button
 							onClick={() => setActiveTab('users')}
@@ -250,8 +250,8 @@ export function AdminPage() {
 							size="sm"
 							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
 								activeTab === 'users'
-									? 'border-info-500 text-info-600'
-									: 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+									? 'border-primary-500 text-primary-600 dark:text-primary-400'
+									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
 							}`}>
 							Users
 						</Button>
@@ -261,8 +261,8 @@ export function AdminPage() {
 							size="sm"
 							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
 								activeTab === 'api-keys'
-									? 'border-info-500 text-info-600'
-									: 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+									? 'border-primary-500 text-primary-600 dark:text-primary-400'
+									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
 							}`}>
 							API Keys
 						</Button>
@@ -272,8 +272,8 @@ export function AdminPage() {
 							size="sm"
 							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
 								activeTab === 'instances'
-									? 'border-info-500 text-info-600'
-									: 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+									? 'border-primary-500 text-primary-600 dark:text-primary-400'
+									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
 							}`}>
 							Instances
 						</Button>
@@ -284,7 +284,7 @@ export function AdminPage() {
 				{activeTab === 'users' && (
 					<div>
 						<div className="flex justify-between items-center mb-4">
-							<h2 className="text-xl font-semibold text-neutral-900">
+							<h2 className="text-xl font-semibold text-text-primary">
 								User Management
 							</h2>
 							<div className="flex gap-2">
@@ -308,42 +308,42 @@ export function AdminPage() {
 								<Spinner size="md" />
 							</div>
 						) : (
-							<div className="bg-white rounded-lg shadow-sm overflow-hidden">
-								<table className="min-w-full divide-y divide-gray-200">
-									<thead className="bg-neutral-50">
+							<div className="bg-background-primary rounded-lg shadow-sm overflow-hidden border border-border-default">
+								<table className="min-w-full divide-y divide-border-default">
+									<thead className="bg-background-secondary">
 										<tr>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												User
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Type
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Stats
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Created
 											</th>
-											<th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-right text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Actions
 											</th>
 										</tr>
 									</thead>
-									<tbody className="bg-white divide-y divide-gray-200">
+									<tbody className="bg-background-primary divide-y divide-border-default">
 										{usersData?.users.map((userItem) => (
 											<tr key={userItem.id}>
 												<td className="px-6 py-4 whitespace-nowrap">
 													<div>
-														<div className="text-sm font-medium text-neutral-900">
+														<div className="text-sm font-medium text-text-primary">
 															{userItem.username}
 														</div>
 														{userItem.email && (
-															<div className="text-sm text-neutral-500">
+															<div className="text-sm text-text-secondary">
 																{userItem.email}
 															</div>
 														)}
 														{userItem.name && (
-															<div className="text-sm text-neutral-500">
+															<div className="text-sm text-text-secondary">
 																{userItem.name}
 															</div>
 														)}
@@ -352,23 +352,23 @@ export function AdminPage() {
 												<td className="px-6 py-4 whitespace-nowrap">
 													<div className="flex gap-2">
 														{userItem.isAdmin && (
-															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
 																Admin
 															</span>
 														)}
 														{userItem.isBot && (
-															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info-100 text-info-800">
+															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info-100 text-info-800 dark:bg-info-900/30 dark:text-info-300">
 																Bot
 															</span>
 														)}
 														{userItem.isRemote && (
-															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
 																Remote
 															</span>
 														)}
 													</div>
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 													{userItem._count && (
 														<div>
 															{userItem._count.events} events,{' '}
@@ -376,7 +376,7 @@ export function AdminPage() {
 														</div>
 													)}
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 													{new Date(
 														userItem.createdAt
 													).toLocaleDateString()}
@@ -388,7 +388,7 @@ export function AdminPage() {
 														}}
 														variant="ghost"
 														size="sm"
-														className="text-error-600 hover:text-error-900"
+														className="text-error-600 hover:text-error-900 dark:text-error-400 dark:hover:text-error-300"
 														disabled={deleteUserMutation.isPending}>
 														Delete
 													</Button>
@@ -406,7 +406,7 @@ export function AdminPage() {
 				{activeTab === 'api-keys' && (
 					<div>
 						<div className="flex justify-between items-center mb-4">
-							<h2 className="text-xl font-semibold text-neutral-900">
+							<h2 className="text-xl font-semibold text-text-primary">
 								API Key Management
 							</h2>
 							<Button
@@ -424,49 +424,49 @@ export function AdminPage() {
 								<Spinner size="md" />
 							</div>
 						) : (
-							<div className="bg-white rounded-lg shadow-sm overflow-hidden">
-								<table className="min-w-full divide-y divide-gray-200">
-									<thead className="bg-neutral-50">
+							<div className="bg-background-primary rounded-lg shadow-sm overflow-hidden border border-border-default">
+								<table className="min-w-full divide-y divide-border-default">
+									<thead className="bg-background-secondary">
 										<tr>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Name
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												User
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Key
 											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Last Used
 											</th>
-											<th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+											<th className="px-6 py-3 text-right text-xs font-medium text-text-tertiary uppercase tracking-wider">
 												Actions
 											</th>
 										</tr>
 									</thead>
-									<tbody className="bg-white divide-y divide-gray-200">
+									<tbody className="bg-background-primary divide-y divide-border-default">
 										{apiKeysData?.apiKeys.map((key) => (
 											<tr key={key.id}>
 												<td className="px-6 py-4 whitespace-nowrap">
 													<div>
-														<div className="text-sm font-medium text-neutral-900">
+														<div className="text-sm font-medium text-text-primary">
 															{key.name}
 														</div>
 														{key.description && (
-															<div className="text-sm text-neutral-500">
+															<div className="text-sm text-text-secondary">
 																{key.description}
 															</div>
 														)}
 													</div>
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
 													{key.user.username}
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-neutral-500">
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-text-secondary">
 													{key.prefix}...
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 													{key.lastUsedAt
 														? new Date(key.lastUsedAt).toLocaleString()
 														: 'Never'}
@@ -478,7 +478,7 @@ export function AdminPage() {
 														}}
 														variant="ghost"
 														size="sm"
-														className="text-error-600 hover:text-error-900"
+														className="text-error-600 hover:text-error-900 dark:text-error-400 dark:hover:text-error-300"
 														disabled={deleteApiKeyMutation.isPending}>
 														Revoke
 													</Button>
@@ -496,7 +496,7 @@ export function AdminPage() {
 				{activeTab === 'instances' && (
 					<div>
 						<div className="flex justify-between items-center mb-4">
-							<h2 className="text-xl font-semibold text-neutral-900">
+							<h2 className="text-xl font-semibold text-text-primary">
 								Federated Instances
 							</h2>
 							<Button
@@ -514,34 +514,34 @@ export function AdminPage() {
 							</div>
 						) : (
 							<>
-								<div className="mb-4 text-sm text-neutral-600">
+								<div className="mb-4 text-sm text-text-secondary">
 									{instancesData?.total || 0} known instance(s) discovered through
 									federation
 								</div>
-								<div className="bg-white rounded-lg shadow-sm overflow-hidden">
+								<div className="bg-background-primary rounded-lg shadow-sm overflow-hidden border border-border-default">
 									{instancesData?.instances &&
 									instancesData.instances.length > 0 ? (
-										<table className="min-w-full divide-y divide-gray-200">
-											<thead className="bg-neutral-50">
+										<table className="min-w-full divide-y divide-border-default">
+											<thead className="bg-background-secondary">
 												<tr>
-													<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Instance
 													</th>
-													<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Software
 													</th>
-													<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Users
 													</th>
-													<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Connections
 													</th>
-													<th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Last Activity
 													</th>
 												</tr>
 											</thead>
-											<tbody className="bg-white divide-y divide-gray-200">
+											<tbody className="bg-background-primary divide-y divide-border-default">
 												{instancesData.instances.map((instance) => (
 													<tr key={instance.id}>
 														<td className="px-6 py-4 whitespace-nowrap">
@@ -558,44 +558,44 @@ export function AdminPage() {
 																	/>
 																)}
 																<div>
-																	<div className="text-sm font-medium text-neutral-900">
+																	<div className="text-sm font-medium text-text-primary">
 																		{instance.title ||
 																			instance.domain}
 																	</div>
-																	<div className="text-sm text-neutral-500">
+																	<div className="text-sm text-text-secondary">
 																		{instance.domain}
 																	</div>
 																</div>
 															</div>
 														</td>
 														<td className="px-6 py-4 whitespace-nowrap">
-															<div className="text-sm text-neutral-900">
+															<div className="text-sm text-text-primary">
 																{instance.software || 'Unknown'}
 															</div>
 															{instance.version && (
-																<div className="text-sm text-neutral-500">
+																<div className="text-sm text-text-secondary">
 																	v{instance.version}
 																</div>
 															)}
 														</td>
 														<td className="px-6 py-4 whitespace-nowrap">
-															<div className="text-sm text-neutral-900">
+															<div className="text-sm text-text-primary">
 																{instance.userCount?.toLocaleString() ||
 																	'N/A'}
 															</div>
 															{instance.eventCount !== undefined && (
-																<div className="text-sm text-neutral-500">
+																<div className="text-sm text-text-secondary">
 																	{instance.eventCount.toLocaleString()}{' '}
 																	posts
 																</div>
 															)}
 														</td>
 														<td className="px-6 py-4 whitespace-nowrap">
-															<div className="text-sm text-neutral-900">
+															<div className="text-sm text-text-primary">
 																{instance.stats?.remoteUsers || 0}{' '}
 																cached users
 															</div>
-															<div className="text-sm text-neutral-500">
+															<div className="text-sm text-text-secondary">
 																{instance.stats?.remoteEvents || 0}{' '}
 																events,{' '}
 																{instance.stats?.localFollowing ||
@@ -603,7 +603,7 @@ export function AdminPage() {
 																following
 															</div>
 														</td>
-														<td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+														<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 															{instance.lastActivityAt
 																? new Date(
 																		instance.lastActivityAt
@@ -616,11 +616,11 @@ export function AdminPage() {
 										</table>
 									) : (
 										<div className="text-center py-12 px-6">
-											<GlobeIcon className="mx-auto h-12 w-12 text-neutral-400" />
-											<h3 className="mt-2 text-sm font-medium text-neutral-900">
+											<GlobeIcon className="mx-auto h-12 w-12 text-text-tertiary" />
+											<h3 className="mt-2 text-sm font-medium text-text-primary">
 												No instances discovered yet
 											</h3>
-											<p className="mt-1 text-sm text-neutral-500">
+											<p className="mt-1 text-sm text-text-secondary">
 												Instances will appear here automatically when remote
 												users interact with your instance.
 											</p>
@@ -677,7 +677,7 @@ export function AdminPage() {
 							</p>
 							<div
 								id="api-key-display"
-								className="bg-neutral-100 p-4 rounded font-mono text-sm break-all mb-4 select-all cursor-text"
+								className="bg-background-secondary p-4 rounded font-mono text-sm break-all mb-4 select-all cursor-text text-text-primary"
 								onClick={(e) => {
 									// Select all text when clicking on the key
 									const range = document.createRange()
@@ -889,7 +889,7 @@ function CreateUserModal({
 								onChange={(e) => setIsBot(e.target.checked)}
 								className="mr-2"
 							/>
-							<span className="text-sm text-neutral-700">Bot User</span>
+							<span className="text-sm text-text-secondary">Bot User</span>
 						</label>
 					</div>
 					{!isBot && (
@@ -912,7 +912,7 @@ function CreateUserModal({
 								onChange={(e) => setIsAdmin(e.target.checked)}
 								className="mr-2"
 							/>
-							<span className="text-sm text-neutral-700">Admin</span>
+							<span className="text-sm text-text-secondary">Admin</span>
 						</label>
 					</div>
 					<div className="flex gap-2">
@@ -972,14 +972,14 @@ function CreateApiKeyModal({
 				{error && <div className="mb-4 text-sm text-error-600">{error}</div>}
 				<form onSubmit={handleSubmit}>
 					<div className="mb-4">
-						<label className="block text-sm font-medium text-neutral-700 mb-1">
+						<label className="block text-sm font-medium text-text-secondary mb-1">
 							User *
 						</label>
 						<select
 							value={userId}
 							onChange={(e) => setUserId(e.target.value)}
 							required
-							className="w-full px-3 py-2 border border-neutral-300 rounded-md">
+							className="w-full px-3 py-2 border border-border-default rounded-md bg-background-primary text-text-primary">
 							<option value="">Select a user</option>
 							{users.map((userOption) => (
 								<option key={userOption.id} value={userOption.id}>

@@ -2,7 +2,8 @@ import { useState } from 'react'
 
 import type { NotificationType } from '@/types'
 
-import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
+import { Stack } from './layout'
+import { Card, CardHeader, CardTitle, CardContent, Button, CardFooter } from './ui'
 
 interface NotificationPreferences {
 	[key: string]: boolean
@@ -129,13 +130,13 @@ export function NotificationSettings({
 				</div>
 			</CardHeader>
 			<CardContent>
-				<div className="space-y-4">
-					<p className="text-sm text-text-secondary mb-6">
+				<Stack gap="lg">
+					<p className="text-sm text-text-secondary">
 						Choose which notifications you&apos;d like to receive. You can always change
 						these settings later.
 					</p>
 
-					<div className="space-y-4">
+					<Stack gap="md">
 						{notificationTypes.map(({ type, label, description }) => (
 							<div
 								key={type}
@@ -164,7 +165,7 @@ export function NotificationSettings({
                                         ${
 											localPreferences[type]
 												? 'bg-primary-600'
-												: 'bg-neutral-200'
+												: 'bg-neutral-200 dark:bg-neutral-700'
 										}
                                     `}>
 									<span className="sr-only">
@@ -185,29 +186,24 @@ export function NotificationSettings({
 								</Button>
 							</div>
 						))}
-					</div>
-
-					{hasChanges && (
-						<div className="flex items-center justify-end gap-3 pt-4 border-t border-border-default">
-							<Button
-								variant="ghost"
-								size="md"
-								onClick={handleReset}
-								disabled={loading}>
-								Cancel
-							</Button>
-							<Button
-								variant="primary"
-								size="md"
-								onClick={handleSave}
-								loading={loading}
-								disabled={loading}>
-								Save Changes
-							</Button>
-						</div>
-					)}
-				</div>
+					</Stack>
+				</Stack>
 			</CardContent>
+			{hasChanges && (
+				<CardFooter>
+					<Button variant="ghost" size="md" onClick={handleReset} disabled={loading}>
+						Cancel
+					</Button>
+					<Button
+						variant="primary"
+						size="md"
+						onClick={handleSave}
+						loading={loading}
+						disabled={loading}>
+						Save Changes
+					</Button>
+				</CardFooter>
+			)}
 		</Card>
 	)
 }

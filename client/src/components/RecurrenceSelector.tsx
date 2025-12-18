@@ -1,4 +1,4 @@
-import { Input } from './ui'
+import { Input, Select } from './ui'
 
 interface RecurrencePattern {
 	pattern: '' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
@@ -42,26 +42,19 @@ export function RecurrenceSelector({ value, onChange, startTime, error }: Recurr
 
 	return (
 		<div className="space-y-4">
-			<div>
-				<label
-					htmlFor="recurrence-pattern"
-					className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-					Recurrence
-				</label>
-				<select
-					id="recurrence-pattern"
-					value={value.pattern}
-					onChange={(e) =>
-						handlePatternChange(e.target.value as RecurrencePattern['pattern'])
-					}
-					className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-					{RECURRENCE_OPTIONS.map((option) => (
-						<option key={option.value} value={option.value}>
-							{option.label}
-						</option>
-					))}
-				</select>
-			</div>
+			<Select
+				id="recurrence-pattern"
+				label="Recurrence"
+				value={value.pattern}
+				onChange={(e) =>
+					handlePatternChange(e.target.value as RecurrencePattern['pattern'])
+				}>
+				{RECURRENCE_OPTIONS.map((option) => (
+					<option key={option.value} value={option.value}>
+						{option.label}
+					</option>
+				))}
+			</Select>
 
 			{value.pattern && (
 				<Input

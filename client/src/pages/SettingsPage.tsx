@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { Container } from '@/components/layout'
-import { Spinner } from '@/components/ui'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
@@ -44,7 +45,7 @@ export function SettingsPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-background-primary">
+			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={false} user={user} onLogout={logout} />
 				<Container className="py-8">
 					<div className="flex justify-center items-center py-12">
@@ -57,7 +58,7 @@ export function SettingsPage() {
 
 	if (!profile) {
 		return (
-			<div className="min-h-screen bg-background-primary">
+			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={false} user={user} onLogout={logout} />
 				<Container className="py-8">
 					<div className="text-center py-12">
@@ -71,12 +72,30 @@ export function SettingsPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-background-primary">
+		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={false} user={user} onLogout={logout} />
-			<Container className="py-8">
+			<Container className="py-8" size="md">
 				<h1 className="text-3xl font-bold text-text-primary mb-8">Settings</h1>
 
 				<div className="space-y-6">
+					{/* Appearance Settings */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Appearance</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium text-text-primary">Theme</p>
+									<p className="text-sm text-text-secondary">
+										Customize how Constellate looks on your device.
+									</p>
+								</div>
+								<ThemeToggle />
+							</div>
+						</CardContent>
+					</Card>
+
 					{/* Profile Settings */}
 					<ProfileSettings
 						profile={{

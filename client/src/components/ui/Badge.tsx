@@ -10,7 +10,7 @@ export type BadgeVariant =
 	| 'warning'
 	| 'error'
 	| 'info'
-	| 'outlined'
+	| 'outline'
 export type BadgeSize = 'sm' | 'md' | 'lg'
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -26,6 +26,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 	size?: BadgeSize
 	/**
 	 * Whether the badge should be rounded (pill shape)
+	 * @default true
 	 */
 	rounded?: boolean
 	/**
@@ -45,41 +46,62 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
 			'inline-flex items-center justify-center',
 			'font-medium',
 			'transition-colors duration-200',
+			'whitespace-nowrap',
 		]
 
 		// Variant styles
 		const variantStyles = {
-			default: ['bg-background-secondary text-text-primary'],
-			primary: [
-				'bg-primary-100 text-primary-800',
-				'dark:bg-primary-900 dark:text-primary-200',
+			default: [
+				'bg-neutral-100 text-neutral-800',
+				'dark:bg-neutral-800 dark:text-neutral-300',
+				'border border-transparent',
 			],
-			secondary: ['bg-purple-100 text-purple-800', 'dark:bg-purple-900 dark:text-purple-200'],
+			primary: [
+				'bg-primary-50 text-primary-700',
+				'dark:bg-primary-900/30 dark:text-primary-300',
+				'border border-primary-200 dark:border-primary-800',
+			],
+			secondary: [
+				'bg-secondary-50 text-secondary-700',
+				'dark:bg-secondary-900/30 dark:text-secondary-300',
+				'border border-secondary-200 dark:border-secondary-800',
+			],
 			success: [
-				'bg-success-100 text-success-800',
-				'dark:bg-success-900 dark:text-success-200',
+				'bg-success-50 text-success-700',
+				'dark:bg-success-900/30 dark:text-success-300',
+				'border border-success-200 dark:border-success-800',
 			],
 			warning: [
-				'bg-warning-100 text-warning-800',
-				'dark:bg-warning-900 dark:text-warning-200',
+				'bg-warning-50 text-warning-700',
+				'dark:bg-warning-900/30 dark:text-warning-300',
+				'border border-warning-200 dark:border-warning-800',
 			],
-			error: ['bg-error-100 text-error-800', 'dark:bg-error-900 dark:text-error-200'],
-			info: ['bg-info-100 text-info-800', 'dark:bg-info-900 dark:text-info-200'],
-			outlined: [
-				'bg-transparent border border-border-primary text-text-primary',
-				'dark:border-border-primary dark:text-text-primary',
+			error: [
+				'bg-error-50 text-error-700',
+				'dark:bg-error-900/30 dark:text-error-300',
+				'border border-error-200 dark:border-error-800',
+			],
+			info: [
+				'bg-info-50 text-info-700',
+				'dark:bg-info-900/30 dark:text-info-300',
+				'border border-info-200 dark:border-info-800',
+			],
+			outline: [
+				'bg-transparent',
+				'text-text-secondary',
+				'border border-neutral-300 dark:border-neutral-700',
 			],
 		}
 
 		// Size styles
 		const sizeStyles = {
-			sm: ['text-xs px-2 py-0.5'],
-			md: ['text-sm px-2.5 py-1'],
-			lg: ['text-base px-3 py-1.5'],
+			sm: ['text-[10px] px-1.5 py-0.5', 'leading-none'],
+			md: ['text-xs px-2.5 py-0.5', 'leading-4'],
+			lg: ['text-sm px-3 py-1', 'leading-5'],
 		}
 
 		// Border radius
-		const radiusStyles = rounded ? 'rounded-full' : 'rounded'
+		const radiusStyles = rounded ? 'rounded-full' : 'rounded-md'
 
 		const classes = cn(
 			baseStyles,
