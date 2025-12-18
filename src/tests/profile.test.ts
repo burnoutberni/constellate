@@ -2,7 +2,7 @@
  * Tests for User Profile and Follow/Unfollow functionality
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
