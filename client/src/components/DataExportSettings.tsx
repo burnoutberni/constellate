@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -28,6 +28,7 @@ export function DataExportSettings() {
 	const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
 	const [exportId, setExportId] = useState<string | null>(null)
 	const [polling, setPolling] = useState(false)
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	const downloadExport = useCallback(
 		async (id: string) => {
@@ -70,13 +71,13 @@ export function DataExportSettings() {
 		[addToast, handleError]
 	)
 
-	// Poll for export status
+	// Poll for export status using recursive setTimeout to prevent overlapping requests
 	useEffect(() => {
 		if (!exportId || !polling) {
 			return
 		}
 
-		const pollInterval = setInterval(async () => {
+		const pollStatus = async () => {
 			try {
 				const status = await api.get<ExportResponse>(
 					`/users/me/export/${exportId}`,
@@ -98,6 +99,9 @@ export function DataExportSettings() {
 						message: status.errorMessage || 'Export failed',
 						variant: 'error',
 					})
+				} else {
+					// Schedule next poll only if still polling and not completed/failed
+					timeoutRef.current = setTimeout(pollStatus, EXPORT_STATUS_POLL_INTERVAL_MS)
 				}
 			} catch (error) {
 				handleError(error, 'Failed to check export status', {
@@ -105,9 +109,17 @@ export function DataExportSettings() {
 				})
 				setPolling(false)
 			}
-		}, EXPORT_STATUS_POLL_INTERVAL_MS)
+		}
 
-		return () => clearInterval(pollInterval)
+		// Start the first poll
+		timeoutRef.current = setTimeout(pollStatus, EXPORT_STATUS_POLL_INTERVAL_MS)
+
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+				timeoutRef.current = null
+			}
+		}
 	}, [exportId, polling, addToast, handleError, downloadExport])
 
 	const handleExport = async () => {
