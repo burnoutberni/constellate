@@ -33,22 +33,12 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
 			return api.put('/profile', data, undefined, 'Failed to update privacy settings')
 		},
-		onSuccess: (_, variables) => {
-			// Clear optimistic updates for the fields that were updated
-			setOptimisticUpdates((prev) => {
-				const next = { ...prev }
-				if ('autoAcceptFollowers' in variables) {
-					delete next.autoAcceptFollowers
-				}
-				if ('isPublicProfile' in variables) {
-					delete next.isPublicProfile
-				}
-				return next
-			})
+		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
 		},
-		onError: (_, variables) => {
-			// Clear optimistic updates on error - profile prop will have the correct values
+		onSettled: (_, __, variables) => {
+			// Clear optimistic updates after mutation completes (success or error)
+			// Profile prop will have the correct values after query invalidation/refetch
 			setOptimisticUpdates((prev) => {
 				const next = { ...prev }
 				if ('autoAcceptFollowers' in variables) {

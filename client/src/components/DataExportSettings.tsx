@@ -44,7 +44,9 @@ export function DataExportSettings() {
 				const url = window.URL.createObjectURL(blob)
 				const a = document.createElement('a')
 				a.href = url
-				a.download = `constellate-export-${new Date().toISOString().split('T')[0]}.json`
+				// Include export ID prefix to ensure unique filenames for same-day exports
+				const exportIdPrefix = id.substring(0, 8)
+				a.download = `constellate-export-${new Date().toISOString().split('T')[0]}-${exportIdPrefix}.json`
 				document.body.appendChild(a)
 				a.click()
 				window.URL.revokeObjectURL(url)

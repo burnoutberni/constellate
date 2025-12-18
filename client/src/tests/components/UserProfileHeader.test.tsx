@@ -294,4 +294,176 @@ describe('UserProfileHeader Component', () => {
 		expect(followButton).toBeDefined()
 		expect(followButton).toBeDisabled()
 	})
+
+	it('should display private account badge when profile is private', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={false}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={true}
+			/>
+		)
+
+		expect(screen.getByText(/🔒 Private account/i)).toBeInTheDocument()
+	})
+
+	it('should not display private account badge when profile is public', () => {
+		const publicUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: true,
+		}
+
+		render(
+			<UserProfileHeader
+				user={publicUser}
+				isOwnProfile={false}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={true}
+			/>
+		)
+
+		expect(screen.queryByText(/🔒 Private account/i)).not.toBeInTheDocument()
+	})
+
+	it('should hide bio for private profiles when not owner', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+			bio: 'This is a private bio',
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={false}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={true}
+			/>
+		)
+
+		expect(screen.queryByText('This is a private bio')).not.toBeInTheDocument()
+	})
+
+	it('should show bio for private profiles when viewing own profile', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+			bio: 'This is my private bio',
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={true}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={false}
+			/>
+		)
+
+		expect(screen.getByText('This is my private bio')).toBeInTheDocument()
+	})
+
+	it('should hide stats for private profiles when not owner', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={false}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={true}
+			/>
+		)
+
+		// Stats should not be visible
+		expect(screen.queryByText('5')).not.toBeInTheDocument()
+		expect(screen.queryByText('10')).not.toBeInTheDocument()
+		expect(screen.queryByText('8')).not.toBeInTheDocument()
+	})
+
+	it('should show stats for private profiles when viewing own profile', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={true}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={false}
+			/>
+		)
+
+		// Stats should be visible for own profile
+		expect(screen.getByText('5')).toBeInTheDocument()
+		expect(screen.getByText('10')).toBeInTheDocument()
+		expect(screen.getByText('8')).toBeInTheDocument()
+	})
+
+	it('should hide header image for private profiles when not owner', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={false}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={true}
+				headerImageUrl="https://example.com/header.jpg"
+			/>
+		)
+
+		expect(screen.queryByAltText('Profile header')).not.toBeInTheDocument()
+	})
+
+	it('should show header image for private profiles when viewing own profile', () => {
+		const privateUser: UserProfile = {
+			...mockUser,
+			isPublicProfile: false,
+		}
+
+		render(
+			<UserProfileHeader
+				user={privateUser}
+				isOwnProfile={true}
+				followerCount={10}
+				followingCount={8}
+				eventCount={5}
+				showFollowButton={false}
+				headerImageUrl="https://example.com/header.jpg"
+			/>
+		)
+
+		const headerImage = screen.getByAltText('Profile header')
+		expect(headerImage).toBeInTheDocument()
+		expect(headerImage).toHaveAttribute('src', 'https://example.com/header.jpg')
+	})
 })
