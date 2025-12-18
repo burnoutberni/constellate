@@ -15,6 +15,7 @@ export function LoginPage() {
 	const [password, setPassword] = useState('')
 	const [name, setName] = useState('')
 	const [username, setUsername] = useState('')
+	const [tosAccepted, setTosAccepted] = useState(false)
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 	const { login, signup } = useAuth()
@@ -23,13 +24,19 @@ export function LoginPage() {
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault()
 		setError('')
+
+		if (!isLogin && !tosAccepted) {
+			setError('You must agree to the Terms of Service and Privacy Policy to continue.')
+			return
+		}
+
 		setLoading(true)
 
 		try {
 			if (isLogin) {
 				await login(email, password)
 			} else {
-				await signup(email, password, name, username)
+				await signup(email, password, name, username, tosAccepted)
 			}
 			navigate('/feed')
 		} catch (err: unknown) {
@@ -107,6 +114,39 @@ export function LoginPage() {
 							required
 							minLength={8}
 						/>
+
+						{!isLogin && (
+							<div className="flex items-start gap-2 pt-2">
+								<input
+									type="checkbox"
+									id="tos-agreement-login-page"
+									className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+									checked={tosAccepted}
+									onChange={(e) => setTosAccepted(e.target.checked)}
+								/>
+								<label
+									htmlFor="tos-agreement-login-page"
+									className="text-sm text-text-secondary">
+									I agree to the{' '}
+									<a
+										href="/terms"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-primary-600 hover:underline">
+										Terms of Service
+									</a>{' '}
+									and{' '}
+									<a
+										href="/privacy"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-primary-600 hover:underline">
+										Privacy Policy
+									</a>
+									.
+								</label>
+							</div>
+						)}
 
 						<Button
 							type="submit"

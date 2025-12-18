@@ -23,6 +23,9 @@ model User {
   emailVerified Boolean @default(false)
   name          String?
 
+  // Legal
+  tosAcceptedAt DateTime?
+
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events
   timezone     String  @default("UTC") // Preferred IANA timezone identifier

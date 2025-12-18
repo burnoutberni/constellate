@@ -16,6 +16,7 @@ import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
+import { AppealsPage } from './pages/AppealsPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { DiscoverPage } from './pages/DiscoverPage'
 import { EditEventPage } from './pages/EditEventPage'
@@ -114,6 +115,7 @@ function AppContent() {
 				<Route path="/onboarding" element={<OnboardingPage />} />
 				<Route path="/" element={<HomePage />} />
 				<Route path="/about" element={<AboutPage />} />
+				<Route path="/appeals" element={<AppealsPage />} />
 				<Route path="/moderation" element={<ModerationPracticesPage />} />
 				<Route path="/terms" element={<TermsOfServicePage />} />
 				<Route path="/privacy" element={<PrivacyPolicyPage />} />

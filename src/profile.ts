@@ -191,6 +191,116 @@ app.get('/users/me/reminders', async (c) => {
 	}
 })
 
+// Export user data (GDPR)
+app.get('/users/me/export', async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		// Fetch all user data
+		const [
+			profile,
+			events,
+			comments,
+			following,
+			followers,
+			attendance,
+			likes,
+			reports,
+			appeals,
+		] = await Promise.all([
+			// 1. Profile
+			prisma.user.findUnique({
+				where: { id: userId },
+				select: {
+					id: true,
+					username: true,
+					email: true,
+					name: true,
+					bio: true,
+					displayColor: true,
+					profileImage: true,
+					headerImage: true,
+					timezone: true,
+					createdAt: true,
+					updatedAt: true,
+					isAdmin: true,
+					autoAcceptFollowers: true,
+				},
+			}),
+			// 2. Events created
+			prisma.event.findMany({
+				where: { userId },
+				include: { tags: true },
+			}),
+			// 3. Comments
+			prisma.comment.findMany({
+				where: { authorId: userId },
+			}),
+			// 4. Following
+			prisma.following.findMany({
+				where: { userId },
+			}),
+			// 5. Followers
+			prisma.follower.findMany({
+				where: { userId },
+			}),
+			// 6. Event Attendance
+			prisma.eventAttendance.findMany({
+				where: { userId },
+				include: { event: { select: { title: true, startTime: true } } },
+			}),
+			// 7. Event Likes
+			prisma.eventLike.findMany({
+				where: { userId },
+				include: { event: { select: { title: true, startTime: true } } },
+			}),
+			// 8. Reports made
+			prisma.report.findMany({
+				where: { reporterId: userId },
+			}),
+			// 9. Appeals
+			prisma.appeal.findMany({
+				where: { userId },
+			}),
+		])
+
+		if (!profile) {
+			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Construct the export object
+		const exportData = {
+			_meta: {
+				exportedAt: new Date().toISOString(),
+				version: '1.0',
+			},
+			profile,
+			events,
+			comments,
+			social: {
+				following,
+				followers,
+			},
+			activity: {
+				attendance,
+				likes,
+			},
+			moderation: {
+				reportsFiled: reports,
+				appeals,
+			},
+		}
+
+		return c.json(exportData)
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error exporting user data:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
 // Get profile
 app.get('/users/:username/profile', async (c) => {
 	try {

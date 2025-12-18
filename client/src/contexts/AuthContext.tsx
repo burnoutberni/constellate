@@ -17,7 +17,13 @@ interface AuthContextType {
 	loading: boolean
 	login: (email: string, password: string) => Promise<void>
 	sendMagicLink: (email: string) => Promise<void>
-	signup: (email: string, password: string, name: string, username: string) => Promise<void>
+	signup: (
+		email: string,
+		password: string,
+		name: string,
+		username: string,
+		tosAccepted: boolean
+	) => Promise<void>
 	logout: () => Promise<void>
 }
 
@@ -70,12 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
-	const signup = async (email: string, password: string, name: string, username: string) => {
+	const signup = async (
+		email: string,
+		password: string,
+		name: string,
+		username: string,
+		tosAccepted: boolean
+	) => {
 		const { error } = await authClient.signUp.email({
 			email,
 			password,
 			name,
 			username,
+			tosAcceptedAt: tosAccepted ? new Date() : undefined,
 		} as unknown as Parameters<typeof authClient.signUp.email>[0])
 
 		if (error) {

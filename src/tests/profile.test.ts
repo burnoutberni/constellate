@@ -587,4 +587,41 @@ describe('Profile API', () => {
 			expect(data._count.following).toBe(0)
 		})
 	})
+
+	describe('GET /users/me/export', () => {
+		it('exports user data', async () => {
+			mockAuth(testUser)
+
+			// Create some data to export
+			await prisma.event.create({
+				data: {
+					title: 'Test Event',
+					startTime: new Date(),
+					userId: testUser.id,
+				},
+			})
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.profile.id).toBe(testUser.id)
+			expect(data.events).toHaveLength(1)
+			expect(data.events[0].title).toBe('Test Event')
+			expect(data._meta).toBeDefined()
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
 })

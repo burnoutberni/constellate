@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /notifications/
+Disallow: /reminders/
+Disallow: /edit/
+
+Sitemap: https://constellate.app/sitemap.xml

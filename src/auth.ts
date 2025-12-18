@@ -90,6 +90,10 @@ export const auth = betterAuth({
 				required: false,
 				defaultValue: '#3b82f6',
 			},
+			tosAcceptedAt: {
+				type: 'date',
+				required: false,
+			},
 		},
 	},
 })
