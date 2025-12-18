@@ -124,7 +124,7 @@ export function ReportContentModal({
 							type="submit"
 							variant="danger"
 							loading={isSubmitting}
-							disabled={isSubmitting || !reason.trim()}>
+							disabled={isSubmitting || reason.trim().length < 10}>
 							Submit Report
 						</Button>
 					</div>

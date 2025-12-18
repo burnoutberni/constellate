@@ -397,22 +397,17 @@ app.put('/admin/appeals/:id', async (c) => {
 	const body = await c.req.json()
 	const { status, adminNotes } = z
 		.object({
-			status: z.preprocess(
-				(val) => {
-					if (typeof val === 'string') {
-						const lower = val.toLowerCase()
-						if (lower === 'approved') return AppealStatus.APPROVED
-						if (lower === 'rejected') return AppealStatus.REJECTED
-					}
-					return val
-				},
-				z
-					.nativeEnum(AppealStatus)
-					.refine(
-						(val) => val === AppealStatus.APPROVED || val === AppealStatus.REJECTED,
-						{ message: 'Status must be APPROVED or REJECTED' }
-					)
-			),
+			status: z
+				.string()
+				.transform((val) => val.toLowerCase())
+				.pipe(
+					z.enum(['approved', 'rejected'], {
+						message: 'Status must be "approved" or "rejected"',
+					})
+				)
+				.transform((val) =>
+					val === 'approved' ? AppealStatus.APPROVED : AppealStatus.REJECTED
+				),
 			adminNotes: z.string().optional(),
 		})
 		.parse(body)
