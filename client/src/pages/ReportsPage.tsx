@@ -27,7 +27,7 @@ export function ReportsPage() {
 
 	const { data, isLoading } = useQuery<{ reports: Report[] }>({
 		queryKey: ['reports', 'me'],
-		queryFn: () => api.get('/reports/me'),
+		queryFn: () => api.get('/moderation/reports/me'),
 	})
 
 	const handleAppealSuccess = () => {
@@ -82,7 +82,10 @@ export function ReportsPage() {
 				</div>
 
 				{isLoading ? (
-					<div className="flex justify-center py-12">
+					<div
+						className="flex justify-center py-12"
+						role="status"
+						aria-label="Loading reports">
 						<Spinner size="lg" />
 					</div>
 				) : (

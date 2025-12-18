@@ -69,6 +69,7 @@ describe('Profile API', () => {
 				name: 'Bob Test',
 				isRemote: false,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 			},
 		})
 
@@ -83,7 +84,11 @@ describe('Profile API', () => {
 		})
 
 		vi.clearAllMocks()
-		mockNoAuth() // Set default unauthenticated state
+		// Don't set default unauthenticated state - let each test set its own auth state
+	})
+
+	afterEach(async () => {
+		vi.restoreAllMocks()
 	})
 
 	describe('GET /users/me/profile', () => {
@@ -175,6 +180,110 @@ describe('Profile API', () => {
 				headers: { 'Content-Type': 'application/json' },
 			})
 			expect(response.status).toBe(404)
+		})
+
+		it('returns minimal data for private profile when viewer is not follower', async () => {
+			// Create a private profile user
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_${Date.now()}`,
+					email: `private_${Date.now()}@test.com`,
+					name: 'Private User',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(testUser)
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.id).toBe(privateUser.id)
+			expect(data.username).toBe(privateUser.username)
+			expect(data.name).toBe(privateUser.name)
+			expect(data.profileImage).toBeDefined()
+			expect(data.bio).toBeUndefined()
+			expect(data.headerImage).toBeUndefined()
+			expect(data._count).toBeUndefined()
+		})
+
+		it('returns full data for private profile when viewer is owner', async () => {
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_owner_${Date.now()}`,
+					email: `private_owner_${Date.now()}@test.com`,
+					name: 'Private Owner',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(privateUser)
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.id).toBe(privateUser.id)
+			expect(data.bio).toBe(privateUser.bio)
+			expect(data._count).toBeDefined()
+		})
+
+		it('returns full data for private profile when viewer is accepted follower', async () => {
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_follower_${Date.now()}`,
+					email: `private_follower_${Date.now()}@test.com`,
+					name: 'Private Follower',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(testUser)
+
+			// Make testUser follow privateUser
+			const targetActorUrl = `${baseUrl}/users/${privateUser.username}`
+			await prisma.following.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: targetActorUrl,
+					username: privateUser.username,
+					inboxUrl: `${baseUrl}/users/${privateUser.username}/inbox`,
+					accepted: true,
+				},
+			})
+			await prisma.follower.create({
+				data: {
+					userId: privateUser.id,
+					actorUrl: `${baseUrl}/users/${testUser.username}`,
+					username: testUser.username,
+					inboxUrl: `${baseUrl}/users/${testUser.username}/inbox`,
+					accepted: true,
+				},
+			})
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.id).toBe(privateUser.id)
+			expect(data.bio).toBe(privateUser.bio)
+			expect(data._count).toBeDefined()
 		})
 	})
 
@@ -661,9 +770,10 @@ describe('Profile API', () => {
 				method: 'GET',
 				headers: { 'Content-Type': 'application/json' },
 			})
-			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
+
+			expect(response.status).toBe(200)
 			expect(data.exportId).toBe(exportJob.id)
 			expect(data.status).toBe('PENDING')
 			expect(data.createdAt).toBeDefined()

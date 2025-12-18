@@ -297,7 +297,8 @@ if (process.env.NODE_ENV === 'production') {
 			requestPath.startsWith('/outbox') ||
 			requestPath.startsWith('/followers') ||
 			requestPath.startsWith('/following') ||
-			requestPath === '/sitemap.xml'
+			requestPath === '/sitemap.xml' ||
+			requestPath === '/robots.txt'
 		) {
 			return c.notFound()
 		}

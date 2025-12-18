@@ -372,6 +372,7 @@ app.get('/profile/:username/followers', async (c) => {
 	try {
 		// Decode username in case it's URL encoded
 		const username = decodeURIComponent(c.req.param('username'))
+		const currentUserId = c.get('userId') as string | undefined
 		const limit = parseInt(c.req.query('limit') || '50')
 
 		// Check if it's a remote user (contains @domain)
@@ -382,10 +383,34 @@ app.get('/profile/:username/followers', async (c) => {
 				username,
 				isRemote,
 			},
+			select: {
+				id: true,
+				username: true,
+				isRemote: true,
+				externalActorUrl: true,
+				isPublicProfile: true,
+			},
 		})
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Check privacy
+		const isOwnProfile = currentUserId === user.id
+		const canView =
+			isOwnProfile ||
+			user.isPublicProfile ||
+			(await canViewPrivateProfileUserSearch(
+				currentUserId,
+				user.id,
+				user.isRemote,
+				user.externalActorUrl,
+				user.username
+			))
+
+		if (!canView) {
+			return c.json({ followers: [] })
 		}
 
 		const followers = await prisma.follower.findMany({
@@ -458,6 +483,7 @@ app.get('/profile/:username/following', async (c) => {
 	try {
 		// Decode username in case it's URL encoded
 		const username = decodeURIComponent(c.req.param('username'))
+		const currentUserId = c.get('userId') as string | undefined
 		const limit = parseInt(c.req.query('limit') || '50')
 
 		// Check if it's a remote user (contains @domain)
@@ -468,10 +494,34 @@ app.get('/profile/:username/following', async (c) => {
 				username,
 				isRemote,
 			},
+			select: {
+				id: true,
+				username: true,
+				isRemote: true,
+				externalActorUrl: true,
+				isPublicProfile: true,
+			},
 		})
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Check privacy
+		const isOwnProfile = currentUserId === user.id
+		const canView =
+			isOwnProfile ||
+			user.isPublicProfile ||
+			(await canViewPrivateProfileUserSearch(
+				currentUserId,
+				user.id,
+				user.isRemote,
+				user.externalActorUrl,
+				user.username
+			))
+
+		if (!canView) {
+			return c.json({ following: [] })
 		}
 
 		const following = await prisma.following.findMany({
@@ -575,6 +625,7 @@ async function resolveAndCacheRemoteUser(username: string) {
 			displayColor: true,
 			isRemote: true,
 			externalActorUrl: true,
+			isPublicProfile: true,
 			createdAt: true,
 			_count: {
 				select: {
@@ -696,10 +747,67 @@ async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
 	}
 }
 
+// Helper function to check if viewer can see private profile
+async function canViewPrivateProfileUserSearch(
+	viewerId: string | undefined,
+	profileUserId: string,
+	profileIsRemote: boolean,
+	profileExternalActorUrl: string | null,
+	profileUsername: string
+): Promise<boolean> {
+	if (!viewerId) {
+		return false
+	}
+
+	// Owner can always see their own profile
+	if (viewerId === profileUserId) {
+		return true
+	}
+
+	// Check if viewer is an accepted follower
+	const baseUrl = getBaseUrl()
+	const profileActorUrl = profileIsRemote
+		? profileExternalActorUrl!
+		: `${baseUrl}/users/${profileUsername}`
+
+	if (!profileActorUrl) {
+		return false
+	}
+
+	// Check if viewer follows this profile
+	const following = await prisma.following.findFirst({
+		where: {
+			userId: viewerId,
+			actorUrl: profileActorUrl,
+			accepted: true,
+		},
+	})
+
+	return Boolean(following)
+}
+
+async function filterEventsByVisibility<
+	T extends Awaited<ReturnType<typeof prisma.event.findMany>>,
+>(events: T, currentUserId: string | undefined, isPublicProfile: boolean): Promise<T> {
+	if (!currentUserId && isPublicProfile) {
+		return events
+	}
+
+	const { canUserViewEvent } = await import('./lib/eventVisibility.js')
+	const filtered = await Promise.all(
+		events.map(async (event) => {
+			const canView = await canUserViewEvent(event, currentUserId)
+			return canView ? event : null
+		})
+	)
+	return filtered.filter((event): event is T[number] => event !== null) as T
+}
+
 app.get('/profile/:username', async (c) => {
 	try {
 		// Decode username in case it's URL encoded (e.g., alice%40app1.local -> alice@app1.local)
 		const username = decodeURIComponent(c.req.param('username'))
+		const currentUserId = c.get('userId') as string | undefined
 
 		// Check if it's a remote user (contains @domain)
 		const isRemote = username.includes('@')
@@ -721,6 +829,7 @@ app.get('/profile/:username', async (c) => {
 				displayColor: true,
 				isRemote: true,
 				externalActorUrl: true,
+				isPublicProfile: true,
 				createdAt: true,
 				_count: {
 					select: {
@@ -742,6 +851,39 @@ app.get('/profile/:username', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Check if profile is private and viewer doesn't have access
+		const isOwnProfile = currentUserId === user.id
+		const canViewFullProfile =
+			isOwnProfile ||
+			user.isPublicProfile ||
+			(await canViewPrivateProfileUserSearch(
+				currentUserId,
+				user.id,
+				user.isRemote,
+				user.externalActorUrl,
+				user.username
+			))
+
+		// If private profile and viewer can't see it, return minimal data
+		if (!user.isPublicProfile && !canViewFullProfile) {
+			return c.json({
+				user: {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					profileImage: user.profileImage,
+					isRemote: user.isRemote,
+					isPublicProfile: false,
+					_count: {
+						events: 0,
+						followers: 0,
+						following: 0,
+					},
+				},
+				events: [],
+			})
 		}
 
 		// Calculate actual follower/following counts (only accepted)
@@ -777,7 +919,7 @@ app.get('/profile/:username', async (c) => {
 			},
 		}
 
-		// Get user's events
+		// Get user's events - filter by visibility
 		let events = await prisma.event.findMany({
 			where: isRemote
 				? { attributedTo: user.externalActorUrl || undefined }
@@ -804,12 +946,15 @@ app.get('/profile/:username', async (c) => {
 			take: 50,
 		})
 
+		// Filter events by visibility - only show events the viewer can see
+		events = await filterEventsByVisibility(events, currentUserId, user.isPublicProfile)
+
 		// If remote user has no cached events, fetch from their outbox
 		if (isRemote && events.length === 0 && user.externalActorUrl) {
 			await fetchAndCacheEventsFromOutbox(user.externalActorUrl)
 
 			// Re-fetch events after caching
-			events = await prisma.event.findMany({
+			let fetchedEvents = await prisma.event.findMany({
 				where: { attributedTo: user.externalActorUrl },
 				include: {
 					user: {
@@ -832,6 +977,15 @@ app.get('/profile/:username', async (c) => {
 				orderBy: { startTime: 'desc' },
 				take: 50,
 			})
+
+			// Filter events by visibility
+			fetchedEvents = await filterEventsByVisibility(
+				fetchedEvents,
+				currentUserId,
+				user.isPublicProfile
+			)
+
+			events = fetchedEvents
 		}
 
 		// Manually count events for proper display

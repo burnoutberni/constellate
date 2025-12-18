@@ -15,6 +15,7 @@ export interface User {
 	followingCount?: number
 	isAdmin?: boolean
 	autoAcceptFollowers?: boolean
+	isPublicProfile?: boolean
 }
 
 export interface UserProfile extends User {

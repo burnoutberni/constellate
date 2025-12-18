@@ -45,6 +45,7 @@ const ProfileUpdateSchema = z.object({
 			message: 'Header image URL is not safe (SSRF protection)',
 		}),
 	autoAcceptFollowers: z.boolean().optional(),
+	isPublicProfile: z.boolean().optional(),
 	timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
 })
 
@@ -251,7 +252,6 @@ app.get('/users/me/export/:exportId', async (c) => {
 
 		const dataExport = await prisma.dataExport.findUnique({
 			where: { id: exportId },
-			include: { user: true },
 		})
 
 		if (!dataExport) {
@@ -273,8 +273,8 @@ app.get('/users/me/export/:exportId', async (c) => {
 			return c.json({
 				exportId: dataExport.id,
 				status: dataExport.status,
-				createdAt: dataExport.createdAt.toISOString(),
-				updatedAt: dataExport.updatedAt.toISOString(),
+				createdAt: dataExport.createdAt?.toISOString() || null,
+				updatedAt: dataExport.updatedAt?.toISOString() || null,
 				errorMessage: dataExport.errorMessage,
 			})
 		}
@@ -293,6 +293,45 @@ app.get('/users/me/export/:exportId', async (c) => {
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
+
+// Helper function to check if viewer can see private profile
+async function canViewPrivateProfile(
+	viewerId: string | undefined,
+	profileUserId: string,
+	profileIsRemote: boolean,
+	profileExternalActorUrl: string | null,
+	profileUsername: string
+): Promise<boolean> {
+	if (!viewerId) {
+		return false
+	}
+
+	// Owner can always see their own profile
+	if (viewerId === profileUserId) {
+		return true
+	}
+
+	// Check if viewer is an accepted follower
+	const baseUrl = getBaseUrl()
+	const profileActorUrl = profileIsRemote
+		? profileExternalActorUrl!
+		: `${baseUrl}/users/${profileUsername}`
+
+	if (!profileActorUrl) {
+		return false
+	}
+
+	// Check if viewer follows this profile
+	const following = await prisma.following.findFirst({
+		where: {
+			userId: viewerId,
+			actorUrl: profileActorUrl,
+			accepted: true,
+		},
+	})
+
+	return Boolean(following)
+}
 
 // Get profile
 app.get('/users/:username/profile', async (c) => {
@@ -314,6 +353,7 @@ app.get('/users/:username/profile', async (c) => {
 				externalActorUrl: true,
 				isAdmin: true,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
 				_count: {
@@ -326,6 +366,31 @@ app.get('/users/:username/profile', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Check if profile is private and viewer doesn't have access
+		const isOwnProfile = currentUserId === user.id
+		const canViewFullProfile =
+			isOwnProfile ||
+			user.isPublicProfile ||
+			(await canViewPrivateProfile(
+				currentUserId,
+				user.id,
+				user.isRemote,
+				user.externalActorUrl,
+				user.username
+			))
+
+		// If private profile and viewer can't see it, return minimal data
+		if (!user.isPublicProfile && !canViewFullProfile) {
+			return c.json({
+				id: user.id,
+				username: user.username,
+				name: user.name,
+				profileImage: user.profileImage,
+				isRemote: user.isRemote,
+				isPublicProfile: false,
+			})
 		}
 
 		// Calculate actual follower/following counts (only accepted)
@@ -351,8 +416,6 @@ app.get('/users/:username/profile', async (c) => {
 		}
 
 		// Only return sensitive fields if user is viewing their own profile
-		const isOwnProfile = currentUserId === user.id
-
 		return c.json({
 			...user,
 			isAdmin: isOwnProfile ? user.isAdmin : undefined,

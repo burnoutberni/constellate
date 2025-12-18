@@ -34,6 +34,7 @@ describe('PrivacySettings Component', () => {
 
 	const mockProfile = {
 		autoAcceptFollowers: true,
+		isPublicProfile: true,
 	}
 
 	const renderComponent = (profile = mockProfile, userId = 'user-1') => {
@@ -48,6 +49,7 @@ describe('PrivacySettings Component', () => {
 		renderComponent()
 
 		expect(screen.getByText('Privacy Settings')).toBeInTheDocument()
+		expect(screen.getByText('Public Profile')).toBeInTheDocument()
 		expect(screen.getByText('Auto-accept followers')).toBeInTheDocument()
 	})
 
@@ -66,7 +68,37 @@ describe('PrivacySettings Component', () => {
 		expect(toggle).toHaveAttribute('aria-checked', 'false')
 	})
 
-	it('should toggle switch when clicked', () => {
+	it('should show toggle button for public profile', () => {
+		renderComponent()
+
+		const toggle = screen.getByRole('switch', { name: /public profile/i })
+		expect(toggle).toBeInTheDocument()
+		expect(toggle).toHaveAttribute('aria-checked', 'true')
+	})
+
+	it('should show public profile toggle as off when isPublicProfile is false', () => {
+		renderComponent({ autoAcceptFollowers: true, isPublicProfile: false })
+
+		const toggle = screen.getByRole('switch', { name: /public profile/i })
+		expect(toggle).toHaveAttribute('aria-checked', 'false')
+	})
+
+	it('should toggle public profile switch when clicked', () => {
+		;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+			ok: true,
+			json: async () => ({ isPublicProfile: false }),
+		})
+
+		renderComponent()
+
+		const toggle = screen.getByRole('switch', { name: /public profile/i })
+		fireEvent.click(toggle)
+
+		// Should show as toggled (optimistic update)
+		expect(toggle).toHaveAttribute('aria-checked', 'false')
+	})
+
+	it('should toggle auto-accept followers switch when clicked', () => {
 		;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({ autoAcceptFollowers: false }),

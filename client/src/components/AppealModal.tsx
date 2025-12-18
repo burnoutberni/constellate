@@ -72,12 +72,11 @@ export function AppealModal({
 				<div className="space-y-2">
 					<label className="text-sm font-medium text-text-primary">Appeal Type</label>
 					<Select value={type} onChange={(e) => setType(e.target.value as AppealType)}>
-						<option value={APPEAL_TYPE.CONTENT_REMOVAL}>
-							{APPEAL_TYPE_LABELS[APPEAL_TYPE.CONTENT_REMOVAL]}
-						</option>
-						<option value={APPEAL_TYPE.ACCOUNT_SUSPENSION}>
-							{APPEAL_TYPE_LABELS[APPEAL_TYPE.ACCOUNT_SUSPENSION]}
-						</option>
+						{Object.entries(APPEAL_TYPE_LABELS).map(([value, label]) => (
+							<option key={value} value={value}>
+								{label}
+							</option>
+						))}
 					</Select>
 				</div>
 

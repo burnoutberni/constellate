@@ -1,6 +1,8 @@
 /**
- * Dynamic Sitemap Generation
- * Generates XML sitemap including static pages, public user profiles, and public events
+ * Dynamic Sitemap and Robots.txt Generation
+ * Generates XML sitemap including static pages, all user profiles, and public events
+ * All profiles are included - private profiles show minimal info (name, username, profile picture) when accessed
+ * Generates robots.txt with dynamic sitemap URL based on configuration
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi'
@@ -78,13 +80,11 @@ app.get('/sitemap.xml', async (c) => {
 			})
 		}
 
-		// Add public user profiles
+		// Add all user profiles
 		// Include both local users and cached remote users
+		// All profiles are included in sitemap - private profiles will show minimal info when accessed
 		const users = await prisma.user.findMany({
-			where: {
-				// Include all users (both local and remote) that have been cached
-				// Remote users are only in our DB if they've been resolved/cached
-			},
+			// No privacy filtering - include all users
 			select: {
 				username: true,
 				updatedAt: true,
@@ -149,6 +149,34 @@ app.get('/sitemap.xml', async (c) => {
 		})
 	} catch (error) {
 		console.error('Error generating sitemap:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Generate robots.txt
+app.get('/robots.txt', async (c) => {
+	try {
+		const baseUrl = config.baseUrl.endsWith('/') ? config.baseUrl.slice(0, -1) : config.baseUrl
+		const sitemapUrl = `${baseUrl}/sitemap.xml`
+
+		const robotsTxt = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /notifications/
+Disallow: /reminders/
+Disallow: /edit/
+
+Sitemap: ${sitemapUrl}
+`
+
+		return c.body(robotsTxt, 200, {
+			'Content-Type': 'text/plain',
+			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+		})
+	} catch (error) {
+		console.error('Error generating robots.txt:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

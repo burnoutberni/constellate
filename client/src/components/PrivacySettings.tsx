@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 interface PrivacySettingsProps {
 	profile: {
 		autoAcceptFollowers: boolean
+		isPublicProfile?: boolean
 	}
 	userId?: string
 }
@@ -19,18 +20,23 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 	const handleError = useErrorHandler()
 	// Derive initial state from profile prop
 	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(profile.autoAcceptFollowers)
+	const [isPublicProfile, setIsPublicProfile] = useState(profile.isPublicProfile ?? true)
 
 	// Update local state when profile changes
 	useEffect(() => {
-		const newValue = profile.autoAcceptFollowers
-		if (autoAcceptFollowers !== newValue) {
+		const newAutoAcceptValue = profile.autoAcceptFollowers
+		if (autoAcceptFollowers !== newAutoAcceptValue) {
 			// Use setTimeout to avoid synchronous setState in effect
-			setTimeout(() => setAutoAcceptFollowers(newValue), 0)
+			setTimeout(() => setAutoAcceptFollowers(newAutoAcceptValue), 0)
 		}
-	}, [profile.autoAcceptFollowers, autoAcceptFollowers])
+		const newPublicProfileValue = profile.isPublicProfile ?? true
+		if (isPublicProfile !== newPublicProfileValue) {
+			setTimeout(() => setIsPublicProfile(newPublicProfileValue), 0)
+		}
+	}, [profile.autoAcceptFollowers, profile.isPublicProfile, autoAcceptFollowers, isPublicProfile])
 
 	const updateProfileMutation = useMutation({
-		mutationFn: async (data: { autoAcceptFollowers?: boolean }) => {
+		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
 			return api.put('/profile', data, undefined, 'Failed to update privacy settings')
 		},
 		onSuccess: () => {
@@ -52,6 +58,20 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 		}
 	}
 
+	const handleTogglePublicProfile = async () => {
+		const newValue = !isPublicProfile
+		setIsPublicProfile(newValue)
+		try {
+			await updateProfileMutation.mutateAsync({ isPublicProfile: newValue })
+		} catch (error) {
+			// Revert on error
+			setIsPublicProfile(!newValue)
+			handleError(error, 'Failed to update privacy setting. Please try again.', {
+				context: 'PrivacySettings.handleTogglePublicProfile',
+			})
+		}
+	}
+
 	return (
 		<Card>
 			<CardHeader>
@@ -59,6 +79,36 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-4">
+					{/* Public Profile toggle */}
+					<div className="flex items-center justify-between py-4 border-b border-border-default">
+						<div className="flex-1 pr-4">
+							<h3 className="font-medium text-text-primary">Public Profile</h3>
+							<p className="text-sm text-text-tertiary mt-1">
+								When enabled, your profile and events are visible to everyone. When
+								disabled, only your followers can see your profile and events list.
+								Public events you create remain discoverable.
+							</p>
+						</div>
+						<Button
+							onClick={handleTogglePublicProfile}
+							disabled={updateProfileMutation.isPending}
+							variant="ghost"
+							className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary ${
+								isPublicProfile
+									? 'bg-primary-600'
+									: 'bg-neutral-200 dark:bg-neutral-700'
+							}`}
+							role="switch"
+							aria-checked={isPublicProfile}
+							aria-label="Public Profile">
+							<span
+								className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+									isPublicProfile ? 'translate-x-6' : 'translate-x-1'
+								}`}
+							/>
+						</Button>
+					</div>
+
 					{/* Auto-accept followers toggle */}
 					<div className="flex items-center justify-between py-4 border-b border-border-default">
 						<div className="flex-1 pr-4">
@@ -86,11 +136,6 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 								}`}
 							/>
 						</Button>
-					</div>
-
-					{/* Additional privacy settings can be added here in the future */}
-					<div className="text-sm text-text-tertiary">
-						More privacy options will be available in future updates.
 					</div>
 				</div>
 			</CardContent>

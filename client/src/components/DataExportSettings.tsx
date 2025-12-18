@@ -8,6 +8,8 @@ import { useUIStore } from '@/stores'
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 
+const EXPORT_STATUS_POLL_INTERVAL_MS = 5000 // Poll every 5 seconds
+
 type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 
 interface ExportResponse {
@@ -101,7 +103,7 @@ export function DataExportSettings() {
 				})
 				setPolling(false)
 			}
-		}, 3000) // Poll every 3 seconds
+		}, EXPORT_STATUS_POLL_INTERVAL_MS)
 
 		return () => clearInterval(pollInterval)
 	}, [exportId, polling, addToast, handleError, downloadExport])

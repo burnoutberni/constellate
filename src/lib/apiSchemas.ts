@@ -308,6 +308,10 @@ export const ProfileSchema = z
 		headerImage: z.string().nullable(),
 		displayColor: z.string().nullable(),
 		timezone: z.string().openapi({ example: 'UTC' }),
+		isPublicProfile: z.boolean().optional().openapi({
+			description:
+				'Profile visibility: true = public (visible to everyone), false = private (only visible to followers). Defaults to true.',
+		}),
 		createdAt: z.string().datetime(),
 		_count: z
 			.object({

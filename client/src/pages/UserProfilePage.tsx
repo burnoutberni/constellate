@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-import { Spinner } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
 import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { useUIStore } from '@/stores'
@@ -123,6 +123,7 @@ export function UserProfilePage() {
 							isFollowLoading={followMutation.isPending || unfollowMutation.isPending}
 							showFollowButton={isAuthenticated}
 							headerImageUrl={profileData.user.headerImage}
+							isAuthenticated={isAuthenticated}
 						/>
 
 						{/* Sign Up Prompt for Unauthenticated Users */}
@@ -131,18 +132,46 @@ export function UserProfilePage() {
 						)}
 
 						{/* Events Section */}
-						<div>
-							<h2 className="text-xl font-bold text-text-primary mb-4">
-								Events ({profileData.events.length})
-							</h2>
+						{profileData.user.isPublicProfile === false &&
+							!isOwnProfile &&
+							!followStatus?.isFollowing && (
+								<div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-8 text-center">
+									<p className="text-text-secondary mb-4">
+										This profile is private. Follow to see their events.
+									</p>
+									{isAuthenticated && (
+										<Button
+											variant="primary"
+											onClick={handleFollow}
+											loading={followMutation.isPending}
+											disabled={
+												followMutation.isPending ||
+												(followStatus?.isFollowing &&
+													!followStatus?.isAccepted)
+											}>
+											{followStatus?.isFollowing && !followStatus?.isAccepted
+												? 'Request Sent'
+												: 'Follow'}
+										</Button>
+									)}
+								</div>
+							)}
+						{(profileData.user.isPublicProfile !== false ||
+							isOwnProfile ||
+							followStatus?.isFollowing) && (
+							<div>
+								<h2 className="text-xl font-bold text-text-primary mb-4">
+									Events ({profileData.events.length})
+								</h2>
 
-							<UserEventList
-								events={profileData.events}
-								onEventClick={(eventId) =>
-									navigate(`/@${profileData.user.username}/${eventId}`)
-								}
-							/>
-						</div>
+								<UserEventList
+									events={profileData.events}
+									onEventClick={(eventId) =>
+										navigate(`/@${profileData.user.username}/${eventId}`)
+									}
+								/>
+							</div>
+						)}
 					</>
 				)}
 			</div>

@@ -119,6 +119,7 @@ export function SettingsPage() {
 					<PrivacySettings
 						profile={{
 							autoAcceptFollowers: profile.autoAcceptFollowers ?? true,
+							isPublicProfile: profile.isPublicProfile ?? true,
 						}}
 						userId={user?.id}
 					/>

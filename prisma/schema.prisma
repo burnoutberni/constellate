@@ -49,6 +49,7 @@ model User {
 
   // Privacy settings
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
+  isPublicProfile     Boolean @default(true) // Profile visibility: true = public, false = private (followers only)
 
   // Relations
   events                 Event[]

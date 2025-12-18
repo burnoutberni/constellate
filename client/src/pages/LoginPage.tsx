@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
 import { Input, Button, Card, CardContent } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
@@ -116,36 +117,11 @@ export function LoginPage() {
 						/>
 
 						{!isLogin && (
-							<div className="flex items-start gap-2 pt-2">
-								<input
-									type="checkbox"
-									id="tos-agreement-login-page"
-									className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-									checked={tosAccepted}
-									onChange={(e) => setTosAccepted(e.target.checked)}
-								/>
-								<label
-									htmlFor="tos-agreement-login-page"
-									className="text-sm text-text-secondary">
-									I agree to the{' '}
-									<a
-										href="/terms"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline">
-										Terms of Service
-									</a>{' '}
-									and{' '}
-									<a
-										href="/privacy"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline">
-										Privacy Policy
-									</a>
-									.
-								</label>
-							</div>
+							<TermsOfServiceAgreement
+								id="tos-agreement-login-page"
+								checked={tosAccepted}
+								onChange={setTosAccepted}
+							/>
 						)}
 
 						<Button

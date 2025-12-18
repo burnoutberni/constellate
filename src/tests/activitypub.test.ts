@@ -95,6 +95,7 @@ describe('ActivityPub API', () => {
 		privateKey: 'encrypted_private_key',
 		isRemote: false,
 		externalActorUrl: null,
+		isPublicProfile: true,
 	}
 
 	const mockEvent = {

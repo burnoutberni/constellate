@@ -8,6 +8,7 @@ import {
 	cacheRemoteUser,
 	getBaseUrl,
 } from '../lib/activitypubHelpers.js'
+import * as eventVisibility from '../lib/eventVisibility.js'
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -22,6 +23,13 @@ vi.mock('../lib/prisma.js', () => ({
 			count: vi.fn(),
 			upsert: vi.fn(),
 		},
+		follower: {
+			count: vi.fn(),
+		},
+		following: {
+			count: vi.fn(),
+			findFirst: vi.fn(),
+		},
 	},
 }))
 
@@ -34,6 +42,10 @@ vi.mock('../lib/activitypubHelpers.js', () => ({
 
 vi.mock('../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),
+}))
+
+vi.mock('../lib/eventVisibility.js', () => ({
+	canUserViewEvent: vi.fn(),
 }))
 
 // Create test app
@@ -366,6 +378,7 @@ describe('UserSearch API', () => {
 				bio: null,
 				headerImage: null,
 				createdAt: new Date('2024-01-01'),
+				isPublicProfile: true,
 				_count: {
 					followers: 0,
 					following: 0,
@@ -478,6 +491,46 @@ describe('UserSearch API', () => {
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any as any
 			expect(body.user.username).toBe('bob@example.com')
+			expect(body.events).toEqual([])
+		})
+
+		it('should return minimal data for private profile when viewer is not follower', async () => {
+			const privateUser = {
+				...mockLocalUser,
+				bio: 'Private bio',
+				headerImage: 'https://example.com/header.jpg',
+				isPublicProfile: false,
+				externalActorUrl: null,
+				createdAt: new Date('2024-01-01'),
+				_count: {
+					events: 5,
+					followers: 10,
+					following: 3,
+				},
+			}
+
+			vi.mocked(prisma.user.findFirst).mockResolvedValue(privateUser as any)
+			vi.mocked(prisma.follower.count).mockResolvedValue(10)
+			vi.mocked(prisma.following.count).mockResolvedValue(3)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(5)
+			vi.mocked(prisma.following.findFirst).mockResolvedValue(null) // Not following
+
+			const res = await app.request('/api/user-search/profile/alice')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any as any
+			expect(body.user.id).toBe(privateUser.id)
+			expect(body.user.username).toBe(privateUser.username)
+			expect(body.user.name).toBe(privateUser.name)
+			expect(body.user.profileImage).toBeDefined()
+			expect(body.user.bio).toBeUndefined()
+			expect(body.user.headerImage).toBeUndefined()
+			expect(body.user._count).toEqual({
+				events: 0,
+				followers: 0,
+				following: 0,
+			})
 			expect(body.events).toEqual([])
 		})
 
