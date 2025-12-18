@@ -55,10 +55,10 @@ export function AppealModal({
 				variant: 'success',
 			})
 
-			onSuccess?.()
-			onClose()
 			setReason('')
 			setType(APPEAL_TYPE.CONTENT_REMOVAL)
+			onSuccess?.()
+			onClose()
 		} catch (error) {
 			handleError(error, 'Failed to submit appeal', { context: 'AppealModal.handleSubmit' })
 		} finally {

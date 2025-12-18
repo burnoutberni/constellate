@@ -13,6 +13,7 @@ import {
 } from './lib/activitypubHelpers.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { prisma } from './lib/prisma.js'
+import { canViewPrivateProfile } from './lib/privacy.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 
 const app = new Hono()
@@ -401,13 +402,13 @@ app.get('/profile/:username/followers', async (c) => {
 		const canView =
 			isOwnProfile ||
 			user.isPublicProfile ||
-			(await canViewPrivateProfileUserSearch(
-				currentUserId,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username
-			))
+			(await canViewPrivateProfile({
+				viewerId: currentUserId,
+				profileUserId: user.id,
+				profileIsRemote: user.isRemote,
+				profileExternalActorUrl: user.externalActorUrl,
+				profileUsername: user.username,
+			}))
 
 		if (!canView) {
 			return c.json({ followers: [] })
@@ -512,13 +513,13 @@ app.get('/profile/:username/following', async (c) => {
 		const canView =
 			isOwnProfile ||
 			user.isPublicProfile ||
-			(await canViewPrivateProfileUserSearch(
-				currentUserId,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username
-			))
+			(await canViewPrivateProfile({
+				viewerId: currentUserId,
+				profileUserId: user.id,
+				profileIsRemote: user.isRemote,
+				profileExternalActorUrl: user.externalActorUrl,
+				profileUsername: user.username,
+			}))
 
 		if (!canView) {
 			return c.json({ following: [] })
@@ -747,45 +748,6 @@ async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
 	}
 }
 
-// Helper function to check if viewer can see private profile
-async function canViewPrivateProfileUserSearch(
-	viewerId: string | undefined,
-	profileUserId: string,
-	profileIsRemote: boolean,
-	profileExternalActorUrl: string | null,
-	profileUsername: string
-): Promise<boolean> {
-	if (!viewerId) {
-		return false
-	}
-
-	// Owner can always see their own profile
-	if (viewerId === profileUserId) {
-		return true
-	}
-
-	// Check if viewer is an accepted follower
-	const baseUrl = getBaseUrl()
-	const profileActorUrl = profileIsRemote
-		? profileExternalActorUrl!
-		: `${baseUrl}/users/${profileUsername}`
-
-	if (!profileActorUrl) {
-		return false
-	}
-
-	// Check if viewer follows this profile
-	const following = await prisma.following.findFirst({
-		where: {
-			userId: viewerId,
-			actorUrl: profileActorUrl,
-			accepted: true,
-		},
-	})
-
-	return Boolean(following)
-}
-
 async function filterEventsByVisibility<
 	T extends Awaited<ReturnType<typeof prisma.event.findMany>>,
 >(events: T, currentUserId: string | undefined, isPublicProfile: boolean): Promise<T> {
@@ -858,13 +820,13 @@ app.get('/profile/:username', async (c) => {
 		const canViewFullProfile =
 			isOwnProfile ||
 			user.isPublicProfile ||
-			(await canViewPrivateProfileUserSearch(
-				currentUserId,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username
-			))
+			(await canViewPrivateProfile({
+				viewerId: currentUserId,
+				profileUserId: user.id,
+				profileIsRemote: user.isRemote,
+				profileExternalActorUrl: user.externalActorUrl,
+				profileUsername: user.username,
+			}))
 
 		// If private profile and viewer can't see it, return minimal data
 		if (!user.isPublicProfile && !canViewFullProfile) {

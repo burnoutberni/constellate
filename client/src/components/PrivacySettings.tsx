@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -18,40 +18,57 @@ interface PrivacySettingsProps {
 export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
-	// Derive initial state from profile prop
-	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(profile.autoAcceptFollowers)
-	const [isPublicProfile, setIsPublicProfile] = useState(profile.isPublicProfile ?? true)
 
-	// Update local state when profile changes
-	useEffect(() => {
-		const newAutoAcceptValue = profile.autoAcceptFollowers
-		if (autoAcceptFollowers !== newAutoAcceptValue) {
-			// Use setTimeout to avoid synchronous setState in effect
-			setTimeout(() => setAutoAcceptFollowers(newAutoAcceptValue), 0)
-		}
-		const newPublicProfileValue = profile.isPublicProfile ?? true
-		if (isPublicProfile !== newPublicProfileValue) {
-			setTimeout(() => setIsPublicProfile(newPublicProfileValue), 0)
-		}
-	}, [profile.autoAcceptFollowers, profile.isPublicProfile, autoAcceptFollowers, isPublicProfile])
+	// Track optimistic updates - only set when user interacts, cleared on mutation completion
+	const [optimisticUpdates, setOptimisticUpdates] = useState<{
+		autoAcceptFollowers?: boolean
+		isPublicProfile?: boolean
+	}>({})
+
+	// Use optimistic updates if present, otherwise fall back to profile values
+	const autoAcceptFollowers = optimisticUpdates.autoAcceptFollowers ?? profile.autoAcceptFollowers
+	const isPublicProfile = optimisticUpdates.isPublicProfile ?? profile.isPublicProfile ?? true
 
 	const updateProfileMutation = useMutation({
 		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
 			return api.put('/profile', data, undefined, 'Failed to update privacy settings')
 		},
-		onSuccess: () => {
+		onSuccess: (_, variables) => {
+			// Clear optimistic updates for the fields that were updated
+			setOptimisticUpdates((prev) => {
+				const next = { ...prev }
+				if ('autoAcceptFollowers' in variables) {
+					delete next.autoAcceptFollowers
+				}
+				if ('isPublicProfile' in variables) {
+					delete next.isPublicProfile
+				}
+				return next
+			})
 			queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
+		},
+		onError: (_, variables) => {
+			// Clear optimistic updates on error - profile prop will have the correct values
+			setOptimisticUpdates((prev) => {
+				const next = { ...prev }
+				if ('autoAcceptFollowers' in variables) {
+					delete next.autoAcceptFollowers
+				}
+				if ('isPublicProfile' in variables) {
+					delete next.isPublicProfile
+				}
+				return next
+			})
 		},
 	})
 
 	const handleToggleAutoAccept = async () => {
 		const newValue = !autoAcceptFollowers
-		setAutoAcceptFollowers(newValue)
+		// Set optimistic update
+		setOptimisticUpdates((prev) => ({ ...prev, autoAcceptFollowers: newValue }))
 		try {
 			await updateProfileMutation.mutateAsync({ autoAcceptFollowers: newValue })
 		} catch (error) {
-			// Revert on error
-			setAutoAcceptFollowers(!newValue)
 			handleError(error, 'Failed to update privacy setting. Please try again.', {
 				context: 'PrivacySettings.handleToggleAutoAccept',
 			})
@@ -60,12 +77,11 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 
 	const handleTogglePublicProfile = async () => {
 		const newValue = !isPublicProfile
-		setIsPublicProfile(newValue)
+		// Set optimistic update
+		setOptimisticUpdates((prev) => ({ ...prev, isPublicProfile: newValue }))
 		try {
 			await updateProfileMutation.mutateAsync({ isPublicProfile: newValue })
 		} catch (error) {
-			// Revert on error
-			setIsPublicProfile(!newValue)
 			handleError(error, 'Failed to update privacy setting. Please try again.', {
 				context: 'PrivacySettings.handleTogglePublicProfile',
 			})

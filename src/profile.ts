@@ -13,6 +13,7 @@ import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
+import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
@@ -294,45 +295,6 @@ app.get('/users/me/export/:exportId', async (c) => {
 	}
 })
 
-// Helper function to check if viewer can see private profile
-async function canViewPrivateProfile(
-	viewerId: string | undefined,
-	profileUserId: string,
-	profileIsRemote: boolean,
-	profileExternalActorUrl: string | null,
-	profileUsername: string
-): Promise<boolean> {
-	if (!viewerId) {
-		return false
-	}
-
-	// Owner can always see their own profile
-	if (viewerId === profileUserId) {
-		return true
-	}
-
-	// Check if viewer is an accepted follower
-	const baseUrl = getBaseUrl()
-	const profileActorUrl = profileIsRemote
-		? profileExternalActorUrl!
-		: `${baseUrl}/users/${profileUsername}`
-
-	if (!profileActorUrl) {
-		return false
-	}
-
-	// Check if viewer follows this profile
-	const following = await prisma.following.findFirst({
-		where: {
-			userId: viewerId,
-			actorUrl: profileActorUrl,
-			accepted: true,
-		},
-	})
-
-	return Boolean(following)
-}
-
 // Get profile
 app.get('/users/:username/profile', async (c) => {
 	try {
@@ -373,13 +335,13 @@ app.get('/users/:username/profile', async (c) => {
 		const canViewFullProfile =
 			isOwnProfile ||
 			user.isPublicProfile ||
-			(await canViewPrivateProfile(
-				currentUserId,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username
-			))
+			(await canViewPrivateProfile({
+				viewerId: currentUserId,
+				profileUserId: user.id,
+				profileIsRemote: user.isRemote,
+				profileExternalActorUrl: user.externalActorUrl,
+				profileUsername: user.username,
+			}))
 
 		// If private profile and viewer can't see it, return minimal data
 		if (!user.isPublicProfile && !canViewFullProfile) {

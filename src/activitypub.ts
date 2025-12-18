@@ -10,6 +10,7 @@ import {
 	createOrderedCollection,
 	createOrderedCollectionPage,
 } from './lib/activitypubHelpers.js'
+import { canViewPrivateProfile } from './lib/privacy.js'
 import { verifySignature } from './lib/httpSignature.js'
 import { ActivitySchema, PersonSchema, EventSchema } from './lib/activitypubSchemas.js'
 import {
@@ -220,60 +221,6 @@ app.get('/users/:username', async (c) => {
 	}
 })
 
-// Helper function to check if viewer can see private profile collections
-async function canViewPrivateProfileCollections(
-	viewerActorUrl: string | undefined,
-	profileUserId: string,
-	profileIsRemote: boolean,
-	profileExternalActorUrl: string | null,
-	profileUsername: string,
-	profileIsPublic: boolean
-): Promise<boolean> {
-	if (profileIsPublic) {
-		return true
-	}
-
-	if (!viewerActorUrl) {
-		return false
-	}
-
-	// Check if viewer is the profile owner
-	const baseUrl = getBaseUrl()
-	const profileActorUrl = profileIsRemote
-		? profileExternalActorUrl!
-		: `${baseUrl}/users/${profileUsername}`
-
-	if (viewerActorUrl === profileActorUrl) {
-		return true
-	}
-
-	// Check if viewer is an accepted follower
-	// For ActivityPub, we need to find the local user by actor URL
-	const viewerUser = await prisma.user.findFirst({
-		where: {
-			OR: [
-				{ externalActorUrl: viewerActorUrl },
-				{ username: viewerActorUrl.split('/').pop() || '', isRemote: false },
-			],
-		},
-		select: { id: true },
-	})
-
-	if (!viewerUser) {
-		return false
-	}
-
-	const following = await prisma.following.findFirst({
-		where: {
-			userId: viewerUser.id,
-			actorUrl: profileActorUrl,
-			accepted: true,
-		},
-	})
-
-	return Boolean(following)
-}
-
 // Followers collection
 app.get('/users/:username/followers', async (c) => {
 	try {
@@ -298,16 +245,14 @@ app.get('/users/:username/followers', async (c) => {
 
 		// Check privacy - get viewer actor URL from request headers if available
 		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
-		const canView =
-			user.isPublicProfile ||
-			(await canViewPrivateProfileCollections(
-				viewerActorUrl,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username,
-				user.isPublicProfile
-			))
+		const canView = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
 
 		const collectionUrl = `${baseUrl}/users/${username}/followers`
 
@@ -389,16 +334,14 @@ app.get('/users/:username/following', async (c) => {
 
 		// Check privacy - get viewer actor URL from request headers if available
 		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
-		const canView =
-			user.isPublicProfile ||
-			(await canViewPrivateProfileCollections(
-				viewerActorUrl,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username,
-				user.isPublicProfile
-			))
+		const canView = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
 
 		const collectionUrl = `${baseUrl}/users/${username}/following`
 
@@ -480,16 +423,14 @@ app.get('/users/:username/outbox', async (c) => {
 
 		// Check privacy - get viewer actor URL from request headers if available
 		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
-		const canViewAll =
-			user.isPublicProfile ||
-			(await canViewPrivateProfileCollections(
-				viewerActorUrl,
-				user.id,
-				user.isRemote,
-				user.externalActorUrl,
-				user.username,
-				user.isPublicProfile
-			))
+		const canViewAll = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
 
 		const collectionUrl = `${baseUrl}/users/${username}/outbox`
 

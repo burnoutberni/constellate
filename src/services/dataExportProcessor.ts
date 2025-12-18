@@ -47,6 +47,7 @@ async function fetchUserData(userId: string) {
 					updatedAt: true,
 					isAdmin: true,
 					autoAcceptFollowers: true,
+					isPublicProfile: true,
 				},
 			}),
 			// 2. Events created
