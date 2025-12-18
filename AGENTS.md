@@ -9,7 +9,7 @@
 - **Analyze (Knip):** `npm run knip` (for both) | `npm run knip:server` | `npm run knip:client`
 - **Format:** `npm run format` (Prettier for both) (ALWAYS RUN BEFORE COMMITTING!)
 - **Build:** `npm run build` (builds server & client) | **DB:** `npm run db:push` (Prisma)
-- **Start:** `npm run dev:app` (Server+Client)
+- **Start:** `npm run dev` (Server+Client)
 
 ## Code Style & Conventions
 

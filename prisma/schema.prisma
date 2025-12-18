@@ -437,6 +437,13 @@ model BlockedDomain {
   @@index([domain])
 }
 
+enum ReportCategory {
+  spam
+  harassment
+  inappropriate
+  other
+}
+
 // Content reports
 model Report {
   id        String   @id @default(cuid())
@@ -451,8 +458,8 @@ model Report {
 
   contentUrl String? // URL of reported content
   reason     String
-  category   String  @default("other") // spam, harassment, inappropriate, other
-  status     String  @default("pending") // pending, reviewed, resolved
+  category   ReportCategory @default(other)
+  status     String         @default("pending") // pending, reviewed, resolved
 
   @@index([reporterId])
   @@index([reportedUserId])
@@ -536,6 +543,17 @@ enum ReminderStatus {
   CANCELLED
 }
 
+enum AppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AppealType {
+  ACCOUNT_SUSPENSION
+  CONTENT_REMOVAL
+}
+
 // Event reminders - scheduled notifications for users
 model EventReminder {
   id        String   @id @default(cuid())
@@ -611,7 +629,7 @@ model Appeal {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // What is being appealed (e.g. "Account Suspension", "Content Removal")
-  type String
+  type AppealType
 
   // Reference to the original decision or report (optional, JSON for flexibility)
   referenceId   String?
@@ -621,7 +639,7 @@ model Appeal {
   reason String
 
   // Status tracking
-  status     String    @default("pending") // pending, approved, rejected
+  status     AppealStatus @default(PENDING)
   resolvedAt DateTime?
   resolvedBy String? // Admin user ID who resolved it
 

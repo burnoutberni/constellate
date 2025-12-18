@@ -5,6 +5,7 @@
 
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { AppealStatus, AppealType, ReportCategory } from '@prisma/client'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 
@@ -22,12 +23,20 @@ const BlockDomainSchema = z.object({
 	reason: z.string().optional(),
 })
 
+// Report category enum values for Zod validation
+const ReportCategoryValues = [
+	ReportCategory.spam,
+	ReportCategory.harassment,
+	ReportCategory.inappropriate,
+	ReportCategory.other,
+] as const
+
 // Report schema
 const ReportSchema = z.object({
 	targetType: z.enum(['user', 'event', 'comment']),
 	targetId: z.string(),
 	reason: z.string().min(1).max(1000),
-	category: z.enum(['spam', 'harassment', 'inappropriate', 'other']).optional(),
+	category: z.enum(ReportCategoryValues).optional(),
 })
 
 // Block a user
@@ -189,7 +198,7 @@ app.post('/report', async (c) => {
 			reportedUserId: targetType === 'user' ? targetId : null,
 			contentUrl,
 			reason,
-			category: category || 'other',
+			category: category || ReportCategory.other,
 			status: 'pending',
 		},
 	})
@@ -292,7 +301,7 @@ app.get('/block/check/:username', async (c) => {
 export default app
 // Appeal schema
 const AppealSchema = z.object({
-	type: z.string(),
+	type: z.nativeEnum(AppealType),
 	reason: z.string().min(1).max(2000),
 	referenceId: z.string().optional(),
 	referenceType: z.string().optional(),
@@ -311,7 +320,7 @@ app.post('/appeals', async (c) => {
 			reason,
 			referenceId,
 			referenceType,
-			status: 'pending',
+			status: AppealStatus.PENDING,
 		},
 	})
 
@@ -331,12 +340,33 @@ app.get('/appeals', async (c) => {
 // Get all appeals (admin only)
 app.get('/admin/appeals', async (c) => {
 	await requireAdmin(c)
-	const status = c.req.query('status')
+	const statusParam = c.req.query('status')
 	const page = parseInt(c.req.query('page') || '1')
 	const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100)
 	const skip = (page - 1) * limit
 
-	const where = status ? { status } : {}
+	// Validate and convert status query parameter to enum value
+	let statusEnum: AppealStatus | undefined
+	if (statusParam) {
+		try {
+			// Accept lowercase strings and convert to enum
+			const validated = z
+				.enum(['pending', 'approved', 'rejected'])
+				.transform((val) => {
+					if (val === 'pending') return AppealStatus.PENDING
+					if (val === 'approved') return AppealStatus.APPROVED
+					if (val === 'rejected') return AppealStatus.REJECTED
+					throw new Error(`Invalid status: ${val}`)
+				})
+				.parse(statusParam.toLowerCase())
+			statusEnum = validated
+		} catch {
+			// Invalid status, will be undefined and filtered out
+			statusEnum = undefined
+		}
+	}
+
+	const where = statusEnum ? { status: statusEnum } : {}
 
 	const [appeals, total] = await Promise.all([
 		prisma.appeal.findMany({
@@ -372,7 +402,22 @@ app.put('/admin/appeals/:id', async (c) => {
 	const body = await c.req.json()
 	const { status, adminNotes } = z
 		.object({
-			status: z.enum(['approved', 'rejected']),
+			status: z.preprocess(
+				(val) => {
+					if (typeof val === 'string') {
+						const lower = val.toLowerCase()
+						if (lower === 'approved') return AppealStatus.APPROVED
+						if (lower === 'rejected') return AppealStatus.REJECTED
+					}
+					return val
+				},
+				z
+					.nativeEnum(AppealStatus)
+					.refine(
+						(val) => val === AppealStatus.APPROVED || val === AppealStatus.REJECTED,
+						{ message: 'Status must be APPROVED or REJECTED' }
+					)
+			),
 			adminNotes: z.string().optional(),
 		})
 		.parse(body)

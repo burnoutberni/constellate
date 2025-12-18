@@ -731,7 +731,8 @@
 				"properties": {
 					"type": {
 						"type": "string",
-						"description": "Type of appeal (e.g., 'content_removal', 'account_suspension')"
+						"enum": ["ACCOUNT_SUSPENSION", "CONTENT_REMOVAL"],
+						"description": "Type of appeal"
 					},
 					"reason": {
 						"type": "string",
@@ -756,7 +757,7 @@
 					"status": {
 						"type": "string",
 						"enum": ["approved", "rejected"],
-						"description": "Appeal resolution status"
+						"description": "Appeal resolution status (case-insensitive, accepts lowercase; will be converted to uppercase enum: APPROVED or REJECTED)"
 					},
 					"adminNotes": {
 						"type": "string",
@@ -774,7 +775,9 @@
 						"type": "string"
 					},
 					"type": {
-						"type": "string"
+						"type": "string",
+						"enum": ["ACCOUNT_SUSPENSION", "CONTENT_REMOVAL"],
+						"description": "Type of appeal"
 					},
 					"reason": {
 						"type": "string"
@@ -789,7 +792,8 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": ["pending", "approved", "rejected"]
+						"enum": ["PENDING", "APPROVED", "REJECTED"],
+						"description": "Appeal status (Prisma enum: AppealStatus)"
 					},
 					"adminNotes": {
 						"type": "string",
@@ -3393,7 +3397,7 @@
 							"type": "string",
 							"enum": ["pending", "approved", "rejected"]
 						},
-						"description": "Filter by appeal status"
+						"description": "Filter by appeal status (case-insensitive, accepts lowercase)"
 					},
 					{
 						"name": "page",

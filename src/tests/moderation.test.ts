@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import { ZodError } from 'zod'
+import { AppealStatus } from '@prisma/client'
 import moderationApp from '../moderation.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
@@ -920,11 +921,11 @@ describe('Moderation API', () => {
 			const mockAppeal = {
 				id: 'appeal_123',
 				userId: 'user_123',
-				type: 'content_removal',
+				type: 'CONTENT_REMOVAL',
 				reason: 'My content was removed incorrectly',
 				referenceId: 'event_123',
 				referenceType: 'event',
-				status: 'pending',
+				status: AppealStatus.PENDING,
 				createdAt: new Date(),
 			}
 
@@ -934,7 +935,7 @@ describe('Moderation API', () => {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: 'My content was removed incorrectly',
 					referenceId: 'event_123',
 					referenceType: 'event',
@@ -947,11 +948,11 @@ describe('Moderation API', () => {
 			expect(prisma.appeal.create).toHaveBeenCalledWith({
 				data: {
 					userId: 'user_123',
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: 'My content was removed incorrectly',
 					referenceId: 'event_123',
 					referenceType: 'event',
-					status: 'pending',
+					status: AppealStatus.PENDING,
 				},
 			})
 		})
@@ -960,11 +961,11 @@ describe('Moderation API', () => {
 			const mockAppeal = {
 				id: 'appeal_123',
 				userId: 'user_123',
-				type: 'account_suspension',
+				type: 'ACCOUNT_SUSPENSION',
 				reason: 'I believe my account was suspended in error',
 				referenceId: null,
 				referenceType: null,
-				status: 'pending',
+				status: AppealStatus.PENDING,
 				createdAt: new Date(),
 			}
 
@@ -974,7 +975,7 @@ describe('Moderation API', () => {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					type: 'account_suspension',
+					type: 'ACCOUNT_SUSPENSION',
 					reason: 'I believe my account was suspended in error',
 				}),
 			})
@@ -983,11 +984,11 @@ describe('Moderation API', () => {
 			expect(prisma.appeal.create).toHaveBeenCalledWith({
 				data: {
 					userId: 'user_123',
-					type: 'account_suspension',
+					type: 'ACCOUNT_SUSPENSION',
 					reason: 'I believe my account was suspended in error',
 					referenceId: undefined,
 					referenceType: undefined,
-					status: 'pending',
+					status: AppealStatus.PENDING,
 				},
 			})
 		})
@@ -1012,7 +1013,7 @@ describe('Moderation API', () => {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: longReason,
 				}),
 			})
@@ -1027,7 +1028,7 @@ describe('Moderation API', () => {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: 'Test reason',
 				}),
 			})
@@ -1042,17 +1043,17 @@ describe('Moderation API', () => {
 				{
 					id: 'appeal_1',
 					userId: 'user_123',
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: 'First appeal',
-					status: 'pending',
+					status: AppealStatus.PENDING,
 					createdAt: new Date(),
 				},
 				{
 					id: 'appeal_2',
 					userId: 'user_123',
-					type: 'account_suspension',
+					type: 'ACCOUNT_SUSPENSION',
 					reason: 'Second appeal',
-					status: 'approved',
+					status: AppealStatus.APPROVED,
 					createdAt: new Date(),
 				},
 			]
@@ -1096,9 +1097,9 @@ describe('Moderation API', () => {
 				{
 					id: 'appeal_1',
 					userId: 'user_123',
-					type: 'content_removal',
+					type: 'CONTENT_REMOVAL',
 					reason: 'First appeal',
-					status: 'pending',
+					status: AppealStatus.PENDING,
 					createdAt: new Date(),
 					user: {
 						id: 'user_123',
@@ -1143,7 +1144,7 @@ describe('Moderation API', () => {
 
 			expect(res.status).toBe(200)
 			expect(prisma.appeal.findMany).toHaveBeenCalledWith({
-				where: { status: 'pending' },
+				where: { status: AppealStatus.PENDING },
 				include: {
 					user: {
 						select: { id: true, username: true, name: true },
@@ -1206,9 +1207,9 @@ describe('Moderation API', () => {
 			const mockAppeal = {
 				id: 'appeal_123',
 				userId: 'user_123',
-				type: 'content_removal',
+				type: 'CONTENT_REMOVAL',
 				reason: 'Test reason',
-				status: 'approved',
+				status: AppealStatus.APPROVED,
 				adminNotes: 'Appeal approved after review',
 				resolvedAt: new Date(),
 				resolvedBy: 'admin_123',
@@ -1227,12 +1228,12 @@ describe('Moderation API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as typeof mockAppeal
-			expect(body.status).toBe('approved')
+			expect(body.status).toBe(AppealStatus.APPROVED)
 			expect(body.adminNotes).toBe('Appeal approved after review')
 			expect(prisma.appeal.update).toHaveBeenCalledWith({
 				where: { id: 'appeal_123' },
 				data: {
-					status: 'approved',
+					status: AppealStatus.APPROVED,
 					adminNotes: 'Appeal approved after review',
 					resolvedAt: expect.any(Date),
 					resolvedBy: 'admin_123',
@@ -1245,9 +1246,9 @@ describe('Moderation API', () => {
 			const mockAppeal = {
 				id: 'appeal_123',
 				userId: 'user_123',
-				type: 'content_removal',
+				type: 'CONTENT_REMOVAL',
 				reason: 'Test reason',
-				status: 'rejected',
+				status: AppealStatus.REJECTED,
 				adminNotes: 'Appeal rejected - content violated terms',
 				resolvedAt: new Date(),
 				resolvedBy: 'admin_123',
@@ -1266,14 +1267,14 @@ describe('Moderation API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as typeof mockAppeal
-			expect(body.status).toBe('rejected')
+			expect(body.status).toBe(AppealStatus.REJECTED)
 		})
 
 		it('should resolve appeal without admin notes', async () => {
 			vi.mocked(requireAuth).mockReturnValue('admin_123')
 			const mockAppeal = {
 				id: 'appeal_123',
-				status: 'approved',
+				status: AppealStatus.APPROVED,
 				resolvedAt: new Date(),
 				resolvedBy: 'admin_123',
 			}
@@ -1292,7 +1293,7 @@ describe('Moderation API', () => {
 			expect(prisma.appeal.update).toHaveBeenCalledWith({
 				where: { id: 'appeal_123' },
 				data: {
-					status: 'approved',
+					status: AppealStatus.APPROVED,
 					adminNotes: undefined,
 					resolvedAt: expect.any(Date),
 					resolvedBy: 'admin_123',

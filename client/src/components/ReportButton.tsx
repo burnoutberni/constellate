@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { ReportContentModal } from './ReportContentModal'
-import { Button } from './ui'
+import { Button, FlagIcon } from './ui'
 
 interface ReportButtonProps {
 	targetType: 'user' | 'event' | 'comment'
@@ -10,6 +10,7 @@ interface ReportButtonProps {
 	size?: 'sm' | 'md'
 	variant?: 'ghost' | 'secondary'
 	className?: string
+	children?: ReactNode
 }
 
 export function ReportButton({
@@ -19,6 +20,7 @@ export function ReportButton({
 	size = 'sm',
 	variant = 'ghost',
 	className,
+	children,
 }: ReportButtonProps) {
 	const [isOpen, setIsOpen] = useState(false)
 
@@ -26,6 +28,9 @@ export function ReportButton({
 		const targetName = contentTitle || `this ${targetType}`
 		return `Report ${targetName}`
 	}
+
+	// Default to icon-only, but allow custom content via children
+	const buttonContent = children ?? <FlagIcon className="w-4 h-4" />
 
 	return (
 		<>
@@ -35,7 +40,7 @@ export function ReportButton({
 				onClick={() => setIsOpen(true)}
 				className={className}
 				aria-label={getAriaLabel()}>
-				🚩 Report
+				{buttonContent}
 			</Button>
 
 			<ReportContentModal
