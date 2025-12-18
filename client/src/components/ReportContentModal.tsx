@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -73,7 +73,7 @@ export function ReportContentModal({
 			<div className="bg-background-primary p-6 rounded-lg">
 				<h2 className="text-xl font-bold text-text-primary mb-2">Report Content</h2>
 				<p className="text-sm text-text-secondary mb-4">
-					Help us understand what's wrong with{' '}
+					Help us understand what&apos;s wrong with{' '}
 					{contentTitle ? `"${contentTitle}"` : 'this content'}.
 				</p>
 

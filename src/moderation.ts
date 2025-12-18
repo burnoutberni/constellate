@@ -446,7 +446,8 @@ app.get('/admin/appeals', async (c) => {
 // Resolve appeal (admin only)
 app.put('/admin/appeals/:id', async (c) => {
 	try {
-		const adminId = await requireAdmin(c)
+		const userId = requireAuth(c)
+		await requireAdmin(c)
 		const { id } = c.req.param()
 		const body = await c.req.json()
 		const { status, adminNotes } = z
@@ -462,7 +463,7 @@ app.put('/admin/appeals/:id', async (c) => {
 				status,
 				adminNotes,
 				resolvedAt: new Date(),
-				resolvedBy: adminId,
+				resolvedBy: userId,
 			},
 		})
 

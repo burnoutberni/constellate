@@ -1,8 +1,9 @@
 import type { UserProfile } from '@/types'
 
 import { formatDate } from '../lib/formatUtils'
-import { ReportButton } from './ReportButton'
+
 import { Stack } from './layout'
+import { ReportButton } from './ReportButton'
 import { Avatar, Badge, Button, Card } from './ui'
 
 interface UserProfileHeaderProps {

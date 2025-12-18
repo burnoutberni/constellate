@@ -24,7 +24,7 @@ const config: KnipConfig = {
 		'src/constants/activitypub.ts',
 	],
 
-	ignoreDependencies: ['eslint-config-love'],
+	ignoreDependencies: [],
 }
 
 export default config

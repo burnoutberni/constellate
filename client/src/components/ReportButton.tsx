@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import { Button } from './ui'
 import { ReportContentModal } from './ReportContentModal'
+import { Button } from './ui'
 
 interface ReportButtonProps {
 	targetType: 'user' | 'event' | 'comment'

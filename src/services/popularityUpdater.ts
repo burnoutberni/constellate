@@ -169,3 +169,4 @@ export async function updateEventPopularityScore(eventId: string) {
 		console.error(`Error updating popularity score for event ${eventId}:`, error)
 	}
 }
+

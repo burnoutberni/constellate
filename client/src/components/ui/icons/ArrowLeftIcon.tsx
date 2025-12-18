@@ -18,3 +18,4 @@ export function ArrowLeftIcon({ className = 'w-4 h-4' }: { className?: string })
 		</svg>
 	)
 }
+
