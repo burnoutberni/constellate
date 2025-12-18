@@ -5,6 +5,7 @@
 
 import { Context } from 'hono'
 import { ZodError } from 'zod'
+import { Prisma } from '@prisma/client'
 import { config } from '../config.js'
 
 /**
@@ -64,6 +65,44 @@ export function handleError(error: unknown, c: Context): Response {
 		}
 
 		return c.json(response, 400 as const)
+	}
+
+	// Handle Prisma errors
+	if (error instanceof Prisma.PrismaClientKnownRequestError) {
+		// Handle specific Prisma error codes
+		if (error.code === 'P2025') {
+			// Record not found
+			return c.json(
+				{
+					error: 'NOT_FOUND',
+					message: 'Resource not found',
+				},
+				404 as const
+			)
+		}
+
+		if (error.code === 'P2002') {
+			// Unique constraint violation
+			return c.json(
+				{
+					error: 'CONFLICT',
+					message: 'Resource already exists',
+				},
+				409 as const
+			)
+		}
+
+		// Log Prisma errors for debugging
+		console.error('[Error Handler] Prisma error:', error)
+
+		// Return generic database error
+		return c.json(
+			{
+				error: 'DATABASE_ERROR',
+				message: 'A database error occurred',
+			},
+			500 as const
+		)
 	}
 
 	// Log full error server-side (for debugging)

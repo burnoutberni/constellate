@@ -24,13 +24,16 @@ import { HomePage } from './pages/HomePage'
 import { InstanceDetailPage } from './pages/InstanceDetailPage'
 import { InstancesPage } from './pages/InstancesPage'
 import { LoginPage } from './pages/LoginPage'
+import { ModerationPracticesPage } from './pages/ModerationPracticesPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { PendingFollowersPage } from './pages/PendingFollowersPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { RemindersPage } from './pages/RemindersPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { TermsOfServicePage } from './pages/TermsOfServicePage'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
 function AppContent() {
@@ -111,6 +114,9 @@ function AppContent() {
 				<Route path="/onboarding" element={<OnboardingPage />} />
 				<Route path="/" element={<HomePage />} />
 				<Route path="/about" element={<AboutPage />} />
+				<Route path="/moderation" element={<ModerationPracticesPage />} />
+				<Route path="/terms" element={<TermsOfServicePage />} />
+				<Route path="/privacy" element={<PrivacyPolicyPage />} />
 				<Route path="/login" element={<LoginPage />} />
 				<Route path="/feed" element={<FeedPage />} />
 				<Route path="/calendar" element={<CalendarPage />} />
