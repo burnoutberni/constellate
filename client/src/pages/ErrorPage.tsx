@@ -1,3 +1,4 @@
+import type { ErrorInfo } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
@@ -6,10 +7,11 @@ import { isDevelopment } from '@/lib/env'
 
 interface ErrorPageProps {
 	error?: Error
+	errorInfo?: ErrorInfo | null
 	resetErrorBoundary?: () => void
 }
 
-export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
+export function ErrorPage({ error, errorInfo, resetErrorBoundary }: ErrorPageProps) {
 	const navigate = useNavigate()
 
 	const handleRetry = () => {
@@ -38,11 +40,41 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
 				</p>
 
 				{error && isDevelopment() && (
-					<div className="mb-8 p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-left overflow-auto max-h-48">
-						<code className="text-sm text-error-700 dark:text-error-300 font-mono">
-							{error.message}
-						</code>
-					</div>
+					<details className="mb-8 text-left">
+						<summary className="cursor-pointer text-sm font-semibold text-error-700 dark:text-error-300 mb-2 hover:text-error-800 dark:hover:text-error-200">
+							Error Details
+						</summary>
+						<div className="mt-4 space-y-4 p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg">
+							<div>
+								<div className="text-xs font-semibold text-error-800 dark:text-error-200 mb-2">
+									Error Message:
+								</div>
+								<code className="text-sm text-error-700 dark:text-error-300 font-mono block">
+									{error.message}
+								</code>
+							</div>
+							{error.stack && (
+								<div>
+									<div className="text-xs font-semibold text-error-800 dark:text-error-200 mb-2">
+										Error Stack:
+									</div>
+									<code className="text-xs text-error-700 dark:text-error-300 font-mono whitespace-pre block overflow-auto max-h-64">
+										{error.stack}
+									</code>
+								</div>
+							)}
+							{errorInfo?.componentStack && (
+								<div>
+									<div className="text-xs font-semibold text-error-800 dark:text-error-200 mb-2">
+										Component Stack:
+									</div>
+									<code className="text-xs text-error-700 dark:text-error-300 font-mono whitespace-pre block overflow-auto max-h-64">
+										{errorInfo.componentStack}
+									</code>
+								</div>
+							)}
+						</div>
+					</details>
 				)}
 
 				<div className="flex gap-4 justify-center">

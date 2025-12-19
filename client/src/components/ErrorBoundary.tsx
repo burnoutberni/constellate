@@ -107,6 +107,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 			return (
 				<ErrorPage
 					error={this.state.error || undefined}
+					errorInfo={this.state.errorInfo}
 					resetErrorBoundary={this.resetErrorBoundary}
 				/>
 			)

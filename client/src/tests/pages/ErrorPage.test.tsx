@@ -41,22 +41,25 @@ describe('ErrorPage', () => {
 		expect(screen.getByRole('button', { name: 'Go Home' })).toBeInTheDocument()
 	})
 
-	it('should display error message in development environment', () => {
+	it('should display error details in development environment', () => {
 		mockIsDevelopment.mockReturnValue(true)
 
 		const testError = new Error('Test error message')
 		render(<ErrorPage error={testError} />, { wrapper })
 
+		expect(screen.getByText('Error Details')).toBeInTheDocument()
 		expect(screen.getByText('Test error message')).toBeInTheDocument()
+		expect(screen.getByText('Error Message:')).toBeInTheDocument()
 	})
 
-	it('should not display error message in production environment', () => {
+	it('should not display error details in production environment', () => {
 		mockIsDevelopment.mockReturnValue(false)
 
 		const testError = new Error('Sensitive error information')
 		render(<ErrorPage error={testError} />, { wrapper })
 
-		// Error message should not be visible
+		// Error details should not be visible
+		expect(screen.queryByText('Error Details')).not.toBeInTheDocument()
 		expect(screen.queryByText('Sensitive error information')).not.toBeInTheDocument()
 
 		// But basic error page content should still be visible
@@ -64,6 +67,92 @@ describe('ErrorPage', () => {
 		expect(
 			screen.getByText('An unexpected error occurred. Our team has been notified.')
 		).toBeInTheDocument()
+	})
+
+	it('should display component stack in development environment when errorInfo is provided', () => {
+		mockIsDevelopment.mockReturnValue(true)
+
+		const testError = new Error('Test error message')
+		const errorInfo = {
+			componentStack: `
+    in TestComponent
+    in ErrorBoundary
+    in App
+			`.trim(),
+		}
+
+		render(<ErrorPage error={testError} errorInfo={errorInfo} />, { wrapper })
+
+		expect(screen.getByText('Error Details')).toBeInTheDocument()
+		expect(screen.getByText('Component Stack:')).toBeInTheDocument()
+		expect(screen.getByText(/in TestComponent/)).toBeInTheDocument()
+		expect(screen.getByText(/in ErrorBoundary/)).toBeInTheDocument()
+		expect(screen.getByText(/in App/)).toBeInTheDocument()
+	})
+
+	it('should display error stack when available', () => {
+		mockIsDevelopment.mockReturnValue(true)
+
+		const testError = new Error('Test error message')
+		testError.stack = 'Error: Test error message\n    at TestComponent (test.tsx:10:5)'
+
+		render(<ErrorPage error={testError} />, { wrapper })
+
+		expect(screen.getByText('Error Details')).toBeInTheDocument()
+		expect(screen.getByText('Error Stack:')).toBeInTheDocument()
+		expect(screen.getByText(/at TestComponent/)).toBeInTheDocument()
+	})
+
+	it('should not display error details in production environment', () => {
+		mockIsDevelopment.mockReturnValue(false)
+
+		const testError = new Error('Test error message')
+		const errorInfo = {
+			componentStack: `
+    in TestComponent
+    in ErrorBoundary
+    in App
+			`.trim(),
+		}
+
+		render(<ErrorPage error={testError} errorInfo={errorInfo} />, { wrapper })
+
+		expect(screen.queryByText('Error Details')).not.toBeInTheDocument()
+		expect(screen.queryByText('Component Stack:')).not.toBeInTheDocument()
+	})
+
+	it('should display error message but not component stack when errorInfo is not provided', () => {
+		mockIsDevelopment.mockReturnValue(true)
+
+		const testError = new Error('Test error message')
+		render(<ErrorPage error={testError} />, { wrapper })
+
+		expect(screen.getByText('Error Details')).toBeInTheDocument()
+		expect(screen.getByText('Error Message:')).toBeInTheDocument()
+		expect(screen.queryByText('Component Stack:')).not.toBeInTheDocument()
+	})
+
+	it('should allow expanding and collapsing error details', async () => {
+		mockIsDevelopment.mockReturnValue(true)
+		const user = userEvent.setup()
+
+		const testError = new Error('Test error message')
+		const errorInfo = {
+			componentStack: 'in TestComponent',
+		}
+
+		render(<ErrorPage error={testError} errorInfo={errorInfo} />, { wrapper })
+
+		const detailsElement = screen.getByText('Error Details').closest('details')
+		expect(detailsElement).toBeInTheDocument()
+
+		// Initially collapsed (details element is closed by default)
+		// Click to expand
+		await user.click(screen.getByText('Error Details'))
+
+		// Content should be visible after expanding
+		expect(screen.getByText('Test error message')).toBeInTheDocument()
+		expect(screen.getByText('Component Stack:')).toBeInTheDocument()
 	})
 
 	it('should call resetErrorBoundary when Try Again is clicked', async () => {

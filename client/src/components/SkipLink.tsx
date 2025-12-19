@@ -32,6 +32,7 @@ export function SkipLink() {
 			// Create cleanup function
 			const cleanup = () => {
 				main.removeEventListener('blur', handleBlur)
+				main.removeAttribute('tabindex')
 				blurHandlerRef.current = null
 			}
 
