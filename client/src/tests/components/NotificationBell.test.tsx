@@ -100,6 +100,21 @@ describe('NotificationBell', () => {
 		expect(badges.length).toBeGreaterThan(0)
 	})
 
+	it('should include unread count in aria-label', () => {
+		mockUseNotifications.mockReturnValue({
+			data: {
+				notifications: [],
+				unreadCount: 5,
+			},
+			isLoading: false,
+			error: null,
+			isError: false,
+		})
+
+		render(<NotificationBell userId="user1" />, { wrapper })
+		expect(screen.getByLabelText('Notifications, 5 unread')).toBeInTheDocument()
+	})
+
 	it('should show 9+ for counts over 9', () => {
 		mockUseNotifications.mockReturnValue({
 			data: {
