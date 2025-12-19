@@ -737,6 +737,7 @@ describe('Profile API', () => {
 			expect(data.exportId).toBeDefined()
 			expect(data.status).toBe('PENDING')
 			expect(data.message).toBeDefined()
+			expect(data.createdAt).toBeDefined()
 
 			// Verify job was created in database
 			const exportJob = await prisma.dataExport.findUnique({
@@ -767,6 +768,7 @@ describe('Profile API', () => {
 			const data = (await response.json()) as any
 			expect(data.exportId).toBe(existingExport.id)
 			expect(data.status).toBe('PENDING')
+			expect(data.createdAt).toBeDefined()
 		})
 
 		it('returns 401 when not authenticated', async () => {

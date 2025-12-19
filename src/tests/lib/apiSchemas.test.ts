@@ -559,6 +559,7 @@ describe('API Schemas', () => {
 				headerImage: 'https://example.com/header.jpg',
 				displayColor: '#3b82f6',
 				timezone: 'UTC',
+				isPublicProfile: true,
 				createdAt: '2024-12-01T09:00:00Z',
 				_count: {
 					followers: 10,
@@ -580,6 +581,7 @@ describe('API Schemas', () => {
 				headerImage: null,
 				displayColor: null,
 				timezone: 'UTC',
+				isPublicProfile: false,
 				createdAt: '2024-12-01T09:00:00Z',
 			}
 			const result = ProfileSchema.safeParse(valid)

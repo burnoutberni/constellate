@@ -34,6 +34,7 @@ export function DataExportSettings() {
 	const [isLoading, setIsLoading] = useState(false)
 	const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
 	const [exportId, setExportId] = useState<string | null>(null)
+	const [exportCreatedAt, setExportCreatedAt] = useState<string | null>(null)
 
 	const downloadExport = useCallback(
 		async (id: string, preloadedData?: object) => {
@@ -55,7 +56,12 @@ export function DataExportSettings() {
 				a.href = url
 				// Include export ID prefix to ensure unique filenames for same-day exports
 				const exportIdPrefix = id.substring(0, 8)
-				a.download = `constellate-export-${new Date().toISOString().split('T')[0]}-${exportIdPrefix}.json`
+				// Use the export creation date from state (should always be available from POST/polling responses)
+				// Fallback to current date only if somehow missing (should not happen in normal flow)
+				const dateStr = exportCreatedAt
+					? new Date(exportCreatedAt).toISOString().split('T')[0]
+					: new Date().toISOString().split('T')[0]
+				a.download = `constellate-export-${dateStr}-${exportIdPrefix}.json`
 				document.body.appendChild(a)
 				a.click()
 				window.URL.revokeObjectURL(url)
@@ -70,13 +76,14 @@ export function DataExportSettings() {
 				// Reset state
 				setExportId(null)
 				setExportStatus(null)
+				setExportCreatedAt(null)
 			} catch (error) {
 				handleError(error, 'Failed to download export', {
 					context: 'DataExportSettings.downloadExport',
 				})
 			}
 		},
-		[addToast, handleError]
+		[addToast, handleError, exportCreatedAt]
 	)
 
 	// Poll for export status using exponential backoff
@@ -94,6 +101,9 @@ export function DataExportSettings() {
 			// Only update status if response is a status object (not completed data)
 			if (isExportResponse(response)) {
 				setExportStatus(response.status)
+				if (response.createdAt) {
+					setExportCreatedAt(response.createdAt)
+				}
 			}
 			return response
 		}, [exportId]),
@@ -152,6 +162,9 @@ export function DataExportSettings() {
 
 			setExportId(response.exportId)
 			setExportStatus(response.status)
+			if (response.createdAt) {
+				setExportCreatedAt(response.createdAt)
+			}
 
 			if (response.status === 'COMPLETED') {
 				// If already completed (e.g., existing export), download immediately

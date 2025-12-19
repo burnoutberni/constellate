@@ -83,6 +83,7 @@ describe('DataExportSettings Component', () => {
 		mockApiPost.mockResolvedValueOnce({
 			exportId: 'export-123',
 			status: 'PENDING',
+			createdAt: '2024-01-15T10:00:00.000Z',
 		})
 
 		render(<DataExportSettings />, { wrapper })
@@ -103,6 +104,7 @@ describe('DataExportSettings Component', () => {
 		const exportResponse = {
 			exportId: 'export-123',
 			status: 'PENDING' as const,
+			createdAt: '2024-01-15T10:00:00.000Z',
 		}
 		// Use mockResolvedValueOnce - it should work fine
 		mockApiPost.mockResolvedValueOnce(exportResponse)
@@ -143,6 +145,7 @@ describe('DataExportSettings Component', () => {
 		mockApiPost.mockResolvedValueOnce({
 			exportId: 'export-123',
 			status: 'PENDING',
+			createdAt: '2024-01-15T10:00:00.000Z',
 		})
 
 		render(<DataExportSettings />, { wrapper })
@@ -161,9 +164,14 @@ describe('DataExportSettings Component', () => {
 		mockApiPost.mockResolvedValueOnce({
 			exportId: 'export-123',
 			status: 'COMPLETED',
+			createdAt: '2024-01-15T10:00:00.000Z',
 		})
 
 		mockApiGet.mockResolvedValueOnce({
+			_meta: {
+				exportedAt: '2024-01-15T10:05:00.000Z',
+				version: '1.0',
+			},
 			profile: { id: 'user-1' },
 			events: [],
 		})

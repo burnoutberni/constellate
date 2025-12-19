@@ -217,6 +217,7 @@ app.post('/users/me/export', async (c) => {
 					exportId: existingExport.id,
 					status: existingExport.status,
 					message: 'Export already in progress',
+					createdAt: existingExport.createdAt.toISOString(),
 				},
 				200
 			)
@@ -235,6 +236,7 @@ app.post('/users/me/export', async (c) => {
 				exportId: dataExport.id,
 				status: dataExport.status,
 				message: 'Export job created. You will be notified when it is ready.',
+				createdAt: dataExport.createdAt.toISOString(),
 			},
 			202
 		)

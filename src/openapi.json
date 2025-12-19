@@ -2504,6 +2504,10 @@
 										},
 										"message": {
 											"type": "string"
+										},
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
 										}
 									}
 								}
@@ -2526,6 +2530,10 @@
 										},
 										"message": {
 											"type": "string"
+										},
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
 										}
 									}
 								}
