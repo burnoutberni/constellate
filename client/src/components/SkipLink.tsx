@@ -23,16 +23,20 @@ export function SkipLink() {
 			}
 
 			// Set up blur handler to remove tabindex when main loses focus
-			const handleBlur = () => {
-				main.removeAttribute('tabindex')
-				main.removeEventListener('blur', handleBlur)
+			function handleBlur() {
+				if (main) {
+					main.removeEventListener('blur', handleBlur)
+					main.removeAttribute('tabindex')
+				}
 				blurHandlerRef.current = null
 			}
 
-			// Create cleanup function
+			// Shared cleanup function
 			const cleanup = () => {
-				main.removeEventListener('blur', handleBlur)
-				main.removeAttribute('tabindex')
+				if (main) {
+					main.removeEventListener('blur', handleBlur)
+					main.removeAttribute('tabindex')
+				}
 				blurHandlerRef.current = null
 			}
 

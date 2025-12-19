@@ -2,6 +2,34 @@ import { Link } from 'react-router-dom'
 
 import { Container } from './layout'
 
+interface FooterLink {
+	to: string
+	label: string
+}
+
+interface FooterSection {
+	title: string
+	links: FooterLink[]
+}
+
+const footerSections: FooterSection[] = [
+	{
+		title: 'Platform',
+		links: [
+			{ to: '/discover', label: 'Discover' },
+			{ to: '/about', label: 'About' },
+			{ to: '/moderation', label: 'Moderation' },
+		],
+	},
+	{
+		title: 'Legal',
+		links: [
+			{ to: '/terms', label: 'Terms of Service' },
+			{ to: '/privacy', label: 'Privacy Policy' },
+		],
+	},
+]
+
 export function Footer() {
 	const currentYear = new Date().getFullYear()
 
@@ -21,52 +49,24 @@ export function Footer() {
 						</p>
 					</div>
 
-					<div>
-						<h3 className="font-semibold text-text-primary mb-4">Platform</h3>
-						<ul className="space-y-2">
-							<li>
-								<Link
-									to="/discover"
-									className="text-text-secondary hover:text-primary-600 transition-colors">
-									Discover
-								</Link>
-							</li>
-							<li>
-								<Link
-									to="/about"
-									className="text-text-secondary hover:text-primary-600 transition-colors">
-									About
-								</Link>
-							</li>
-							<li>
-								<Link
-									to="/moderation"
-									className="text-text-secondary hover:text-primary-600 transition-colors">
-									Moderation
-								</Link>
-							</li>
-						</ul>
-					</div>
-
-					<div>
-						<h3 className="font-semibold text-text-primary mb-4">Legal</h3>
-						<ul className="space-y-2">
-							<li>
-								<Link
-									to="/terms"
-									className="text-text-secondary hover:text-primary-600 transition-colors">
-									Terms of Service
-								</Link>
-							</li>
-							<li>
-								<Link
-									to="/privacy"
-									className="text-text-secondary hover:text-primary-600 transition-colors">
-									Privacy Policy
-								</Link>
-							</li>
-						</ul>
-					</div>
+					{footerSections.map((section) => (
+						<div key={section.title}>
+							<h3 className="font-semibold text-text-primary mb-4">
+								{section.title}
+							</h3>
+							<ul className="space-y-2">
+								{section.links.map((link) => (
+									<li key={link.to}>
+										<Link
+											to={link.to}
+											className="text-text-secondary hover:text-primary-600 transition-colors">
+											{link.label}
+										</Link>
+									</li>
+								))}
+							</ul>
+						</div>
+					))}
 				</div>
 
 				<div className="pt-8 border-t border-border-default flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-text-tertiary">
