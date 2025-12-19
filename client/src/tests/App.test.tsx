@@ -144,7 +144,7 @@ vi.mock('../pages/NotFoundPage', () => ({
 	),
 }))
 
-// Don't mock ProfileOrEventPage - we want to test the actual routing behavior
+// Don't mock ProfileOrEventRouter - we want to test the actual routing behavior
 
 vi.mock('../pages/UserProfilePage', () => ({
 	UserProfilePage: createMockPage('UserProfilePage'),
@@ -278,7 +278,7 @@ describe('App Routing', () => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
 		})
 
-		// ProfileOrEventPage should route to UserProfilePage for single-segment @ paths
+		// ProfileOrEventRouter should route to UserProfilePage for single-segment @ paths
 		await waitFor(() => {
 			expect(screen.getByTestId('UserProfilePage')).toBeInTheDocument()
 			expect(screen.queryByTestId('NotFoundPage')).not.toBeInTheDocument()
@@ -294,7 +294,7 @@ describe('App Routing', () => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
 		})
 
-		// ProfileOrEventPage should route to EventDetailPage for two-segment @ paths
+		// ProfileOrEventRouter should route to EventDetailPage for two-segment @ paths
 		await waitFor(() => {
 			expect(screen.getByTestId('EventDetailPage')).toBeInTheDocument()
 			expect(screen.queryByTestId('NotFoundPage')).not.toBeInTheDocument()

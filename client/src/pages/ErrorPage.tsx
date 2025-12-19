@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
 import { Button } from '@/components/ui'
+import { isDevelopment } from '@/lib/env'
 
 interface ErrorPageProps {
 	error?: Error
@@ -12,11 +13,18 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
 	const navigate = useNavigate()
 
 	const handleRetry = () => {
-		resetErrorBoundary?.()
+		if (resetErrorBoundary) {
+			resetErrorBoundary()
+		} else {
+			// Fallback: reload the page if resetErrorBoundary is not provided
+			window.location.reload()
+		}
 	}
 
 	const handleGoHome = () => {
-		resetErrorBoundary?.()
+		if (resetErrorBoundary) {
+			resetErrorBoundary()
+		}
 		navigate('/')
 	}
 
@@ -29,7 +37,7 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
 					An unexpected error occurred. Our team has been notified.
 				</p>
 
-				{error && (
+				{error && isDevelopment() && (
 					<div className="mb-8 p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-left overflow-auto max-h-48">
 						<code className="text-sm text-error-700 dark:text-error-300 font-mono">
 							{error.message}

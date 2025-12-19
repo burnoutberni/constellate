@@ -73,9 +73,6 @@ const PendingFollowersPage = lazy(() =>
 const PrivacyPolicyPage = lazy(() =>
 	import('./pages/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage }))
 )
-const ProfileOrEventPage = lazy(() =>
-	import('./pages/ProfileOrEventPage').then((module) => ({ default: module.ProfileOrEventPage }))
-)
 const RemindersPage = lazy(() =>
 	import('./pages/RemindersPage').then((module) => ({ default: module.RemindersPage }))
 )
@@ -91,11 +88,44 @@ const TemplatesPage = lazy(() =>
 const TermsOfServicePage = lazy(() =>
 	import('./pages/TermsOfServicePage').then((module) => ({ default: module.TermsOfServicePage }))
 )
+const EventDetailPage = lazy(() =>
+	import('./pages/EventDetailPage').then((module) => ({ default: module.EventDetailPage }))
+)
 const NotFoundPage = lazy(() =>
 	import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage }))
 )
+const UserProfilePage = lazy(() =>
+	import('./pages/UserProfilePage').then((module) => ({ default: module.UserProfilePage }))
+)
 
 const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
+
+/**
+ * Smart router that determines whether to show a user profile or event detail
+ * based on the URL structure:
+ * - /@username -> UserProfilePage
+ * - /@username/eventId -> EventDetailPage
+ * - Any other path -> NotFoundPage
+ */
+function ProfileOrEventRouter() {
+	const location = useLocation()
+
+	// Check if path starts with /@
+	if (!location.pathname.startsWith('/@')) {
+		return <NotFoundPage />
+	}
+
+	// Extract path parts
+	const pathParts = location.pathname.split('/').filter(Boolean)
+
+	// If there are 2 parts (e.g., [@username, eventId]), it's an event
+	if (pathParts.length >= 2) {
+		return <EventDetailPage />
+	}
+
+	// Otherwise, it's a profile
+	return <UserProfilePage />
+}
 
 function AppContent() {
 	// Global SSE connection
@@ -205,7 +235,7 @@ function AppContent() {
 					<Route path="/admin" element={<AdminPage />} />
 					<Route path="/edit/*" element={<EditEventPage />} />
 					<Route path="/404" element={<NotFoundPage />} />
-					<Route path="/*" element={<ProfileOrEventPage />} />
+					<Route path="/*" element={<ProfileOrEventRouter />} />
 				</Routes>
 			</Suspense>
 			<MentionNotifications />
