@@ -229,8 +229,8 @@ describe('DataExportSettings Component', () => {
 			{ timeout: 2000 }
 		)
 
-		// Give React time to process the download completion and call toast
-		await new Promise((resolve) => setTimeout(resolve, 100))
+		// Give React time to process the download completion, setTimeout cleanup, and call toast
+		await new Promise((resolve) => setTimeout(resolve, 200))
 
 		// Then wait for toast
 		await waitFor(

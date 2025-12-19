@@ -64,8 +64,12 @@ export function DataExportSettings() {
 				a.download = `constellate-export-${dateStr}-${exportIdPrefix}.json`
 				document.body.appendChild(a)
 				a.click()
-				window.URL.revokeObjectURL(url)
-				document.body.removeChild(a)
+				// Delay cleanup to allow browser to initiate download
+				// This prevents race conditions on slower systems
+				setTimeout(() => {
+					window.URL.revokeObjectURL(url)
+					document.body.removeChild(a)
+				}, 100)
 
 				addToast({
 					id: generateId(),

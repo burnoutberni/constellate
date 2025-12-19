@@ -7,11 +7,14 @@ import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { magicLink } from 'better-auth/plugins'
-import { generateKeyPairSync } from 'crypto'
+import { generateKeyPair } from 'crypto'
+import { promisify } from 'util'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
 import { sendEmail } from './lib/email.js'
+
+const generateKeyPairAsync = promisify(generateKeyPair)
 
 /**
  * Detect database provider from DATABASE_URL
@@ -28,7 +31,7 @@ export async function generateUserKeys(
 	username: string,
 	tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 ) {
-	const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+	const { publicKey, privateKey } = await generateKeyPairAsync('rsa', {
 		modulusLength: 2048,
 		publicKeyEncoding: {
 			type: 'spki',
@@ -221,7 +224,7 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				}
 
 				// Generate keys
-				const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+				const { publicKey, privateKey } = await generateKeyPairAsync('rsa', {
 					modulusLength: 2048,
 					publicKeyEncoding: {
 						type: 'spki',

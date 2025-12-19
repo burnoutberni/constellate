@@ -33,10 +33,10 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
 			return api.put('/profile', data, undefined, 'Failed to update privacy settings')
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
-		},
 		onSettled: (_, __, variables) => {
+			// Invalidate and refetch query after mutation completes (success or error)
+			// This ensures the UI always shows the latest server state
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
 			// Clear optimistic updates after mutation completes (success or error)
 			// Profile prop will have the correct values after query invalidation/refetch
 			setOptimisticUpdates((prev) => {
