@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -12,7 +12,6 @@ import { ThemeProvider } from './design-system'
 import { useAuth } from './hooks/useAuth'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
-import { getErrorStatus } from './lib/errorHandling'
 import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
@@ -49,10 +48,16 @@ function AppContent() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [checkingSetup, setCheckingSetup] = useState(true)
-	const [checkingTos, setCheckingTos] = useState(false)
-	const [needsTosAcceptance, setNeedsTosAcceptance] = useState(false)
 	const addToast = useUIStore((state) => state.addToast)
-	const { user, loading: authLoading } = useAuth()
+	const { user, loading: authLoading, tosStatus } = useAuth()
+
+	// Determine if ToS acceptance is needed
+	// Only show modal if user is authenticated, ToS status indicates acceptance is needed,
+	// and we're not on a public page
+	const needsTosAcceptance = useMemo(() => {
+		const isPublicPath = publicPaths.some((path) => location.pathname.startsWith(path))
+		return !authLoading && user !== null && tosStatus?.needsAcceptance === true && !isPublicPath
+	}, [authLoading, user, tosStatus?.needsAcceptance, location.pathname])
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
@@ -114,51 +119,7 @@ function AppContent() {
 		}
 	}, [addToast])
 
-	// Check ToS acceptance status when user is authenticated
-	useEffect(() => {
-		const checkTosStatus = async () => {
-			// Only check if user is authenticated and not on public pages
-			if (authLoading || !user) {
-				setCheckingTos(false)
-				setNeedsTosAcceptance(false)
-				return
-			}
-
-			// Don't check on public pages or ToS-related pages
-			if (publicPaths.some((path) => location.pathname.startsWith(path))) {
-				setCheckingTos(false)
-				setNeedsTosAcceptance(false)
-				return
-			}
-
-			setCheckingTos(true)
-			try {
-				const status = await api.get<{
-					accepted: boolean
-					acceptedAt: string | null
-					acceptedVersion: number | null
-					currentVersion: number
-					needsAcceptance: boolean
-				}>('/tos/status')
-				setNeedsTosAcceptance(status.needsAcceptance)
-			} catch (error) {
-				// If we get 401, user is not authenticated - that's fine
-				if (getErrorStatus(error) === 401) {
-					setNeedsTosAcceptance(false)
-				} else {
-					logger.error('Failed to check ToS status:', error)
-					// Don't block the app if we can't check ToS status
-					setNeedsTosAcceptance(false)
-				}
-			} finally {
-				setCheckingTos(false)
-			}
-		}
-
-		checkTosStatus()
-	}, [user, authLoading, location.pathname])
-
-	if (checkingSetup || checkingTos) {
+	if (checkingSetup) {
 		return <PageLoader />
 	}
 

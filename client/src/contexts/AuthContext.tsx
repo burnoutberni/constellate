@@ -1,8 +1,10 @@
-import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 
 import { logger } from '@/lib/logger'
 
+import { api } from '../lib/api-client'
 import { authClient } from '../lib/auth-client'
+import { getErrorStatus } from '../lib/errorHandling'
 
 interface User {
 	id: string
@@ -12,9 +14,19 @@ interface User {
 	image?: string | null
 }
 
+interface TosStatus {
+	accepted: boolean
+	acceptedAt: string | null
+	acceptedVersion: number | null
+	currentVersion: number
+	needsAcceptance: boolean
+}
+
 interface AuthContextType {
 	user: User | null
 	loading: boolean
+	tosStatus: TosStatus | null
+	checkTosStatus: () => Promise<void>
 	login: (email: string, password: string) => Promise<void>
 	sendMagicLink: (email: string) => Promise<void>
 	signup: (
@@ -33,11 +45,42 @@ export const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [tosStatus, setTosStatus] = useState<TosStatus | null>(null)
+	const userRef = useRef<User | null>(null)
+
+	// Keep ref in sync with state
+	useEffect(() => {
+		userRef.current = user
+	}, [user])
+
+	const checkTosStatus = useCallback(async () => {
+		// Read current user from ref to avoid dependency issues
+		const currentUser = userRef.current
+		if (!currentUser) {
+			setTosStatus(null)
+			return
+		}
+
+		try {
+			const status = await api.get<TosStatus>('/tos/status')
+			setTosStatus(status)
+		} catch (error) {
+			// If we get 401, user is not authenticated - that's fine
+			if (getErrorStatus(error) === 401) {
+				setTosStatus(null)
+			} else {
+				logger.error('Failed to check ToS status:', error)
+				// Don't block the app if we can't check ToS status
+				setTosStatus(null)
+			}
+		}
+	}, [])
 
 	const checkAuth = useCallback(async () => {
 		try {
 			const { data: session } = await authClient.getSession()
-			setUser(session?.user || null)
+			const authenticatedUser = session?.user || null
+			setUser(authenticatedUser)
 		} catch (error) {
 			logger.error('Auth check failed:', error)
 			setUser(null)
@@ -49,6 +92,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		checkAuth()
 	}, [checkAuth])
+
+	// Check ToS status when user changes
+	useEffect(() => {
+		if (user) {
+			api.get<TosStatus>('/tos/status')
+				.then((status) => {
+					setTosStatus(status)
+				})
+				.catch((error) => {
+					// If we get 401, user is not authenticated - that's fine
+					if (getErrorStatus(error) === 401) {
+						setTosStatus(null)
+					} else {
+						logger.error('Failed to check ToS status:', error)
+						// Don't block the app if we can't check ToS status
+						setTosStatus(null)
+					}
+				})
+		} else {
+			setTosStatus(null)
+		}
+	}, [user])
 
 	const login = async (email: string, password: string) => {
 		const { data, error } = await authClient.signIn.email({
@@ -103,10 +168,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const logout = async () => {
 		await authClient.signOut()
 		setUser(null)
+		setTosStatus(null)
 	}
 
 	return (
-		<AuthContext.Provider value={{ user, loading, login, sendMagicLink, signup, logout }}>
+		<AuthContext.Provider
+			value={{
+				user,
+				loading,
+				tosStatus,
+				checkTosStatus,
+				login,
+				sendMagicLink,
+				signup,
+				logout,
+			}}>
 			{children}
 		</AuthContext.Provider>
 	)

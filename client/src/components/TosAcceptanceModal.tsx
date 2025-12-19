@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
 
+import { useAuth } from '../hooks/useAuth'
 import { api } from '../lib/api-client'
 
 import { TermsOfServiceAgreement } from './TermsOfServiceAgreement'
@@ -18,6 +19,7 @@ export function TosAcceptanceModal({ isOpen }: TosAcceptanceModalProps) {
 	const [tosAccepted, setTosAccepted] = useState(false)
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
+	const { checkTosStatus } = useAuth()
 
 	if (!isOpen) {
 		return null
@@ -36,8 +38,8 @@ export function TosAcceptanceModal({ isOpen }: TosAcceptanceModalProps) {
 
 		try {
 			await api.post('/tos/accept', {}, undefined, 'Failed to accept Terms of Service')
-			// Reload the page to refresh user state
-			window.location.reload()
+			// Refresh ToS status in context instead of reloading the page
+			await checkTosStatus()
 		} catch (err: unknown) {
 			setError(
 				extractErrorMessage(err, 'Failed to accept Terms of Service. Please try again.')
