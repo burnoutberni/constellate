@@ -7,14 +7,13 @@ import { createTestWrapper, clearQueryClient } from '../testUtils'
 // Mock fetch
 global.fetch = vi.fn()
 
-// Mock window.location.reload
-const mockReload = vi.fn()
-Object.defineProperty(window, 'location', {
-	value: {
-		reload: mockReload,
-	},
-	writable: true,
-})
+// Mock useAuth hook
+const mockCheckTosStatus = vi.fn()
+vi.mock('../../hooks/useAuth', () => ({
+	useAuth: () => ({
+		checkTosStatus: mockCheckTosStatus,
+	}),
+}))
 
 // Mock api client
 vi.mock('../../lib/api-client', () => ({
@@ -38,7 +37,8 @@ describe('TosAcceptanceModal Component', () => {
 	beforeEach(async () => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
-		mockReload.mockClear()
+		mockCheckTosStatus.mockClear()
+		mockCheckTosStatus.mockResolvedValue(undefined)
 
 		// Get the mocked api
 		const apiModule = await import('../../lib/api-client')
@@ -81,10 +81,10 @@ describe('TosAcceptanceModal Component', () => {
 		})
 
 		expect(mockApiPost).not.toHaveBeenCalled()
-		expect(mockReload).not.toHaveBeenCalled()
+		expect(mockCheckTosStatus).not.toHaveBeenCalled()
 	})
 
-	it('should accept ToS and reload page on success', async () => {
+	it('should accept ToS and call checkTosStatus on success', async () => {
 		const user = userEvent.setup()
 		mockApiPost.mockResolvedValue({})
 
@@ -106,7 +106,7 @@ describe('TosAcceptanceModal Component', () => {
 		})
 
 		await waitFor(() => {
-			expect(mockReload).toHaveBeenCalledTimes(1)
+			expect(mockCheckTosStatus).toHaveBeenCalledTimes(1)
 		})
 	})
 
@@ -128,7 +128,7 @@ describe('TosAcceptanceModal Component', () => {
 			expect(screen.getByText(errorMessage)).toBeInTheDocument()
 		})
 
-		expect(mockReload).not.toHaveBeenCalled()
+		expect(mockCheckTosStatus).not.toHaveBeenCalled()
 	})
 
 	it('should disable submit button while loading', async () => {
@@ -158,7 +158,7 @@ describe('TosAcceptanceModal Component', () => {
 			resolvePromise()
 		}
 		await waitFor(() => {
-			expect(mockReload).toHaveBeenCalled()
+			expect(mockCheckTosStatus).toHaveBeenCalled()
 		})
 	})
 
@@ -183,7 +183,7 @@ describe('TosAcceptanceModal Component', () => {
 		// Second submission - should succeed
 		await user.click(submitButton)
 		await waitFor(() => {
-			expect(mockReload).toHaveBeenCalled()
+			expect(mockCheckTosStatus).toHaveBeenCalled()
 		})
 	})
 })

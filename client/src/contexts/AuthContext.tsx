@@ -95,25 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	// Check ToS status when user changes
 	useEffect(() => {
-		if (user) {
-			api.get<TosStatus>('/tos/status')
-				.then((status) => {
-					setTosStatus(status)
-				})
-				.catch((error) => {
-					// If we get 401, user is not authenticated - that's fine
-					if (getErrorStatus(error) === 401) {
-						setTosStatus(null)
-					} else {
-						logger.error('Failed to check ToS status:', error)
-						// Don't block the app if we can't check ToS status
-						setTosStatus(null)
-					}
-				})
-		} else {
-			setTosStatus(null)
-		}
-	}, [user])
+		checkTosStatus()
+	}, [user, checkTosStatus])
 
 	const login = async (email: string, password: string) => {
 		const { data, error } = await authClient.signIn.email({
