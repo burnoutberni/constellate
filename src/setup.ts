@@ -40,6 +40,7 @@ app.post('/', async (c) => {
 				email,
 				password: generatedPassword,
 				name,
+				username,
 			},
 		})
 
@@ -47,11 +48,10 @@ app.post('/', async (c) => {
 			return c.json({ error: 'Failed to create user' }, 500)
 		}
 
-		// Update user with username and make admin
+		// Update user to make admin (username is already set via signUpEmail)
 		await prisma.user.update({
 			where: { id: user.user.id },
 			data: {
-				username,
 				isAdmin: true,
 			},
 		})

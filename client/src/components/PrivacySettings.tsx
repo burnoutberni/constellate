@@ -41,11 +41,10 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 			// Profile prop will have the correct values after query invalidation/refetch
 			setOptimisticUpdates((prev) => {
 				const next = { ...prev }
-				if ('autoAcceptFollowers' in variables) {
-					delete next.autoAcceptFollowers
-				}
-				if ('isPublicProfile' in variables) {
-					delete next.isPublicProfile
+				for (const key in variables) {
+					if (key in next) {
+						delete next[key as keyof typeof next]
+					}
 				}
 				return next
 			})
