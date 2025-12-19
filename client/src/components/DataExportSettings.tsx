@@ -20,6 +20,14 @@ interface ExportResponse {
 	errorMessage?: string
 }
 
+// Union type for polling responses: either status object or completed data
+type ExportPollResponse = ExportResponse | object
+
+// Type guard to check if response is a status object
+function isExportResponse(response: ExportPollResponse): response is ExportResponse {
+	return 'status' in response && 'exportId' in response
+}
+
 export function DataExportSettings() {
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
@@ -28,14 +36,17 @@ export function DataExportSettings() {
 	const [exportId, setExportId] = useState<string | null>(null)
 
 	const downloadExport = useCallback(
-		async (id: string) => {
+		async (id: string, preloadedData?: object) => {
 			try {
-				const data = await api.get<object>(
-					`/users/me/export/${id}`,
-					undefined,
-					undefined,
-					'Failed to download export'
-				)
+				// Use pre-loaded data if available, otherwise fetch it
+				const data =
+					preloadedData ??
+					(await api.get<object>(
+						`/users/me/export/${id}`,
+						undefined,
+						undefined,
+						'Failed to download export'
+					))
 
 				// Create a blob and download link
 				const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -74,30 +85,48 @@ export function DataExportSettings() {
 			if (!exportId) {
 				throw new Error('Export ID is required for polling')
 			}
-			const status = await api.get<ExportResponse>(
+			const response = await api.get<ExportPollResponse>(
 				`/users/me/export/${exportId}`,
 				undefined,
 				undefined,
 				'Failed to check export status'
 			)
-			setExportStatus(status.status)
-			return status
+			// Only update status if response is a status object (not completed data)
+			if (isExportResponse(response)) {
+				setExportStatus(response.status)
+			}
+			return response
 		}, [exportId]),
-		useCallback((status: ExportResponse) => status.status === 'COMPLETED', []),
-		useCallback((status: ExportResponse) => status.status === 'FAILED', []),
+		// Completed when response is the data object (no status property)
+		useCallback((response: ExportPollResponse) => !isExportResponse(response), []),
+		// Failed when response is a status object with FAILED status
 		useCallback(
-			async (status: ExportResponse) => {
-				await downloadExport(status.exportId)
-			},
-			[downloadExport]
+			(response: ExportPollResponse) =>
+				isExportResponse(response) && response.status === 'FAILED',
+			[]
 		),
 		useCallback(
-			async (status: ExportResponse) => {
-				addToast({
-					id: generateId(),
-					message: status.errorMessage || 'Export failed',
-					variant: 'error',
-				})
+			async (response: ExportPollResponse) => {
+				// When completed, response is the data object
+				// We need the exportId from state since it's not in the completed data
+				if (!exportId) {
+					throw new Error('Export ID is required for download')
+				}
+				// Pass the completed data directly to avoid redundant API call
+				await downloadExport(exportId, response as object)
+			},
+			[downloadExport, exportId]
+		),
+		useCallback(
+			async (response: ExportPollResponse) => {
+				// When failed, response is a status object
+				if (isExportResponse(response)) {
+					addToast({
+						id: generateId(),
+						message: response.errorMessage || 'Export failed',
+						variant: 'error',
+					})
+				}
 			},
 			[addToast]
 		),
