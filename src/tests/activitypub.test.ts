@@ -72,6 +72,13 @@ vi.mock('../lib/encryption.js', () => ({
 	encryptPrivateKey: vi.fn((key) => `encrypted_${key}`),
 }))
 
+vi.mock('../auth.js', () => ({
+	generateAndEncryptRSAKeys: vi.fn(async () => ({
+		publicKey: 'generated_public_key',
+		encryptedPrivateKey: 'encrypted_generated_private_key',
+	})),
+}))
+
 vi.mock('../config.js', () => ({
 	config: {
 		isDevelopment: false,

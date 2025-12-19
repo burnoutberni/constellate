@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { useExponentialBackoff } from '@/hooks/useExponentialBackoff'
@@ -33,8 +33,9 @@ export function DataExportSettings() {
 	const addToast = useUIStore((state) => state.addToast)
 	const [isLoading, setIsLoading] = useState(false)
 	const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
-	const [exportId, setExportId] = useState<string | null>(null)
 	const [exportCreatedAt, setExportCreatedAt] = useState<string | null>(null)
+	// Ref to capture exportId when polling starts, preventing race conditions
+	const pollingExportIdRef = useRef<string | null>(null)
 
 	const downloadExport = useCallback(
 		async (id: string, preloadedData?: object) => {
@@ -78,7 +79,6 @@ export function DataExportSettings() {
 				})
 
 				// Reset state
-				setExportId(null)
 				setExportStatus(null)
 				setExportCreatedAt(null)
 			} catch (error) {
@@ -91,13 +91,16 @@ export function DataExportSettings() {
 	)
 
 	// Poll for export status using exponential backoff
-	const { isPolling, startPolling } = useExponentialBackoff(
+	const { isPolling, startPolling, stopPolling } = useExponentialBackoff(
 		useCallback(async () => {
-			if (!exportId) {
+			// Use ref to get the exportId captured when polling started
+			// This prevents race conditions if exportId state changes during polling
+			const currentExportId = pollingExportIdRef.current
+			if (!currentExportId) {
 				throw new Error('Export ID is required for polling')
 			}
 			const response = await api.get<ExportPollResponse>(
-				`/users/me/export/${exportId}`,
+				`/users/me/export/${currentExportId}`,
 				undefined,
 				undefined,
 				'Failed to check export status'
@@ -110,7 +113,7 @@ export function DataExportSettings() {
 				}
 			}
 			return response
-		}, [exportId]),
+		}, []),
 		// Completed when response is the data object (no status property)
 		useCallback((response: ExportPollResponse) => !isExportResponse(response), []),
 		// Failed when response is a status object with FAILED status
@@ -122,14 +125,18 @@ export function DataExportSettings() {
 		useCallback(
 			async (response: ExportPollResponse) => {
 				// When completed, response is the data object
-				// We need the exportId from state since it's not in the completed data
-				if (!exportId) {
+				// Use ref to get the exportId captured when polling started
+				// This prevents race conditions if exportId state changes during polling
+				const currentExportId = pollingExportIdRef.current
+				if (!currentExportId) {
 					throw new Error('Export ID is required for download')
 				}
 				// Pass the completed data directly to avoid redundant API call
-				await downloadExport(exportId, response as object)
+				await downloadExport(currentExportId, response as object)
+				// Clear the ref after completion
+				pollingExportIdRef.current = null
 			},
-			[downloadExport, exportId]
+			[downloadExport]
 		),
 		useCallback(
 			async (response: ExportPollResponse) => {
@@ -141,6 +148,8 @@ export function DataExportSettings() {
 						variant: 'error',
 					})
 				}
+				// Clear the ref after failure
+				pollingExportIdRef.current = null
 			},
 			[addToast]
 		),
@@ -149,6 +158,8 @@ export function DataExportSettings() {
 				handleError(error, 'Failed to check export status', {
 					context: 'DataExportSettings.pollStatus',
 				})
+				// Clear the ref on error
+				pollingExportIdRef.current = null
 			},
 		}
 	)
@@ -156,6 +167,9 @@ export function DataExportSettings() {
 	const handleExport = async () => {
 		setIsLoading(true)
 		try {
+			// Stop any existing polling to prevent race conditions
+			stopPolling()
+
 			// Create export job
 			const response = await api.post<ExportResponse>(
 				'/users/me/export',
@@ -164,7 +178,6 @@ export function DataExportSettings() {
 				'Failed to create export'
 			)
 
-			setExportId(response.exportId)
 			setExportStatus(response.status)
 			if (response.createdAt) {
 				setExportCreatedAt(response.createdAt)
@@ -174,6 +187,9 @@ export function DataExportSettings() {
 				// If already completed (e.g., existing export), download immediately
 				await downloadExport(response.exportId)
 			} else {
+				// Capture exportId in ref before starting polling to prevent race conditions
+				// This ensures callbacks use the correct ID even if state changes
+				pollingExportIdRef.current = response.exportId
 				// Start polling for status
 				startPolling()
 				addToast({
