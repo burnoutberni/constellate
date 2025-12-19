@@ -177,11 +177,11 @@ describe('PrivacySettings Component', () => {
 		expect(toggle).toBeInTheDocument()
 	})
 
-	it('should default isPublicProfile to true when not provided', () => {
+	it('should default isPublicProfile to false when not provided', () => {
 		renderComponent({ autoAcceptFollowers: true })
 
 		const toggle = screen.getByRole('switch', { name: /public profile/i })
-		expect(toggle).toHaveAttribute('aria-checked', 'true')
+		expect(toggle).toHaveAttribute('aria-checked', 'false')
 	})
 
 	it('should display correct descriptions for privacy settings', () => {

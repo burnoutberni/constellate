@@ -27,7 +27,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 
 	// Use optimistic updates if present, otherwise fall back to profile values
 	const autoAcceptFollowers = optimisticUpdates.autoAcceptFollowers ?? profile.autoAcceptFollowers
-	const isPublicProfile = optimisticUpdates.isPublicProfile ?? profile.isPublicProfile ?? true
+	const isPublicProfile = optimisticUpdates.isPublicProfile ?? profile.isPublicProfile ?? false
 
 	const updateProfileMutation = useMutation({
 		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
