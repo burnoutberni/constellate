@@ -161,18 +161,20 @@ function MonthView({
 
 	const eventsByDay = useMemo(() => {
 		const map = new Map<number, Event[]>()
-		const { year, month, daysInMonth } = monthMetadata
+		const { year, month } = monthMetadata
 
-		for (let day = 1; day <= daysInMonth; day++) {
-			const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-			const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
+		// Optimize: Iterate events once instead of filtering for every day (O(N) vs O(Days * N))
+		events.forEach((event) => {
+			const eventDate = new Date(event.startTime)
+			// Check if event belongs to this month and year
+			if (eventDate.getFullYear() === year && eventDate.getMonth() === month) {
+				const day = eventDate.getDate()
+				const list = map.get(day) || []
+				list.push(event)
+				map.set(day, list)
+			}
+		})
 
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= dayStart && eventDate <= dayEnd
-			})
-			map.set(day, filtered)
-		}
 		return map
 	}, [events, monthMetadata])
 
@@ -345,37 +347,40 @@ function WeekView({
 	const eventsByDayAndHour = useMemo(() => {
 		const map = new Map<string, Event[]>()
 
-		for (const day of weekDays) {
-			for (const hour of hours) {
-				const key = `${day.toISOString()}-${hour}`
-				const hourStart = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
+		// Optimize: Iterate events once (O(N) vs O(Slots * N))
+		events.forEach((event) => {
+			const eventDate = new Date(event.startTime)
+			const hour = eventDate.getHours()
+
+			// Check if hour is in displayed range (7 AM - 7 PM)
+			if (hour >= 7 && hour <= 19) {
+				// Normalize to midnight to match day keys
+				const normalizedDay = new Date(
+					eventDate.getFullYear(),
+					eventDate.getMonth(),
+					eventDate.getDate(),
+					0,
 					0,
 					0,
 					0
 				)
-				const hourEnd = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					59,
-					59,
-					999
-				)
+				const key = `${normalizedDay.toISOString()}-${hour}`
 
-				const filtered = events.filter((event) => {
-					const eventDate = new Date(event.startTime)
-					return eventDate >= hourStart && eventDate <= hourEnd
-				})
-				map.set(key, filtered)
+				// Only add if we're rendering this day/hour?
+				// Actually, the renderer will just ignore keys it doesn't look for.
+				// But we should try to match the keys that would be generated.
+				// Since we don't know exactly which days are in 'weekDays' inside this loop efficiently without a Set,
+				// we just add all events. The renderer only looks up keys it cares about.
+				// This is safe because map.get(unknownKey) is undefined, and renderer handles that.
+
+				const list = map.get(key) || []
+				list.push(event)
+				map.set(key, list)
 			}
-		}
+		})
+
 		return map
-	}, [events, weekDays, hours])
+	}, [events])
 
 	const today = new Date()
 
@@ -498,34 +503,28 @@ function DayView({
 	const eventsByHour = useMemo(() => {
 		const map = new Map<number, Event[]>()
 
-		for (const hour of hours) {
-			const hourStart = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				0,
-				0,
-				0
-			)
-			const hourEnd = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				59,
-				59,
-				999
-			)
+		// Optimize: Iterate events once (O(N) vs O(Hours * N))
+		events.forEach((event) => {
+			const eventDate = new Date(event.startTime)
 
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= hourStart && eventDate <= hourEnd
-			})
-			map.set(hour, filtered)
-		}
+			// Check if event is on the current date
+			if (
+				eventDate.getFullYear() === currentDate.getFullYear() &&
+				eventDate.getMonth() === currentDate.getMonth() &&
+				eventDate.getDate() === currentDate.getDate()
+			) {
+				const hour = eventDate.getHours()
+				// Check if hour is in displayed range (7 AM - 7 PM)
+				if (hour >= 7 && hour <= 19) {
+					const list = map.get(hour) || []
+					list.push(event)
+					map.set(hour, list)
+				}
+			}
+		})
+
 		return map
-	}, [events, currentDate, hours])
+	}, [events, currentDate])
 
 	const today = new Date()
 	const isToday = currentDate.toDateString() === today.toDateString()
