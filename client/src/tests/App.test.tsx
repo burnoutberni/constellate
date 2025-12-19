@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import App from '../App'
 import { createTestWrapper, clearQueryClient } from './testUtils'
+import { api } from '../lib/api-client'
 
 // Mock all hooks and dependencies
 const mockAddToast = vi.fn()
@@ -193,6 +194,8 @@ describe('App Routing', () => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
 		sessionStorage.clear()
+		// Ensure API mock resolves immediately
+		vi.mocked(api.get).mockResolvedValue({ setupRequired: false })
 	})
 
 	afterEach(() => {
@@ -203,6 +206,12 @@ describe('App Routing', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/'])
 		render(<App />, { wrapper: testWrapper })
 
+		// Wait for setup check to complete (PageLoader should disappear)
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		// Then wait for the page to render
 		await waitFor(() => {
 			expect(screen.getByTestId('HomePage')).toBeInTheDocument()
 		})
@@ -211,6 +220,11 @@ describe('App Routing', () => {
 	it('should render NotFoundPage for unmatched paths', async () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/nonexistent-page'])
 		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -222,6 +236,11 @@ describe('App Routing', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/random/path/that/does/not/exist'])
 		render(<App />, { wrapper: testWrapper })
 
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
 		})
@@ -230,6 +249,11 @@ describe('App Routing', () => {
 	it('should render NotFoundPage for paths that do not start with /@', async () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/invalid-route'])
 		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -249,6 +273,11 @@ describe('App Routing', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/@username'])
 		render(<App />, { wrapper: testWrapper })
 
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
 		// ProfileOrEventPage should route to UserProfilePage for single-segment @ paths
 		await waitFor(() => {
 			expect(screen.getByTestId('UserProfilePage')).toBeInTheDocument()
@@ -259,6 +288,11 @@ describe('App Routing', () => {
 	it('should route to EventDetailPage for paths starting with /@username/eventId', async () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/@username/event123'])
 		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
 
 		// ProfileOrEventPage should route to EventDetailPage for two-segment @ paths
 		await waitFor(() => {
@@ -280,6 +314,11 @@ describe('App Routing', () => {
 		for (const route of routes) {
 			const { wrapper: testWrapper } = createTestWrapper([route.path])
 			const { unmount } = render(<App />, { wrapper: testWrapper })
+
+			// Wait for setup check to complete
+			await waitFor(() => {
+				expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+			})
 
 			await waitFor(() => {
 				expect(screen.getByTestId(route.testId)).toBeInTheDocument()
