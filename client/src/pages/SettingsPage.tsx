@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@/components/ui'
+import { Card, CardContent, CardHeader, CardTitle, Spinner, Button } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
 
 import { AccountSettings } from '../components/AccountSettings'
+import { DataExportSettings } from '../components/DataExportSettings'
 import { Navbar } from '../components/Navbar'
 import { PrivacySettings } from '../components/PrivacySettings'
 import { ProfileSettings } from '../components/ProfileSettings'
@@ -117,9 +119,44 @@ export function SettingsPage() {
 					<PrivacySettings
 						profile={{
 							autoAcceptFollowers: profile.autoAcceptFollowers ?? true,
+							isPublicProfile: profile.isPublicProfile,
 						}}
 						userId={user?.id}
 					/>
+
+					{/* Moderation & Appeals */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Moderation & Appeals</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium text-text-primary">My Reports</p>
+									<p className="text-sm text-text-secondary">
+										View the status of your content reports.
+									</p>
+								</div>
+								<Link to="/reports">
+									<Button variant="outline">View Reports</Button>
+								</Link>
+							</div>
+							<div className="flex items-center justify-between pt-4 border-t border-border-default">
+								<div>
+									<p className="font-medium text-text-primary">My Appeals</p>
+									<p className="text-sm text-text-secondary">
+										View the status of your moderation appeals.
+									</p>
+								</div>
+								<Link to="/appeals">
+									<Button variant="outline">View Appeals</Button>
+								</Link>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Data Export */}
+					<DataExportSettings />
 
 					{/* Account Settings */}
 					<AccountSettings

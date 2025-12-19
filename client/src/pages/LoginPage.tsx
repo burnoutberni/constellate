@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
 import { Input, Button, Card, CardContent } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
@@ -15,6 +16,7 @@ export function LoginPage() {
 	const [password, setPassword] = useState('')
 	const [name, setName] = useState('')
 	const [username, setUsername] = useState('')
+	const [tosAccepted, setTosAccepted] = useState(false)
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 	const { login, signup } = useAuth()
@@ -23,13 +25,19 @@ export function LoginPage() {
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault()
 		setError('')
+
+		if (!isLogin && !tosAccepted) {
+			setError('You must agree to the Terms of Service and Privacy Policy to continue.')
+			return
+		}
+
 		setLoading(true)
 
 		try {
 			if (isLogin) {
 				await login(email, password)
 			} else {
-				await signup(email, password, name, username)
+				await signup(email, password, name, username, tosAccepted)
 			}
 			navigate('/feed')
 		} catch (err: unknown) {
@@ -107,6 +115,14 @@ export function LoginPage() {
 							required
 							minLength={8}
 						/>
+
+						{!isLogin && (
+							<TermsOfServiceAgreement
+								id="tos-agreement-login-page"
+								checked={tosAccepted}
+								onChange={setTosAccepted}
+							/>
+						)}
 
 						<Button
 							type="submit"

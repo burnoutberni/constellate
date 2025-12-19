@@ -2,7 +2,7 @@
  * Tests for User Profile and Follow/Unfollow functionality
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
 config()
 import { app } from '../server.js'
@@ -42,6 +42,7 @@ describe('Profile API', () => {
 	}
 
 	beforeEach(async () => {
+		await prisma.dataExport.deleteMany({})
 		await prisma.following.deleteMany({})
 		await prisma.follower.deleteMany({})
 		await prisma.event.deleteMany({})
@@ -58,6 +59,7 @@ describe('Profile API', () => {
 				name: 'Alice Test',
 				isRemote: false,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 			},
 		})
 
@@ -68,6 +70,7 @@ describe('Profile API', () => {
 				name: 'Bob Test',
 				isRemote: false,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 			},
 		})
 
@@ -78,11 +81,16 @@ describe('Profile API', () => {
 				isRemote: true,
 				externalActorUrl: 'https://remote.com/users/charlie',
 				inboxUrl: 'https://remote.com/users/charlie/inbox',
+				isPublicProfile: true,
 			},
 		})
 
 		vi.clearAllMocks()
-		mockNoAuth() // Set default unauthenticated state
+		// Don't set default unauthenticated state - let each test set its own auth state
+	})
+
+	afterEach(async () => {
+		vi.restoreAllMocks()
 	})
 
 	describe('GET /users/me/profile', () => {
@@ -160,10 +168,13 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data.id).toBe(otherUser.id)
-			expect(data.username).toBe(otherUser.username)
-			expect(data.isAdmin).toBeUndefined()
-			expect(data.autoAcceptFollowers).toBeUndefined()
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(otherUser.id)
+			expect(data.user.username).toBe(otherUser.username)
+			expect(data.user.isAdmin).toBeUndefined()
+			expect(data.user.autoAcceptFollowers).toBeUndefined()
 		})
 
 		it('returns 404 for non-existent user', async () => {
@@ -174,6 +185,128 @@ describe('Profile API', () => {
 				headers: { 'Content-Type': 'application/json' },
 			})
 			expect(response.status).toBe(404)
+		})
+
+		it('returns minimal data for private profile when viewer is not follower', async () => {
+			// Create a private profile user
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_${Date.now()}`,
+					email: `private_${Date.now()}@test.com`,
+					name: 'Private User',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(testUser)
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.events.length).toBe(0)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.username).toBe(privateUser.username)
+			expect(data.user.name).toBe(privateUser.name)
+			expect(data.user.profileImage).toBeDefined()
+			expect(data.user.createdAt).toBeDefined()
+			expect(typeof data.user.createdAt).toBe('string')
+			expect(data.user.displayColor).toBeDefined()
+			expect(typeof data.user.displayColor).toBe('string')
+			expect(data.user.timezone).toBeUndefined()
+			expect(data.user.bio).toBeNull()
+			expect(data.user.headerImage).toBeNull()
+			expect(data.user._count).toBeDefined()
+			expect(data.user._count.events).toBe(0)
+			expect(data.user._count.followers).toBe(0)
+			expect(data.user._count.following).toBe(0)
+		})
+
+		it('returns full data for private profile when viewer is owner', async () => {
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_owner_${Date.now()}`,
+					email: `private_owner_${Date.now()}@test.com`,
+					name: 'Private Owner',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(privateUser)
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.bio).toBe(privateUser.bio)
+			expect(data.user._count).toBeDefined()
+		})
+
+		it('returns full data for private profile when viewer is accepted follower', async () => {
+			const privateUser = await prisma.user.create({
+				data: {
+					username: `private_follower_${Date.now()}`,
+					email: `private_follower_${Date.now()}@test.com`,
+					name: 'Private Follower',
+					bio: 'Private bio',
+					isRemote: false,
+					isPublicProfile: false,
+				},
+			})
+
+			mockAuth(testUser)
+
+			// Make testUser follow privateUser
+			const targetActorUrl = `${baseUrl}/users/${privateUser.username}`
+			await prisma.following.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: targetActorUrl,
+					username: privateUser.username,
+					inboxUrl: `${baseUrl}/users/${privateUser.username}/inbox`,
+					accepted: true,
+				},
+			})
+			await prisma.follower.create({
+				data: {
+					userId: privateUser.id,
+					actorUrl: `${baseUrl}/users/${testUser.username}`,
+					username: testUser.username,
+					inboxUrl: `${baseUrl}/users/${testUser.username}/inbox`,
+					accepted: true,
+				},
+			})
+
+			const response = await app.request(`/api/users/${privateUser.username}/profile`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.bio).toBe(privateUser.bio)
+			expect(data.user._count).toBeDefined()
 		})
 	})
 
@@ -583,8 +716,361 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data._count.followers).toBe(1)
-			expect(data._count.following).toBe(0)
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(data.user._count.followers).toBe(1)
+			expect(data.user._count.following).toBe(0)
+		})
+	})
+
+	describe('POST /users/me/export', () => {
+		it('creates an export job', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(202)
+
+			const data = (await response.json()) as any
+			expect(data.exportId).toBeDefined()
+			expect(data.status).toBe('PENDING')
+			expect(data.message).toBeDefined()
+			expect(data.createdAt).toBeDefined()
+
+			// Verify job was created in database
+			const exportJob = await prisma.dataExport.findUnique({
+				where: { id: data.exportId },
+			})
+			expect(exportJob).toBeDefined()
+			expect(exportJob?.userId).toBe(testUser.id)
+			expect(exportJob?.status).toBe('PENDING')
+		})
+
+		it('returns existing job if one is already pending', async () => {
+			mockAuth(testUser)
+
+			// Create an existing export job
+			const existingExport = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.exportId).toBe(existingExport.id)
+			expect(data.status).toBe('PENDING')
+			expect(data.createdAt).toBeDefined()
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('GET /users/me/export/:exportId', () => {
+		it('returns export status when pending', async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+
+			const data = (await response.json()) as any
+
+			expect(response.status).toBe(200)
+			expect(data.exportId).toBe(exportJob.id)
+			expect(data.status).toBe('PENDING')
+			expect(data.createdAt).toBeDefined()
+		})
+
+		it('returns export data when completed', async () => {
+			mockAuth(testUser)
+
+			// Create some data to export
+			const testEvent = await prisma.event.create({
+				data: {
+					title: 'Test Event',
+					startTime: new Date(),
+					userId: testUser.id,
+				},
+			})
+
+			const exportData = {
+				_meta: {
+					exportedAt: new Date().toISOString(),
+					version: '1.0',
+				},
+				profile: testUser,
+				events: [testEvent],
+				comments: [],
+				social: { following: [], followers: [] },
+				activity: { attendance: [], likes: [] },
+				moderation: { reportsFiled: [], appeals: [] },
+			}
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'COMPLETED',
+					data: exportData as any,
+					completedAt: new Date(),
+					expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.profile.id).toBe(testUser.id)
+			expect(data.events).toHaveLength(1)
+			expect(data.events[0].title).toBe('Test Event')
+			expect(data._meta).toBeDefined()
+		})
+
+		it('returns 404 for non-existent export', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/users/me/export/non-existent-id', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(404)
+		})
+
+		it("returns 403 when accessing another user's export", async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: otherUser.id,
+					status: 'COMPLETED',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(403)
+		})
+
+		it('returns 410 for expired export', async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'COMPLETED',
+					data: { test: 'data' } as any,
+					completedAt: new Date(),
+					expiresAt: new Date(Date.now() - 1000), // Expired
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(410)
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PENDING',
+				},
+			})
+
+			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('GET /tos/status', () => {
+		it('returns ToS status for user who has not accepted', async () => {
+			mockAuth(testUser)
+
+			// Ensure user has no ToS acceptance
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: { tosAcceptedAt: null, tosVersion: null },
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(false)
+			expect(data.acceptedAt).toBeNull()
+			expect(data.needsAcceptance).toBe(true)
+			expect(data.currentVersion).toBeDefined()
+		})
+
+		it('returns ToS status for user who has accepted current version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: new Date(),
+					tosVersion: config.tosVersion,
+				},
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(true)
+			expect(data.acceptedAt).toBeDefined()
+			expect(data.acceptedVersion).toBe(config.tosVersion)
+			expect(data.currentVersion).toBe(config.tosVersion)
+			expect(data.needsAcceptance).toBe(false)
+		})
+
+		it('returns needsAcceptance true when user has accepted old version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: new Date(),
+					tosVersion: config.tosVersion - 1, // Old version
+				},
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(true)
+			expect(data.acceptedVersion).toBe(config.tosVersion - 1)
+			expect(data.currentVersion).toBe(config.tosVersion)
+			expect(data.needsAcceptance).toBe(true)
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('POST /tos/accept', () => {
+		it('accepts ToS and updates user record', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			// Ensure user has not accepted
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: { tosAcceptedAt: null, tosVersion: null },
+			})
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.success).toBe(true)
+			expect(data.version).toBe(config.tosVersion)
+
+			// Verify user was updated
+			const updatedUser = await prisma.user.findUnique({
+				where: { id: testUser.id },
+				select: { tosAcceptedAt: true, tosVersion: true },
+			})
+			expect(updatedUser?.tosAcceptedAt).toBeDefined()
+			expect(updatedUser?.tosVersion).toBe(config.tosVersion)
+		})
+
+		it('updates ToS acceptance when user has old version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			const oldDate = new Date(Date.now() - 86400000) // Yesterday
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: oldDate,
+					tosVersion: config.tosVersion - 1,
+				},
+			})
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			// Verify user was updated with new version and timestamp
+			const updatedUser = await prisma.user.findUnique({
+				where: { id: testUser.id },
+				select: { tosAcceptedAt: true, tosVersion: true },
+			})
+			expect(updatedUser?.tosVersion).toBe(config.tosVersion)
+			expect(updatedUser?.tosAcceptedAt).toBeDefined()
+			expect(updatedUser?.tosAcceptedAt?.getTime()).toBeGreaterThan(oldDate.getTime())
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
 		})
 	})
 })

@@ -23,6 +23,10 @@ model User {
   emailVerified Boolean @default(false)
   name          String?
 
+  // Legal
+  tosAcceptedAt DateTime?
+  tosVersion    Int? // Version of ToS the user accepted
+
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events
   timezone     String  @default("UTC") // Preferred IANA timezone identifier
@@ -46,6 +50,7 @@ model User {
 
   // Privacy settings
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
+  isPublicProfile     Boolean @default(true) // Profile visibility: true = public, false = private (followers only)
 
   // Relations
   events                 Event[]
@@ -66,10 +71,11 @@ model User {
   reminders              EventReminder[]
 
   // Auth
-  sessions Session[]
-  accounts Account[]
-  apiKeys  ApiKey[]
-  appeals  Appeal[]
+  sessions    Session[]
+  accounts    Account[]
+  apiKeys     ApiKey[]
+  appeals     Appeal[]
+  dataExports DataExport[]
 
   @@index([username])
   @@index([externalActorUrl])
@@ -648,4 +654,43 @@ model Appeal {
 
   @@index([userId])
   @@index([status])
+}
+
+enum DataExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Data export jobs for GDPR compliance
+model DataExport {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User who requested the export
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Job status
+  status DataExportStatus @default(PENDING)
+
+  // Export data (stored as JSON)
+  data Json?
+
+  // Error tracking
+  errorMessage String?
+
+  // Retry management
+  retryCount Int @default(0) // Number of times this job has been retried
+  maxRetries Int @default(3) // Maximum number of retry attempts before giving up
+
+  // Completion tracking
+  completedAt DateTime?
+  expiresAt   DateTime? // Exports expire after 7 days
+
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
 }

@@ -133,3 +133,32 @@ export function getStatusMessage(statusCode: number): string {
 
 	return statusMessages[statusCode] || `Request failed with status ${statusCode}`
 }
+
+/**
+ * Extracts the HTTP status code from an error object
+ *
+ * This utility provides a type-safe way to extract status codes from API errors
+ * thrown by the API client. The API client attaches a `response` property to
+ * Error objects, which contains the Response object with the status code.
+ *
+ * @param error - The error to extract a status code from
+ * @returns The HTTP status code if available, otherwise undefined
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await api.get('/some-endpoint')
+ * } catch (error) {
+ *   const status = getErrorStatus(error)
+ *   if (status === 401) {
+ *     // Handle unauthorized
+ *   }
+ * }
+ * ```
+ */
+export function getErrorStatus(error: unknown): number | undefined {
+	if (isApiError(error) && error.response) {
+		return error.response.status
+	}
+	return undefined
+}

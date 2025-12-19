@@ -206,6 +206,18 @@ app.post('/report', async (c) => {
 	return c.json(report, 201)
 })
 
+// Get my reports
+app.get('/reports/me', async (c) => {
+	const userId = requireAuth(c)
+
+	const reports = await prisma.report.findMany({
+		where: { reporterId: userId },
+		orderBy: { createdAt: 'desc' },
+	})
+
+	return c.json({ reports })
+})
+
 // Get reports (admin only)
 app.get('/reports', async (c) => {
 	await requireAdmin(c)

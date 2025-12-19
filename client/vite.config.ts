@@ -21,6 +21,8 @@ export const getPathAliases = (baseDir?: string) => {
 		'@/hooks': path.resolve(base, './src/hooks'),
 		'@/pages': path.resolve(base, './src/pages'),
 		'@/contexts': path.resolve(base, './src/contexts'),
+		// Server code alias - allows importing shared types from server
+		'@server/*': path.resolve(base, '../src/*'),
 	}
 }
 

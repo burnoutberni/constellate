@@ -13,7 +13,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui'
 
 interface TimeZoneSettingsProps {
 	profile: {
-		timezone: string
+		timezone?: string
 	}
 	userId?: string
 }

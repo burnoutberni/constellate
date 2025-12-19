@@ -33,6 +33,7 @@ export const Default: Story = {
 	args: {
 		profile: {
 			autoAcceptFollowers: false,
+			isPublicProfile: true,
 		},
 		userId: 'user1',
 	},
@@ -42,6 +43,7 @@ export const AutoAcceptEnabled: Story = {
 	args: {
 		profile: {
 			autoAcceptFollowers: true,
+			isPublicProfile: true,
 		},
 		userId: 'user1',
 	},

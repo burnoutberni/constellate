@@ -5,6 +5,7 @@ import { createLogger } from '@/lib/logger'
 
 import { useAuth } from '../hooks/useAuth'
 
+import { TermsOfServiceAgreement } from './TermsOfServiceAgreement'
 import { Modal, Button, Input } from './ui'
 
 const log = createLogger('[SignupModal]')
@@ -22,6 +23,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 	const [password, setPassword] = useState('')
 	const [name, setName] = useState('')
 	const [username, setUsername] = useState('')
+	const [tosAccepted, setTosAccepted] = useState(false)
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 	const { login, signup } = useAuth()
@@ -47,13 +49,19 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault()
 		setError('')
+
+		if (!isLogin && !tosAccepted) {
+			setError('You must agree to the Terms of Service and Privacy Policy to continue.')
+			return
+		}
+
 		setLoading(true)
 
 		try {
 			if (isLogin) {
 				await login(email, password)
 			} else {
-				await signup(email, password, name, username)
+				await signup(email, password, name, username, tosAccepted)
 			}
 			// Close modal and trigger success callback
 			onClose()
@@ -133,6 +141,14 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 						minLength={8}
 						helperText={!isLogin ? 'Must be at least 8 characters' : undefined}
 					/>
+
+					{!isLogin && (
+						<TermsOfServiceAgreement
+							id="tos-agreement"
+							checked={tosAccepted}
+							onChange={setTosAccepted}
+						/>
+					)}
 
 					<Button
 						type="submit"

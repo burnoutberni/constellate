@@ -48,10 +48,12 @@ app.post('/', async (c) => {
 			return c.json({ error: 'Failed to create user' }, 500)
 		}
 
-		// Make user admin
+		// Update user to make admin (username is already set via signUpEmail)
 		await prisma.user.update({
 			where: { id: user.user.id },
-			data: { isAdmin: true },
+			data: {
+				isAdmin: true,
+			},
 		})
 
 		// Generate keys

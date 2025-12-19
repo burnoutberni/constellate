@@ -32,6 +32,8 @@ const mockUser = {
 const mockAuthValue = {
 	user: mockUser,
 	loading: false,
+	tosStatus: null,
+	checkTosStatus: async () => {},
 	login: async () => {},
 	sendMagicLink: async () => {},
 	signup: async () => {},

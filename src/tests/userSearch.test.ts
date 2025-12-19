@@ -8,6 +8,8 @@ import {
 	cacheRemoteUser,
 	getBaseUrl,
 } from '../lib/activitypubHelpers.js'
+import * as eventVisibility from '../lib/eventVisibility.js'
+import * as authModule from '../auth.js'
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -21,6 +23,13 @@ vi.mock('../lib/prisma.js', () => ({
 			findMany: vi.fn(),
 			count: vi.fn(),
 			upsert: vi.fn(),
+		},
+		follower: {
+			count: vi.fn(),
+		},
+		following: {
+			count: vi.fn(),
+			findFirst: vi.fn(),
 		},
 	},
 }))
@@ -36,8 +45,32 @@ vi.mock('../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),
 }))
 
-// Create test app
+vi.mock('../lib/eventVisibility.js', () => ({
+	canUserViewEvent: vi.fn(),
+}))
+
+vi.mock('../auth.js', () => ({
+	auth: {
+		api: {
+			getSession: vi.fn(),
+		},
+	},
+}))
+
+// Create test app with auth middleware
 const app = new Hono()
+
+// Add auth middleware to set userId in context
+app.use('*', async (c, next) => {
+	const session = await authModule.auth.api.getSession({
+		headers: c.req.raw.headers,
+	})
+	if (session) {
+		c.set('userId', session.user.id)
+	}
+	await next()
+})
+
 app.route('/api/user-search', userSearchApp)
 
 // Mock global fetch for remote outbox fetching
@@ -366,6 +399,7 @@ describe('UserSearch API', () => {
 				bio: null,
 				headerImage: null,
 				createdAt: new Date('2024-01-01'),
+				isPublicProfile: true,
 				_count: {
 					followers: 0,
 					following: 0,
@@ -479,6 +513,171 @@ describe('UserSearch API', () => {
 			const body = (await res.json()) as any as any
 			expect(body.user.username).toBe('bob@example.com')
 			expect(body.events).toEqual([])
+		})
+
+		it('should return minimal data for private profile when viewer is not follower', async () => {
+			const privateUser = {
+				...mockLocalUser,
+				bio: 'Private bio',
+				headerImage: 'https://example.com/header.jpg',
+				isPublicProfile: false,
+				externalActorUrl: null,
+				createdAt: new Date('2024-01-01'),
+				_count: {
+					events: 5,
+					followers: 10,
+					following: 3,
+				},
+			}
+
+			const viewerUser = {
+				id: 'viewer_123',
+				username: 'viewer',
+			}
+
+			// Mock unauthenticated (no session)
+			vi.mocked(authModule.auth.api.getSession).mockResolvedValue(null as any)
+			vi.mocked(prisma.user.findFirst).mockResolvedValue(privateUser as any)
+			vi.mocked(prisma.follower.count).mockResolvedValue(10)
+			vi.mocked(prisma.following.count).mockResolvedValue(3)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(5)
+			vi.mocked(prisma.following.findFirst).mockResolvedValue(null) // Not following
+
+			const res = await app.request('/api/user-search/profile/alice')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any as any
+			expect(body.user.id).toBe(privateUser.id)
+			expect(body.user.username).toBe(privateUser.username)
+			expect(body.user.name).toBe(privateUser.name)
+			expect(body.user.profileImage).toBeDefined()
+			expect(body.user.createdAt).toBeDefined()
+			expect(typeof body.user.createdAt).toBe('string')
+			expect(body.user.displayColor).toBeDefined()
+			expect(typeof body.user.displayColor).toBe('string')
+			expect(body.user.timezone).toBeUndefined()
+			expect(body.user.bio).toBeNull()
+			expect(body.user.headerImage).toBeNull()
+			expect(body.user._count).toEqual({
+				events: 0,
+				followers: 0,
+				following: 0,
+			})
+			expect(body.events).toEqual([])
+		})
+
+		it('should return full data for private profile when viewer is the owner', async () => {
+			const privateUser = {
+				...mockLocalUser,
+				bio: 'Private bio',
+				headerImage: 'https://example.com/header.jpg',
+				timezone: 'America/New_York',
+				isPublicProfile: false,
+				externalActorUrl: null,
+				createdAt: new Date('2024-01-01'),
+				_count: {
+					events: 5,
+					followers: 10,
+					following: 3,
+				},
+			}
+
+			// Mock authenticated as the owner
+			vi.mocked(authModule.auth.api.getSession).mockResolvedValue({
+				user: {
+					id: privateUser.id,
+					username: privateUser.username,
+				},
+				session: {
+					userId: privateUser.id,
+				},
+			} as any)
+
+			vi.mocked(prisma.user.findFirst).mockResolvedValue(privateUser as any)
+			vi.mocked(prisma.follower.count).mockResolvedValue(10)
+			vi.mocked(prisma.following.count).mockResolvedValue(3)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(5)
+			vi.mocked(eventVisibility.canUserViewEvent).mockResolvedValue(true)
+
+			const res = await app.request('/api/user-search/profile/alice')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any as any
+			expect(body.user.id).toBe(privateUser.id)
+			expect(body.user.username).toBe(privateUser.username)
+			expect(body.user.bio).toBe(privateUser.bio)
+			expect(body.user.headerImage).toBe(privateUser.headerImage)
+			expect(body.user.timezone).toBe(privateUser.timezone)
+			expect(body.user._count).toBeDefined()
+			expect(body.user._count.events).toBe(5)
+			expect(body.user._count.followers).toBe(10)
+			expect(body.user._count.following).toBe(3)
+		})
+
+		it('should return full data for private profile when viewer is an accepted follower', async () => {
+			const privateUser = {
+				...mockLocalUser,
+				bio: 'Private bio',
+				headerImage: 'https://example.com/header.jpg',
+				timezone: 'America/New_York',
+				isPublicProfile: false,
+				externalActorUrl: null,
+				createdAt: new Date('2024-01-01'),
+				_count: {
+					events: 5,
+					followers: 10,
+					following: 3,
+				},
+			}
+
+			const followerUser = {
+				id: 'follower_123',
+				username: 'follower',
+			}
+
+			const baseUrl = 'http://localhost:3000'
+			const profileActorUrl = `${baseUrl}/users/${privateUser.username}`
+
+			// Mock authenticated as a follower
+			vi.mocked(authModule.auth.api.getSession).mockResolvedValue({
+				user: {
+					id: followerUser.id,
+					username: followerUser.username,
+				},
+				session: {
+					userId: followerUser.id,
+				},
+			} as any)
+
+			vi.mocked(prisma.user.findFirst).mockResolvedValue(privateUser as any)
+			vi.mocked(prisma.follower.count).mockResolvedValue(10)
+			vi.mocked(prisma.following.count).mockResolvedValue(3)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(5)
+			// Mock that the follower is following the private user
+			vi.mocked(prisma.following.findFirst).mockResolvedValue({
+				id: 'follow_123',
+				userId: followerUser.id,
+				actorUrl: profileActorUrl,
+				accepted: true,
+			} as any)
+			vi.mocked(eventVisibility.canUserViewEvent).mockResolvedValue(true)
+
+			const res = await app.request('/api/user-search/profile/alice')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any as any
+			expect(body.user.id).toBe(privateUser.id)
+			expect(body.user.username).toBe(privateUser.username)
+			expect(body.user.bio).toBe(privateUser.bio)
+			expect(body.user.headerImage).toBe(privateUser.headerImage)
+			expect(body.user.timezone).toBe(privateUser.timezone)
+			expect(body.user._count).toBeDefined()
+			expect(body.user._count.events).toBe(5)
+			expect(body.user._count.followers).toBe(10)
+			expect(body.user._count.following).toBe(3)
 		})
 
 		it('should handle invalid outbox response', async () => {

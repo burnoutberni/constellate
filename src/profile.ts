@@ -11,8 +11,10 @@ import {
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { config } from './config.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
+import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
@@ -45,6 +47,7 @@ const ProfileUpdateSchema = z.object({
 			message: 'Header image URL is not safe (SSRF protection)',
 		}),
 	autoAcceptFollowers: z.boolean().optional(),
+	isPublicProfile: z.boolean().optional(),
 	timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
 })
 
@@ -69,6 +72,7 @@ app.get('/users/me/profile', async (c) => {
 				externalActorUrl: true,
 				isAdmin: true,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
 				_count: {
@@ -191,6 +195,124 @@ app.get('/users/me/reminders', async (c) => {
 	}
 })
 
+// Request user data export (GDPR) - creates an async job
+app.post('/users/me/export', async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		// Check if user already has a pending or processing export
+		const existingExport = await prisma.dataExport.findFirst({
+			where: {
+				userId,
+				status: {
+					in: ['PENDING', 'PROCESSING'],
+				},
+			},
+			orderBy: { createdAt: 'desc' },
+		})
+
+		if (existingExport) {
+			return c.json(
+				{
+					exportId: existingExport.id,
+					status: existingExport.status,
+					message: 'Export already in progress',
+					createdAt: existingExport.createdAt.toISOString(),
+				},
+				200
+			)
+		}
+
+		// Create a new export job
+		const dataExport = await prisma.dataExport.create({
+			data: {
+				userId,
+				status: 'PENDING',
+			},
+		})
+
+		return c.json(
+			{
+				exportId: dataExport.id,
+				status: dataExport.status,
+				message: 'Export job created. You will be notified when it is ready.',
+				createdAt: dataExport.createdAt.toISOString(),
+			},
+			202
+		)
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error creating export job:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get export status and download
+app.get('/users/me/export/:exportId', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const { exportId } = c.req.param()
+
+		const dataExport = await prisma.dataExport.findUnique({
+			where: { id: exportId },
+		})
+
+		if (!dataExport) {
+			return c.json({ error: 'Export not found' }, 404)
+		}
+
+		// Verify the export belongs to the requesting user
+		if (dataExport.userId !== userId) {
+			return c.json({ error: 'Unauthorized' }, 403)
+		}
+
+		// Check if export has expired
+		if (dataExport.expiresAt && dataExport.expiresAt < new Date()) {
+			return c.json({ error: 'Export has expired' }, 410)
+		}
+
+		// Return status if not completed
+		if (dataExport.status !== 'COMPLETED') {
+			return c.json({
+				exportId: dataExport.id,
+				status: dataExport.status,
+				createdAt: dataExport.createdAt?.toISOString() || null,
+				updatedAt: dataExport.updatedAt?.toISOString() || null,
+				errorMessage: dataExport.errorMessage,
+			})
+		}
+
+		// Return the export data
+		if (!dataExport.data) {
+			return c.json({ error: 'Export data not available' }, 500)
+		}
+
+		return c.json(dataExport.data)
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error getting export:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Helper function to filter events by visibility
+async function filterEventsByVisibility<
+	T extends Awaited<ReturnType<typeof prisma.event.findMany>>,
+>(events: T, currentUserId: string | undefined): Promise<T> {
+	const { canUserViewEvent } = await import('./lib/eventVisibility.js')
+	const filtered = await Promise.all(
+		events.map(async (event) => {
+			const canView = await canUserViewEvent(event, currentUserId)
+			return canView ? event : null
+		})
+	)
+	return filtered.filter((event): event is T[number] => event !== null) as T
+}
+
 // Get profile
 app.get('/users/:username/profile', async (c) => {
 	try {
@@ -211,11 +333,14 @@ app.get('/users/:username/profile', async (c) => {
 				externalActorUrl: true,
 				isAdmin: true,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
 				_count: {
 					select: {
 						events: true,
+						followers: true,
+						following: true,
 					},
 				},
 			},
@@ -223,6 +348,43 @@ app.get('/users/:username/profile', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Check if profile is private and viewer doesn't have access
+		const isOwnProfile = currentUserId === user.id
+		const canViewFullProfile =
+			isOwnProfile ||
+			(await canViewPrivateProfile({
+				viewerId: currentUserId,
+				profileUserId: user.id,
+				profileIsRemote: user.isRemote,
+				profileExternalActorUrl: user.externalActorUrl,
+				profileUsername: user.username,
+				profileIsPublic: user.isPublicProfile,
+			}))
+
+		// If private profile and viewer can't see it, return minimal data with consistent structure
+		if (!user.isPublicProfile && !canViewFullProfile) {
+			return c.json({
+				user: {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					profileImage: user.profileImage,
+					isRemote: user.isRemote,
+					isPublicProfile: false,
+					createdAt: user.createdAt.toISOString(),
+					displayColor: user.displayColor || '#3b82f6',
+					bio: null,
+					headerImage: null,
+					_count: {
+						events: 0,
+						followers: 0,
+						following: 0,
+					},
+				},
+				events: [],
+			})
 		}
 
 		// Calculate actual follower/following counts (only accepted)
@@ -247,18 +409,64 @@ app.get('/users/:username/profile', async (c) => {
 			})
 		}
 
-		// Only return sensitive fields if user is viewing their own profile
-		const isOwnProfile = currentUserId === user.id
-
-		return c.json({
+		// Override _count with actual counts
+		const userWithCounts = {
 			...user,
 			isAdmin: isOwnProfile ? user.isAdmin : undefined,
 			autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
 			_count: {
-				...user._count,
+				events: user._count?.events || 0,
 				followers: followerCount,
 				following: followingCount,
 			},
+		}
+
+		// Get user's events - filter by visibility
+		let events = await prisma.event.findMany({
+			where: user.isRemote
+				? { attributedTo: user.externalActorUrl || undefined }
+				: { userId: user.id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						name: true,
+						displayColor: true,
+						profileImage: true,
+					},
+				},
+				_count: {
+					select: {
+						attendance: true,
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+			orderBy: { startTime: 'desc' },
+			take: 50,
+		})
+
+		// Filter events by visibility - only show events the viewer can see
+		events = await filterEventsByVisibility(events, currentUserId)
+
+		// Manually count events for proper display
+		const eventCount = user.isRemote
+			? await prisma.event.count({
+					where: { attributedTo: user.externalActorUrl || undefined },
+				})
+			: await prisma.event.count({ where: { userId: user.id } })
+
+		return c.json({
+			user: {
+				...userWithCounts,
+				_count: {
+					...userWithCounts._count,
+					events: eventCount,
+				},
+			},
+			events,
 		})
 	} catch (error) {
 		console.error('Error getting profile:', error)
@@ -823,6 +1031,71 @@ app.post('/followers/:followerId/reject', moderateRateLimit, async (c) => {
 		return c.json({ success: true, message: 'Follower rejected' })
 	} catch (error) {
 		console.error('Error rejecting follower:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get current ToS version (public endpoint)
+app.get('/tos/version', async (c) => {
+	return c.json({ version: config.tosVersion })
+})
+
+// Get user's ToS acceptance status
+app.get('/tos/status', async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { tosAcceptedAt: true, tosVersion: true },
+		})
+
+		if (!user) {
+			return c.json({ error: 'User not found' }, 404)
+		}
+
+		const isAccepted = !!user.tosAcceptedAt
+		const isCurrentVersion = user.tosVersion === config.tosVersion
+
+		return c.json({
+			accepted: isAccepted,
+			acceptedAt: user.tosAcceptedAt,
+			acceptedVersion: user.tosVersion,
+			currentVersion: config.tosVersion,
+			needsAcceptance: !isAccepted || !isCurrentVersion,
+		})
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error getting ToS status:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Accept ToS
+app.post('/tos/accept', moderateRateLimit, async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		await prisma.user.update({
+			where: { id: userId },
+			data: {
+				tosAcceptedAt: new Date(),
+				tosVersion: config.tosVersion,
+			},
+		})
+
+		return c.json({
+			success: true,
+			message: 'Terms of Service accepted',
+			version: config.tosVersion,
+		})
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error accepting ToS:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

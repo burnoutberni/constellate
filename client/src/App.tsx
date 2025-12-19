@@ -1,13 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { MentionNotifications } from './components/MentionNotifications'
 import { Toasts } from './components/Toast'
+import { TosAcceptanceModal } from './components/TosAcceptanceModal'
 import { PageLoader } from './components/ui'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
+import { useAuth } from './hooks/useAuth'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
@@ -16,6 +18,7 @@ import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
+import { AppealsPage } from './pages/AppealsPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { DiscoverPage } from './pages/DiscoverPage'
 import { EditEventPage } from './pages/EditEventPage'
@@ -31,10 +34,13 @@ import { PendingFollowersPage } from './pages/PendingFollowersPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
 import { RemindersPage } from './pages/RemindersPage'
+import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { TermsOfServicePage } from './pages/TermsOfServicePage'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
+
+const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
 
 function AppContent() {
 	// Global SSE connection
@@ -43,6 +49,15 @@ function AppContent() {
 	const location = useLocation()
 	const [checkingSetup, setCheckingSetup] = useState(true)
 	const addToast = useUIStore((state) => state.addToast)
+	const { user, loading: authLoading, tosStatus } = useAuth()
+
+	// Determine if ToS acceptance is needed
+	// Only show modal if user is authenticated, ToS status indicates acceptance is needed,
+	// and we're not on a public page
+	const needsTosAcceptance = useMemo(() => {
+		const isPublicPath = publicPaths.some((path) => location.pathname.startsWith(path))
+		return !authLoading && user !== null && tosStatus?.needsAcceptance === true && !isPublicPath
+	}, [authLoading, user, tosStatus, location.pathname])
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
@@ -114,6 +129,8 @@ function AppContent() {
 				<Route path="/onboarding" element={<OnboardingPage />} />
 				<Route path="/" element={<HomePage />} />
 				<Route path="/about" element={<AboutPage />} />
+				<Route path="/appeals" element={<AppealsPage />} />
+				<Route path="/reports" element={<ReportsPage />} />
 				<Route path="/moderation" element={<ModerationPracticesPage />} />
 				<Route path="/terms" element={<TermsOfServicePage />} />
 				<Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -134,6 +151,7 @@ function AppContent() {
 			</Routes>
 			<MentionNotifications />
 			<Toasts />
+			<TosAcceptanceModal isOpen={needsTosAcceptance} />
 		</ErrorBoundary>
 	)
 }

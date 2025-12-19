@@ -10,6 +10,7 @@ import {
 	createOrderedCollection,
 	createOrderedCollectionPage,
 } from './lib/activitypubHelpers.js'
+import { canViewPrivateProfile } from './lib/privacy.js'
 import { verifySignature } from './lib/httpSignature.js'
 import { ActivitySchema, PersonSchema, EventSchema } from './lib/activitypubSchemas.js'
 import {
@@ -142,22 +143,8 @@ app.get('/users/:username', async (c) => {
 
 		// Generate keys if user doesn't have them
 		if (!user.publicKey || !user.privateKey) {
-			const { generateKeyPairSync } = await import('crypto')
-			const { encryptPrivateKey } = await import('./lib/encryption.js')
-			const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-				modulusLength: 2048,
-				publicKeyEncoding: {
-					type: 'spki',
-					format: 'pem',
-				},
-				privateKeyEncoding: {
-					type: 'pkcs8',
-					format: 'pem',
-				},
-			})
-
-			// Encrypt private key before storing
-			const encryptedPrivateKey = encryptPrivateKey(privateKey)
+			const { generateAndEncryptRSAKeys } = await import('./auth.js')
+			const { publicKey, encryptedPrivateKey } = await generateAndEncryptRSAKeys()
 
 			await prisma.user.update({
 				where: { id: user.id },
@@ -229,13 +216,38 @@ app.get('/users/:username/followers', async (c) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username, isRemote: false },
+			select: {
+				id: true,
+				username: true,
+				isRemote: true,
+				externalActorUrl: true,
+				isPublicProfile: true,
+			},
 		})
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
 
+		// Check privacy - get viewer actor URL from request headers if available
+		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
+		const canView = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
+
 		const collectionUrl = `${baseUrl}/users/${username}/followers`
+
+		if (!canView) {
+			// Return empty collection for private profiles
+			return c.json(createOrderedCollection(collectionUrl, [], 0), 200, {
+				'Content-Type': ContentType.ACTIVITY_JSON,
+			})
+		}
 
 		if (!page) {
 			// Return collection
@@ -293,13 +305,38 @@ app.get('/users/:username/following', async (c) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username, isRemote: false },
+			select: {
+				id: true,
+				username: true,
+				isRemote: true,
+				externalActorUrl: true,
+				isPublicProfile: true,
+			},
 		})
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
 
+		// Check privacy - get viewer actor URL from request headers if available
+		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
+		const canView = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
+
 		const collectionUrl = `${baseUrl}/users/${username}/following`
+
+		if (!canView) {
+			// Return empty collection for private profiles
+			return c.json(createOrderedCollection(collectionUrl, [], 0), 200, {
+				'Content-Type': ContentType.ACTIVITY_JSON,
+			})
+		}
 
 		if (!page) {
 			// Return collection
@@ -357,18 +394,43 @@ app.get('/users/:username/outbox', async (c) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username, isRemote: false },
+			select: {
+				id: true,
+				username: true,
+				isRemote: true,
+				externalActorUrl: true,
+				isPublicProfile: true,
+			},
 		})
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
 
+		// Check privacy - get viewer actor URL from request headers if available
+		const viewerActorUrl = c.req.header('X-Actor-Url') || undefined
+		const canViewAll = await canViewPrivateProfile({
+			viewerActorUrl,
+			profileUserId: user.id,
+			profileIsRemote: user.isRemote,
+			profileExternalActorUrl: user.externalActorUrl,
+			profileUsername: user.username,
+			profileIsPublic: user.isPublicProfile,
+		})
+
 		const collectionUrl = `${baseUrl}/users/${username}/outbox`
+
+		// Build event filter based on privacy
+		const eventWhere: { userId: string; visibility?: 'PUBLIC' } = { userId: user.id }
+		if (!canViewAll) {
+			// For private profiles, only show PUBLIC events to non-followers
+			eventWhere.visibility = 'PUBLIC'
+		}
 
 		if (!page) {
 			// Return collection
 			const totalEvents = await prisma.event.count({
-				where: { userId: user.id },
+				where: eventWhere,
 			})
 
 			return c.json(createOrderedCollection(collectionUrl, [], totalEvents), 200, {
@@ -382,7 +444,7 @@ app.get('/users/:username/outbox', async (c) => {
 		const skip = (pageNum - 1) * limit
 
 		const events = await prisma.event.findMany({
-			where: { userId: user.id },
+			where: eventWhere,
 			skip,
 			take: limit,
 			orderBy: { createdAt: 'desc' },

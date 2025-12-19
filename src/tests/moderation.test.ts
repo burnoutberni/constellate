@@ -813,6 +813,80 @@ describe('Moderation API', () => {
 		})
 	})
 
+	describe('GET /reports/me', () => {
+		it("should return user's own reports", async () => {
+			const mockReports = [
+				{
+					id: 'report_1',
+					reporterId: 'user_123',
+					reportedUserId: 'user_456',
+					contentUrl: 'event:event_123',
+					reason: 'Inappropriate content',
+					category: 'inappropriate',
+					status: 'pending',
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
+				{
+					id: 'report_2',
+					reporterId: 'user_123',
+					reportedUserId: null,
+					contentUrl: 'comment:comment_123',
+					reason: 'Spam',
+					category: 'spam',
+					status: 'resolved',
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
+			]
+
+			vi.mocked(prisma.report.findMany).mockResolvedValue(mockReports as any)
+
+			const res = await app.request('/api/moderation/reports/me')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as { reports: unknown[] }
+			expect(body.reports).toHaveLength(2)
+			expect(body.reports[0]).toMatchObject({
+				id: 'report_1',
+				reporterId: 'user_123',
+				status: 'pending',
+			})
+			expect(prisma.report.findMany).toHaveBeenCalledWith({
+				where: { reporterId: 'user_123' },
+				orderBy: { createdAt: 'desc' },
+			})
+		})
+
+		it('should return empty array when user has no reports', async () => {
+			vi.mocked(prisma.report.findMany).mockResolvedValue([])
+
+			const res = await app.request('/api/moderation/reports/me')
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as { reports: unknown[] }
+			expect(body.reports).toHaveLength(0)
+		})
+
+		it('should require authentication', async () => {
+			vi.mocked(requireAuth).mockImplementation(() => {
+				throw new Error('Unauthorized')
+			})
+
+			const res = await app.request('/api/moderation/reports/me')
+
+			expect(res.status).toBe(500)
+		})
+
+		it('should handle errors gracefully', async () => {
+			vi.mocked(prisma.report.findMany).mockRejectedValue(new Error('Database error'))
+
+			const res = await app.request('/api/moderation/reports/me')
+
+			expect(res.status).toBe(500)
+		})
+	})
+
 	describe('PUT /reports/:id', () => {
 		it('should update report status (admin only)', async () => {
 			vi.mocked(requireAuth).mockReturnValue('admin_123')

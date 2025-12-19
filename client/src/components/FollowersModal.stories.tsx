@@ -33,6 +33,7 @@ const originalGet = api.get.bind(api)
 				createdAt: new Date().toISOString(),
 				displayColor: '#3b82f6',
 				timezone: 'America/New_York',
+				isPublicProfile: true,
 			},
 			{
 				id: 'user2',
@@ -44,6 +45,7 @@ const originalGet = api.get.bind(api)
 				isRemote: false,
 				createdAt: new Date().toISOString(),
 				timezone: 'America/New_York',
+				isPublicProfile: true,
 			},
 			{
 				id: 'user3',
@@ -55,6 +57,7 @@ const originalGet = api.get.bind(api)
 				createdAt: new Date().toISOString(),
 				displayColor: '#3b82f6',
 				timezone: 'America/New_York',
+				isPublicProfile: true,
 			},
 		]
 		if (url.includes('/followers')) {

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 interface PrivacySettingsProps {
 	profile: {
 		autoAcceptFollowers: boolean
+		isPublicProfile: boolean
 	}
 	userId?: string
 }
@@ -17,37 +18,54 @@ interface PrivacySettingsProps {
 export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
-	// Derive initial state from profile prop
-	const [autoAcceptFollowers, setAutoAcceptFollowers] = useState(profile.autoAcceptFollowers)
 
-	// Update local state when profile changes
-	useEffect(() => {
-		const newValue = profile.autoAcceptFollowers
-		if (autoAcceptFollowers !== newValue) {
-			// Use setTimeout to avoid synchronous setState in effect
-			setTimeout(() => setAutoAcceptFollowers(newValue), 0)
-		}
-	}, [profile.autoAcceptFollowers, autoAcceptFollowers])
+	// Track optimistic updates - only set when user interacts, cleared on mutation completion
+	const [optimisticUpdates, setOptimisticUpdates] = useState<{
+		autoAcceptFollowers?: boolean
+		isPublicProfile?: boolean
+	}>({})
+
+	// Use optimistic updates if present, otherwise fall back to profile values
+	const autoAcceptFollowers = optimisticUpdates.autoAcceptFollowers ?? profile.autoAcceptFollowers
+	const isPublicProfile = optimisticUpdates.isPublicProfile ?? profile.isPublicProfile
 
 	const updateProfileMutation = useMutation({
-		mutationFn: async (data: { autoAcceptFollowers?: boolean }) => {
+		mutationFn: async (data: { autoAcceptFollowers?: boolean; isPublicProfile?: boolean }) => {
 			return api.put('/profile', data, undefined, 'Failed to update privacy settings')
 		},
-		onSuccess: () => {
+		onSettled: () => {
+			// Invalidate and refetch query after mutation completes (success or error)
+			// This ensures the UI always shows the latest server state
 			queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(userId) })
+			// Clear optimistic updates after mutation completes (success or error)
+			// Since only one mutation can be in flight at a time (buttons are disabled while pending),
+			// we can simply clear all optimistic updates
+			setOptimisticUpdates({})
 		},
 	})
 
 	const handleToggleAutoAccept = async () => {
 		const newValue = !autoAcceptFollowers
-		setAutoAcceptFollowers(newValue)
+		// Set optimistic update
+		setOptimisticUpdates((prev) => ({ ...prev, autoAcceptFollowers: newValue }))
 		try {
 			await updateProfileMutation.mutateAsync({ autoAcceptFollowers: newValue })
 		} catch (error) {
-			// Revert on error
-			setAutoAcceptFollowers(!newValue)
 			handleError(error, 'Failed to update privacy setting. Please try again.', {
 				context: 'PrivacySettings.handleToggleAutoAccept',
+			})
+		}
+	}
+
+	const handleTogglePublicProfile = async () => {
+		const newValue = !isPublicProfile
+		// Set optimistic update
+		setOptimisticUpdates((prev) => ({ ...prev, isPublicProfile: newValue }))
+		try {
+			await updateProfileMutation.mutateAsync({ isPublicProfile: newValue })
+		} catch (error) {
+			handleError(error, 'Failed to update privacy setting. Please try again.', {
+				context: 'PrivacySettings.handleTogglePublicProfile',
 			})
 		}
 	}
@@ -59,6 +77,36 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-4">
+					{/* Public Profile toggle */}
+					<div className="flex items-center justify-between py-4 border-b border-border-default">
+						<div className="flex-1 pr-4">
+							<h3 className="font-medium text-text-primary">Public Profile</h3>
+							<p className="text-sm text-text-tertiary mt-1">
+								When enabled, your profile and events are visible to everyone. When
+								disabled, only your followers can see your profile and events list.
+								Public events you create remain discoverable.
+							</p>
+						</div>
+						<Button
+							onClick={handleTogglePublicProfile}
+							disabled={updateProfileMutation.isPending}
+							variant="ghost"
+							className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary ${
+								isPublicProfile
+									? 'bg-primary-600'
+									: 'bg-neutral-200 dark:bg-neutral-700'
+							}`}
+							role="switch"
+							aria-checked={isPublicProfile}
+							aria-label="Public Profile">
+							<span
+								className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+									isPublicProfile ? 'translate-x-6' : 'translate-x-1'
+								}`}
+							/>
+						</Button>
+					</div>
+
 					{/* Auto-accept followers toggle */}
 					<div className="flex items-center justify-between py-4 border-b border-border-default">
 						<div className="flex-1 pr-4">
@@ -86,11 +134,6 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 								}`}
 							/>
 						</Button>
-					</div>
-
-					{/* Additional privacy settings can be added here in the future */}
-					<div className="text-sm text-text-tertiary">
-						More privacy options will be available in future updates.
 					</div>
 				</div>
 			</CardContent>

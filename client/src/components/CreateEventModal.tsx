@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
-import { isApiError } from '@/lib/errorHandling'
+import { getErrorStatus } from '@/lib/errorHandling'
 import { logger } from '@/lib/logger'
 import type { EventVisibility } from '@/types'
 
@@ -521,7 +521,7 @@ export function CreateEventModal({
 				)
 			} catch (err) {
 				// Check if it's an authentication error
-				if (isApiError(err) && err.response?.status === 401) {
+				if (getErrorStatus(err) === 401) {
 					const authError = 'Authentication required. Please sign in.'
 					setError(authError)
 					handleError(err, authError, { context: 'CreateEventModal.handleSubmit' })

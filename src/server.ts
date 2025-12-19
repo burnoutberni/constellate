@@ -28,6 +28,7 @@ import adminRoutes from './admin.js'
 import setupRoutes from './setup.js'
 import recommendationsRoutes from './recommendations.js'
 import instancesRoutes from './instances.js'
+import sitemapRoutes from './sitemap.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -46,6 +47,11 @@ import {
 	stopPopularityUpdater,
 	getIsProcessing as getIsPopularityProcessing,
 } from './services/popularityUpdater.js'
+import {
+	startDataExportProcessor,
+	stopDataExportProcessor,
+	getIsProcessing as getIsExportProcessing,
+} from './services/dataExportProcessor.js'
 
 const app = new OpenAPIHono()
 
@@ -186,57 +192,14 @@ app.get('/', async (c) => {
 })
 
 // Mount routes
-// Auth routes (better-auth) - intercept to generate keys after signup
+// Auth routes (better-auth)
+// Note: ToS validation and post-signup actions (key generation, ToS timestamp) are now
+// handled via better-auth hooks in src/auth.ts. This is more maintainable than
+// intercepting and parsing request/response bodies, as it uses the official hooks API
+// which is less brittle to changes in better-auth's internal structure.
 // Apply strict rate limiting to auth routes (especially POST for signup/login)
 app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
-	const response = await auth.handler(c.req.raw)
-
-	// If this is a signup request, generate keys for the new user
-	if (
-		c.req.method === 'POST' &&
-		(c.req.path.includes('/sign-up') || c.req.path.includes('/signup'))
-	) {
-		// Only proceed if response is successful
-		if (response.ok) {
-			try {
-				const responseClone = response.clone()
-				const data = (await responseClone.json()) as unknown as { user?: { id: string } }
-
-				// Try to get user ID from response
-				const userId =
-					data?.user?.id ||
-					(data as unknown as { data?: { user?: { id: string } } })?.data?.user?.id
-
-				if (userId) {
-					// Query database to get the full user with username
-					const user = await prisma.user.findUnique({
-						where: { id: userId },
-						select: {
-							id: true,
-							username: true,
-							isRemote: true,
-							publicKey: true,
-							privateKey: true,
-						},
-					})
-
-					// Only generate keys if user exists, is local, and doesn't have keys
-					if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
-						// Generate keys in the background (don't block the response)
-						const { generateUserKeys } = await import('./auth.js')
-						generateUserKeys(user.id, user.username).catch((err) => {
-							console.error('Error generating keys after signup:', err)
-						})
-					}
-				}
-			} catch {
-				// If we can't parse the response, that's okay - continue
-				// This might happen if the response isn't JSON or is already consumed
-			}
-		}
-	}
-
-	return response
+	return auth.handler(c.req.raw)
 })
 
 // GET requests to auth routes (no rate limiting needed, just for session checks)
@@ -264,6 +227,7 @@ app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)
 app.route('/api/instances', instancesRoutes)
+app.route('/', sitemapRoutes)
 
 // Serve static frontend files in production
 // This should be after all API routes to ensure they take precedence
@@ -289,7 +253,10 @@ if (process.env.NODE_ENV === 'production') {
 			requestPath.startsWith('/inbox') ||
 			requestPath.startsWith('/outbox') ||
 			requestPath.startsWith('/followers') ||
-			requestPath.startsWith('/following')
+			requestPath.startsWith('/following') ||
+			requestPath === '/sitemap.xml' ||
+			requestPath === '/robots.txt' ||
+			requestPath.startsWith('/sitemap-')
 		) {
 			return c.notFound()
 		}
@@ -370,6 +337,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 	// Start popularity updater background job
 	startPopularityUpdater()
 
+	// Start data export processor background job
+	startDataExportProcessor()
+
 	// Graceful shutdown handler
 	const shutdown = async () => {
 		console.log('🛑 Shutting down gracefully...')
@@ -377,19 +347,20 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 		// Stop accepting new work
 		stopReminderDispatcher()
 		stopPopularityUpdater()
+		stopDataExportProcessor()
 
 		// Wait for current processing cycles to complete (with timeout)
 		const shutdownTimeout = 30000 // 30 seconds
 		const startTime = Date.now()
 
 		while (
-			(getIsProcessing() || getIsPopularityProcessing()) &&
+			(getIsProcessing() || getIsPopularityProcessing() || getIsExportProcessing()) &&
 			Date.now() - startTime < shutdownTimeout
 		) {
 			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
 
-		if (getIsProcessing() || getIsPopularityProcessing()) {
+		if (getIsProcessing() || getIsPopularityProcessing() || getIsExportProcessing()) {
 			console.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
 		} else {
 			console.log('✅ All operations completed')

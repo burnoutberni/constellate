@@ -145,6 +145,11 @@
 					"profileImage": {
 						"type": "string",
 						"nullable": true
+					},
+					"isPublicProfile": {
+						"type": "boolean",
+						"description": "Profile visibility: true = public (visible to everyone), false = private (only visible to followers). Defaults to true.",
+						"default": true
 					}
 				}
 			},
@@ -681,6 +686,18 @@
 					"displayColor": {
 						"type": "string",
 						"pattern": "^#[0-9A-Fa-f]{6}$"
+					},
+					"isPublicProfile": {
+						"type": "boolean",
+						"description": "Set profile visibility: true = public (visible to everyone), false = private (only visible to followers). When private, non-followers will only see username, name, and profile image."
+					},
+					"autoAcceptFollowers": {
+						"type": "boolean",
+						"description": "Automatically accept follow requests. When disabled, manual approval is required."
+					},
+					"timezone": {
+						"type": "string",
+						"description": "IANA timezone identifier (e.g., 'America/New_York')"
 					}
 				}
 			},
@@ -2370,6 +2387,7 @@
 			"get": {
 				"tags": ["Profile"],
 				"summary": "Get user profile",
+				"description": "Returns user profile information with events. For private profiles (isPublicProfile: false), non-followers will only receive minimal data: id, username, name, and profileImage. Full profile data (bio, headerImage, follower/following counts) is only returned to the profile owner or accepted followers. The _count object is always included, with zeros for private profiles when the viewer cannot see full data.",
 				"parameters": [
 					{
 						"name": "username",
@@ -2382,43 +2400,75 @@
 				],
 				"responses": {
 					"200": {
-						"description": "User profile",
+						"description": "User profile with events. For private profiles, non-followers receive minimal data (id, username, name, profileImage, displayColor, isRemote, isPublicProfile, createdAt) with _count set to zeros. Timezone is excluded from minimal responses for privacy.",
 						"content": {
 							"application/json": {
 								"schema": {
 									"type": "object",
 									"properties": {
-										"id": {
-											"type": "string"
-										},
-										"username": {
-											"type": "string"
-										},
-										"name": {
-											"type": "string",
-											"nullable": true
-										},
-										"bio": {
-											"type": "string",
-											"nullable": true
-										},
-										"profileImage": {
-											"type": "string",
-											"nullable": true
-										},
-										"displayColor": {
-											"type": "string",
-											"nullable": true
-										},
-										"_count": {
+										"user": {
 											"type": "object",
 											"properties": {
-												"followers": {
-													"type": "integer"
+												"id": {
+													"type": "string"
 												},
-												"following": {
-													"type": "integer"
+												"username": {
+													"type": "string"
+												},
+												"name": {
+													"type": "string",
+													"nullable": true,
+													"description": "Always included, even for private profiles"
+												},
+												"bio": {
+													"type": "string",
+													"nullable": true,
+													"description": "Only included for public profiles or when viewer is owner/follower"
+												},
+												"profileImage": {
+													"type": "string",
+													"nullable": true,
+													"description": "Always included, even for private profiles"
+												},
+												"headerImage": {
+													"type": "string",
+													"nullable": true,
+													"description": "Only included for public profiles or when viewer is owner/follower"
+												},
+												"displayColor": {
+													"type": "string",
+													"nullable": true,
+													"description": "Always included, even for private profiles"
+												},
+												"isPublicProfile": {
+													"type": "boolean",
+													"description": "Profile visibility setting"
+												},
+												"_count": {
+													"type": "object",
+													"properties": {
+														"events": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														},
+														"followers": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														},
+														"following": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														}
+													},
+													"description": "Always included. For private profiles when viewer cannot see full data, all counts are set to 0."
 												}
+											}
+										},
+										"events": {
+											"type": "array",
+											"description": "Array of user's events, filtered by visibility. Empty array for private profiles when viewer cannot see full data.",
+											"items": {
+												"type": "object"
 											}
 										}
 									}
@@ -2428,6 +2478,229 @@
 					},
 					"404": {
 						"description": "User not found"
+					}
+				}
+			}
+		},
+		"/api/users/me/export": {
+			"post": {
+				"tags": ["Profile"],
+				"summary": "Request data export (GDPR)",
+				"description": "Creates an asynchronous background job to export all user data. The export will be processed in the background and the user will be notified when it's ready.",
+				"responses": {
+					"202": {
+						"description": "Export job created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"exportId": {
+											"type": "string"
+										},
+										"status": {
+											"type": "string",
+											"enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"]
+										},
+										"message": {
+											"type": "string"
+										},
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										}
+									}
+								}
+							}
+						}
+					},
+					"200": {
+						"description": "Existing export job found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"exportId": {
+											"type": "string"
+										},
+										"status": {
+											"type": "string",
+											"enum": ["PENDING", "PROCESSING"]
+										},
+										"message": {
+											"type": "string"
+										},
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			}
+		},
+		"/api/users/me/export/{exportId}": {
+			"get": {
+				"tags": ["Profile"],
+				"summary": "Get export status or download",
+				"description": "Returns the export status if not completed, or the full export data if completed. Exports expire after 7 days.",
+				"parameters": [
+					{
+						"name": "exportId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Export status or data",
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"type": "object",
+											"properties": {
+												"exportId": {
+													"type": "string"
+												},
+												"status": {
+													"type": "string",
+													"enum": ["PENDING", "PROCESSING", "FAILED"]
+												},
+												"createdAt": {
+													"type": "string",
+													"format": "date-time"
+												},
+												"updatedAt": {
+													"type": "string",
+													"format": "date-time"
+												},
+												"errorMessage": {
+													"type": "string",
+													"nullable": true
+												}
+											}
+										},
+										{
+											"type": "object",
+											"description": "Full export data when status is COMPLETED"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"403": {
+						"description": "Forbidden - export belongs to another user"
+					},
+					"404": {
+						"description": "Export not found"
+					},
+					"410": {
+						"description": "Export has expired"
+					}
+				}
+			}
+		},
+		"/api/tos/status": {
+			"get": {
+				"tags": ["Profile"],
+				"summary": "Get Terms of Service acceptance status",
+				"description": "Returns the current user's Terms of Service acceptance status, including whether they need to accept the current version.",
+				"responses": {
+					"200": {
+						"description": "ToS acceptance status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"accepted": {
+											"type": "boolean",
+											"description": "Whether the user has accepted any version of the ToS"
+										},
+										"acceptedAt": {
+											"type": "string",
+											"format": "date-time",
+											"nullable": true,
+											"description": "Timestamp when ToS was accepted"
+										},
+										"acceptedVersion": {
+											"type": "integer",
+											"nullable": true,
+											"description": "Version of ToS that was accepted"
+										},
+										"currentVersion": {
+											"type": "integer",
+											"description": "Current ToS version"
+										},
+										"needsAcceptance": {
+											"type": "boolean",
+											"description": "Whether the user needs to accept the current ToS version"
+										}
+									},
+									"required": ["accepted", "currentVersion", "needsAcceptance"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"404": {
+						"description": "User not found"
+					}
+				}
+			}
+		},
+		"/api/tos/accept": {
+			"post": {
+				"tags": ["Profile"],
+				"summary": "Accept Terms of Service",
+				"description": "Accepts the current version of the Terms of Service for the authenticated user. Updates the user's tosAcceptedAt timestamp and tosVersion.",
+				"responses": {
+					"200": {
+						"description": "ToS accepted successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": {
+											"type": "boolean"
+										},
+										"message": {
+											"type": "string"
+										},
+										"version": {
+											"type": "integer",
+											"description": "Version of ToS that was accepted"
+										}
+									},
+									"required": ["success", "message", "version"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"500": {
+						"description": "Internal server error"
 					}
 				}
 			}
@@ -3219,6 +3492,76 @@
 				"responses": {
 					"201": {
 						"description": "Report created"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			}
+		},
+		"/api/moderation/reports/me": {
+			"get": {
+				"tags": ["Moderation"],
+				"summary": "Get my reports",
+				"description": "Get all reports submitted by the authenticated user",
+				"responses": {
+					"200": {
+						"description": "List of user's reports",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"reports": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"id": {
+														"type": "string"
+													},
+													"createdAt": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"updatedAt": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"reporterId": {
+														"type": "string"
+													},
+													"reportedUserId": {
+														"type": "string",
+														"nullable": true
+													},
+													"contentUrl": {
+														"type": "string",
+														"nullable": true
+													},
+													"reason": {
+														"type": "string"
+													},
+													"category": {
+														"type": "string",
+														"enum": [
+															"spam",
+															"harassment",
+															"inappropriate",
+															"other"
+														]
+													},
+													"status": {
+														"type": "string",
+														"enum": ["pending", "resolved", "dismissed"]
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
 					},
 					"401": {
 						"description": "Unauthorized"

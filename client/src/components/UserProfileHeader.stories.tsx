@@ -35,6 +35,7 @@ const mockUser: UserProfile = {
 	externalActorUrl: null,
 	createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
 	timezone: 'America/New_York',
+	isPublicProfile: true,
 }
 
 export const Default: Story = {
