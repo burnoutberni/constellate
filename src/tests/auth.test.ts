@@ -1,11 +1,11 @@
 /**
  * Tests for Authentication Setup
- * Tests for generateUserKeys and better-auth configuration
+ * Tests for generateAndEncryptRSAKeys, generateUserKeys, processSignupSuccess, and better-auth configuration
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as authModule from '../auth.js'
-import { generateUserKeys, processSignupSuccess } from '../auth.js'
+import { generateUserKeys, processSignupSuccess, generateAndEncryptRSAKeys } from '../auth.js'
 import { prisma } from '../lib/prisma.js'
 import { encryptPrivateKey } from '../lib/encryption.js'
 
@@ -28,6 +28,64 @@ vi.mock('../lib/encryption.js', () => ({
 describe('Authentication Setup', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+	})
+
+	describe('generateAndEncryptRSAKeys', () => {
+		it('should generate RSA key pair with correct parameters', async () => {
+			const mockEncryptedKey = 'encrypted-private-key'
+			vi.mocked(encryptPrivateKey).mockReturnValue(mockEncryptedKey)
+
+			const { publicKey, encryptedPrivateKey } = await generateAndEncryptRSAKeys()
+
+			// Verify public key is in PEM format
+			expect(publicKey).toContain('BEGIN PUBLIC KEY')
+			expect(publicKey).toContain('END PUBLIC KEY')
+
+			// Verify encryption was called with a private key
+			expect(encryptPrivateKey).toHaveBeenCalledTimes(1)
+			const encryptionCall = vi.mocked(encryptPrivateKey).mock.calls[0][0]
+			expect(encryptionCall).toContain('BEGIN PRIVATE KEY')
+			expect(encryptionCall).toContain('END PRIVATE KEY')
+
+			// Verify encrypted key is returned
+			expect(encryptedPrivateKey).toBe(mockEncryptedKey)
+		})
+
+		it('should generate unique keys on each call', async () => {
+			// Mock encryption to return unique values based on the full key
+			let callCount = 0
+			vi.mocked(encryptPrivateKey).mockImplementation((key) => {
+				callCount++
+				return `encrypted-${callCount}-${key.substring(0, 50)}`
+			})
+
+			const result1 = await generateAndEncryptRSAKeys()
+			const result2 = await generateAndEncryptRSAKeys()
+
+			// Keys should be different (very high probability)
+			expect(result1.publicKey).not.toBe(result2.publicKey)
+			// Encrypted keys should also be different (they have different call counts)
+			expect(result1.encryptedPrivateKey).not.toBe(result2.encryptedPrivateKey)
+		})
+
+		it('should handle encryption errors', async () => {
+			vi.mocked(encryptPrivateKey).mockImplementation(() => {
+				throw new Error('Encryption error')
+			})
+
+			await expect(generateAndEncryptRSAKeys()).rejects.toThrow('Encryption error')
+		})
+
+		it('should return both publicKey and encryptedPrivateKey', async () => {
+			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+
+			const result = await generateAndEncryptRSAKeys()
+
+			expect(result).toHaveProperty('publicKey')
+			expect(result).toHaveProperty('encryptedPrivateKey')
+			expect(typeof result.publicKey).toBe('string')
+			expect(typeof result.encryptedPrivateKey).toBe('string')
+		})
 	})
 
 	describe('generateUserKeys', () => {

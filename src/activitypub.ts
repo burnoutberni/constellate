@@ -143,22 +143,8 @@ app.get('/users/:username', async (c) => {
 
 		// Generate keys if user doesn't have them
 		if (!user.publicKey || !user.privateKey) {
-			const { generateKeyPairSync } = await import('crypto')
-			const { encryptPrivateKey } = await import('./lib/encryption.js')
-			const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-				modulusLength: 2048,
-				publicKeyEncoding: {
-					type: 'spki',
-					format: 'pem',
-				},
-				privateKeyEncoding: {
-					type: 'pkcs8',
-					format: 'pem',
-				},
-			})
-
-			// Encrypt private key before storing
-			const encryptedPrivateKey = encryptPrivateKey(privateKey)
+			const { generateAndEncryptRSAKeys } = await import('./auth.js')
+			const { publicKey, encryptedPrivateKey } = await generateAndEncryptRSAKeys()
 
 			await prisma.user.update({
 				where: { id: user.id },

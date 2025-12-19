@@ -24,13 +24,15 @@ function detectDatabaseProvider(): 'postgresql' {
 	return 'postgresql'
 }
 
-// Helper function to generate keys for users
-// If tx is provided, uses the transaction client; otherwise uses the regular prisma client
-export async function generateUserKeys(
-	userId: string,
-	username: string,
-	tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
-) {
+/**
+ * Generate RSA key pair and encrypt the private key.
+ * This is the single source of truth for key generation parameters.
+ * @returns Object with publicKey (PEM) and encryptedPrivateKey
+ */
+export async function generateAndEncryptRSAKeys(): Promise<{
+	publicKey: string
+	encryptedPrivateKey: string
+}> {
 	const { publicKey, privateKey } = await generateKeyPairAsync('rsa', {
 		modulusLength: 2048,
 		publicKeyEncoding: {
@@ -45,6 +47,18 @@ export async function generateUserKeys(
 
 	// Encrypt private key before storing
 	const encryptedPrivateKey = encryptPrivateKey(privateKey)
+
+	return { publicKey, encryptedPrivateKey }
+}
+
+// Helper function to generate keys for users
+// If tx is provided, uses the transaction client; otherwise uses the regular prisma client
+export async function generateUserKeys(
+	userId: string,
+	username: string,
+	tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) {
+	const { publicKey, encryptedPrivateKey } = await generateAndEncryptRSAKeys()
 
 	const client = tx || prisma
 	await client.user.update({
@@ -224,20 +238,7 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				}
 
 				// Generate keys
-				const { publicKey, privateKey } = await generateKeyPairAsync('rsa', {
-					modulusLength: 2048,
-					publicKeyEncoding: {
-						type: 'spki',
-						format: 'pem',
-					},
-					privateKeyEncoding: {
-						type: 'pkcs8',
-						format: 'pem',
-					},
-				})
-
-				// Encrypt private key before storing
-				const encryptedPrivateKey = encryptPrivateKey(privateKey)
+				const { publicKey, encryptedPrivateKey } = await generateAndEncryptRSAKeys()
 
 				updateData.publicKey = publicKey
 				updateData.privateKey = encryptedPrivateKey
