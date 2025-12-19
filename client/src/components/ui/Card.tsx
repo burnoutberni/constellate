@@ -55,23 +55,23 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
 		// Variant styles
 		const variantStyles = {
 			default: [
-				'bg-white dark:bg-neutral-900',
-				'border border-neutral-200 dark:border-neutral-800',
+				'bg-white dark:bg-background-tertiary',
+				'border border-border-default',
 				'shadow-sm',
 			],
-			outlined: ['bg-transparent', 'border-2 border-neutral-200 dark:border-neutral-800'],
+			outlined: ['bg-transparent', 'border-2 border-border-default'],
 			elevated: [
-				'bg-white dark:bg-neutral-900',
-				'border border-neutral-100 dark:border-neutral-800',
+				'bg-white dark:bg-background-tertiary',
+				'border border-border-default',
 				'shadow-md hover:shadow-lg',
 			],
-			flat: ['bg-neutral-50 dark:bg-neutral-800/50', 'border-transparent'],
+			flat: ['bg-neutral-50 dark:bg-background-secondary', 'border-transparent'],
 			interactive: [
-				'bg-white dark:bg-neutral-900',
-				'border border-neutral-200 dark:border-neutral-800',
+				'bg-white dark:bg-background-tertiary',
+				'border border-border-default',
 				'shadow-sm',
 				// Interactive states specifically for this variant
-				'hover:border-primary-200 dark:hover:border-primary-900',
+				'hover:border-primary-200 dark:hover:border-primary-800',
 				'hover:shadow-md hover:shadow-primary-900/5',
 				'active:scale-[0.99]',
 			],
@@ -207,7 +207,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
 		<div
 			ref={ref}
 			className={cn(
-				'flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800',
+				'flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border-default',
 				className
 			)}
 			{...props}>

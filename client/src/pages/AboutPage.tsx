@@ -132,6 +132,47 @@ export function AboutPage() {
 					</div>
 				</section>
 
+				{/* Self-Hosting */}
+				<section>
+					<h2 className="text-3xl font-bold text-text-primary mb-4">
+						Run Your Own Instance
+					</h2>
+					<p className="text-lg text-text-secondary leading-relaxed mb-4">
+						Constellate is designed to be easily self-hosted. You can run your own
+						instance for your community, club, or organization.
+					</p>
+					<div className="grid md:grid-cols-2 gap-6 mt-6">
+						<Card padding="lg">
+							<h3 className="text-xl font-semibold mb-2 text-text-primary">
+								Docker Deployment
+							</h3>
+							<p className="text-text-secondary mb-4">
+								Get up and running in minutes with our official Docker images. Supports
+								PostgreSQL and SQLite.
+							</p>
+							<a
+								href="https://github.com/burnoutberni/constellate#deployment"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-primary-600 hover:underline font-medium">
+								Read the Docs →
+							</a>
+						</Card>
+						<Card padding="lg">
+							<h3 className="text-xl font-semibold mb-2 text-text-primary">
+								WordPress Plugin (Coming Soon)
+							</h3>
+							<p className="text-text-secondary mb-4">
+								Integrate Constellate directly into your existing WordPress site. Turn
+								your blog into a federated event hub.
+							</p>
+							<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+								Roadmap
+							</span>
+						</Card>
+					</div>
+				</section>
+
 				{/* CTA */}
 				<section className="text-center py-8">
 					<Link
