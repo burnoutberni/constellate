@@ -57,7 +57,7 @@ function AppContent() {
 	const needsTosAcceptance = useMemo(() => {
 		const isPublicPath = publicPaths.some((path) => location.pathname.startsWith(path))
 		return !authLoading && user !== null && tosStatus?.needsAcceptance === true && !isPublicPath
-	}, [authLoading, user, tosStatus?.needsAcceptance, location.pathname])
+	}, [authLoading, user, tosStatus, location.pathname])
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
