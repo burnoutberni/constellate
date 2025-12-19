@@ -13,7 +13,6 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
 
 	const handleRetry = () => {
 		resetErrorBoundary?.()
-		navigate(0) // Reload page
 	}
 
 	const handleGoHome = () => {
