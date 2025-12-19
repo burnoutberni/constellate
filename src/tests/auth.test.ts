@@ -173,29 +173,13 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			// Mock generateUserKeys to track if it's called
-			// Since processSignupSuccess calls generateUserKeys directly from the same module,
-			// we need to mock it at the module level before the function is called
-			const originalGenerateUserKeys = authModule.generateUserKeys
-			const generateUserKeysMock = vi.fn().mockResolvedValue(undefined)
-			// Replace the export (this is a workaround for same-module function calls)
-			Object.defineProperty(authModule, 'generateUserKeys', {
-				value: generateUserKeysMock,
-				writable: true,
-				configurable: true,
-			})
-
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
 			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
 
 			await processSignupSuccess(userId)
 
-			// Wait for async key generation (it's called in a fire-and-forget manner)
-			await new Promise((resolve) => setTimeout(resolve, 200))
-
-			// Note: Due to how processSignupSuccess calls generateUserKeys directly,
-			// we verify the behavior indirectly by checking that findUnique was called
-			// to fetch the user (which happens before key generation)
+			// Verify that findUnique was called to fetch the user
 			expect(prisma.user.findUnique).toHaveBeenCalledWith({
 				where: { id: userId },
 				select: {
@@ -207,12 +191,12 @@ describe('Authentication Setup', () => {
 				},
 			})
 
-			// Restore original function
-			Object.defineProperty(authModule, 'generateUserKeys', {
-				value: originalGenerateUserKeys,
-				writable: true,
-				configurable: true,
-			})
+			// Verify that keys were generated (update should be called twice: once for ToS, once for keys)
+			expect(prisma.user.update).toHaveBeenCalledTimes(2)
+			// Second call should be for keys
+			const keyUpdateCall = vi.mocked(prisma.user.update).mock.calls[1]
+			expect(keyUpdateCall[0].data).toHaveProperty('publicKey')
+			expect(keyUpdateCall[0].data).toHaveProperty('privateKey')
 		})
 
 		it('should not generate keys for remote users', async () => {
@@ -230,8 +214,6 @@ describe('Authentication Setup', () => {
 			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
 
 			await processSignupSuccess(userId)
-
-			await new Promise((resolve) => setTimeout(resolve, 50))
 
 			expect(generateUserKeysSpy).not.toHaveBeenCalled()
 			generateUserKeysSpy.mockRestore()
@@ -253,13 +235,11 @@ describe('Authentication Setup', () => {
 
 			await processSignupSuccess(userId)
 
-			await new Promise((resolve) => setTimeout(resolve, 50))
-
 			expect(generateUserKeysSpy).not.toHaveBeenCalled()
 			generateUserKeysSpy.mockRestore()
 		})
 
-		it('should handle key generation errors gracefully', async () => {
+		it('should propagate key generation errors (signup fails if keys cannot be generated)', async () => {
 			const userId = 'user-123'
 			const mockUser = {
 				id: userId,
@@ -269,17 +249,21 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			const generateUserKeysSpy = vi
-				.spyOn(authModule, 'generateUserKeys')
-				.mockRejectedValue(new Error('Key generation failed'))
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// First update (ToS) succeeds, second update (keys) fails
+			vi.mocked(prisma.user.update)
+				.mockResolvedValueOnce({} as any) // ToS update succeeds
+				.mockRejectedValueOnce(new Error('Database error during key generation')) // Key update fails
 
-			// Should not throw even if key generation fails (errors are caught in processSignupSuccess)
-			await expect(processSignupSuccess(userId)).resolves.not.toThrow()
+			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
 
-			await new Promise((resolve) => setTimeout(resolve, 50))
-			generateUserKeysSpy.mockRestore()
+			// Key generation is required - if it fails, signup should fail
+			await expect(processSignupSuccess(userId)).rejects.toThrow(
+				'Database error during key generation'
+			)
+
+			// Verify that both updates were attempted
+			expect(prisma.user.update).toHaveBeenCalledTimes(2)
 		})
 	})
 

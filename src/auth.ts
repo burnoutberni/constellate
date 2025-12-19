@@ -136,13 +136,9 @@ export const auth = betterAuth({
 
 			const userId = newSession.user.id
 
-			// Process post-signup operations in the background without blocking the response
-			// This includes setting ToS timestamp and generating cryptographic keys
-			processSignupSuccess(userId).catch((error) => {
-				// Log error but don't block the successful signup response
-				// The account was created successfully, so we should still return success
-				console.error('[Signup] Error processing post-signup operations:', error)
-			})
+			// Process post-signup operations synchronously
+			// Key generation is required - if it fails, signup fails
+			await processSignupSuccess(userId)
 		}),
 	},
 })
@@ -150,8 +146,9 @@ export const auth = betterAuth({
 /**
  * Process post-signup operations:
  * 1. Update user with ToS acceptance timestamp and version
- * 2. Generate cryptographic keys for ActivityPub (if user is local and doesn't have keys)
+ * 2. Generate cryptographic keys for ActivityPub (required for local users)
  * Exported for testing purposes.
+ * @throws If key generation fails, the error will propagate and cause signup to fail
  */
 export async function processSignupSuccess(userId: string): Promise<void> {
 	// Update user with ToS acceptance timestamp and version
@@ -176,12 +173,10 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 		},
 	})
 
-	// Only generate keys if user exists, is local, and doesn't have keys
+	// Generate keys for local users (required for ActivityPub federation)
+	// If key generation fails, signup will fail
 	if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
-		// Generate keys in the background (don't block the response)
-		generateUserKeys(user.id, user.username).catch((err) => {
-			console.error('Error generating keys after signup:', err)
-		})
+		await generateUserKeys(user.id, user.username)
 	}
 }
 
