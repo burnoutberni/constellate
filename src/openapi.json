@@ -2387,7 +2387,7 @@
 			"get": {
 				"tags": ["Profile"],
 				"summary": "Get user profile",
-				"description": "Returns user profile information. For private profiles (isPublicProfile: false), non-followers will only receive minimal data: id, username, name, and profileImage. Full profile data (bio, headerImage, follower/following counts) is only returned to the profile owner or accepted followers.",
+				"description": "Returns user profile information with events. For private profiles (isPublicProfile: false), non-followers will only receive minimal data: id, username, name, and profileImage. Full profile data (bio, headerImage, follower/following counts) is only returned to the profile owner or accepted followers. The _count object is always included, with zeros for private profiles when the viewer cannot see full data.",
 				"parameters": [
 					{
 						"name": "username",
@@ -2400,60 +2400,76 @@
 				],
 				"responses": {
 					"200": {
-						"description": "User profile. For private profiles, non-followers receive minimal data (id, username, name, profileImage only).",
+						"description": "User profile with events. For private profiles, non-followers receive minimal data (id, username, name, profileImage only) with _count set to zeros.",
 						"content": {
 							"application/json": {
 								"schema": {
 									"type": "object",
 									"properties": {
-										"id": {
-											"type": "string"
-										},
-										"username": {
-											"type": "string"
-										},
-										"name": {
-											"type": "string",
-											"nullable": true,
-											"description": "Always included, even for private profiles"
-										},
-										"bio": {
-											"type": "string",
-											"nullable": true,
-											"description": "Only included for public profiles or when viewer is owner/follower"
-										},
-										"profileImage": {
-											"type": "string",
-											"nullable": true,
-											"description": "Always included, even for private profiles"
-										},
-										"headerImage": {
-											"type": "string",
-											"nullable": true,
-											"description": "Only included for public profiles or when viewer is owner/follower"
-										},
-										"displayColor": {
-											"type": "string",
-											"nullable": true,
-											"description": "Only included for public profiles or when viewer is owner/follower"
-										},
-										"isPublicProfile": {
-											"type": "boolean",
-											"description": "Profile visibility setting"
-										},
-										"_count": {
+										"user": {
 											"type": "object",
 											"properties": {
-												"followers": {
-													"type": "integer",
+												"id": {
+													"type": "string"
+												},
+												"username": {
+													"type": "string"
+												},
+												"name": {
+													"type": "string",
+													"nullable": true,
+													"description": "Always included, even for private profiles"
+												},
+												"bio": {
+													"type": "string",
+													"nullable": true,
 													"description": "Only included for public profiles or when viewer is owner/follower"
 												},
-												"following": {
-													"type": "integer",
+												"profileImage": {
+													"type": "string",
+													"nullable": true,
+													"description": "Always included, even for private profiles"
+												},
+												"headerImage": {
+													"type": "string",
+													"nullable": true,
 													"description": "Only included for public profiles or when viewer is owner/follower"
+												},
+												"displayColor": {
+													"type": "string",
+													"nullable": true,
+													"description": "Only included for public profiles or when viewer is owner/follower"
+												},
+												"isPublicProfile": {
+													"type": "boolean",
+													"description": "Profile visibility setting"
+												},
+												"_count": {
+													"type": "object",
+													"properties": {
+														"events": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														},
+														"followers": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														},
+														"following": {
+															"type": "integer",
+															"description": "Always included, set to 0 for private profiles when viewer cannot see full data"
+														}
+													},
+													"description": "Always included. For private profiles when viewer cannot see full data, all counts are set to 0."
 												}
-											},
-											"description": "Only included for public profiles or when viewer is owner/follower"
+											}
+										},
+										"events": {
+											"type": "array",
+											"description": "Array of user's events, filtered by visibility. Empty array for private profiles when viewer cannot see full data.",
+											"items": {
+												"type": "object"
+											}
 										}
 									}
 								}

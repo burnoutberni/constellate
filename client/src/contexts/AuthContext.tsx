@@ -88,8 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			password,
 			name,
 			username,
-			tosAcceptedAt: tosAccepted ? new Date() : undefined,
-		})
+			// Send boolean flag - server will set the timestamp
+			// Type assertion needed because better-auth types don't include this custom field
+			tosAccepted,
+		} as Parameters<typeof authClient.signUp.email>[0] & { tosAccepted: boolean })
 
 		if (error) {
 			throw error

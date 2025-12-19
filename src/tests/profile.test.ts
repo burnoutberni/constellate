@@ -166,10 +166,13 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data.id).toBe(otherUser.id)
-			expect(data.username).toBe(otherUser.username)
-			expect(data.isAdmin).toBeUndefined()
-			expect(data.autoAcceptFollowers).toBeUndefined()
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(otherUser.id)
+			expect(data.user.username).toBe(otherUser.username)
+			expect(data.user.isAdmin).toBeUndefined()
+			expect(data.user.autoAcceptFollowers).toBeUndefined()
 		})
 
 		it('returns 404 for non-existent user', async () => {
@@ -204,13 +207,20 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data.id).toBe(privateUser.id)
-			expect(data.username).toBe(privateUser.username)
-			expect(data.name).toBe(privateUser.name)
-			expect(data.profileImage).toBeDefined()
-			expect(data.bio).toBeUndefined()
-			expect(data.headerImage).toBeUndefined()
-			expect(data._count).toBeUndefined()
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.events.length).toBe(0)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.username).toBe(privateUser.username)
+			expect(data.user.name).toBe(privateUser.name)
+			expect(data.user.profileImage).toBeDefined()
+			expect(data.user.bio).toBeUndefined()
+			expect(data.user.headerImage).toBeUndefined()
+			expect(data.user._count).toBeDefined()
+			expect(data.user._count.events).toBe(0)
+			expect(data.user._count.followers).toBe(0)
+			expect(data.user._count.following).toBe(0)
 		})
 
 		it('returns full data for private profile when viewer is owner', async () => {
@@ -234,9 +244,12 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data.id).toBe(privateUser.id)
-			expect(data.bio).toBe(privateUser.bio)
-			expect(data._count).toBeDefined()
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.bio).toBe(privateUser.bio)
+			expect(data.user._count).toBeDefined()
 		})
 
 		it('returns full data for private profile when viewer is accepted follower', async () => {
@@ -281,9 +294,12 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data.id).toBe(privateUser.id)
-			expect(data.bio).toBe(privateUser.bio)
-			expect(data._count).toBeDefined()
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(Array.isArray(data.events)).toBe(true)
+			expect(data.user.id).toBe(privateUser.id)
+			expect(data.user.bio).toBe(privateUser.bio)
+			expect(data.user._count).toBeDefined()
 		})
 	})
 
@@ -693,8 +709,10 @@ describe('Profile API', () => {
 			expect(response.status).toBe(200)
 
 			const data = (await response.json()) as any
-			expect(data._count.followers).toBe(1)
-			expect(data._count.following).toBe(0)
+			expect(data.user).toBeDefined()
+			expect(data.events).toBeDefined()
+			expect(data.user._count.followers).toBe(1)
+			expect(data.user._count.following).toBe(0)
 		})
 	})
 

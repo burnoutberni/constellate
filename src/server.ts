@@ -191,54 +191,88 @@ app.get('/', async (c) => {
 	})
 })
 
+// Helper functions for auth route handling
+function isSignupRequest(path: string, method: string): boolean {
+	return method === 'POST' && (path.includes('/sign-up') || path.includes('/signup'))
+}
+
+async function extractTosAccepted(request: Request): Promise<boolean> {
+	try {
+		const clonedRequest = request.clone()
+		const body = (await clonedRequest.json()) as unknown as {
+			tosAccepted?: boolean
+		}
+		return typeof body.tosAccepted === 'boolean' ? body.tosAccepted : false
+	} catch {
+		// If we can't parse the body, that's okay - continue
+		// The request will still be processed by better-auth
+		return false
+	}
+}
+
+async function extractUserIdFromResponse(response: Response): Promise<string | null> {
+	try {
+		const responseClone = response.clone()
+		const data = (await responseClone.json()) as unknown as {
+			user?: { id: string }
+			data?: { user?: { id: string } }
+		}
+
+		return data?.user?.id || data?.data?.user?.id || null
+	} catch {
+		// If we can't parse the response, that's okay - continue
+		// This might happen if the response isn't JSON or is already consumed
+		return null
+	}
+}
+
+async function processSignupSuccess(userId: string, tosAccepted: boolean): Promise<void> {
+	// Update user with ToS acceptance timestamp if tosAccepted was true
+	if (tosAccepted) {
+		await prisma.user.update({
+			where: { id: userId },
+			data: {
+				tosAcceptedAt: new Date(),
+			},
+		})
+	}
+
+	// Query database to get the full user with username
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: {
+			id: true,
+			username: true,
+			isRemote: true,
+			publicKey: true,
+			privateKey: true,
+		},
+	})
+
+	// Only generate keys if user exists, is local, and doesn't have keys
+	if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
+		// Generate keys in the background (don't block the response)
+		const { generateUserKeys } = await import('./auth.js')
+		generateUserKeys(user.id, user.username).catch((err) => {
+			console.error('Error generating keys after signup:', err)
+		})
+	}
+}
+
 // Mount routes
-// Auth routes (better-auth) - intercept to generate keys after signup
+// Auth routes (better-auth) - intercept to generate keys after signup and set ToS timestamp
 // Apply strict rate limiting to auth routes (especially POST for signup/login)
 app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
+	const signupRequest = isSignupRequest(c.req.path, c.req.method)
+	const tosAccepted = signupRequest ? await extractTosAccepted(c.req.raw) : false
+
 	const response = await auth.handler(c.req.raw)
 
-	// If this is a signup request, generate keys for the new user
-	if (
-		c.req.method === 'POST' &&
-		(c.req.path.includes('/sign-up') || c.req.path.includes('/signup'))
-	) {
-		// Only proceed if response is successful
-		if (response.ok) {
-			try {
-				const responseClone = response.clone()
-				const data = (await responseClone.json()) as unknown as { user?: { id: string } }
-
-				// Try to get user ID from response
-				const userId =
-					data?.user?.id ||
-					(data as unknown as { data?: { user?: { id: string } } })?.data?.user?.id
-
-				if (userId) {
-					// Query database to get the full user with username
-					const user = await prisma.user.findUnique({
-						where: { id: userId },
-						select: {
-							id: true,
-							username: true,
-							isRemote: true,
-							publicKey: true,
-							privateKey: true,
-						},
-					})
-
-					// Only generate keys if user exists, is local, and doesn't have keys
-					if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
-						// Generate keys in the background (don't block the response)
-						const { generateUserKeys } = await import('./auth.js')
-						generateUserKeys(user.id, user.username).catch((err) => {
-							console.error('Error generating keys after signup:', err)
-						})
-					}
-				}
-			} catch {
-				// If we can't parse the response, that's okay - continue
-				// This might happen if the response isn't JSON or is already consumed
-			}
+	// If this is a signup request, generate keys for the new user and set ToS timestamp
+	if (signupRequest && response.ok) {
+		const userId = await extractUserIdFromResponse(response)
+		if (userId) {
+			await processSignupSuccess(userId, tosAccepted)
 		}
 	}
 

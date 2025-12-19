@@ -295,6 +295,20 @@ app.get('/users/me/export/:exportId', async (c) => {
 	}
 })
 
+// Helper function to filter events by visibility
+async function filterEventsByVisibility<
+	T extends Awaited<ReturnType<typeof prisma.event.findMany>>,
+>(events: T, currentUserId: string | undefined): Promise<T> {
+	const { canUserViewEvent } = await import('./lib/eventVisibility.js')
+	const filtered = await Promise.all(
+		events.map(async (event) => {
+			const canView = await canUserViewEvent(event, currentUserId)
+			return canView ? event : null
+		})
+	)
+	return filtered.filter((event): event is T[number] => event !== null) as T
+}
+
 // Get profile
 app.get('/users/:username/profile', async (c) => {
 	try {
@@ -321,6 +335,8 @@ app.get('/users/:username/profile', async (c) => {
 				_count: {
 					select: {
 						events: true,
+						followers: true,
+						following: true,
 					},
 				},
 			},
@@ -343,15 +359,23 @@ app.get('/users/:username/profile', async (c) => {
 				profileIsPublic: user.isPublicProfile,
 			}))
 
-		// If private profile and viewer can't see it, return minimal data
+		// If private profile and viewer can't see it, return minimal data with consistent structure
 		if (!user.isPublicProfile && !canViewFullProfile) {
 			return c.json({
-				id: user.id,
-				username: user.username,
-				name: user.name,
-				profileImage: user.profileImage,
-				isRemote: user.isRemote,
-				isPublicProfile: false,
+				user: {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					profileImage: user.profileImage,
+					isRemote: user.isRemote,
+					isPublicProfile: false,
+					_count: {
+						events: 0,
+						followers: 0,
+						following: 0,
+					},
+				},
+				events: [],
 			})
 		}
 
@@ -377,16 +401,64 @@ app.get('/users/:username/profile', async (c) => {
 			})
 		}
 
-		// Only return sensitive fields if user is viewing their own profile
-		return c.json({
+		// Override _count with actual counts
+		const userWithCounts = {
 			...user,
 			isAdmin: isOwnProfile ? user.isAdmin : undefined,
 			autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
 			_count: {
-				...user._count,
+				events: user._count?.events || 0,
 				followers: followerCount,
 				following: followingCount,
 			},
+		}
+
+		// Get user's events - filter by visibility
+		let events = await prisma.event.findMany({
+			where: user.isRemote
+				? { attributedTo: user.externalActorUrl || undefined }
+				: { userId: user.id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						name: true,
+						displayColor: true,
+						profileImage: true,
+					},
+				},
+				_count: {
+					select: {
+						attendance: true,
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+			orderBy: { startTime: 'desc' },
+			take: 50,
+		})
+
+		// Filter events by visibility - only show events the viewer can see
+		events = await filterEventsByVisibility(events, currentUserId)
+
+		// Manually count events for proper display
+		const eventCount = user.isRemote
+			? await prisma.event.count({
+					where: { attributedTo: user.externalActorUrl || undefined },
+				})
+			: await prisma.event.count({ where: { userId: user.id } })
+
+		return c.json({
+			user: {
+				...userWithCounts,
+				_count: {
+					...userWithCounts._count,
+					events: eventCount,
+				},
+			},
+			events,
 		})
 	} catch (error) {
 		console.error('Error getting profile:', error)
