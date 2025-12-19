@@ -117,6 +117,134 @@ async function fetchUserData(userId: string) {
 }
 
 /**
+ * Check if a data export job is stuck in PROCESSING state
+ */
+function isStuckProcessingJob(status: DataExportStatus, updatedAt: Date): boolean {
+	return (
+		status === DataExportStatus.PROCESSING &&
+		updatedAt < new Date(Date.now() - PROCESSING_TIMEOUT_MS)
+	)
+}
+
+/**
+ * Check if export should be processed (PENDING or stuck PROCESSING)
+ */
+function shouldProcessExport(status: DataExportStatus, isStuck: boolean): boolean {
+	return status === DataExportStatus.PENDING || isStuck
+}
+
+/**
+ * Mark export as failed after max retries exceeded
+ */
+async function markExportAsFailedAfterMaxRetries(
+	exportId: string,
+	retryCount: number
+): Promise<void> {
+	try {
+		await prisma.dataExport.update({
+			where: { id: exportId },
+			data: {
+				status: DataExportStatus.FAILED,
+				errorMessage: `Export failed after ${retryCount} retry attempts. The job was stuck in PROCESSING state repeatedly.`,
+			},
+		})
+	} catch (updateError) {
+		console.error(`Failed to mark export ${exportId} as FAILED after max retries:`, updateError)
+	}
+}
+
+/**
+ * Update export status to PROCESSING, incrementing retry count if needed
+ */
+async function markExportAsProcessing(
+	exportId: string,
+	isStuck: boolean,
+	currentRetryCount: number
+): Promise<void> {
+	const updateData: { status: DataExportStatus; retryCount?: number } = {
+		status: DataExportStatus.PROCESSING,
+	}
+	if (isStuck) {
+		updateData.retryCount = currentRetryCount + 1
+	}
+
+	await prisma.dataExport.update({
+		where: { id: exportId },
+		data: updateData,
+	})
+}
+
+/**
+ * Send notifications to user about completed export
+ */
+async function sendExportReadyNotifications(
+	exportId: string,
+	userId: string,
+	userEmail: string | null
+): Promise<void> {
+	const baseUrl = getBaseUrl()
+	const exportUrl = `${baseUrl}/api/users/me/export/${exportId}`
+
+	await createNotification({
+		userId,
+		type: 'SYSTEM',
+		title: 'Data Export Ready',
+		body: 'Your data export is ready for download. It will be available for 7 days.',
+		contextUrl: exportUrl,
+		data: { exportId },
+	})
+
+	if (userEmail) {
+		try {
+			await sendEmail({
+				to: userEmail,
+				subject: 'Your Data Export is Ready',
+				text: `Your data export is ready for download.\n\nDownload: ${exportUrl}\n\nThe export will be available for 7 days.\n\n— Constellate`,
+			})
+		} catch (error) {
+			console.warn('Failed to send export ready email:', error)
+		}
+	}
+}
+
+/**
+ * Mark export as completed with data
+ */
+async function markExportAsCompleted(
+	exportId: string,
+	exportData: Awaited<ReturnType<typeof fetchUserData>>,
+	expiresAt: Date
+): Promise<void> {
+	await prisma.dataExport.update({
+		where: { id: exportId },
+		data: {
+			status: DataExportStatus.COMPLETED,
+			data: exportData as Prisma.InputJsonValue,
+			completedAt: new Date(),
+			expiresAt,
+			retryCount: 0,
+		},
+	})
+}
+
+/**
+ * Mark export as failed with error message
+ */
+async function markExportAsFailed(exportId: string, errorMessage: string): Promise<void> {
+	try {
+		await prisma.dataExport.update({
+			where: { id: exportId },
+			data: {
+				status: DataExportStatus.FAILED,
+				errorMessage,
+			},
+		})
+	} catch (updateError) {
+		console.error(`Failed to mark export ${exportId} as FAILED:`, updateError)
+	}
+}
+
+/**
  * Process a single data export job
  */
 async function processExport(exportId: string) {
@@ -129,99 +257,32 @@ async function processExport(exportId: string) {
 		return
 	}
 
-	// Only process PENDING jobs or stuck PROCESSING jobs
-	// Stuck jobs are those that have been in PROCESSING state for too long
-	const isStuckProcessing =
-		dataExport.status === DataExportStatus.PROCESSING &&
-		dataExport.updatedAt < new Date(Date.now() - PROCESSING_TIMEOUT_MS)
+	const isStuck = isStuckProcessingJob(dataExport.status, dataExport.updatedAt)
 
-	if (dataExport.status !== DataExportStatus.PENDING && !isStuckProcessing) {
+	if (!shouldProcessExport(dataExport.status, isStuck)) {
 		return
 	}
 
-	// Check if we've exceeded max retries for stuck jobs
-	if (isStuckProcessing && dataExport.retryCount >= dataExport.maxRetries) {
-		await prisma.dataExport.update({
-			where: { id: exportId },
-			data: {
-				status: DataExportStatus.FAILED,
-				errorMessage: `Export failed after ${dataExport.retryCount} retry attempts. The job was stuck in PROCESSING state repeatedly.`,
-			},
-		})
+	if (isStuck && dataExport.retryCount >= dataExport.maxRetries) {
+		await markExportAsFailedAfterMaxRetries(exportId, dataExport.retryCount)
 		return
 	}
 
 	try {
-		// Update status to PROCESSING and increment retry count if this is a retry
-		const updateData: { status: DataExportStatus; retryCount?: number } = {
-			status: DataExportStatus.PROCESSING,
-		}
-		if (isStuckProcessing) {
-			updateData.retryCount = dataExport.retryCount + 1
-		}
+		await markExportAsProcessing(exportId, isStuck, dataExport.retryCount)
 
-		await prisma.dataExport.update({
-			where: { id: exportId },
-			data: updateData,
-		})
-
-		// Fetch all user data
 		const exportData = await fetchUserData(dataExport.userId)
 
-		// Calculate expiry date (7 days from now)
 		const expiresAt = new Date()
 		expiresAt.setDate(expiresAt.getDate() + EXPORT_EXPIRY_DAYS)
 
-		// Store the export data and mark as completed
-		// Reset retry count on successful completion
-		await prisma.dataExport.update({
-			where: { id: exportId },
-			data: {
-				status: DataExportStatus.COMPLETED,
-				data: exportData as Prisma.InputJsonValue,
-				completedAt: new Date(),
-				expiresAt,
-				retryCount: 0, // Reset retry count on success
-			},
-		})
+		await markExportAsCompleted(exportId, exportData, expiresAt)
 
-		// Send notification to user
-		const baseUrl = getBaseUrl()
-		const exportUrl = `${baseUrl}/api/users/me/export/${exportId}`
-
-		await createNotification({
-			userId: dataExport.userId,
-			type: 'SYSTEM',
-			title: 'Data Export Ready',
-			body: 'Your data export is ready for download. It will be available for 7 days.',
-			contextUrl: exportUrl,
-			data: { exportId },
-		})
-
-		// Send email notification if user has email
-		if (dataExport.user.email) {
-			try {
-				await sendEmail({
-					to: dataExport.user.email,
-					subject: 'Your Data Export is Ready',
-					text: `Your data export is ready for download.\n\nDownload: ${exportUrl}\n\nThe export will be available for 7 days.\n\n— Constellate`,
-				})
-			} catch (error) {
-				// Email failure is non-critical, just log it
-				console.warn('Failed to send export ready email:', error)
-			}
-		}
+		await sendExportReadyNotifications(exportId, dataExport.userId, dataExport.user.email)
 	} catch (error) {
 		console.error(`Error processing export ${exportId}:`, error)
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-		await prisma.dataExport.update({
-			where: { id: exportId },
-			data: {
-				status: DataExportStatus.FAILED,
-				errorMessage,
-			},
-		})
+		await markExportAsFailed(exportId, errorMessage)
 	}
 }
 

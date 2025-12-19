@@ -272,7 +272,13 @@ app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
 	if (signupRequest && response.ok) {
 		const userId = await extractUserIdFromResponse(response)
 		if (userId) {
-			await processSignupSuccess(userId, tosAccepted)
+			try {
+				await processSignupSuccess(userId, tosAccepted)
+			} catch (error) {
+				// Log error but don't block the successful signup response
+				// The account was created successfully, so we should still return success
+				console.error('[Signup] Error processing post-signup operations:', error)
+			}
 		}
 	}
 
