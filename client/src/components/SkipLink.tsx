@@ -31,19 +31,10 @@ export function SkipLink() {
 				blurHandlerRef.current = null
 			}
 
-			// Shared cleanup function
-			const cleanup = () => {
-				if (main) {
-					main.removeEventListener('blur', handleBlur)
-					main.removeAttribute('tabindex')
-				}
-				blurHandlerRef.current = null
-			}
-
 			main.tabIndex = -1
 			main.focus()
 			main.addEventListener('blur', handleBlur)
-			blurHandlerRef.current = cleanup
+			blurHandlerRef.current = handleBlur
 		}
 	}
 

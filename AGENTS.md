@@ -2,7 +2,7 @@
 
 ## Commands
 
-- **Run Tests:** `npm test` (all tests) | `npm run test:watch` (with coverage and watch) | `npm run test:coverage` (with coverage). Single: `vitest run src/path/to/test.ts` (server) or `vitest run client/src/path/to/test.ts` (client)
+- **Run Tests:** `npm test` (all tests) | `npm run test:watch` (with coverage and watch) | `npm run test:coverage` (with coverage). Single: `npm test -- src/path/to/test.ts` (server) or `cd client && npm test -- src/path/to/test.ts` (client)
 - **Check:** `npm run check` (lint, typecheck, knip for server & client) | **Check:Server:** `npm run check:server` | **Check:Client:** `npm run check:client`
 - **Lint:** `npm run lint` (for both) | `npm run lint:server` | `npm run lint:client`
 - **Typecheck:** `npm run typecheck` (for both) | `npm run typecheck:server` | `npm run typecheck:client`
