@@ -12,7 +12,7 @@ import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
-import { moderateRateLimit } from './middleware/rateLimit.js'
+import { moderateRateLimit, strictRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -53,7 +53,7 @@ const ProfileUpdateSchema = z.object({
 
 // Get current user's own profile (includes admin status)
 // This must come BEFORE /users/:username/profile to avoid route conflicts
-app.get('/users/me/profile', async (c) => {
+app.get('/users/me/profile', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
@@ -126,7 +126,7 @@ app.get('/users/me/profile', async (c) => {
 })
 
 // Get current user's reminders
-app.get('/users/me/reminders', async (c) => {
+app.get('/users/me/reminders', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
@@ -196,7 +196,7 @@ app.get('/users/me/reminders', async (c) => {
 })
 
 // Request user data export (GDPR) - creates an async job
-app.post('/users/me/export', async (c) => {
+app.post('/users/me/export', strictRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
@@ -250,7 +250,7 @@ app.post('/users/me/export', async (c) => {
 })
 
 // Get export status and download
-app.get('/users/me/export/:exportId', async (c) => {
+app.get('/users/me/export/:exportId', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 		const { exportId } = c.req.param()
@@ -314,7 +314,7 @@ async function filterEventsByVisibility<
 }
 
 // Get profile
-app.get('/users/:username/profile', async (c) => {
+app.get('/users/:username/profile', moderateRateLimit, async (c) => {
 	try {
 		const { username } = c.req.param()
 		const currentUserId = c.get('userId') // Get current user from auth middleware
@@ -870,7 +870,7 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 })
 
 // Get pending followers
-app.get('/followers/pending', async (c) => {
+app.get('/followers/pending', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
@@ -1041,7 +1041,7 @@ app.get('/tos/version', async (c) => {
 })
 
 // Get user's ToS acceptance status
-app.get('/tos/status', async (c) => {
+app.get('/tos/status', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 

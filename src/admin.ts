@@ -11,6 +11,7 @@ import { Prisma, FailedDeliveryStatus } from '@prisma/client'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
 import { handleError } from './lib/errors.js'
+import { moderateRateLimit, strictRateLimit } from './middleware/rateLimit.js'
 
 const app = new Hono()
 
@@ -68,7 +69,7 @@ const CreateApiKeySchema = z.object({
 })
 
 // List users (admin only)
-app.get('/users', async (c) => {
+app.get('/users', moderateRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -168,7 +169,7 @@ app.get('/users', async (c) => {
 })
 
 // Get user by ID (admin only)
-app.get('/users/:id', async (c) => {
+app.get('/users/:id', moderateRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -212,7 +213,7 @@ app.get('/users/:id', async (c) => {
 })
 
 // Create user (admin only)
-app.post('/users', async (c) => {
+app.post('/users', strictRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -322,7 +323,7 @@ app.post('/users', async (c) => {
 })
 
 // Update user (admin only)
-app.put('/users/:id', async (c) => {
+app.put('/users/:id', strictRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -426,7 +427,7 @@ function buildAdminUserSelect() {
 }
 
 // Delete user (admin only)
-app.delete('/users/:id', async (c) => {
+app.delete('/users/:id', strictRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -459,7 +460,7 @@ app.delete('/users/:id', async (c) => {
 })
 
 // List API keys (admin only)
-app.get('/api-keys', async (c) => {
+app.get('/api-keys', moderateRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -528,7 +529,7 @@ app.get('/api-keys', async (c) => {
 })
 
 // Create API key (admin only)
-app.post('/api-keys', async (c) => {
+app.post('/api-keys', strictRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -618,7 +619,7 @@ app.post('/api-keys', async (c) => {
 })
 
 // Delete API key (admin only)
-app.delete('/api-keys/:id', async (c) => {
+app.delete('/api-keys/:id', strictRateLimit, async (c) => {
 	try {
 		await requireAdmin(c)
 
@@ -672,7 +673,7 @@ const FailedDeliveryQuerySchema = z.object({
 })
 
 // Get failed deliveries
-app.get('/failed-deliveries', requireAdmin, async (c) => {
+app.get('/failed-deliveries', moderateRateLimit, requireAdmin, async (c) => {
 	try {
 		const query = FailedDeliveryQuerySchema.parse({
 			page: c.req.query('page'),
@@ -763,7 +764,7 @@ function getDomainStats(recentDeliveries: { inboxUrl: string; status: FailedDeli
 }
 
 // Get federation statistics
-app.get('/federation-stats', requireAdmin, async (c) => {
+app.get('/federation-stats', moderateRateLimit, requireAdmin, async (c) => {
 	try {
 		const [pendingCount, retryingCount, failedCount, discardedCount, recentDeliveries] =
 			await Promise.all([
@@ -803,7 +804,7 @@ app.get('/federation-stats', requireAdmin, async (c) => {
 })
 
 // Retry a failed delivery
-app.post('/failed-deliveries/:id/retry', requireAdmin, async (c) => {
+app.post('/failed-deliveries/:id/retry', strictRateLimit, requireAdmin, async (c) => {
 	try {
 		const { id } = c.req.param()
 		const { retryFailedDelivery } = await import('./services/ActivityDelivery.js')
@@ -817,7 +818,7 @@ app.post('/failed-deliveries/:id/retry', requireAdmin, async (c) => {
 })
 
 // Discard a failed delivery
-app.post('/failed-deliveries/:id/discard', requireAdmin, async (c) => {
+app.post('/failed-deliveries/:id/discard', strictRateLimit, requireAdmin, async (c) => {
 	try {
 		const { id } = c.req.param()
 		const userId = c.get('userId')
