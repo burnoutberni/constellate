@@ -115,16 +115,22 @@ function ProfileOrEventRouter() {
 		return <NotFoundPage />
 	}
 
-	// Extract path parts
+	// Extract path parts (filter out empty strings)
 	const pathParts = location.pathname.split('/').filter(Boolean)
 
-	// If there are 2 parts (e.g., [@username, eventId]), it's an event
-	if (pathParts.length >= 2) {
+	// If there are exactly 2 parts (e.g., [@username, eventId]), it's an event
+	if (pathParts.length === 2) {
 		return <EventDetailPage />
 	}
 
-	// Otherwise, it's a profile
-	return <UserProfilePage />
+	// If there's exactly 1 part and it's not just '@', it's a profile
+	// Paths like /@ or /@/ will have pathParts.length === 1 with pathParts[0] === '@'
+	if (pathParts.length === 1 && pathParts[0] !== '@') {
+		return <UserProfilePage />
+	}
+
+	// All other cases (empty path, just /@, more than 2 parts, etc.) -> 404
+	return <NotFoundPage />
 }
 
 function AppContent() {

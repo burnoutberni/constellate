@@ -301,6 +301,52 @@ describe('App Routing', () => {
 		})
 	})
 
+	it('should render NotFoundPage for /@ path', async () => {
+		const { wrapper: testWrapper } = createTestWrapper(['/@'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		await waitFor(() => {
+			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
+			expect(screen.queryByTestId('UserProfilePage')).not.toBeInTheDocument()
+		})
+	})
+
+	it('should render NotFoundPage for /@/ path', async () => {
+		const { wrapper: testWrapper } = createTestWrapper(['/@/'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		await waitFor(() => {
+			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
+			expect(screen.queryByTestId('UserProfilePage')).not.toBeInTheDocument()
+		})
+	})
+
+	it('should render NotFoundPage for paths with more than 2 segments starting with /@', async () => {
+		const { wrapper: testWrapper } = createTestWrapper(['/@username/event/details'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		await waitFor(() => {
+			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
+			expect(screen.queryByTestId('EventDetailPage')).not.toBeInTheDocument()
+			expect(screen.queryByTestId('UserProfilePage')).not.toBeInTheDocument()
+		})
+	})
+
 	it('should render valid routes correctly', async () => {
 		const routes = [
 			{ path: '/about', testId: 'AboutPage' },
@@ -343,6 +389,111 @@ describe('App Routing', () => {
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
+		})
+	})
+
+	it('should show loading state and then redirect to onboarding when setup is required', async () => {
+		// Mock API to return setup required
+		vi.mocked(api.get).mockResolvedValue({ setupRequired: true })
+
+		const { wrapper: testWrapper } = createTestWrapper(['/'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Loading state should appear first
+		expect(screen.getByTestId('PageLoader')).toBeInTheDocument()
+
+		// Wait for redirect to onboarding page
+		await waitFor(
+			() => {
+				expect(screen.getByTestId('OnboardingPage')).toBeInTheDocument()
+			},
+			{ timeout: 3000 }
+		)
+
+		// Loading state should disappear after redirect
+		expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+	})
+
+	it('should display toast message from sessionStorage after redirect', async () => {
+		const toastMessage = 'Account deleted successfully'
+		const toastData = JSON.stringify({
+			message: toastMessage,
+			variant: 'success',
+		})
+		sessionStorage.setItem('toastOnLoad', toastData)
+
+		const { wrapper: testWrapper } = createTestWrapper(['/'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		// Toast should be added (we can't easily test the toast UI since it's mocked,
+		// but we can verify addToast was called with the correct data)
+		await waitFor(() => {
+			expect(mockAddToast).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: toastMessage,
+					variant: 'success',
+				})
+			)
+		})
+
+		// sessionStorage should be cleared after reading
+		expect(sessionStorage.getItem('toastOnLoad')).toBeNull()
+	})
+
+	it('should not display invalid toast data from sessionStorage', async () => {
+		// Test with invalid toast data (exceeds MAX_MESSAGE_LENGTH)
+		const invalidMessage = 'a'.repeat(2000) // Exceeds MAX_MESSAGE_LENGTH of 1000
+		const invalidToastData = JSON.stringify({
+			message: invalidMessage,
+			variant: 'success',
+		})
+		sessionStorage.setItem('toastOnLoad', invalidToastData)
+
+		const { wrapper: testWrapper } = createTestWrapper(['/'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Wait for setup check to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		// Give time for the toast effect to run
+		await waitFor(() => {
+			// addToast should not be called with the invalid (too long) message
+			const calls = mockAddToast.mock.calls
+			const hasInvalidCall = calls.some((call) => {
+				const [toast] = call
+				return toast?.message === invalidMessage
+			})
+			expect(hasInvalidCall).toBe(false)
+		})
+
+		// sessionStorage should still be cleared even if data was invalid
+		expect(sessionStorage.getItem('toastOnLoad')).toBeNull()
+	})
+
+	it('should show loading state and then render page when setup is not required', async () => {
+		vi.mocked(api.get).mockResolvedValue({ setupRequired: false })
+
+		const { wrapper: testWrapper } = createTestWrapper(['/'])
+		render(<App />, { wrapper: testWrapper })
+
+		// Loading state should appear first
+		expect(screen.getByTestId('PageLoader')).toBeInTheDocument()
+
+		// Wait for loading to complete and page to render
+		await waitFor(() => {
+			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+		})
+
+		// Page should render after loading
+		await waitFor(() => {
+			expect(screen.getByTestId('HomePage')).toBeInTheDocument()
 		})
 	})
 })

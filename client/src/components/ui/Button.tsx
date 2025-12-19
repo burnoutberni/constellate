@@ -170,14 +170,28 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 
 		// Render as Link when `to` prop is provided
 		if (to) {
-			const { to: _, ...linkProps } = props as LinkProps & { to?: string }
+			// Filter out button-specific props that aren't valid for Link
+			const {
+				type: _type,
+				form: _form,
+				formAction: _formAction,
+				formEncType: _formEncType,
+				formMethod: _formMethod,
+				formNoValidate: _formNoValidate,
+				formTarget: _formTarget,
+				name: _name,
+				value: _value,
+				to: _to,
+				...linkProps
+			} = props as React.ButtonHTMLAttributes<HTMLButtonElement> & { to?: string }
+
 			return (
 				<Link
 					ref={ref as React.ForwardedRef<HTMLAnchorElement>}
 					to={to}
 					className={classes}
 					aria-disabled={isDisabled}
-					{...linkProps}>
+					{...(linkProps as Omit<LinkProps, 'to' | 'className' | 'children'>)}>
 					{content}
 				</Link>
 			)
