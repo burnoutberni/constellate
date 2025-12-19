@@ -59,6 +59,7 @@ describe('Profile API', () => {
 				name: 'Alice Test',
 				isRemote: false,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 			},
 		})
 
@@ -80,6 +81,7 @@ describe('Profile API', () => {
 				isRemote: true,
 				externalActorUrl: 'https://remote.com/users/charlie',
 				inboxUrl: 'https://remote.com/users/charlie/inbox',
+				isPublicProfile: true,
 			},
 		})
 

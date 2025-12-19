@@ -265,6 +265,25 @@ describe('Authentication Setup', () => {
 			// Verify that both updates were attempted
 			expect(prisma.user.update).toHaveBeenCalledTimes(2)
 		})
+
+		it('should throw error if username is missing when generating keys', async () => {
+			const userId = 'user-123'
+			const mockUser = {
+				id: userId,
+				username: null, // Username is missing
+				isRemote: false,
+				publicKey: null,
+				privateKey: null,
+			}
+
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+
+			// Username is required - if missing, should throw error
+			await expect(processSignupSuccess(userId)).rejects.toThrow(
+				'Username is required but was not found'
+			)
+		})
 	})
 
 	describe('better-auth configuration', () => {

@@ -72,6 +72,7 @@ app.get('/users/me/profile', async (c) => {
 				externalActorUrl: true,
 				isAdmin: true,
 				autoAcceptFollowers: true,
+				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
 				_count: {

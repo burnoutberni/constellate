@@ -44,6 +44,7 @@ describe('ActivityBuilder', () => {
 		externalActorUrl: null,
 		inboxUrl: null,
 		sharedInboxUrl: null,
+		isPublicProfile: true,
 	} as User
 
 	const mockEvent: Event & { user: User | null } = {

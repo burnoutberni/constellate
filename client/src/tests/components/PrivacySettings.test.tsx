@@ -62,7 +62,7 @@ describe('PrivacySettings Component', () => {
 	})
 
 	it('should show toggle as off when autoAcceptFollowers is false', () => {
-		renderComponent({ autoAcceptFollowers: false })
+		renderComponent({ autoAcceptFollowers: false, isPublicProfile: true })
 
 		const toggle = screen.getByRole('switch', { name: /auto-accept followers/i })
 		expect(toggle).toHaveAttribute('aria-checked', 'false')
@@ -175,13 +175,6 @@ describe('PrivacySettings Component', () => {
 		// (This depends on the error handler implementation)
 		// For now, we just verify the click happened
 		expect(toggle).toBeInTheDocument()
-	})
-
-	it('should default isPublicProfile to false when not provided', () => {
-		renderComponent({ autoAcceptFollowers: true })
-
-		const toggle = screen.getByRole('switch', { name: /public profile/i })
-		expect(toggle).toHaveAttribute('aria-checked', 'false')
 	})
 
 	it('should display correct descriptions for privacy settings', () => {

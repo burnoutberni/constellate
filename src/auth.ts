@@ -86,7 +86,7 @@ export const auth = betterAuth({
 			username: {
 				type: 'string',
 				unique: true,
-				required: false,
+				required: true,
 			},
 			displayColor: {
 				type: 'string',
@@ -105,14 +105,25 @@ export const auth = betterAuth({
 		// request/response bodies, making it more maintainable and resilient
 		// to changes in better-auth's internal structure.
 		before: createAuthMiddleware(async (ctx) => {
-			// Only validate ToS for email/password signup
+			// Only validate ToS and username for email/password signup
 			if (ctx.path !== '/sign-up/email') {
 				return
 			}
 
+			const body = ctx.body as { tosAccepted?: boolean; username?: string }
+
+			// Validate username is provided and non-empty
+			// Username is required for all users as it's their public identifier
+			// and used to build URLs, make profiles findable, etc.
+			if (!body.username || typeof body.username !== 'string' || body.username.trim().length === 0) {
+				throw new APIError('BAD_REQUEST', {
+					message: 'Username is required. It is your public identifier and used to build your profile URL.',
+				})
+			}
+
 			// Access tosAccepted from the request body
 			// better-auth automatically parses the body for us
-			const tosAccepted = (ctx.body as { tosAccepted?: boolean })?.tosAccepted
+			const tosAccepted = body.tosAccepted
 
 			if (tosAccepted !== true) {
 				throw new APIError('BAD_REQUEST', {
@@ -175,7 +186,11 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 
 	// Generate keys for local users (required for ActivityPub federation)
 	// If key generation fails, signup will fail
+	// Username is required for all users - it's their public identifier
 	if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
+		if (!user.username) {
+			throw new Error('Username is required but was not found. This should not happen as username is validated during signup.')
+		}
 		await generateUserKeys(user.id, user.username)
 	}
 }
