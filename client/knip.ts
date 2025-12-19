@@ -68,6 +68,37 @@ const config: KnipConfig = {
 		// them from function return types, etc.)
 		'src/hooks/queries/search.ts', // EventSearchResponse, EventSearchFilters
 		'src/lib/seo.ts', // SEOMetadata
+
+		// ============================================================================
+		// LAZY-LOADED PAGES - DYNAMIC IMPORTS
+		// ============================================================================
+		// These pages are lazy-loaded via dynamic imports in App.tsx using string
+		// paths. Knip cannot track these dynamic imports, so we ignore them to avoid
+		// false positives. The hooks/exports used within these pages are valid.
+		'src/pages/AboutPage.tsx',
+		'src/pages/AdminPage.tsx',
+		'src/pages/AppealsPage.tsx',
+		'src/pages/CalendarPage.tsx',
+		'src/pages/DiscoverPage.tsx',
+		'src/pages/EditEventPage.tsx',
+		'src/pages/EventDetailPage.tsx',
+		'src/pages/FeedPage.tsx',
+		'src/pages/HomePage.tsx',
+		'src/pages/InstanceDetailPage.tsx',
+		'src/pages/InstancesPage.tsx',
+		'src/pages/LoginPage.tsx',
+		'src/pages/ModerationPracticesPage.tsx',
+		'src/pages/NotificationsPage.tsx',
+		'src/pages/NotFoundPage.tsx',
+		'src/pages/OnboardingPage.tsx',
+		'src/pages/PendingFollowersPage.tsx',
+		'src/pages/PrivacyPolicyPage.tsx',
+		'src/pages/RemindersPage.tsx',
+		'src/pages/ReportsPage.tsx',
+		'src/pages/SettingsPage.tsx',
+		'src/pages/TemplatesPage.tsx',
+		'src/pages/TermsOfServicePage.tsx',
+		'src/pages/UserProfilePage.tsx',
 	],
 
 	// Reinclude barrel files in treeshaking analysis
@@ -77,6 +108,11 @@ const config: KnipConfig = {
 	// Ignore dependency issues in test files (dependencies are valid in tests)
 	ignoreIssues: {
 		'src/tests/**/*.{ts,tsx}': ['dependencies'],
+		// Hooks used in lazy-loaded pages (which are ignored due to dynamic imports)
+		// These hooks are actually used in the page components, but knip can't track
+		// them because the pages are dynamically imported with string paths
+		'src/hooks/queries/events.ts': ['exports'],
+		'src/hooks/queries/instances.ts': ['exports'],
 	},
 }
 
