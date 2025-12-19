@@ -197,6 +197,7 @@ describe('Server Setup', () => {
 				body: JSON.stringify({
 					email: 'test@example.com',
 					password: 'password123',
+					tosAccepted: true,
 				}),
 			})
 
@@ -408,6 +409,7 @@ describe('Server Setup', () => {
 
 			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
 			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
 
 			await app.request('/api/auth/sign-up', {
@@ -415,6 +417,7 @@ describe('Server Setup', () => {
 				body: JSON.stringify({
 					email: 'test@example.com',
 					password: 'password123',
+					tosAccepted: true,
 				}),
 			})
 

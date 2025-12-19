@@ -18,12 +18,53 @@ vi.mock('@/lib/api-client', () => ({
 
 // Mock window.location.reload
 const mockReload = vi.fn()
-Object.defineProperty(window, 'location', {
-	value: {
-		reload: mockReload,
-	},
-	writable: true,
-})
+// Use a guard to prevent redefinition errors when the file is imported multiple times
+const locationMockKey = '__locationReloadMocked'
+if (!(window as unknown as { [key: string]: boolean })[locationMockKey]) {
+	try {
+		// Check if we can redefine the property
+		const descriptor = Object.getOwnPropertyDescriptor(window, 'location')
+		if (descriptor && !descriptor.configurable) {
+			// Property is non-configurable, try to replace just the reload method
+			if (window.location && typeof window.location === 'object') {
+				try {
+					Object.defineProperty(window.location, 'reload', {
+						value: mockReload,
+						writable: true,
+						configurable: true,
+					})
+					;(window as unknown as { [key: string]: boolean })[locationMockKey] = true
+				} catch {
+					// If that also fails, try direct assignment
+					try {
+						;(window.location as unknown as { reload?: typeof mockReload }).reload =
+							mockReload
+						;(window as unknown as { [key: string]: boolean })[locationMockKey] = true
+					} catch {
+						// Silently continue if all attempts fail
+					}
+				}
+			}
+		} else {
+			// Property is configurable or doesn't exist, try to redefine it
+			try {
+				delete (window as { location?: unknown }).location
+			} catch {
+				// If deletion fails, continue anyway
+			}
+			Object.defineProperty(window, 'location', {
+				value: {
+					reload: mockReload,
+				},
+				writable: true,
+				configurable: true,
+			})
+			;(window as unknown as { [key: string]: boolean })[locationMockKey] = true
+		}
+	} catch {
+		// If all attempts fail, silently continue - the mock won't work but the story can still render
+	}
+}
 
 // Interactive wrapper for Docs page
 const InteractiveWrapper = (args: React.ComponentProps<typeof TosAcceptanceModal>) => {

@@ -41,6 +41,8 @@ import { TemplatesPage } from './pages/TemplatesPage'
 import { TermsOfServicePage } from './pages/TermsOfServicePage'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
+const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
+
 function AppContent() {
 	// Global SSE connection
 	useRealtimeSSE()
@@ -123,7 +125,6 @@ function AppContent() {
 			}
 
 			// Don't check on public pages or ToS-related pages
-			const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
 			if (publicPaths.some((path) => location.pathname.startsWith(path))) {
 				setCheckingTos(false)
 				setNeedsTosAcceptance(false)
