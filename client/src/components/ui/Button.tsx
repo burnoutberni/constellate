@@ -181,7 +181,6 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 				formTarget: _formTarget,
 				name: _name,
 				value: _value,
-				to: _to,
 				...linkProps
 			} = props as React.ButtonHTMLAttributes<HTMLButtonElement> & { to?: string }
 
