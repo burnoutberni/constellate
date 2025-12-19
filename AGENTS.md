@@ -3,8 +3,8 @@
 ## Commands
 
 - **Run Tests:** Run them in the correct directory for our backend (`/`) and frontend (`/client`) codebase.
-  -**All tests:** `npm test` (all tests) | `npm run test:watch` (with coverage and watch) | `npm run test:coverage` (with coverage)
-  -**Single test:** `npm test -- src/path/to/test.ts`
+    - **All tests:** `npm test` (all tests) | `npm run test:watch` (with coverage and watch) | `npm run test:coverage` (with coverage)
+    - **Single test:** `npm test -- src/path/to/test.ts`
 - **Check:** `npm run check` (lint, typecheck, knip for server & client) | **Check:Server:** `npm run check:server` | **Check:Client:** `npm run check:client`
 - **Lint:** `npm run lint` (for both) | `npm run lint:server` | `npm run lint:client`
 - **Typecheck:** `npm run typecheck` (for both) | `npm run typecheck:server` | `npm run typecheck:client`

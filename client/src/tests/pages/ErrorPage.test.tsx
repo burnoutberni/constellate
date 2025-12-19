@@ -167,16 +167,14 @@ describe('ErrorPage', () => {
 		expect(resetErrorBoundary).toHaveBeenCalledOnce()
 	})
 
-	it('should call resetErrorBoundary and navigate when Go Home is clicked', async () => {
-		const resetErrorBoundary = vi.fn()
+	it('should navigate home when Go Home is clicked', async () => {
 		const user = userEvent.setup()
 
-		render(<ErrorPage resetErrorBoundary={resetErrorBoundary} />, { wrapper })
+		render(<ErrorPage />, { wrapper })
 
 		const goHomeButton = screen.getByRole('button', { name: 'Go Home' })
 		await user.click(goHomeButton)
 
-		expect(resetErrorBoundary).toHaveBeenCalledOnce()
 		expect(mockNavigate).toHaveBeenCalledWith('/')
 	})
 

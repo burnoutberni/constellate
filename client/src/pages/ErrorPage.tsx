@@ -24,9 +24,6 @@ export function ErrorPage({ error, errorInfo, resetErrorBoundary }: ErrorPagePro
 	}
 
 	const handleGoHome = () => {
-		if (resetErrorBoundary) {
-			resetErrorBoundary()
-		}
 		navigate('/')
 	}
 
