@@ -14,6 +14,7 @@ import {
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
+import { ReportButton } from './ReportButton'
 
 interface EventCardProps {
 	event: Event
@@ -31,55 +32,69 @@ export function EventCard(props: EventCardProps) {
 	// Compact variant
 	if (variant === 'compact') {
 		return (
-			<Link to={eventPath}>
-				<Card interactive padding="md" className="h-full">
-					<div className="space-y-2">
-						<div className="flex items-start justify-between gap-2">
-							<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
-								{event.title}
-							</h3>
-							{event._count && event._count.attendance > 0 && (
-								<Badge variant="primary" size="sm">
-									{event._count.attendance} attending
-								</Badge>
+			<div className="relative group h-full">
+				<Link to={eventPath}>
+					<Card interactive padding="md" className="h-full">
+						<div className="space-y-2">
+							<div className="flex items-start justify-between gap-2">
+								<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
+									{event.title}
+								</h3>
+								{event._count && event._count.attendance > 0 && (
+									<Badge variant="primary" size="sm">
+										{event._count.attendance} attending
+									</Badge>
+								)}
+							</div>
+
+							<div className="flex items-center gap-2 text-sm text-text-secondary">
+								<CalendarIcon className="w-4 h-4" aria-label="Date" />
+								<span>{formatRelativeDate(event.startTime)}</span>
+								<span>•</span>
+								<span>{formatTime(event.startTime)}</span>
+							</div>
+
+							{event.location && (
+								<div className="flex items-center gap-2 text-sm text-text-secondary">
+									<LocationIcon className="w-4 h-4" aria-label="Location" />
+									<span className="truncate">{event.location}</span>
+								</div>
+							)}
+
+							{event.user && (
+								<div className="flex items-center gap-2 pt-2 border-t border-border-default">
+									<Avatar
+										src={event.user.profileImage || undefined}
+										fallback={event.user.name || event.user.username}
+										size="sm"
+									/>
+									<span className="text-sm text-text-secondary truncate">
+										@{event.user.username}
+									</span>
+								</div>
 							)}
 						</div>
-
-						<div className="flex items-center gap-2 text-sm text-text-secondary">
-							<CalendarIcon className="w-4 h-4" aria-label="Date" />
-							<span>{formatRelativeDate(event.startTime)}</span>
-							<span>•</span>
-							<span>{formatTime(event.startTime)}</span>
-						</div>
-
-						{event.location && (
-							<div className="flex items-center gap-2 text-sm text-text-secondary">
-								<LocationIcon className="w-4 h-4" aria-label="Location" />
-								<span className="truncate">{event.location}</span>
-							</div>
-						)}
-
-						{event.user && (
-							<div className="flex items-center gap-2 pt-2 border-t border-border-default">
-								<Avatar
-									src={event.user.profileImage || undefined}
-									fallback={event.user.name || event.user.username}
-									size="sm"
-								/>
-								<span className="text-sm text-text-secondary truncate">
-									@{event.user.username}
-								</span>
-							</div>
-						)}
+					</Card>
+				</Link>
+				{isAuthenticated && (
+					<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+						<ReportButton
+							targetType="event"
+							targetId={event.id}
+							contentTitle={event.title}
+							variant="ghost"
+							size="sm"
+							className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
+						/>
 					</div>
-				</Card>
-			</Link>
+				)}
+			</div>
 		)
 	}
 
 	// Full variant (default)
 	return (
-		<div className="h-full">
+		<div className="h-full relative group">
 			<Link to={eventPath} className="block h-full">
 				<Card interactive padding="none" className="h-full overflow-hidden">
 					{/* Header Image */}
@@ -185,6 +200,18 @@ export function EventCard(props: EventCardProps) {
 					</div>
 				</Card>
 			</Link>
+			{isAuthenticated && (
+				<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+					<ReportButton
+						targetType="event"
+						targetId={event.id}
+						contentTitle={event.title}
+						variant="ghost"
+						size="sm"
+						className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
+					/>
+				</div>
+			)}
 			{/* Sign Up CTA for unauthenticated users - outside the Link to avoid nesting */}
 			{!isAuthenticated && (
 				<div className="pt-2 px-4 pb-4">

@@ -14,6 +14,7 @@ import {
 	ToggleButton,
 	Select,
 	Skeleton,
+	GlobeIcon,
 } from '@/components/ui'
 import { useEventSearch, type EventSearchFilters, queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
@@ -21,6 +22,7 @@ import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
 
 import { EventCard } from '../components/EventCard'
+import { EventMap } from '../components/EventMap'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
 import { addRecentSearch } from '../lib/recentSearches'
@@ -33,7 +35,7 @@ import {
 	formatDateLabel,
 } from '../lib/searchUtils'
 
-type ViewMode = 'grid' | 'list'
+type ViewMode = 'grid' | 'list' | 'map'
 type SortOption = 'date' | 'popularity' | 'trending'
 
 interface ActiveFilterChip {
@@ -416,6 +418,11 @@ export function DiscoverPage() {
 										icon={<ListViewIcon className="w-4 h-4" />}
 										aria-label="List view"
 									/>
+									<ToggleButton
+										value="map"
+										icon={<GlobeIcon className="w-4 h-4" />}
+										aria-label="Map view"
+									/>
 								</ToggleGroup>
 							</div>
 						</div>
@@ -450,7 +457,7 @@ export function DiscoverPage() {
 							</div>
 						)}
 
-						{/* Results Grid/List */}
+						{/* Results Grid/List/Map */}
 						<div className="min-h-[400px]">
 							{isError && (
 								<Card className="p-8 border-error-200 bg-error-50 dark:bg-error-900/20 dark:border-error-900">
@@ -486,26 +493,30 @@ export function DiscoverPage() {
 									))}
 								</div>
 							) : events.length > 0 ? (
-								<div
-									className={
-										viewMode === 'grid'
-											? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-											: 'space-y-4'
-									}>
-									{events.map((event) => (
-										<div
-											key={event.id}
-											className={
-												viewMode === 'list' ? 'max-w-4xl mx-auto' : ''
-											}>
-											<EventCard
-												event={event}
-												variant={viewMode === 'list' ? 'compact' : 'full'}
-												isAuthenticated={Boolean(user)}
-											/>
-										</div>
-									))}
-								</div>
+								viewMode === 'map' ? (
+									<EventMap events={events} />
+								) : (
+									<div
+										className={
+											viewMode === 'grid'
+												? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+												: 'space-y-4'
+										}>
+										{events.map((event) => (
+											<div
+												key={event.id}
+												className={
+													viewMode === 'list' ? 'max-w-4xl mx-auto' : ''
+												}>
+												<EventCard
+													event={event}
+													variant={viewMode === 'list' ? 'compact' : 'full'}
+													isAuthenticated={Boolean(user)}
+												/>
+											</div>
+										))}
+									</div>
+								)
 							) : (
 								!isError && (
 									<Card className="py-16 px-6 text-center border-dashed">

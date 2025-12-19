@@ -73,7 +73,7 @@ export function EventHeader({
 					<div className="text-text-secondary">@{organizer.username}</div>
 				</div>
 			</Link>
-			{isOwner && eventId && (
+			{eventId && (
 				<EventActions
 					username={organizer.username}
 					eventId={eventId}

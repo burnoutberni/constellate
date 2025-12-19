@@ -7,6 +7,11 @@ export interface Report {
 	createdAt: string
 	updatedAt: string
 	reporterId: string
+	reporter?: {
+		id: string
+		username: string
+		name?: string | null
+	}
 	reportedUserId?: string | null
 	contentUrl?: string | null
 	reason: string
