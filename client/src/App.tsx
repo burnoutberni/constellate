@@ -12,6 +12,7 @@ import { ThemeProvider } from './design-system'
 import { useAuth } from './hooks/useAuth'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
+import { getErrorStatus } from './lib/errorHandling'
 import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
@@ -141,11 +142,7 @@ function AppContent() {
 				setNeedsTosAcceptance(status.needsAcceptance)
 			} catch (error) {
 				// If we get 401, user is not authenticated - that's fine
-				if (
-					error instanceof Error &&
-					'status' in error &&
-					(error as { status: number }).status === 401
-				) {
+				if (getErrorStatus(error) === 401) {
 					setNeedsTosAcceptance(false)
 				} else {
 					logger.error('Failed to check ToS status:', error)

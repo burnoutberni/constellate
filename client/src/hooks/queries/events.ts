@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
-import { isApiError } from '@/lib/errorHandling'
+import { getErrorStatus } from '@/lib/errorHandling'
 import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
 
 import { queryKeys } from './keys'
@@ -121,7 +121,7 @@ export function useRecommendedEvents(limit: number = 6, options?: { enabled?: bo
 				)
 			} catch (error) {
 				// Handle 401 gracefully
-				if (isApiError(error) && error.response?.status === 401) {
+				if (getErrorStatus(error) === 401) {
 					return {
 						recommendations: [],
 						metadata: {
