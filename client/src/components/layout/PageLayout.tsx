@@ -66,6 +66,7 @@ export const PageLayout = React.forwardRef<HTMLDivElement, PageLayoutProps>(
 		// Main content wrapper
 		const mainContent = (
 			<main
+				id="main-content"
 				className={cn(
 					'flex-1 min-w-0', // min-w-0 prevents flex items from overflowing
 					contentClassName

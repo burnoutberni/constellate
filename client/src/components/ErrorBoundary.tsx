@@ -1,9 +1,7 @@
 import React, { Component, type ReactNode } from 'react'
 
 import { logger } from '@/lib/logger'
-
-import { Container } from './layout'
-import { Card, CardContent, CardHeader, CardTitle, Button } from './ui'
+import { ErrorPage } from '@/pages/ErrorPage'
 
 export interface ErrorBoundaryProps {
 	children: ReactNode
@@ -105,54 +103,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 				return this.props.fallback
 			}
 
-			// Default fallback UI
+			// Use the styled ErrorPage component
 			return (
-				<Container size="lg" className="py-8">
-					<Card variant="outlined" padding="lg">
-						<CardHeader>
-							<CardTitle className="text-error-700 dark:text-error-400">
-								Something went wrong
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<p className="text-text-secondary">
-								We encountered an unexpected error. Don&apos;t worry, your data is
-								safe.
-							</p>
-
-							{process.env.NODE_ENV === 'development' && this.state.error && (
-								<details className="mt-4">
-									<summary className="cursor-pointer text-sm font-medium text-text-secondary mb-2">
-										Error Details (Development Only)
-									</summary>
-									<div className="mt-2 p-4 bg-background-secondary rounded-md">
-										<p className="text-sm font-mono text-error-600 dark:text-error-400 mb-2">
-											{this.state.error.toString()}
-										</p>
-										{this.state.errorInfo && (
-											<pre className="text-xs text-text-secondary overflow-auto">
-												{this.state.errorInfo.componentStack}
-											</pre>
-										)}
-									</div>
-								</details>
-							)}
-
-							<div className="flex gap-3 mt-6">
-								<Button variant="primary" onClick={this.resetErrorBoundary}>
-									Try Again
-								</Button>
-								<Button
-									variant="secondary"
-									onClick={() => {
-										window.location.href = '/'
-									}}>
-									Go Home
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-				</Container>
+				<ErrorPage
+					error={this.state.error || undefined}
+					errorInfo={this.state.errorInfo}
+					resetErrorBoundary={this.resetErrorBoundary}
+				/>
 			)
 		}
 

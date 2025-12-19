@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 
 import { ErrorBoundary } from './ErrorBoundary'
 import { Button } from './ui'
@@ -31,24 +32,30 @@ const InteractiveWrapper = () => {
 	}
 
 	return (
-		<div className="space-y-4">
-			<div className="flex gap-2">
-				<Button onClick={handleShowError} variant={shouldThrow ? 'primary' : 'secondary'}>
-					Show Error State
-				</Button>
-				<Button onClick={handleShowNormal} variant={!shouldThrow ? 'primary' : 'secondary'}>
-					Show Normal State
-				</Button>
+		<MemoryRouter>
+			<div className="space-y-4">
+				<div className="flex gap-2">
+					<Button
+						onClick={handleShowError}
+						variant={shouldThrow ? 'primary' : 'secondary'}>
+						Show Error State
+					</Button>
+					<Button
+						onClick={handleShowNormal}
+						variant={!shouldThrow ? 'primary' : 'secondary'}>
+						Show Normal State
+					</Button>
+				</div>
+				<ErrorBoundary
+					key={key}
+					resetKeys={[shouldThrow ? 'error' : 'normal']}
+					onError={(_error, _errorInfo) => {
+						// Error caught handler
+					}}>
+					<ThrowError shouldThrow={shouldThrow} />
+				</ErrorBoundary>
 			</div>
-			<ErrorBoundary
-				key={key}
-				resetKeys={[shouldThrow ? 'error' : 'normal']}
-				onError={(_error, _errorInfo) => {
-					// Error caught handler
-				}}>
-				<ThrowError shouldThrow={shouldThrow} />
-			</ErrorBoundary>
-		</div>
+		</MemoryRouter>
 	)
 }
 
@@ -78,6 +85,11 @@ export const Default: Story = {
 			</div>
 		),
 	},
+	render: (args) => (
+		<MemoryRouter>
+			<ErrorBoundary {...args} />
+		</MemoryRouter>
+	),
 }
 
 export const WithError: Story = {
@@ -87,6 +99,11 @@ export const WithError: Story = {
 			// Error caught handler
 		},
 	},
+	render: (args) => (
+		<MemoryRouter>
+			<ErrorBoundary {...args} />
+		</MemoryRouter>
+	),
 }
 
 export const CustomFallback: Story = {
@@ -99,4 +116,9 @@ export const CustomFallback: Story = {
 			</div>
 		),
 	},
+	render: (args) => (
+		<MemoryRouter>
+			<ErrorBoundary {...args} />
+		</MemoryRouter>
+	),
 }

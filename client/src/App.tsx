@@ -1,9 +1,11 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { Footer } from './components/Footer'
 import { MentionNotifications } from './components/MentionNotifications'
+import { SkipLink } from './components/SkipLink'
 import { Toasts } from './components/Toast'
 import { TosAcceptanceModal } from './components/TosAcceptanceModal'
 import { PageLoader } from './components/ui'
@@ -16,31 +18,120 @@ import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
-import { AboutPage } from './pages/AboutPage'
-import { AdminPage } from './pages/AdminPage'
-import { AppealsPage } from './pages/AppealsPage'
-import { CalendarPage } from './pages/CalendarPage'
-import { DiscoverPage } from './pages/DiscoverPage'
-import { EditEventPage } from './pages/EditEventPage'
-import { FeedPage } from './pages/FeedPage'
-import { HomePage } from './pages/HomePage'
-import { InstanceDetailPage } from './pages/InstanceDetailPage'
-import { InstancesPage } from './pages/InstancesPage'
-import { LoginPage } from './pages/LoginPage'
-import { ModerationPracticesPage } from './pages/ModerationPracticesPage'
-import { NotificationsPage } from './pages/NotificationsPage'
-import { OnboardingPage } from './pages/OnboardingPage'
-import { PendingFollowersPage } from './pages/PendingFollowersPage'
-import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
-import { ProfileOrEventPage } from './pages/ProfileOrEventPage'
-import { RemindersPage } from './pages/RemindersPage'
-import { ReportsPage } from './pages/ReportsPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { TemplatesPage } from './pages/TemplatesPage'
-import { TermsOfServicePage } from './pages/TermsOfServicePage'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
+// Lazy load pages
+const AboutPage = lazy(() =>
+	import('./pages/AboutPage').then((module) => ({ default: module.AboutPage }))
+)
+const AdminPage = lazy(() =>
+	import('./pages/AdminPage').then((module) => ({ default: module.AdminPage }))
+)
+const AppealsPage = lazy(() =>
+	import('./pages/AppealsPage').then((module) => ({ default: module.AppealsPage }))
+)
+const CalendarPage = lazy(() =>
+	import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage }))
+)
+const DiscoverPage = lazy(() =>
+	import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage }))
+)
+const EditEventPage = lazy(() =>
+	import('./pages/EditEventPage').then((module) => ({ default: module.EditEventPage }))
+)
+const FeedPage = lazy(() =>
+	import('./pages/FeedPage').then((module) => ({ default: module.FeedPage }))
+)
+const HomePage = lazy(() =>
+	import('./pages/HomePage').then((module) => ({ default: module.HomePage }))
+)
+const InstanceDetailPage = lazy(() =>
+	import('./pages/InstanceDetailPage').then((module) => ({ default: module.InstanceDetailPage }))
+)
+const InstancesPage = lazy(() =>
+	import('./pages/InstancesPage').then((module) => ({ default: module.InstancesPage }))
+)
+const LoginPage = lazy(() =>
+	import('./pages/LoginPage').then((module) => ({ default: module.LoginPage }))
+)
+const ModerationPracticesPage = lazy(() =>
+	import('./pages/ModerationPracticesPage').then((module) => ({
+		default: module.ModerationPracticesPage,
+	}))
+)
+const NotificationsPage = lazy(() =>
+	import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage }))
+)
+const OnboardingPage = lazy(() =>
+	import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage }))
+)
+const PendingFollowersPage = lazy(() =>
+	import('./pages/PendingFollowersPage').then((module) => ({
+		default: module.PendingFollowersPage,
+	}))
+)
+const PrivacyPolicyPage = lazy(() =>
+	import('./pages/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage }))
+)
+const RemindersPage = lazy(() =>
+	import('./pages/RemindersPage').then((module) => ({ default: module.RemindersPage }))
+)
+const ReportsPage = lazy(() =>
+	import('./pages/ReportsPage').then((module) => ({ default: module.ReportsPage }))
+)
+const SettingsPage = lazy(() =>
+	import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage }))
+)
+const TemplatesPage = lazy(() =>
+	import('./pages/TemplatesPage').then((module) => ({ default: module.TemplatesPage }))
+)
+const TermsOfServicePage = lazy(() =>
+	import('./pages/TermsOfServicePage').then((module) => ({ default: module.TermsOfServicePage }))
+)
+const EventDetailPage = lazy(() =>
+	import('./pages/EventDetailPage').then((module) => ({ default: module.EventDetailPage }))
+)
+const NotFoundPage = lazy(() =>
+	import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage }))
+)
+const UserProfilePage = lazy(() =>
+	import('./pages/UserProfilePage').then((module) => ({ default: module.UserProfilePage }))
+)
+
 const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
+
+/**
+ * Smart router that determines whether to show a user profile or event detail
+ * based on the URL structure:
+ * - /@username -> UserProfilePage
+ * - /@username/eventId -> EventDetailPage
+ * - Any other path -> NotFoundPage
+ */
+function ProfileOrEventRouter() {
+	const location = useLocation()
+
+	// Check if path starts with /@
+	if (!location.pathname.startsWith('/@')) {
+		return <NotFoundPage />
+	}
+
+	// Extract path parts (filter out empty strings)
+	const pathParts = location.pathname.split('/').filter(Boolean)
+
+	// If there are exactly 2 parts (e.g., [@username, eventId]), it's an event
+	if (pathParts.length === 2) {
+		return <EventDetailPage />
+	}
+
+	// If there's exactly 1 part and it's not just '@', it's a profile
+	// Paths like /@ or /@/ will have pathParts.length === 1 with pathParts[0] === '@'
+	if (pathParts.length === 1 && pathParts[0] !== '@') {
+		return <UserProfilePage />
+	}
+
+	// All other cases (empty path, just /@, more than 2 parts, etc.) -> 404
+	return <NotFoundPage />
+}
 
 function AppContent() {
 	// Global SSE connection
@@ -125,33 +216,38 @@ function AppContent() {
 
 	return (
 		<ErrorBoundary resetKeys={[location.pathname]}>
-			<Routes>
-				<Route path="/onboarding" element={<OnboardingPage />} />
-				<Route path="/" element={<HomePage />} />
-				<Route path="/about" element={<AboutPage />} />
-				<Route path="/appeals" element={<AppealsPage />} />
-				<Route path="/reports" element={<ReportsPage />} />
-				<Route path="/moderation" element={<ModerationPracticesPage />} />
-				<Route path="/terms" element={<TermsOfServicePage />} />
-				<Route path="/privacy" element={<PrivacyPolicyPage />} />
-				<Route path="/login" element={<LoginPage />} />
-				<Route path="/feed" element={<FeedPage />} />
-				<Route path="/calendar" element={<CalendarPage />} />
-				<Route path="/discover" element={<DiscoverPage />} />
-				<Route path="/templates" element={<TemplatesPage />} />
-				<Route path="/instances" element={<InstancesPage />} />
-				<Route path="/instances/:domain" element={<InstanceDetailPage />} />
-				<Route path="/settings" element={<SettingsPage />} />
-				<Route path="/followers/pending" element={<PendingFollowersPage />} />
-				<Route path="/notifications" element={<NotificationsPage />} />
-				<Route path="/reminders" element={<RemindersPage />} />
-				<Route path="/admin" element={<AdminPage />} />
-				<Route path="/edit/*" element={<EditEventPage />} />
-				<Route path="/*" element={<ProfileOrEventPage />} />
-			</Routes>
+			<SkipLink />
+			<Suspense fallback={<PageLoader />}>
+				<Routes>
+					<Route path="/onboarding" element={<OnboardingPage />} />
+					<Route path="/" element={<HomePage />} />
+					<Route path="/about" element={<AboutPage />} />
+					<Route path="/appeals" element={<AppealsPage />} />
+					<Route path="/reports" element={<ReportsPage />} />
+					<Route path="/moderation" element={<ModerationPracticesPage />} />
+					<Route path="/terms" element={<TermsOfServicePage />} />
+					<Route path="/privacy" element={<PrivacyPolicyPage />} />
+					<Route path="/login" element={<LoginPage />} />
+					<Route path="/feed" element={<FeedPage />} />
+					<Route path="/calendar" element={<CalendarPage />} />
+					<Route path="/discover" element={<DiscoverPage />} />
+					<Route path="/templates" element={<TemplatesPage />} />
+					<Route path="/instances" element={<InstancesPage />} />
+					<Route path="/instances/:domain" element={<InstanceDetailPage />} />
+					<Route path="/settings" element={<SettingsPage />} />
+					<Route path="/followers/pending" element={<PendingFollowersPage />} />
+					<Route path="/notifications" element={<NotificationsPage />} />
+					<Route path="/reminders" element={<RemindersPage />} />
+					<Route path="/admin" element={<AdminPage />} />
+					<Route path="/edit/*" element={<EditEventPage />} />
+					<Route path="/404" element={<NotFoundPage />} />
+					<Route path="/*" element={<ProfileOrEventRouter />} />
+				</Routes>
+			</Suspense>
 			<MentionNotifications />
 			<Toasts />
 			<TosAcceptanceModal isOpen={needsTosAcceptance} />
+			<Footer />
 		</ErrorBoundary>
 	)
 }
