@@ -254,7 +254,6 @@ app.post('/users', async (c) => {
 					email: data.email || `${data.username}@example.com`,
 					password: data.password,
 					name: data.name || data.username,
-					username: data.username,
 				},
 			})
 

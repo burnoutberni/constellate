@@ -1,17 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { useExponentialBackoff } from '@/hooks/useExponentialBackoff'
 import { api } from '@/lib/api-client'
 import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
-
-// Exponential backoff polling configuration
-const INITIAL_POLL_INTERVAL_MS = 5000 // Start with 5 seconds for faster feedback
-const MAX_POLL_INTERVAL_MS = 35000 // Cap at 35 seconds (backend processor runs every 30 seconds)
-const BACKOFF_MULTIPLIER = 1.5 // Multiply interval by this factor each time
 
 type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 
@@ -30,9 +26,6 @@ export function DataExportSettings() {
 	const [isLoading, setIsLoading] = useState(false)
 	const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
 	const [exportId, setExportId] = useState<string | null>(null)
-	const [polling, setPolling] = useState(false)
-	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const currentPollIntervalRef = useRef<number>(INITIAL_POLL_INTERVAL_MS)
 
 	const downloadExport = useCallback(
 		async (id: string) => {
@@ -75,66 +68,47 @@ export function DataExportSettings() {
 		[addToast, handleError]
 	)
 
-	// Poll for export status using exponential backoff to provide faster feedback
-	useEffect(() => {
-		if (!exportId || !polling) {
-			return
-		}
-
-		// Reset interval when starting a new export
-		currentPollIntervalRef.current = INITIAL_POLL_INTERVAL_MS
-
-		const pollStatus = async () => {
-			try {
-				const status = await api.get<ExportResponse>(
-					`/users/me/export/${exportId}`,
-					undefined,
-					undefined,
-					'Failed to check export status'
-				)
-
-				setExportStatus(status.status)
-
-				if (status.status === 'COMPLETED') {
-					setPolling(false)
-					// Download the export
-					await downloadExport(exportId)
-				} else if (status.status === 'FAILED') {
-					setPolling(false)
-					addToast({
-						id: generateId(),
-						message: status.errorMessage || 'Export failed',
-						variant: 'error',
-					})
-				} else {
-					// Calculate next interval with exponential backoff
-					const nextInterval = Math.min(
-						currentPollIntervalRef.current * BACKOFF_MULTIPLIER,
-						MAX_POLL_INTERVAL_MS
-					)
-					currentPollIntervalRef.current = nextInterval
-
-					// Schedule next poll only if still polling and not completed/failed
-					timeoutRef.current = setTimeout(pollStatus, nextInterval)
-				}
-			} catch (error) {
+	// Poll for export status using exponential backoff
+	const { isPolling, startPolling } = useExponentialBackoff(
+		useCallback(async () => {
+			if (!exportId) {
+				throw new Error('Export ID is required for polling')
+			}
+			const status = await api.get<ExportResponse>(
+				`/users/me/export/${exportId}`,
+				undefined,
+				undefined,
+				'Failed to check export status'
+			)
+			setExportStatus(status.status)
+			return status
+		}, [exportId]),
+		useCallback((status: ExportResponse) => status.status === 'COMPLETED', []),
+		useCallback((status: ExportResponse) => status.status === 'FAILED', []),
+		useCallback(
+			async (status: ExportResponse) => {
+				await downloadExport(status.exportId)
+			},
+			[downloadExport]
+		),
+		useCallback(
+			async (status: ExportResponse) => {
+				addToast({
+					id: generateId(),
+					message: status.errorMessage || 'Export failed',
+					variant: 'error',
+				})
+			},
+			[addToast]
+		),
+		{
+			onError: (error) => {
 				handleError(error, 'Failed to check export status', {
 					context: 'DataExportSettings.pollStatus',
 				})
-				setPolling(false)
-			}
+			},
 		}
-
-		// Start the first poll with initial interval
-		timeoutRef.current = setTimeout(pollStatus, INITIAL_POLL_INTERVAL_MS)
-
-		return () => {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current)
-				timeoutRef.current = null
-			}
-		}
-	}, [exportId, polling, addToast, handleError, downloadExport])
+	)
 
 	const handleExport = async () => {
 		setIsLoading(true)
@@ -155,7 +129,7 @@ export function DataExportSettings() {
 				await downloadExport(response.exportId)
 			} else {
 				// Start polling for status
-				setPolling(true)
+				startPolling()
 				addToast({
 					id: generateId(),
 					message: 'Export job created. Processing your data...',
@@ -197,8 +171,8 @@ export function DataExportSettings() {
 						)}
 						<Button
 							onClick={handleExport}
-							loading={isLoading || polling}
-							disabled={polling}
+							loading={isLoading || isPolling}
+							disabled={isPolling}
 							variant="outline">
 							{exportStatus === 'PENDING' || exportStatus === 'PROCESSING'
 								? 'Processing...'

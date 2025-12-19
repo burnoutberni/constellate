@@ -191,108 +191,15 @@ app.get('/', async (c) => {
 	})
 })
 
-// Helper functions for auth route handling
-function isSignupRequest(path: string, method: string): boolean {
-	return method === 'POST' && (path.includes('/sign-up') || path.includes('/signup'))
-}
-
-async function extractTosAccepted(request: Request): Promise<boolean> {
-	try {
-		const clonedRequest = request.clone()
-		const body = (await clonedRequest.json()) as unknown as {
-			tosAccepted?: boolean
-		}
-		return typeof body.tosAccepted === 'boolean' ? body.tosAccepted : false
-	} catch {
-		// If we can't parse the body, that's okay - continue
-		// The request will still be processed by better-auth
-		return false
-	}
-}
-
-async function extractUserIdFromResponse(response: Response): Promise<string | null> {
-	try {
-		const responseClone = response.clone()
-		const data = (await responseClone.json()) as unknown as {
-			user?: { id: string }
-			data?: { user?: { id: string } }
-		}
-
-		return data?.user?.id || data?.data?.user?.id || null
-	} catch {
-		// If we can't parse the response, that's okay - continue
-		// This might happen if the response isn't JSON or is already consumed
-		return null
-	}
-}
-
-async function processSignupSuccess(userId: string): Promise<void> {
-	// Update user with ToS acceptance timestamp and version
-	// tosAccepted is already verified by middleware at line 273
-	await prisma.user.update({
-		where: { id: userId },
-		data: {
-			tosAcceptedAt: new Date(),
-			tosVersion: config.tosVersion,
-		},
-	})
-
-	// Query database to get the full user with username
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: {
-			id: true,
-			username: true,
-			isRemote: true,
-			publicKey: true,
-			privateKey: true,
-		},
-	})
-
-	// Only generate keys if user exists, is local, and doesn't have keys
-	if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
-		// Generate keys in the background (don't block the response)
-		const { generateUserKeys } = await import('./auth.js')
-		generateUserKeys(user.id, user.username).catch((err) => {
-			console.error('Error generating keys after signup:', err)
-		})
-	}
-}
-
 // Mount routes
-// Auth routes (better-auth) - intercept to generate keys after signup and set ToS timestamp
+// Auth routes (better-auth)
+// Note: ToS validation and post-signup actions (key generation, ToS timestamp) are now
+// handled via better-auth hooks in src/auth.ts. This is more maintainable than
+// intercepting and parsing request/response bodies, as it uses the official hooks API
+// which is less brittle to changes in better-auth's internal structure.
 // Apply strict rate limiting to auth routes (especially POST for signup/login)
 app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
-	const signupRequest = isSignupRequest(c.req.path, c.req.method)
-
-	// For signup requests, require ToS acceptance
-	let tosAccepted = false
-	if (signupRequest) {
-		tosAccepted = await extractTosAccepted(c.req.raw)
-		if (!tosAccepted) {
-			return c.json(
-				{ error: 'You must agree to the Terms of Service to create an account.' },
-				400
-			)
-		}
-	}
-
-	const response = await auth.handler(c.req.raw)
-
-	// If this is a signup request, generate keys for the new user and set ToS timestamp
-	if (signupRequest && response.ok) {
-		const userId = await extractUserIdFromResponse(response)
-		if (userId) {
-			// Process post-signup operations in the background without blocking the response
-			processSignupSuccess(userId).catch((error) => {
-				// Log error but don't block the successful signup response
-				// The account was created successfully, so we should still return success
-				console.error('[Signup] Error processing post-signup operations:', error)
-			})
-		}
-	}
-
-	return response
+	return auth.handler(c.req.raw)
 })
 
 // GET requests to auth routes (no rate limiting needed, just for session checks)

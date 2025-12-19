@@ -171,15 +171,13 @@ describe('Server Setup', () => {
 			expect(res.status).toBe(200)
 		})
 
-		it('should generate keys after successful signup', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: null,
-				privateKey: null,
-			}
+		// Note: ToS validation and post-signup actions (key generation, ToS timestamp)
+		// are now handled by better-auth hooks in src/auth.ts, not in the server route handler.
+		// These hooks run inside better-auth, so when we mock auth.handler, the hooks don't execute.
+		// The hooks are tested separately in src/tests/auth.test.ts.
+		// These tests verify that the server properly proxies requests to better-auth.
 
+		it('should proxy signup requests to better-auth', async () => {
 			const mockResponse = new Response(
 				JSON.stringify({
 					user: { id: 'user-123' },
@@ -188,9 +186,6 @@ describe('Server Setup', () => {
 			)
 
 			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
-			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
 
 			const res = await app.request('/api/auth/sign-up', {
 				method: 'POST',
@@ -201,172 +196,8 @@ describe('Server Setup', () => {
 				}),
 			})
 
-			// Wait for async key generation
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			expect(authModule.generateUserKeys).toHaveBeenCalledWith('user-123', 'testuser')
-		})
-
-		it('should reject signup when tosAccepted is false', async () => {
-			const res = await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-					tosAccepted: false,
-				}),
-			})
-
-			expect(res.status).toBe(400)
-			const data = (await res.json()) as { error?: string }
-			expect(data.error).toContain('Terms of Service')
-		})
-
-		it('should set tosAcceptedAt and tosVersion when tosAccepted is true', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: null,
-				privateKey: null,
-			}
-
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
-			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
-
-			const { config } = await import('../config.js')
-
-			const res = await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-					tosAccepted: true,
-				}),
-			})
-
-			// Wait for async operations
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			// Verify tosAcceptedAt and tosVersion were set with correct values
-			expect(prisma.user.update).toHaveBeenCalledWith({
-				where: { id: 'user-123' },
-				data: {
-					tosAcceptedAt: expect.any(Date),
-					tosVersion: config.tosVersion,
-				},
-			})
-		})
-
-		it('should not generate keys for remote users', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: true,
-				publicKey: null,
-				privateKey: null,
-			}
-
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-
-			await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-				}),
-			})
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			expect(authModule.generateUserKeys).not.toHaveBeenCalled()
-		})
-
-		it('should not generate keys if user already has keys', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: 'public-key',
-				privateKey: 'private-key',
-			}
-
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-
-			await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-				}),
-			})
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			expect(authModule.generateUserKeys).not.toHaveBeenCalled()
-		})
-
-		it('should not generate keys if signup fails', async () => {
-			const mockResponse = new Response(JSON.stringify({ error: 'Signup failed' }), {
-				status: 400,
-			})
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-
-			await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-				}),
-			})
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			expect(authModule.generateUserKeys).not.toHaveBeenCalled()
-		})
-
-		it('should handle signup response parsing errors gracefully', async () => {
-			// Response that can't be parsed as JSON
-			const mockResponse = new Response('Not JSON', { status: 200 })
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-
-			// Should not throw
-			await expect(
-				app.request('/api/auth/sign-up', {
-					method: 'POST',
-					body: JSON.stringify({
-						email: 'test@example.com',
-						password: 'password123',
-					}),
-				})
-			).resolves.not.toThrow()
+			expect(authModule.auth.handler).toHaveBeenCalled()
+			expect(res.status).toBe(200)
 		})
 	})
 
@@ -385,73 +216,6 @@ describe('Server Setup', () => {
 					}),
 				})
 			).resolves.not.toThrow()
-		})
-
-		it('should handle signup response with different user ID structure', async () => {
-			const mockResponse = new Response(
-				JSON.stringify({
-					data: {
-						user: {
-							id: 'user-123',
-						},
-					},
-				}),
-				{ status: 200 }
-			)
-
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: null,
-				privateKey: null,
-			}
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
-			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
-
-			await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-					tosAccepted: true,
-				}),
-			})
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			expect(authModule.generateUserKeys).toHaveBeenCalled()
-		})
-
-		it('should handle signup response without user ID', async () => {
-			const mockResponse = new Response(
-				JSON.stringify({
-					success: true,
-					// No user field
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-
-			// Should not throw
-			await expect(
-				app.request('/api/auth/sign-up', {
-					method: 'POST',
-					body: JSON.stringify({
-						email: 'test@example.com',
-						password: 'password123',
-					}),
-				})
-			).resolves.not.toThrow()
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			// Should not generate keys if no user ID
-			expect(authModule.generateUserKeys).not.toHaveBeenCalled()
 		})
 
 		it('should handle non-signup auth routes without key generation', async () => {
@@ -486,67 +250,6 @@ describe('Server Setup', () => {
 
 			// GET requests should not trigger key generation
 			expect(authModule.generateUserKeys).not.toHaveBeenCalled()
-		})
-
-		it('should handle key generation errors without crashing', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: null,
-				privateKey: null,
-			}
-
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(authModule.generateUserKeys).mockRejectedValue(
-				new Error('Key generation failed')
-			)
-
-			// Should not throw even if key generation fails
-			await expect(
-				app.request('/api/auth/sign-up', {
-					method: 'POST',
-					body: JSON.stringify({
-						email: 'test@example.com',
-						password: 'password123',
-					}),
-				})
-			).resolves.not.toThrow()
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
-		})
-
-		it('should handle database errors when checking user for key generation', async () => {
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error('Database error'))
-
-			// Should not throw
-			await expect(
-				app.request('/api/auth/sign-up', {
-					method: 'POST',
-					body: JSON.stringify({
-						email: 'test@example.com',
-						password: 'password123',
-					}),
-				})
-			).resolves.not.toThrow()
-
-			await new Promise((resolve) => setTimeout(resolve, 100))
 		})
 
 		it('should handle requests to non-existent routes', async () => {

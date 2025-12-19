@@ -838,7 +838,6 @@ app.get('/profile/:username', async (c) => {
 					isPublicProfile: false,
 					createdAt: user.createdAt.toISOString(),
 					displayColor: user.displayColor || '#3b82f6',
-					timezone: user.timezone || 'UTC',
 					bio: null,
 					headerImage: null,
 					_count: {

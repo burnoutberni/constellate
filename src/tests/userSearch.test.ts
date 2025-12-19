@@ -528,8 +528,7 @@ describe('UserSearch API', () => {
 			expect(typeof body.user.createdAt).toBe('string')
 			expect(body.user.displayColor).toBeDefined()
 			expect(typeof body.user.displayColor).toBe('string')
-			expect(body.user.timezone).toBeDefined()
-			expect(typeof body.user.timezone).toBe('string')
+			expect(body.user.timezone).toBeUndefined()
 			expect(body.user.bio).toBeNull()
 			expect(body.user.headerImage).toBeNull()
 			expect(body.user._count).toEqual({

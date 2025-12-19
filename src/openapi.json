@@ -2400,7 +2400,7 @@
 				],
 				"responses": {
 					"200": {
-						"description": "User profile with events. For private profiles, non-followers receive minimal data (id, username, name, profileImage only) with _count set to zeros.",
+						"description": "User profile with events. For private profiles, non-followers receive minimal data (id, username, name, profileImage, displayColor, isRemote, isPublicProfile, createdAt) with _count set to zeros. Timezone is excluded from minimal responses for privacy.",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -2438,7 +2438,7 @@
 												"displayColor": {
 													"type": "string",
 													"nullable": true,
-													"description": "Only included for public profiles or when viewer is owner/follower"
+													"description": "Always included, even for private profiles"
 												},
 												"isPublicProfile": {
 													"type": "boolean",

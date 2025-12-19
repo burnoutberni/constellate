@@ -12,7 +12,7 @@ export interface MobileNavProps {
 		id: string
 		name?: string
 		email?: string
-		username?: string
+		username?: string | null
 	} | null
 	isAdmin?: boolean
 }

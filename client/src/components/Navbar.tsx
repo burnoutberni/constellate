@@ -19,7 +19,7 @@ type AuthenticatedUser = {
 	name?: string
 	email?: string
 	id: string
-	username?: string
+	username?: string | null
 	image?: string | null
 }
 
