@@ -8,7 +8,10 @@ import { useUIStore } from '@/stores'
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button } from './ui'
 
-const EXPORT_STATUS_POLL_INTERVAL_MS = 35000 // Poll every 35 seconds (backend processor runs every 30 seconds)
+// Exponential backoff polling configuration
+const INITIAL_POLL_INTERVAL_MS = 5000 // Start with 5 seconds for faster feedback
+const MAX_POLL_INTERVAL_MS = 35000 // Cap at 35 seconds (backend processor runs every 30 seconds)
+const BACKOFF_MULTIPLIER = 1.5 // Multiply interval by this factor each time
 
 type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 
@@ -29,6 +32,7 @@ export function DataExportSettings() {
 	const [exportId, setExportId] = useState<string | null>(null)
 	const [polling, setPolling] = useState(false)
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const currentPollIntervalRef = useRef<number>(INITIAL_POLL_INTERVAL_MS)
 
 	const downloadExport = useCallback(
 		async (id: string) => {
@@ -71,11 +75,14 @@ export function DataExportSettings() {
 		[addToast, handleError]
 	)
 
-	// Poll for export status using recursive setTimeout to prevent overlapping requests
+	// Poll for export status using exponential backoff to provide faster feedback
 	useEffect(() => {
 		if (!exportId || !polling) {
 			return
 		}
+
+		// Reset interval when starting a new export
+		currentPollIntervalRef.current = INITIAL_POLL_INTERVAL_MS
 
 		const pollStatus = async () => {
 			try {
@@ -100,8 +107,15 @@ export function DataExportSettings() {
 						variant: 'error',
 					})
 				} else {
+					// Calculate next interval with exponential backoff
+					const nextInterval = Math.min(
+						currentPollIntervalRef.current * BACKOFF_MULTIPLIER,
+						MAX_POLL_INTERVAL_MS
+					)
+					currentPollIntervalRef.current = nextInterval
+
 					// Schedule next poll only if still polling and not completed/failed
-					timeoutRef.current = setTimeout(pollStatus, EXPORT_STATUS_POLL_INTERVAL_MS)
+					timeoutRef.current = setTimeout(pollStatus, nextInterval)
 				}
 			} catch (error) {
 				handleError(error, 'Failed to check export status', {
@@ -111,8 +125,8 @@ export function DataExportSettings() {
 			}
 		}
 
-		// Start the first poll
-		timeoutRef.current = setTimeout(pollStatus, EXPORT_STATUS_POLL_INTERVAL_MS)
+		// Start the first poll with initial interval
+		timeoutRef.current = setTimeout(pollStatus, INITIAL_POLL_INTERVAL_MS)
 
 		return () => {
 			if (timeoutRef.current) {
