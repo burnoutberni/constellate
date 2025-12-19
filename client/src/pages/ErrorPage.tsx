@@ -29,7 +29,7 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorPageProps) {
 				<p className="text-lg text-text-secondary mb-8">
 					An unexpected error occurred. Our team has been notified.
 				</p>
-				
+
 				{error && (
 					<div className="mb-8 p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-left overflow-auto max-h-48">
 						<code className="text-sm text-error-700 dark:text-error-300 font-mono">

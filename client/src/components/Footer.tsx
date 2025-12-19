@@ -10,12 +10,14 @@ export function Footer() {
 			<Container className="py-8">
 				<div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
 					<div className="col-span-1 md:col-span-2">
-						<Link to="/" className="text-xl font-bold text-primary-600 mb-4 inline-block">
+						<Link
+							to="/"
+							className="text-xl font-bold text-primary-600 mb-4 inline-block">
 							Constellate
 						</Link>
 						<p className="text-text-secondary max-w-sm">
-							Open source, federated event management for everyone. Connect, share, and
-							discover events across the decentralized web.
+							Open source, federated event management for everyone. Connect, share,
+							and discover events across the decentralized web.
 						</p>
 					</div>
 

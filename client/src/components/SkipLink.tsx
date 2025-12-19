@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, type MouseEvent, type KeyboardEvent } from 'react'
 
 export function SkipLink() {
 	const [focused, setFocused] = useState(false)
 
-	const handleSkip = (e: React.MouseEvent<HTMLAnchorElement> | React.KeyboardEvent<HTMLAnchorElement>) => {
+	const handleSkip = (e: MouseEvent<HTMLAnchorElement> | KeyboardEvent<HTMLAnchorElement>) => {
 		e.preventDefault()
 		const main = document.querySelector('main')
 		if (main) {

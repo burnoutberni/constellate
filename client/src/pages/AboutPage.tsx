@@ -147,8 +147,8 @@ export function AboutPage() {
 								Docker Deployment
 							</h3>
 							<p className="text-text-secondary mb-4">
-								Get up and running in minutes with our official Docker images. Supports
-								PostgreSQL and SQLite.
+								Get up and running in minutes with our official Docker images.
+								Supports PostgreSQL and SQLite.
 							</p>
 							<a
 								href="https://github.com/burnoutberni/constellate#deployment"
@@ -163,8 +163,8 @@ export function AboutPage() {
 								WordPress Plugin (Coming Soon)
 							</h3>
 							<p className="text-text-secondary mb-4">
-								Integrate Constellate directly into your existing WordPress site. Turn
-								your blog into a federated event hub.
+								Integrate Constellate directly into your existing WordPress site.
+								Turn your blog into a federated event hub.
 							</p>
 							<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
 								Roadmap

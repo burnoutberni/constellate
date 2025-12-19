@@ -21,29 +21,79 @@ import { generateId } from './lib/utils'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
 // Lazy load pages
-const AboutPage = lazy(() => import('./pages/AboutPage').then(module => ({ default: module.AboutPage })))
-const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })))
-const AppealsPage = lazy(() => import('./pages/AppealsPage').then(module => ({ default: module.AppealsPage })))
-const CalendarPage = lazy(() => import('./pages/CalendarPage').then(module => ({ default: module.CalendarPage })))
-const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then(module => ({ default: module.DiscoverPage })))
-const EditEventPage = lazy(() => import('./pages/EditEventPage').then(module => ({ default: module.EditEventPage })))
-const FeedPage = lazy(() => import('./pages/FeedPage').then(module => ({ default: module.FeedPage })))
-const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })))
-const InstanceDetailPage = lazy(() => import('./pages/InstanceDetailPage').then(module => ({ default: module.InstanceDetailPage })))
-const InstancesPage = lazy(() => import('./pages/InstancesPage').then(module => ({ default: module.InstancesPage })))
-const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })))
-const ModerationPracticesPage = lazy(() => import('./pages/ModerationPracticesPage').then(module => ({ default: module.ModerationPracticesPage })))
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(module => ({ default: module.NotificationsPage })))
-const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })))
-const PendingFollowersPage = lazy(() => import('./pages/PendingFollowersPage').then(module => ({ default: module.PendingFollowersPage })))
-const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(module => ({ default: module.PrivacyPolicyPage })))
-const ProfileOrEventPage = lazy(() => import('./pages/ProfileOrEventPage').then(module => ({ default: module.ProfileOrEventPage })))
-const RemindersPage = lazy(() => import('./pages/RemindersPage').then(module => ({ default: module.RemindersPage })))
-const ReportsPage = lazy(() => import('./pages/ReportsPage').then(module => ({ default: module.ReportsPage })))
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })))
-const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then(module => ({ default: module.TemplatesPage })))
-const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage').then(module => ({ default: module.TermsOfServicePage })))
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })))
+const AboutPage = lazy(() =>
+	import('./pages/AboutPage').then((module) => ({ default: module.AboutPage }))
+)
+const AdminPage = lazy(() =>
+	import('./pages/AdminPage').then((module) => ({ default: module.AdminPage }))
+)
+const AppealsPage = lazy(() =>
+	import('./pages/AppealsPage').then((module) => ({ default: module.AppealsPage }))
+)
+const CalendarPage = lazy(() =>
+	import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage }))
+)
+const DiscoverPage = lazy(() =>
+	import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage }))
+)
+const EditEventPage = lazy(() =>
+	import('./pages/EditEventPage').then((module) => ({ default: module.EditEventPage }))
+)
+const FeedPage = lazy(() =>
+	import('./pages/FeedPage').then((module) => ({ default: module.FeedPage }))
+)
+const HomePage = lazy(() =>
+	import('./pages/HomePage').then((module) => ({ default: module.HomePage }))
+)
+const InstanceDetailPage = lazy(() =>
+	import('./pages/InstanceDetailPage').then((module) => ({ default: module.InstanceDetailPage }))
+)
+const InstancesPage = lazy(() =>
+	import('./pages/InstancesPage').then((module) => ({ default: module.InstancesPage }))
+)
+const LoginPage = lazy(() =>
+	import('./pages/LoginPage').then((module) => ({ default: module.LoginPage }))
+)
+const ModerationPracticesPage = lazy(() =>
+	import('./pages/ModerationPracticesPage').then((module) => ({
+		default: module.ModerationPracticesPage,
+	}))
+)
+const NotificationsPage = lazy(() =>
+	import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage }))
+)
+const OnboardingPage = lazy(() =>
+	import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage }))
+)
+const PendingFollowersPage = lazy(() =>
+	import('./pages/PendingFollowersPage').then((module) => ({
+		default: module.PendingFollowersPage,
+	}))
+)
+const PrivacyPolicyPage = lazy(() =>
+	import('./pages/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage }))
+)
+const ProfileOrEventPage = lazy(() =>
+	import('./pages/ProfileOrEventPage').then((module) => ({ default: module.ProfileOrEventPage }))
+)
+const RemindersPage = lazy(() =>
+	import('./pages/RemindersPage').then((module) => ({ default: module.RemindersPage }))
+)
+const ReportsPage = lazy(() =>
+	import('./pages/ReportsPage').then((module) => ({ default: module.ReportsPage }))
+)
+const SettingsPage = lazy(() =>
+	import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage }))
+)
+const TemplatesPage = lazy(() =>
+	import('./pages/TemplatesPage').then((module) => ({ default: module.TemplatesPage }))
+)
+const TermsOfServicePage = lazy(() =>
+	import('./pages/TermsOfServicePage').then((module) => ({ default: module.TermsOfServicePage }))
+)
+const NotFoundPage = lazy(() =>
+	import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage }))
+)
 
 const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
 

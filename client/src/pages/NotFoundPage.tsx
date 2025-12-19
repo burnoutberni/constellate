@@ -19,8 +19,8 @@ export function NotFoundPage() {
 				<div className="mb-8 text-9xl">🔭</div>
 				<h1 className="text-4xl font-bold text-text-primary mb-4">Page Not Found</h1>
 				<p className="text-lg text-text-secondary mb-8">
-					We looked everywhere, but we couldn&apos;t find the page you&apos;re looking for. It might have been
-					moved or deleted.
+					We looked everywhere, but we couldn&apos;t find the page you&apos;re looking
+					for. It might have been moved or deleted.
 				</p>
 				<div className="flex gap-4 justify-center">
 					<Link to="/">
