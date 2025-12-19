@@ -11,6 +11,7 @@ import {
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { requireAuth } from './middleware/auth.js'
+import { config } from './config.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
@@ -369,6 +370,11 @@ app.get('/users/:username/profile', async (c) => {
 					profileImage: user.profileImage,
 					isRemote: user.isRemote,
 					isPublicProfile: false,
+					createdAt: user.createdAt.toISOString(),
+					displayColor: user.displayColor || '#3b82f6',
+					timezone: user.timezone || 'UTC',
+					bio: null,
+					headerImage: null,
 					_count: {
 						events: 0,
 						followers: 0,
@@ -1023,6 +1029,71 @@ app.post('/followers/:followerId/reject', moderateRateLimit, async (c) => {
 		return c.json({ success: true, message: 'Follower rejected' })
 	} catch (error) {
 		console.error('Error rejecting follower:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Get current ToS version (public endpoint)
+app.get('/tos/version', async (c) => {
+	return c.json({ version: config.tosVersion })
+})
+
+// Get user's ToS acceptance status
+app.get('/tos/status', async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { tosAcceptedAt: true, tosVersion: true },
+		})
+
+		if (!user) {
+			return c.json({ error: 'User not found' }, 404)
+		}
+
+		const isAccepted = !!user.tosAcceptedAt
+		const isCurrentVersion = user.tosVersion === config.tosVersion
+
+		return c.json({
+			accepted: isAccepted,
+			acceptedAt: user.tosAcceptedAt,
+			acceptedVersion: user.tosVersion,
+			currentVersion: config.tosVersion,
+			needsAcceptance: !isAccepted || !isCurrentVersion,
+		})
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error getting ToS status:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
+// Accept ToS
+app.post('/tos/accept', moderateRateLimit, async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		await prisma.user.update({
+			where: { id: userId },
+			data: {
+				tosAcceptedAt: new Date(),
+				tosVersion: config.tosVersion,
+			},
+		})
+
+		return c.json({
+			success: true,
+			message: 'Terms of Service accepted',
+			version: config.tosVersion,
+		})
+	} catch (error) {
+		if (error instanceof AppError) {
+			throw error
+		}
+		console.error('Error accepting ToS:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

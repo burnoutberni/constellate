@@ -25,6 +25,7 @@ model User {
 
   // Legal
   tosAcceptedAt DateTime?
+  tosVersion    Int? // Version of ToS the user accepted
 
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events

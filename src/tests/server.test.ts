@@ -206,7 +206,22 @@ describe('Server Setup', () => {
 			expect(authModule.generateUserKeys).toHaveBeenCalledWith('user-123', 'testuser')
 		})
 
-		it('should set tosAcceptedAt timestamp when tosAccepted is true', async () => {
+		it('should reject signup when tosAccepted is false', async () => {
+			const res = await app.request('/api/auth/sign-up', {
+				method: 'POST',
+				body: JSON.stringify({
+					email: 'test@example.com',
+					password: 'password123',
+					tosAccepted: false,
+				}),
+			})
+
+			expect(res.status).toBe(400)
+			const data = (await res.json()) as { error?: string }
+			expect(data.error).toContain('Terms of Service')
+		})
+
+		it('should set tosAcceptedAt and tosVersion when tosAccepted is true', async () => {
 			const mockUser = {
 				id: 'user-123',
 				username: 'testuser',
@@ -226,6 +241,8 @@ describe('Server Setup', () => {
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
 			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
 			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
+
+			const { config } = await import('../config.js')
 
 			const res = await app.request('/api/auth/sign-up', {
 				method: 'POST',
@@ -239,57 +256,14 @@ describe('Server Setup', () => {
 			// Wait for async operations
 			await new Promise((resolve) => setTimeout(resolve, 100))
 
-			// Verify tosAcceptedAt was set
+			// Verify tosAcceptedAt and tosVersion were set with correct values
 			expect(prisma.user.update).toHaveBeenCalledWith({
 				where: { id: 'user-123' },
 				data: {
 					tosAcceptedAt: expect.any(Date),
+					tosVersion: config.tosVersion,
 				},
 			})
-		})
-
-		it('should not set tosAcceptedAt timestamp when tosAccepted is false', async () => {
-			const mockUser = {
-				id: 'user-123',
-				username: 'testuser',
-				isRemote: false,
-				publicKey: null,
-				privateKey: null,
-			}
-
-			const mockResponse = new Response(
-				JSON.stringify({
-					user: { id: 'user-123' },
-				}),
-				{ status: 200 }
-			)
-
-			vi.mocked(authModule.auth.handler).mockResolvedValue(mockResponse)
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
-			vi.mocked(authModule.generateUserKeys).mockResolvedValue(undefined)
-
-			const res = await app.request('/api/auth/sign-up', {
-				method: 'POST',
-				body: JSON.stringify({
-					email: 'test@example.com',
-					password: 'password123',
-					tosAccepted: false,
-				}),
-			})
-
-			// Wait for async operations
-			await new Promise((resolve) => setTimeout(resolve, 100))
-
-			// Verify tosAcceptedAt was NOT set
-			expect(prisma.user.update).not.toHaveBeenCalledWith(
-				expect.objectContaining({
-					where: { id: 'user-123' },
-					data: expect.objectContaining({
-						tosAcceptedAt: expect.any(Date),
-					}),
-				})
-			)
 		})
 
 		it('should not generate keys for remote users', async () => {

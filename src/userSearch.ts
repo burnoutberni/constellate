@@ -624,6 +624,7 @@ async function resolveAndCacheRemoteUser(username: string) {
 			profileImage: true,
 			headerImage: true,
 			displayColor: true,
+			timezone: true,
 			isRemote: true,
 			externalActorUrl: true,
 			isPublicProfile: true,
@@ -785,6 +786,7 @@ app.get('/profile/:username', async (c) => {
 				profileImage: true,
 				headerImage: true,
 				displayColor: true,
+				timezone: true,
 				isRemote: true,
 				externalActorUrl: true,
 				isPublicProfile: true,
@@ -824,7 +826,7 @@ app.get('/profile/:username', async (c) => {
 				profileIsPublic: user.isPublicProfile,
 			}))
 
-		// If private profile and viewer can't see it, return minimal data
+		// If private profile and viewer can't see it, return minimal data with consistent structure
 		if (!user.isPublicProfile && !canViewFullProfile) {
 			return c.json({
 				user: {
@@ -834,6 +836,11 @@ app.get('/profile/:username', async (c) => {
 					profileImage: user.profileImage,
 					isRemote: user.isRemote,
 					isPublicProfile: false,
+					createdAt: user.createdAt.toISOString(),
+					displayColor: user.displayColor || '#3b82f6',
+					timezone: user.timezone || 'UTC',
+					bio: null,
+					headerImage: null,
 					_count: {
 						events: 0,
 						followers: 0,

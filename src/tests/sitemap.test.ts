@@ -15,6 +15,35 @@ describe('Sitemap API', () => {
 	})
 
 	describe('GET /sitemap.xml', () => {
+		it('returns sitemap index with references to sub-sitemaps', async () => {
+			const response = await app.request('/sitemap.xml', {
+				method: 'GET',
+			})
+			expect(response.status).toBe(200)
+
+			const xml = await response.text()
+			expect(xml).toContain('<sitemapindex')
+			expect(xml).toContain('sitemap-static.xml')
+		})
+	})
+
+	describe('GET /sitemap-static.xml', () => {
+		it('includes static pages in sitemap', async () => {
+			const response = await app.request('/sitemap-static.xml', {
+				method: 'GET',
+			})
+			expect(response.status).toBe(200)
+
+			const xml = await response.text()
+			expect(xml).toContain('<urlset')
+			expect(xml).toContain('<loc>')
+			expect(xml).toContain('/')
+			expect(xml).toContain('/about')
+			expect(xml).toContain('/discover')
+		})
+	})
+
+	describe('GET /sitemap-users-:page.xml', () => {
 		it('includes all users in sitemap regardless of privacy setting', async () => {
 			const publicUser = await prisma.user.create({
 				data: {
@@ -34,16 +63,26 @@ describe('Sitemap API', () => {
 				},
 			})
 
-			const response = await app.request('/sitemap.xml', {
+			const response = await app.request('/sitemap-users/1.xml', {
 				method: 'GET',
 			})
 			expect(response.status).toBe(200)
 
 			const xml = await response.text()
+			expect(xml).toContain('<urlset')
 			expect(xml).toContain(`/@${encodeURIComponent(publicUser.username)}`)
 			expect(xml).toContain(`/@${encodeURIComponent(privateUser.username)}`)
 		})
 
+		it('returns 400 for invalid page number', async () => {
+			const response = await app.request('/sitemap-users/0.xml', {
+				method: 'GET',
+			})
+			expect(response.status).toBe(400)
+		})
+	})
+
+	describe('GET /sitemap-events-:page.xml', () => {
 		it('includes public events in sitemap', async () => {
 			const user = await prisma.user.create({
 				data: {
@@ -71,27 +110,22 @@ describe('Sitemap API', () => {
 				},
 			})
 
-			const response = await app.request('/sitemap.xml', {
+			const response = await app.request('/sitemap-events/1.xml', {
 				method: 'GET',
 			})
 			expect(response.status).toBe(200)
 
 			const xml = await response.text()
+			expect(xml).toContain('<urlset')
 			expect(xml).toContain(`/@${encodeURIComponent(user.username)}/${publicEvent.id}`)
 			expect(xml).not.toContain(`/${privateEvent.id}`)
 		})
 
-		it('includes static pages in sitemap', async () => {
-			const response = await app.request('/sitemap.xml', {
+		it('returns 400 for invalid page number', async () => {
+			const response = await app.request('/sitemap-events/invalid.xml', {
 				method: 'GET',
 			})
-			expect(response.status).toBe(200)
-
-			const xml = await response.text()
-			expect(xml).toContain('<loc>')
-			expect(xml).toContain('/')
-			expect(xml).toContain('/about')
-			expect(xml).toContain('/discover')
+			expect(response.status).toBe(400)
 		})
 	})
 

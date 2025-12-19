@@ -83,15 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		username: string,
 		tosAccepted: boolean
 	) => {
-		const { error } = await authClient.signUp.email({
+		type SignUpParams = Parameters<typeof authClient.signUp.email>[0]
+		const signupData: SignUpParams & { tosAccepted: boolean } = {
 			email,
 			password,
 			name,
 			username,
-			// Send boolean flag - server will set the timestamp
-			// Type assertion needed because better-auth types don't include this custom field
 			tosAccepted,
-		} as Parameters<typeof authClient.signUp.email>[0] & { tosAccepted: boolean })
+		}
+		const { error } = await authClient.signUp.email(signupData)
 
 		if (error) {
 			throw error

@@ -161,6 +161,9 @@ export const config = {
 
 	// Reminder Dispatcher Configuration
 	enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
+
+	// Terms of Service
+	tosVersion: parseInt(getEnv('TOS_VERSION', '1')), // Current ToS version - increment when ToS is updated
 }
 
 // Validate encryption key format

@@ -227,12 +227,13 @@ async function extractUserIdFromResponse(response: Response): Promise<string | n
 }
 
 async function processSignupSuccess(userId: string, tosAccepted: boolean): Promise<void> {
-	// Update user with ToS acceptance timestamp if tosAccepted was true
+	// Update user with ToS acceptance timestamp and version if tosAccepted was true
 	if (tosAccepted) {
 		await prisma.user.update({
 			where: { id: userId },
 			data: {
 				tosAcceptedAt: new Date(),
+				tosVersion: config.tosVersion,
 			},
 		})
 	}
@@ -264,7 +265,18 @@ async function processSignupSuccess(userId: string, tosAccepted: boolean): Promi
 // Apply strict rate limiting to auth routes (especially POST for signup/login)
 app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
 	const signupRequest = isSignupRequest(c.req.path, c.req.method)
-	const tosAccepted = signupRequest ? await extractTosAccepted(c.req.raw) : false
+
+	// For signup requests, require ToS acceptance
+	let tosAccepted = false
+	if (signupRequest) {
+		tosAccepted = await extractTosAccepted(c.req.raw)
+		if (!tosAccepted) {
+			return c.json(
+				{ error: 'You must agree to the Terms of Service to create an account.' },
+				400
+			)
+		}
+	}
 
 	const response = await auth.handler(c.req.raw)
 
@@ -272,13 +284,12 @@ app.on(['POST'], '/api/auth/*', strictRateLimit, async (c) => {
 	if (signupRequest && response.ok) {
 		const userId = await extractUserIdFromResponse(response)
 		if (userId) {
-			try {
-				await processSignupSuccess(userId, tosAccepted)
-			} catch (error) {
+			// Process post-signup operations in the background without blocking the response
+			processSignupSuccess(userId, tosAccepted).catch((error) => {
 				// Log error but don't block the successful signup response
 				// The account was created successfully, so we should still return success
 				console.error('[Signup] Error processing post-signup operations:', error)
-			}
+			})
 		}
 	}
 
@@ -338,7 +349,8 @@ if (process.env.NODE_ENV === 'production') {
 			requestPath.startsWith('/followers') ||
 			requestPath.startsWith('/following') ||
 			requestPath === '/sitemap.xml' ||
-			requestPath === '/robots.txt'
+			requestPath === '/robots.txt' ||
+			requestPath.startsWith('/sitemap-')
 		) {
 			return c.notFound()
 		}

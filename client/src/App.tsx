@@ -5,9 +5,11 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { MentionNotifications } from './components/MentionNotifications'
 import { Toasts } from './components/Toast'
+import { TosAcceptanceModal } from './components/TosAcceptanceModal'
 import { PageLoader } from './components/ui'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './design-system'
+import { useAuth } from './hooks/useAuth'
 import { useRealtimeSSE } from './hooks/useRealtimeSSE'
 import { api } from './lib/api-client'
 import { logger, configureLogger } from './lib/logger'
@@ -44,7 +46,10 @@ function AppContent() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [checkingSetup, setCheckingSetup] = useState(true)
+	const [checkingTos, setCheckingTos] = useState(false)
+	const [needsTosAcceptance, setNeedsTosAcceptance] = useState(false)
 	const addToast = useUIStore((state) => state.addToast)
+	const { user, loading: authLoading } = useAuth()
 
 	useEffect(() => {
 		// Don't check setup if we're already on the onboarding page
@@ -106,7 +111,56 @@ function AppContent() {
 		}
 	}, [addToast])
 
-	if (checkingSetup) {
+	// Check ToS acceptance status when user is authenticated
+	useEffect(() => {
+		const checkTosStatus = async () => {
+			// Only check if user is authenticated and not on public pages
+			if (authLoading || !user) {
+				setCheckingTos(false)
+				setNeedsTosAcceptance(false)
+				return
+			}
+
+			// Don't check on public pages or ToS-related pages
+			const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
+			if (publicPaths.some((path) => location.pathname.startsWith(path))) {
+				setCheckingTos(false)
+				setNeedsTosAcceptance(false)
+				return
+			}
+
+			setCheckingTos(true)
+			try {
+				const status = await api.get<{
+					accepted: boolean
+					acceptedAt: string | null
+					acceptedVersion: number | null
+					currentVersion: number
+					needsAcceptance: boolean
+				}>('/tos/status')
+				setNeedsTosAcceptance(status.needsAcceptance)
+			} catch (error) {
+				// If we get 401, user is not authenticated - that's fine
+				if (
+					error instanceof Error &&
+					'status' in error &&
+					(error as { status: number }).status === 401
+				) {
+					setNeedsTosAcceptance(false)
+				} else {
+					logger.error('Failed to check ToS status:', error)
+					// Don't block the app if we can't check ToS status
+					setNeedsTosAcceptance(false)
+				}
+			} finally {
+				setCheckingTos(false)
+			}
+		}
+
+		checkTosStatus()
+	}, [user, authLoading, location.pathname])
+
+	if (checkingSetup || checkingTos) {
 		return <PageLoader />
 	}
 
@@ -138,6 +192,7 @@ function AppContent() {
 			</Routes>
 			<MentionNotifications />
 			<Toasts />
+			<TosAcceptanceModal isOpen={needsTosAcceptance} />
 		</ErrorBoundary>
 	)
 }

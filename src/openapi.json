@@ -2608,6 +2608,95 @@
 				}
 			}
 		},
+		"/api/tos/status": {
+			"get": {
+				"tags": ["Profile"],
+				"summary": "Get Terms of Service acceptance status",
+				"description": "Returns the current user's Terms of Service acceptance status, including whether they need to accept the current version.",
+				"responses": {
+					"200": {
+						"description": "ToS acceptance status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"accepted": {
+											"type": "boolean",
+											"description": "Whether the user has accepted any version of the ToS"
+										},
+										"acceptedAt": {
+											"type": "string",
+											"format": "date-time",
+											"nullable": true,
+											"description": "Timestamp when ToS was accepted"
+										},
+										"acceptedVersion": {
+											"type": "integer",
+											"nullable": true,
+											"description": "Version of ToS that was accepted"
+										},
+										"currentVersion": {
+											"type": "integer",
+											"description": "Current ToS version"
+										},
+										"needsAcceptance": {
+											"type": "boolean",
+											"description": "Whether the user needs to accept the current ToS version"
+										}
+									},
+									"required": ["accepted", "currentVersion", "needsAcceptance"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"404": {
+						"description": "User not found"
+					}
+				}
+			}
+		},
+		"/api/tos/accept": {
+			"post": {
+				"tags": ["Profile"],
+				"summary": "Accept Terms of Service",
+				"description": "Accepts the current version of the Terms of Service for the authenticated user. Updates the user's tosAcceptedAt timestamp and tosVersion.",
+				"responses": {
+					"200": {
+						"description": "ToS accepted successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": {
+											"type": "boolean"
+										},
+										"message": {
+											"type": "string"
+										},
+										"version": {
+											"type": "integer",
+											"description": "Version of ToS that was accepted"
+										}
+									},
+									"required": ["success", "message", "version"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
 		"/api/users/{username}/follow": {
 			"post": {
 				"tags": ["Profile"],

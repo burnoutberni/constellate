@@ -215,8 +215,14 @@ describe('Profile API', () => {
 			expect(data.user.username).toBe(privateUser.username)
 			expect(data.user.name).toBe(privateUser.name)
 			expect(data.user.profileImage).toBeDefined()
-			expect(data.user.bio).toBeUndefined()
-			expect(data.user.headerImage).toBeUndefined()
+			expect(data.user.createdAt).toBeDefined()
+			expect(typeof data.user.createdAt).toBe('string')
+			expect(data.user.displayColor).toBeDefined()
+			expect(typeof data.user.displayColor).toBe('string')
+			expect(data.user.timezone).toBeDefined()
+			expect(typeof data.user.timezone).toBe('string')
+			expect(data.user.bio).toBeNull()
+			expect(data.user.headerImage).toBeNull()
 			expect(data.user._count).toBeDefined()
 			expect(data.user._count.events).toBe(0)
 			expect(data.user._count.followers).toBe(0)
@@ -904,6 +910,161 @@ describe('Profile API', () => {
 
 			const response = await app.request(`/api/users/me/export/${exportJob.id}`, {
 				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('GET /tos/status', () => {
+		it('returns ToS status for user who has not accepted', async () => {
+			mockAuth(testUser)
+
+			// Ensure user has no ToS acceptance
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: { tosAcceptedAt: null, tosVersion: null },
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(false)
+			expect(data.acceptedAt).toBeNull()
+			expect(data.needsAcceptance).toBe(true)
+			expect(data.currentVersion).toBeDefined()
+		})
+
+		it('returns ToS status for user who has accepted current version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: new Date(),
+					tosVersion: config.tosVersion,
+				},
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(true)
+			expect(data.acceptedAt).toBeDefined()
+			expect(data.acceptedVersion).toBe(config.tosVersion)
+			expect(data.currentVersion).toBe(config.tosVersion)
+			expect(data.needsAcceptance).toBe(false)
+		})
+
+		it('returns needsAcceptance true when user has accepted old version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: new Date(),
+					tosVersion: config.tosVersion - 1, // Old version
+				},
+			})
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.accepted).toBe(true)
+			expect(data.acceptedVersion).toBe(config.tosVersion - 1)
+			expect(data.currentVersion).toBe(config.tosVersion)
+			expect(data.needsAcceptance).toBe(true)
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(401)
+		})
+	})
+
+	describe('POST /tos/accept', () => {
+		it('accepts ToS and updates user record', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			// Ensure user has not accepted
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: { tosAcceptedAt: null, tosVersion: null },
+			})
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.success).toBe(true)
+			expect(data.version).toBe(config.tosVersion)
+
+			// Verify user was updated
+			const updatedUser = await prisma.user.findUnique({
+				where: { id: testUser.id },
+				select: { tosAcceptedAt: true, tosVersion: true },
+			})
+			expect(updatedUser?.tosAcceptedAt).toBeDefined()
+			expect(updatedUser?.tosVersion).toBe(config.tosVersion)
+		})
+
+		it('updates ToS acceptance when user has old version', async () => {
+			mockAuth(testUser)
+			const { config } = await import('../config.js')
+
+			const oldDate = new Date(Date.now() - 86400000) // Yesterday
+			await prisma.user.update({
+				where: { id: testUser.id },
+				data: {
+					tosAcceptedAt: oldDate,
+					tosVersion: config.tosVersion - 1,
+				},
+			})
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(200)
+
+			// Verify user was updated with new version and timestamp
+			const updatedUser = await prisma.user.findUnique({
+				where: { id: testUser.id },
+				select: { tosAcceptedAt: true, tosVersion: true },
+			})
+			expect(updatedUser?.tosVersion).toBe(config.tosVersion)
+			expect(updatedUser?.tosAcceptedAt).toBeDefined()
+			expect(updatedUser?.tosAcceptedAt?.getTime()).toBeGreaterThan(oldDate.getTime())
+		})
+
+		it('returns 401 when not authenticated', async () => {
+			mockNoAuth()
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 			})
 			expect(response.status).toBe(401)

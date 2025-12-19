@@ -524,8 +524,14 @@ describe('UserSearch API', () => {
 			expect(body.user.username).toBe(privateUser.username)
 			expect(body.user.name).toBe(privateUser.name)
 			expect(body.user.profileImage).toBeDefined()
-			expect(body.user.bio).toBeUndefined()
-			expect(body.user.headerImage).toBeUndefined()
+			expect(body.user.createdAt).toBeDefined()
+			expect(typeof body.user.createdAt).toBe('string')
+			expect(body.user.displayColor).toBeDefined()
+			expect(typeof body.user.displayColor).toBe('string')
+			expect(body.user.timezone).toBeDefined()
+			expect(typeof body.user.timezone).toBe('string')
+			expect(body.user.bio).toBeNull()
+			expect(body.user.headerImage).toBeNull()
 			expect(body.user._count).toEqual({
 				events: 0,
 				followers: 0,
