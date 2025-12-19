@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { MemoryRouter } from 'react-router-dom'
 
 import { AddIcon, ArrowRightIcon } from '@/components/ui'
 
@@ -122,6 +123,56 @@ export const WithRightIcon: Story = {
 	args: {
 		rightIcon: <ArrowRightIcon />,
 		children: 'Continue',
+	},
+}
+
+export const AsLink: Story = {
+	args: {
+		to: '/home',
+		children: 'Go Home',
+	},
+	decorators: [
+		(Story) => (
+			<MemoryRouter>
+				<div className="p-4">
+					<Story />
+				</div>
+			</MemoryRouter>
+		),
+	],
+}
+
+export const NavigationButtons: Story = {
+	args: {
+		children: 'Button',
+	},
+	render: () => (
+		<MemoryRouter>
+			<div className="flex flex-col gap-4">
+				<div className="flex gap-2">
+					<Button variant="primary" to="/home">
+						Go Home
+					</Button>
+					<Button variant="secondary" to="/discover">
+						Discover
+					</Button>
+					<Button variant="ghost" to="/settings">
+						Settings
+					</Button>
+				</div>
+				<div className="flex gap-2">
+					<Button variant="primary" to="/home" disabled>
+						Disabled Link
+					</Button>
+					<Button variant="secondary" to="/discover" loading>
+						Loading Link
+					</Button>
+				</div>
+			</div>
+		</MemoryRouter>
+	),
+	parameters: {
+		layout: 'padded',
 	},
 }
 

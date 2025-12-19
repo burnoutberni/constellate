@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { Button } from '../../components/ui'
 
 describe('Button Component', () => {
@@ -87,5 +88,47 @@ describe('Button Component', () => {
 		const button = screen.getByRole('button', { name: 'Button' })
 		expect(button).toBeDisabled()
 		expect(button).toHaveAttribute('aria-disabled', 'true')
+	})
+
+	describe('Navigation', () => {
+		it('user can navigate with button when to prop is provided', () => {
+			render(
+				<MemoryRouter>
+					<Button to="/home">Go Home</Button>
+				</MemoryRouter>
+			)
+
+			const link = screen.getByRole('link', { name: 'Go Home' })
+			expect(link).toBeInTheDocument()
+			expect(link).toHaveAttribute('href', '/home')
+		})
+
+		it('user can see disabled navigation button', () => {
+			render(
+				<MemoryRouter>
+					<Button to="/home" disabled>
+						Go Home
+					</Button>
+				</MemoryRouter>
+			)
+
+			const link = screen.getByRole('link', { name: 'Go Home' })
+			expect(link).toHaveAttribute('aria-disabled', 'true')
+			expect(link).toHaveClass('pointer-events-none', 'opacity-50')
+		})
+
+		it('user cannot navigate with button when loading', () => {
+			render(
+				<MemoryRouter>
+					<Button to="/home" loading>
+						Go Home
+					</Button>
+				</MemoryRouter>
+			)
+
+			const link = screen.getByRole('link', { name: 'Go Home' })
+			expect(link).toHaveAttribute('aria-disabled', 'true')
+			expect(link).toHaveClass('pointer-events-none', 'opacity-50')
+		})
 	})
 })

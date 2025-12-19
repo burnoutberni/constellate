@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link, type LinkProps } from 'react-router-dom'
 
 import { cn } from '../../lib/utils'
 
@@ -7,7 +8,7 @@ import { Spinner } from './Spinner'
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type BaseButtonProps = {
 	/**
 	 * Visual style variant of the button
 	 * @default 'primary'
@@ -38,14 +39,32 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 	 * Button content
 	 */
 	children: React.ReactNode
+	/**
+	 * Additional CSS classes
+	 */
+	className?: string
 }
+
+type ButtonAsButton = BaseButtonProps &
+	React.ButtonHTMLAttributes<HTMLButtonElement> & {
+		to?: never
+	}
+
+type ButtonAsLink = BaseButtonProps &
+	Omit<LinkProps, 'className' | 'style' | 'children'> & {
+		to: string
+		disabled?: boolean
+	}
+
+export type ButtonProps = ButtonAsButton | ButtonAsLink
 
 /**
  * Button component with multiple variants and sizes.
  * Fully accessible with keyboard navigation and ARIA support.
  * Supports dark mode through Tailwind classes.
+ * When `to` prop is provided, renders as a Link styled as a button for navigation.
  */
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 	(
 		{
 			variant = 'primary',
@@ -57,6 +76,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			children,
 			className,
 			disabled,
+			to,
 			...props
 		},
 		ref
@@ -135,22 +155,45 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			variantStyles[variant],
 			sizeStyles[size],
 			fullWidth && 'w-full',
+			isDisabled && 'pointer-events-none opacity-50',
 			className
 		)
 
+		const content = (
+			<>
+				{loading && <Spinner size="sm" className="text-current" />}
+				{!loading && leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
+				<span className={loading ? 'opacity-0' : ''}>{children}</span>
+				{!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+			</>
+		)
+
+		// Render as Link when `to` prop is provided
+		if (to) {
+			const { to: _, ...linkProps } = props as LinkProps & { to?: string }
+			return (
+				<Link
+					ref={ref as React.ForwardedRef<HTMLAnchorElement>}
+					to={to}
+					className={classes}
+					aria-disabled={isDisabled}
+					{...linkProps}>
+					{content}
+				</Link>
+			)
+		}
+
+		// Render as button by default
 		return (
 			<button
-				ref={ref}
+				ref={ref as React.ForwardedRef<HTMLButtonElement>}
 				type="button"
 				className={classes}
 				disabled={isDisabled}
 				aria-busy={loading}
 				aria-disabled={isDisabled}
-				{...props}>
-				{loading && <Spinner size="sm" className="text-current" />}
-				{!loading && leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
-				<span className={loading ? 'opacity-0' : ''}>{children}</span>
-				{!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+				{...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+				{content}
 			</button>
 		)
 	}

@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
 import { Button } from '@/components/ui'
@@ -23,16 +22,12 @@ export function NotFoundPage() {
 					for. It might have been moved or deleted.
 				</p>
 				<div className="flex gap-4 justify-center">
-					<Link to="/">
-						<Button variant="primary" size="lg">
-							Go Home
-						</Button>
-					</Link>
-					<Link to="/discover">
-						<Button variant="secondary" size="lg">
-							Discover Events
-						</Button>
-					</Link>
+					<Button variant="primary" size="lg" to="/">
+						Go Home
+					</Button>
+					<Button variant="secondary" size="lg" to="/discover">
+						Discover Events
+					</Button>
 				</div>
 			</Container>
 		</div>
