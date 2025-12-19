@@ -12,6 +12,7 @@ import {
 } from '../../services/dataExportProcessor.js'
 import * as notificationsModule from '../../services/notifications.js'
 import * as emailModule from '../../lib/email.js'
+import { DataExportStatus } from '@prisma/client'
 
 // Mock dependencies
 vi.mock('../../services/notifications.js')
@@ -63,7 +64,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -85,7 +86,7 @@ describe('Data Export Processor', () => {
 				where: { id: dataExport.id },
 			})
 
-			expect(updatedExport?.status).toBe('COMPLETED')
+			expect(updatedExport?.status).toBe(DataExportStatus.COMPLETED)
 			expect(updatedExport?.data).toBeDefined()
 			expect(updatedExport?.completedAt).toBeDefined()
 			expect(updatedExport?.expiresAt).toBeDefined()
@@ -130,7 +131,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -151,7 +152,7 @@ describe('Data Export Processor', () => {
 				where: { id: dataExport.id },
 			})
 
-			expect(updatedExport?.status).toBe('COMPLETED')
+			expect(updatedExport?.status).toBe(DataExportStatus.COMPLETED)
 			const exportData = updatedExport?.data as any
 
 			expect(exportData.profile).toBeDefined()
@@ -166,7 +167,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -197,7 +198,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -234,7 +235,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: userWithoutEmail.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -251,7 +252,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -273,7 +274,7 @@ describe('Data Export Processor', () => {
 			const updateSpy = vi.spyOn(prisma.dataExport, 'update')
 			updateSpy.mockResolvedValue({
 				...dataExport,
-				status: 'FAILED',
+				status: DataExportStatus.FAILED,
 				errorMessage: 'User not found',
 				user: testUser,
 			} as any)
@@ -285,7 +286,7 @@ describe('Data Export Processor', () => {
 				expect.objectContaining({
 					where: { id: dataExport.id },
 					data: expect.objectContaining({
-						status: 'FAILED',
+						status: DataExportStatus.FAILED,
 					}),
 				})
 			)
@@ -295,7 +296,7 @@ describe('Data Export Processor', () => {
 			const completedExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'COMPLETED',
+					status: DataExportStatus.COMPLETED,
 					data: { test: 'data' },
 				},
 			})
@@ -311,7 +312,79 @@ describe('Data Export Processor', () => {
 				where: { id: completedExport.id },
 			})
 
-			expect(exportAfter?.status).toBe('COMPLETED')
+			expect(exportAfter?.status).toBe(DataExportStatus.COMPLETED)
+		})
+
+		it('should retry stuck PROCESSING jobs', async () => {
+			// Create a PROCESSING job with an old updatedAt timestamp (more than 10 minutes ago)
+			// This simulates a job that was stuck after a processor crash
+			const stuckTimestamp = new Date(Date.now() - 11 * 60 * 1000) // 11 minutes ago
+			const stuckExport = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: DataExportStatus.PROCESSING,
+					updatedAt: stuckTimestamp,
+					retryCount: 0,
+					maxRetries: 3,
+				},
+			})
+
+			// Mock the transaction to return the stuck export ID
+			vi.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => {
+				const tx = {
+					$queryRaw: vi.fn().mockResolvedValue([{ id: stuckExport.id }]),
+				}
+				return callback(tx)
+			})
+
+			vi.mocked(notificationsModule.createNotification).mockResolvedValue(undefined as any)
+			vi.mocked(emailModule.sendEmail).mockResolvedValue(undefined)
+
+			await runDataExportProcessorCycle(5)
+
+			// Check that the stuck export was retried and completed
+			const updatedExport = await prisma.dataExport.findUnique({
+				where: { id: stuckExport.id },
+			})
+
+			expect(updatedExport?.status).toBe(DataExportStatus.COMPLETED)
+			expect(updatedExport?.data).toBeDefined()
+			expect(updatedExport?.completedAt).toBeDefined()
+			expect(updatedExport?.retryCount).toBe(0) // Reset on success
+			expect(notificationsModule.createNotification).toHaveBeenCalled()
+		})
+
+		it('should fail stuck PROCESSING jobs after max retries', async () => {
+			// Create a PROCESSING job that has already been retried maxRetries times
+			const stuckTimestamp = new Date(Date.now() - 11 * 60 * 1000) // 11 minutes ago
+			const stuckExport = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: DataExportStatus.PROCESSING,
+					updatedAt: stuckTimestamp,
+					retryCount: 3, // Already at max retries
+					maxRetries: 3,
+				},
+			})
+
+			// Mock the transaction to return the stuck export ID
+			vi.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => {
+				const tx = {
+					$queryRaw: vi.fn().mockResolvedValue([{ id: stuckExport.id }]),
+				}
+				return callback(tx)
+			})
+
+			await runDataExportProcessorCycle(5)
+
+			// Check that the export was marked as FAILED
+			const updatedExport = await prisma.dataExport.findUnique({
+				where: { id: stuckExport.id },
+			})
+
+			expect(updatedExport?.status).toBe(DataExportStatus.FAILED)
+			expect(updatedExport?.errorMessage).toContain('failed after 3 retry attempts')
+			expect(notificationsModule.createNotification).not.toHaveBeenCalled()
 		})
 
 		it('should process multiple exports up to limit', async () => {
@@ -319,21 +392,21 @@ describe('Data Export Processor', () => {
 			const export1 = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
 			const export2 = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
 			const export3 = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -355,8 +428,8 @@ describe('Data Export Processor', () => {
 			})
 
 			// Two should be processed, one should remain pending
-			const completed = exports.filter((e) => e.status === 'COMPLETED')
-			const pending = exports.filter((e) => e.status === 'PENDING')
+			const completed = exports.filter((e) => e.status === DataExportStatus.COMPLETED)
+			const pending = exports.filter((e) => e.status === DataExportStatus.PENDING)
 
 			expect(completed.length).toBe(2)
 			expect(pending.length).toBe(1)
@@ -366,7 +439,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -397,7 +470,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -428,7 +501,7 @@ describe('Data Export Processor', () => {
 			const expiredExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'COMPLETED',
+					status: DataExportStatus.COMPLETED,
 					data: { test: 'data' },
 					expiresAt: expiredDate,
 				},
@@ -437,7 +510,7 @@ describe('Data Export Processor', () => {
 			const validExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'COMPLETED',
+					status: DataExportStatus.COMPLETED,
 					data: { test: 'data' },
 					expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
 				},
@@ -514,7 +587,7 @@ describe('Data Export Processor', () => {
 			const dataExport = await prisma.dataExport.create({
 				data: {
 					userId: testUser.id,
-					status: 'PENDING',
+					status: DataExportStatus.PENDING,
 				},
 			})
 
@@ -539,7 +612,7 @@ describe('Data Export Processor', () => {
 				where: { id: dataExport.id },
 			})
 
-			expect(updatedExport?.status).toBe('COMPLETED')
+			expect(updatedExport?.status).toBe(DataExportStatus.COMPLETED)
 
 			stopDataExportProcessor()
 		})

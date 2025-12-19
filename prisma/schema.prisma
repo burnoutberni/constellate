@@ -681,6 +681,10 @@ model DataExport {
   // Error tracking
   errorMessage String?
 
+  // Retry management
+  retryCount Int @default(0) // Number of times this job has been retried
+  maxRetries Int @default(3) // Maximum number of retry attempts before giving up
+
   // Completion tracking
   completedAt DateTime?
   expiresAt   DateTime? // Exports expire after 7 days

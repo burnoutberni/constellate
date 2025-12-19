@@ -8,12 +8,13 @@ import { prisma } from '../lib/prisma.js'
 import { createNotification } from './notifications.js'
 import { sendEmail } from '../lib/email.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
-import { Prisma } from '@prisma/client'
+import { Prisma, DataExportStatus } from '@prisma/client'
 
 const POLL_INTERVAL_MS = 30000 // Check every 30 seconds
 const PROCESSING_LIMIT = 5 // Process up to 5 exports per cycle
 const EXPORT_EXPIRY_DAYS = 7 // Exports expire after 7 days
 const CLEANUP_INTERVAL_MS = 3600000 // Run cleanup every hour
+const PROCESSING_TIMEOUT_MS = 600000 // Consider PROCESSING jobs stuck after 10 minutes
 
 let processorStarted = false
 let isProcessing = false
@@ -128,15 +129,40 @@ async function processExport(exportId: string) {
 		return
 	}
 
-	if (dataExport.status !== 'PENDING') {
+	// Only process PENDING jobs or stuck PROCESSING jobs
+	// Stuck jobs are those that have been in PROCESSING state for too long
+	const isStuckProcessing =
+		dataExport.status === DataExportStatus.PROCESSING &&
+		dataExport.updatedAt < new Date(Date.now() - PROCESSING_TIMEOUT_MS)
+
+	if (dataExport.status !== DataExportStatus.PENDING && !isStuckProcessing) {
+		return
+	}
+
+	// Check if we've exceeded max retries for stuck jobs
+	if (isStuckProcessing && dataExport.retryCount >= dataExport.maxRetries) {
+		await prisma.dataExport.update({
+			where: { id: exportId },
+			data: {
+				status: DataExportStatus.FAILED,
+				errorMessage: `Export failed after ${dataExport.retryCount} retry attempts. The job was stuck in PROCESSING state repeatedly.`,
+			},
+		})
 		return
 	}
 
 	try {
-		// Update status to PROCESSING
+		// Update status to PROCESSING and increment retry count if this is a retry
+		const updateData: { status: DataExportStatus; retryCount?: number } = {
+			status: DataExportStatus.PROCESSING,
+		}
+		if (isStuckProcessing) {
+			updateData.retryCount = dataExport.retryCount + 1
+		}
+
 		await prisma.dataExport.update({
 			where: { id: exportId },
-			data: { status: 'PROCESSING' },
+			data: updateData,
 		})
 
 		// Fetch all user data
@@ -147,13 +173,15 @@ async function processExport(exportId: string) {
 		expiresAt.setDate(expiresAt.getDate() + EXPORT_EXPIRY_DAYS)
 
 		// Store the export data and mark as completed
+		// Reset retry count on successful completion
 		await prisma.dataExport.update({
 			where: { id: exportId },
 			data: {
-				status: 'COMPLETED',
+				status: DataExportStatus.COMPLETED,
 				data: exportData as Prisma.InputJsonValue,
 				completedAt: new Date(),
 				expiresAt,
+				retryCount: 0, // Reset retry count on success
 			},
 		})
 
@@ -190,7 +218,7 @@ async function processExport(exportId: string) {
 		await prisma.dataExport.update({
 			where: { id: exportId },
 			data: {
-				status: 'FAILED',
+				status: DataExportStatus.FAILED,
 				errorMessage,
 			},
 		})
@@ -239,11 +267,19 @@ export async function runDataExportProcessorCycle(limit: number = PROCESSING_LIM
 		// Use a transaction with FOR UPDATE SKIP LOCKED to atomically select and claim exports
 		// This prevents race conditions when multiple processor instances run simultaneously
 		const exportIds = await prisma.$transaction(async (tx) => {
-			// Select and lock pending exports atomically
+			// Select and lock pending exports and stuck processing exports atomically
+			// A job is considered stuck if it's been in PROCESSING state for more than PROCESSING_TIMEOUT_MS
+			const stuckThreshold = new Date(Date.now() - PROCESSING_TIMEOUT_MS)
 			const exports = await tx.$queryRaw<Array<{ id: string }>>`
                 SELECT id
                 FROM "DataExport"
-                WHERE status = 'PENDING'::"DataExportStatus"
+                WHERE (
+                    status = 'PENDING'::"DataExportStatus"
+                    OR (
+                        status = 'PROCESSING'::"DataExportStatus"
+                        AND "updatedAt" < ${stuckThreshold}
+                    )
+                )
                 ORDER BY "createdAt" ASC
                 LIMIT ${limit}
                 FOR UPDATE SKIP LOCKED
