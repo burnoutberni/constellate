@@ -15,7 +15,9 @@ vi.mock('../lib/prisma.js', () => ({
 		user: {
 			update: vi.fn(),
 			findUnique: vi.fn(),
+			delete: vi.fn(),
 		},
+		$transaction: vi.fn(),
 	},
 }))
 
@@ -146,21 +148,35 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// Mock transaction client
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(mockUser as any),
+					update: vi.fn().mockResolvedValue({} as any),
+				},
+			}
+
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
+			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
 
 			const { config } = await import('../config.js')
 
 			await processSignupSuccess(userId)
 
-			// Verify ToS timestamp and version were set
-			expect(prisma.user.update).toHaveBeenCalledWith({
-				where: { id: userId },
-				data: {
-					tosAcceptedAt: expect.any(Date),
-					tosVersion: config.tosVersion,
-				},
-			})
+			// Verify transaction was used
+			expect(prisma.$transaction).toHaveBeenCalled()
+
+			// Verify ToS timestamp and version were set in single atomic update
+			// Since user doesn't have keys, they will be generated and included
+			expect(mockTx.user.update).toHaveBeenCalledTimes(1)
+			const updateCall = mockTx.user.update.mock.calls[0][0]
+			expect(updateCall.where).toEqual({ id: userId })
+			expect(updateCall.data).toHaveProperty('tosAcceptedAt')
+			expect(updateCall.data).toHaveProperty('tosVersion', config.tosVersion)
+			expect(updateCall.data).toHaveProperty('publicKey')
+			expect(updateCall.data).toHaveProperty('privateKey')
 		})
 
 		it('should generate keys for local users without keys', async () => {
@@ -173,14 +189,26 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// Mock transaction client
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(mockUser as any),
+					update: vi.fn().mockResolvedValue({} as any),
+				},
+			}
+
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
 			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
 
 			await processSignupSuccess(userId)
 
+			// Verify transaction was used
+			expect(prisma.$transaction).toHaveBeenCalled()
+
 			// Verify that findUnique was called to fetch the user
-			expect(prisma.user.findUnique).toHaveBeenCalledWith({
+			expect(mockTx.user.findUnique).toHaveBeenCalledWith({
 				where: { id: userId },
 				select: {
 					id: true,
@@ -191,12 +219,13 @@ describe('Authentication Setup', () => {
 				},
 			})
 
-			// Verify that keys were generated (update should be called twice: once for ToS, once for keys)
-			expect(prisma.user.update).toHaveBeenCalledTimes(2)
-			// Second call should be for keys
-			const keyUpdateCall = vi.mocked(prisma.user.update).mock.calls[1]
-			expect(keyUpdateCall[0].data).toHaveProperty('publicKey')
-			expect(keyUpdateCall[0].data).toHaveProperty('privateKey')
+			// Verify that keys were generated in single atomic update with ToS
+			expect(mockTx.user.update).toHaveBeenCalledTimes(1)
+			const updateCall = mockTx.user.update.mock.calls[0][0]
+			expect(updateCall.data).toHaveProperty('tosAcceptedAt')
+			expect(updateCall.data).toHaveProperty('tosVersion')
+			expect(updateCall.data).toHaveProperty('publicKey')
+			expect(updateCall.data).toHaveProperty('privateKey')
 		})
 
 		it('should not generate keys for remote users', async () => {
@@ -209,14 +238,30 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			const generateUserKeysSpy = vi.spyOn(authModule, 'generateUserKeys')
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// Mock transaction client
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(mockUser as any),
+					update: vi.fn().mockResolvedValue({} as any),
+				},
+			}
+
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
 
 			await processSignupSuccess(userId)
 
-			expect(generateUserKeysSpy).not.toHaveBeenCalled()
-			generateUserKeysSpy.mockRestore()
+			// Verify transaction was used
+			expect(prisma.$transaction).toHaveBeenCalled()
+
+			// Verify update was called with only ToS data (no keys)
+			expect(mockTx.user.update).toHaveBeenCalledTimes(1)
+			const updateCall = mockTx.user.update.mock.calls[0][0]
+			expect(updateCall.data).toHaveProperty('tosAcceptedAt')
+			expect(updateCall.data).toHaveProperty('tosVersion')
+			expect(updateCall.data).not.toHaveProperty('publicKey')
+			expect(updateCall.data).not.toHaveProperty('privateKey')
 		})
 
 		it('should not generate keys if user already has keys', async () => {
@@ -229,17 +274,33 @@ describe('Authentication Setup', () => {
 				privateKey: 'existing-private-key',
 			}
 
-			const generateUserKeysSpy = vi.spyOn(authModule, 'generateUserKeys')
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// Mock transaction client
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(mockUser as any),
+					update: vi.fn().mockResolvedValue({} as any),
+				},
+			}
+
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
 
 			await processSignupSuccess(userId)
 
-			expect(generateUserKeysSpy).not.toHaveBeenCalled()
-			generateUserKeysSpy.mockRestore()
+			// Verify transaction was used
+			expect(prisma.$transaction).toHaveBeenCalled()
+
+			// Verify update was called with only ToS data (no keys)
+			expect(mockTx.user.update).toHaveBeenCalledTimes(1)
+			const updateCall = mockTx.user.update.mock.calls[0][0]
+			expect(updateCall.data).toHaveProperty('tosAcceptedAt')
+			expect(updateCall.data).toHaveProperty('tosVersion')
+			expect(updateCall.data).not.toHaveProperty('publicKey')
+			expect(updateCall.data).not.toHaveProperty('privateKey')
 		})
 
-		it('should propagate key generation errors (signup fails if keys cannot be generated)', async () => {
+		it('should delete user and propagate errors if transaction fails', async () => {
 			const userId = 'user-123'
 			const mockUser = {
 				id: userId,
@@ -249,24 +310,44 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			// First update (ToS) succeeds, second update (keys) fails
-			vi.mocked(prisma.user.update)
-				.mockResolvedValueOnce({} as any) // ToS update succeeds
-				.mockRejectedValueOnce(new Error('Database error during key generation')) // Key update fails
+			const transactionError = new Error('Database error during transaction')
 
-			vi.mocked(encryptPrivateKey).mockReturnValue('encrypted-key')
+			// Mock transaction to fail
+			vi.mocked(prisma.$transaction).mockRejectedValue(transactionError)
+			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
 
-			// Key generation is required - if it fails, signup should fail
+			// Key generation is required - if it fails, signup should fail and user should be deleted
 			await expect(processSignupSuccess(userId)).rejects.toThrow(
-				'Database error during key generation'
+				'Database error during transaction'
 			)
 
-			// Verify that both updates were attempted
-			expect(prisma.user.update).toHaveBeenCalledTimes(2)
+			// Verify that user deletion was attempted to rollback signup
+			expect(prisma.user.delete).toHaveBeenCalledWith({
+				where: { id: userId },
+			})
 		})
 
-		it('should throw error if username is missing when generating keys', async () => {
+		it('should delete user even if deletion fails (original error is more important)', async () => {
+			const userId = 'user-123'
+			const transactionError = new Error('Database error during transaction')
+			const deleteError = new Error('Failed to delete user')
+
+			// Mock transaction to fail
+			vi.mocked(prisma.$transaction).mockRejectedValue(transactionError)
+			vi.mocked(prisma.user.delete).mockRejectedValue(deleteError)
+
+			// Should throw the original transaction error, not the delete error
+			await expect(processSignupSuccess(userId)).rejects.toThrow(
+				'Database error during transaction'
+			)
+
+			// Verify that user deletion was attempted
+			expect(prisma.user.delete).toHaveBeenCalledWith({
+				where: { id: userId },
+			})
+		})
+
+		it('should delete user if username is missing when generating keys', async () => {
 			const userId = 'user-123'
 			const mockUser = {
 				id: userId,
@@ -276,13 +357,55 @@ describe('Authentication Setup', () => {
 				privateKey: null,
 			}
 
-			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			vi.mocked(prisma.user.update).mockResolvedValue({} as any)
+			// Mock transaction client that will throw error
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(mockUser as any),
+					update: vi.fn(),
+				},
+			}
 
-			// Username is required - if missing, should throw error
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
+			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
+
+			// Username is required - if missing, should throw error and delete user
 			await expect(processSignupSuccess(userId)).rejects.toThrow(
 				'Username is required but was not found'
 			)
+
+			// Verify that user deletion was attempted to rollback signup
+			expect(prisma.user.delete).toHaveBeenCalledWith({
+				where: { id: userId },
+			})
+		})
+
+		it('should delete user if user is not found', async () => {
+			const userId = 'user-123'
+
+			// Mock transaction client that returns null user
+			const mockTx = {
+				user: {
+					findUnique: vi.fn().mockResolvedValue(null),
+					update: vi.fn(),
+				},
+			}
+
+			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+				return callback(mockTx)
+			})
+			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
+
+			// Should throw error and delete user
+			await expect(processSignupSuccess(userId)).rejects.toThrow(
+				`User with id ${userId} not found`
+			)
+
+			// Verify that user deletion was attempted to rollback signup
+			expect(prisma.user.delete).toHaveBeenCalledWith({
+				where: { id: userId },
+			})
 		})
 	})
 

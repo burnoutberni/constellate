@@ -42,7 +42,7 @@ export function PrivacySettings({ profile, userId }: PrivacySettingsProps) {
 			setOptimisticUpdates((prev) => {
 				const next = { ...prev }
 				for (const key in variables) {
-					if (key in next) {
+					if (Object.hasOwn(variables, key) && key in next) {
 						delete next[key as keyof typeof next]
 					}
 				}

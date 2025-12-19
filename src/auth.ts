@@ -22,7 +22,12 @@ function detectDatabaseProvider(): 'postgresql' {
 }
 
 // Helper function to generate keys for users
-export async function generateUserKeys(userId: string, username: string) {
+// If tx is provided, uses the transaction client; otherwise uses the regular prisma client
+export async function generateUserKeys(
+	userId: string,
+	username: string,
+	tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) {
 	const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 		modulusLength: 2048,
 		publicKeyEncoding: {
@@ -38,7 +43,8 @@ export async function generateUserKeys(userId: string, username: string) {
 	// Encrypt private key before storing
 	const encryptedPrivateKey = encryptPrivateKey(privateKey)
 
-	await prisma.user.update({
+	const client = tx || prisma
+	await client.user.update({
 		where: { id: userId },
 		data: {
 			publicKey,
@@ -115,9 +121,14 @@ export const auth = betterAuth({
 			// Validate username is provided and non-empty
 			// Username is required for all users as it's their public identifier
 			// and used to build URLs, make profiles findable, etc.
-			if (!body.username || typeof body.username !== 'string' || body.username.trim().length === 0) {
+			if (
+				!body.username ||
+				typeof body.username !== 'string' ||
+				body.username.trim().length === 0
+			) {
 				throw new APIError('BAD_REQUEST', {
-					message: 'Username is required. It is your public identifier and used to build your profile URL.',
+					message:
+						'Username is required. It is your public identifier and used to build your profile URL.',
 				})
 			}
 
@@ -134,6 +145,7 @@ export const auth = betterAuth({
 		// After hook: Handle post-signup actions (ToS timestamp, key generation)
 		// This runs after a successful signup and has access to the newly created
 		// user via ctx.context.newSession.user, avoiding the need to parse response bodies.
+		// If post-signup operations fail, the user is deleted to rollback the entire signup.
 		after: createAuthMiddleware(async (ctx) => {
 			// Only process email/password signup
 			if (ctx.path !== '/sign-up/email') {
@@ -147,8 +159,9 @@ export const auth = betterAuth({
 
 			const userId = newSession.user.id
 
-			// Process post-signup operations synchronously
-			// Key generation is required - if it fails, signup fails
+			// Process post-signup operations atomically in a transaction
+			// If any operation fails, the user is deleted and the error is propagated
+			// This ensures no partial user state exists in the database
 			await processSignupSuccess(userId)
 		}),
 	},
@@ -158,40 +171,100 @@ export const auth = betterAuth({
  * Process post-signup operations:
  * 1. Update user with ToS acceptance timestamp and version
  * 2. Generate cryptographic keys for ActivityPub (required for local users)
+ *
+ * All operations are performed atomically in a single transaction. If any operation fails,
+ * the transaction is rolled back and the user is deleted to ensure no partial user state.
+ *
  * Exported for testing purposes.
- * @throws If key generation fails, the error will propagate and cause signup to fail
+ * @throws If any operation fails, the user is deleted and the error is propagated
  */
 export async function processSignupSuccess(userId: string): Promise<void> {
-	// Update user with ToS acceptance timestamp and version
-	// tosAccepted is already verified by the before hook
-	await prisma.user.update({
-		where: { id: userId },
-		data: {
-			tosAcceptedAt: new Date(),
-			tosVersion: config.tosVersion,
-		},
-	})
+	try {
+		// Perform all post-signup operations in a single transaction
+		// This ensures atomicity: either all operations succeed or none do
+		await prisma.$transaction(async (tx) => {
+			// First, fetch the user to check if keys are needed
+			const user = await tx.user.findUnique({
+				where: { id: userId },
+				select: {
+					id: true,
+					username: true,
+					isRemote: true,
+					publicKey: true,
+					privateKey: true,
+				},
+			})
 
-	// Query database to get the full user with username
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: {
-			id: true,
-			username: true,
-			isRemote: true,
-			publicKey: true,
-			privateKey: true,
-		},
-	})
+			if (!user) {
+				throw new Error(`User with id ${userId} not found`)
+			}
 
-	// Generate keys for local users (required for ActivityPub federation)
-	// If key generation fails, signup will fail
-	// Username is required for all users - it's their public identifier
-	if (user && !user.isRemote && (!user.publicKey || !user.privateKey)) {
-		if (!user.username) {
-			throw new Error('Username is required but was not found. This should not happen as username is validated during signup.')
+			// Prepare update data with ToS acceptance
+			const updateData: {
+				tosAcceptedAt: Date
+				tosVersion: number
+				publicKey?: string
+				privateKey?: string
+			} = {
+				tosAcceptedAt: new Date(),
+				tosVersion: config.tosVersion,
+			}
+
+			// Generate keys for local users (required for ActivityPub federation)
+			// If key generation fails, the entire transaction will roll back
+			// Username is required for all users - it's their public identifier
+			if (!user.isRemote && (!user.publicKey || !user.privateKey)) {
+				if (!user.username) {
+					throw new Error(
+						'Username is required but was not found. This should not happen as username is validated during signup.'
+					)
+				}
+
+				// Generate keys
+				const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+					modulusLength: 2048,
+					publicKeyEncoding: {
+						type: 'spki',
+						format: 'pem',
+					},
+					privateKeyEncoding: {
+						type: 'pkcs8',
+						format: 'pem',
+					},
+				})
+
+				// Encrypt private key before storing
+				const encryptedPrivateKey = encryptPrivateKey(privateKey)
+
+				updateData.publicKey = publicKey
+				updateData.privateKey = encryptedPrivateKey
+			}
+
+			// Perform single atomic update with all data
+			await tx.user.update({
+				where: { id: userId },
+				data: updateData,
+			})
+
+			if (updateData.publicKey) {
+				console.log(`✅ Generated and encrypted keys for user: ${user.username}`)
+			}
+		})
+	} catch (error) {
+		// If the transaction fails, delete the user to roll back the entire signup
+		// This ensures no partial user state exists in the database
+		try {
+			await prisma.user.delete({
+				where: { id: userId },
+			})
+			console.error(`❌ Signup failed for user ${userId}, user deleted:`, error)
+		} catch (deleteError) {
+			// Log but don't throw - the original error is more important
+			console.error(`❌ Failed to delete user ${userId} after signup failure:`, deleteError)
 		}
-		await generateUserKeys(user.id, user.username)
+
+		// Re-throw the original error so better-auth returns an error response
+		throw error
 	}
 }
 
