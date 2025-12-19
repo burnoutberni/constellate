@@ -1,13 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import {
-	useEffect,
-	useState,
-	useMemo,
-	lazy,
-	Suspense,
-	type LazyExoticComponent,
-	type ComponentType,
-} from 'react'
+import { useEffect, useState, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -28,51 +20,83 @@ import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
 import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
 
-/**
- * Helper function to create a lazy-loaded component from a named export.
- * @param importPath - The path to the module (e.g., './pages/AboutPage')
- * @param componentName - The name of the exported component (e.g., 'AboutPage')
- * @returns A lazy-loaded React component
- */
-function createLazyPage<T extends string>(
-	importPath: string,
-	componentName: T
-): LazyExoticComponent<ComponentType> {
-	return lazy(() =>
-		import(importPath).then((module) => ({
-			default: module[componentName],
-		}))
-	)
-}
-
 // Lazy load pages
-const AboutPage = createLazyPage('./pages/AboutPage', 'AboutPage')
-const AdminPage = createLazyPage('./pages/AdminPage', 'AdminPage')
-const AppealsPage = createLazyPage('./pages/AppealsPage', 'AppealsPage')
-const CalendarPage = createLazyPage('./pages/CalendarPage', 'CalendarPage')
-const DiscoverPage = createLazyPage('./pages/DiscoverPage', 'DiscoverPage')
-const EditEventPage = createLazyPage('./pages/EditEventPage', 'EditEventPage')
-const FeedPage = createLazyPage('./pages/FeedPage', 'FeedPage')
-const HomePage = createLazyPage('./pages/HomePage', 'HomePage')
-const InstanceDetailPage = createLazyPage('./pages/InstanceDetailPage', 'InstanceDetailPage')
-const InstancesPage = createLazyPage('./pages/InstancesPage', 'InstancesPage')
-const LoginPage = createLazyPage('./pages/LoginPage', 'LoginPage')
-const ModerationPracticesPage = createLazyPage(
-	'./pages/ModerationPracticesPage',
-	'ModerationPracticesPage'
+const AboutPage = lazy(() =>
+	import('./pages/AboutPage').then((module) => ({ default: module.AboutPage }))
 )
-const NotificationsPage = createLazyPage('./pages/NotificationsPage', 'NotificationsPage')
-const OnboardingPage = createLazyPage('./pages/OnboardingPage', 'OnboardingPage')
-const PendingFollowersPage = createLazyPage('./pages/PendingFollowersPage', 'PendingFollowersPage')
-const PrivacyPolicyPage = createLazyPage('./pages/PrivacyPolicyPage', 'PrivacyPolicyPage')
-const RemindersPage = createLazyPage('./pages/RemindersPage', 'RemindersPage')
-const ReportsPage = createLazyPage('./pages/ReportsPage', 'ReportsPage')
-const SettingsPage = createLazyPage('./pages/SettingsPage', 'SettingsPage')
-const TemplatesPage = createLazyPage('./pages/TemplatesPage', 'TemplatesPage')
-const TermsOfServicePage = createLazyPage('./pages/TermsOfServicePage', 'TermsOfServicePage')
-const EventDetailPage = createLazyPage('./pages/EventDetailPage', 'EventDetailPage')
-const NotFoundPage = createLazyPage('./pages/NotFoundPage', 'NotFoundPage')
-const UserProfilePage = createLazyPage('./pages/UserProfilePage', 'UserProfilePage')
+const AdminPage = lazy(() =>
+	import('./pages/AdminPage').then((module) => ({ default: module.AdminPage }))
+)
+const AppealsPage = lazy(() =>
+	import('./pages/AppealsPage').then((module) => ({ default: module.AppealsPage }))
+)
+const CalendarPage = lazy(() =>
+	import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage }))
+)
+const DiscoverPage = lazy(() =>
+	import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage }))
+)
+const EditEventPage = lazy(() =>
+	import('./pages/EditEventPage').then((module) => ({ default: module.EditEventPage }))
+)
+const FeedPage = lazy(() =>
+	import('./pages/FeedPage').then((module) => ({ default: module.FeedPage }))
+)
+const HomePage = lazy(() =>
+	import('./pages/HomePage').then((module) => ({ default: module.HomePage }))
+)
+const InstanceDetailPage = lazy(() =>
+	import('./pages/InstanceDetailPage').then((module) => ({ default: module.InstanceDetailPage }))
+)
+const InstancesPage = lazy(() =>
+	import('./pages/InstancesPage').then((module) => ({ default: module.InstancesPage }))
+)
+const LoginPage = lazy(() =>
+	import('./pages/LoginPage').then((module) => ({ default: module.LoginPage }))
+)
+const ModerationPracticesPage = lazy(() =>
+	import('./pages/ModerationPracticesPage').then((module) => ({
+		default: module.ModerationPracticesPage,
+	}))
+)
+const NotificationsPage = lazy(() =>
+	import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage }))
+)
+const OnboardingPage = lazy(() =>
+	import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage }))
+)
+const PendingFollowersPage = lazy(() =>
+	import('./pages/PendingFollowersPage').then((module) => ({
+		default: module.PendingFollowersPage,
+	}))
+)
+const PrivacyPolicyPage = lazy(() =>
+	import('./pages/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage }))
+)
+const RemindersPage = lazy(() =>
+	import('./pages/RemindersPage').then((module) => ({ default: module.RemindersPage }))
+)
+const ReportsPage = lazy(() =>
+	import('./pages/ReportsPage').then((module) => ({ default: module.ReportsPage }))
+)
+const SettingsPage = lazy(() =>
+	import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage }))
+)
+const TemplatesPage = lazy(() =>
+	import('./pages/TemplatesPage').then((module) => ({ default: module.TemplatesPage }))
+)
+const TermsOfServicePage = lazy(() =>
+	import('./pages/TermsOfServicePage').then((module) => ({ default: module.TermsOfServicePage }))
+)
+const EventDetailPage = lazy(() =>
+	import('./pages/EventDetailPage').then((module) => ({ default: module.EventDetailPage }))
+)
+const NotFoundPage = lazy(() =>
+	import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage }))
+)
+const UserProfilePage = lazy(() =>
+	import('./pages/UserProfilePage').then((module) => ({ default: module.UserProfilePage }))
+)
 
 const publicPaths = ['/login', '/terms', '/privacy', '/about', '/onboarding']
 
