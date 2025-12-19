@@ -5,7 +5,7 @@ export function SkipLink() {
 
 	const handleSkip = (e: MouseEvent<HTMLAnchorElement> | KeyboardEvent<HTMLAnchorElement>) => {
 		e.preventDefault()
-		const main = document.querySelector('main')
+		const main = document.querySelector('#main-content') as HTMLElement | null
 		if (main) {
 			main.tabIndex = -1
 			main.focus()

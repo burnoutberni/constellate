@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
 
 import { EventDetailPage } from './EventDetailPage'
+import { NotFoundPage } from './NotFoundPage'
 import { UserProfilePage } from './UserProfilePage'
 
 /**
@@ -8,13 +9,14 @@ import { UserProfilePage } from './UserProfilePage'
  * based on the URL structure:
  * - /@username -> UserProfilePage
  * - /@username/eventId -> EventDetailPage
+ * - Any other path -> NotFoundPage
  */
 export function ProfileOrEventPage() {
 	const location = useLocation()
 
 	// Check if path starts with /@
 	if (!location.pathname.startsWith('/@')) {
-		return <div>Not found</div>
+		return <NotFoundPage />
 	}
 
 	// Extract path parts
