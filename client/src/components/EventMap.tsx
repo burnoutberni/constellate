@@ -2,7 +2,6 @@ import { divIcon } from 'leaflet'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Link } from 'react-router-dom'
 
 import { Badge, LocationIcon } from '@/components/ui'
 import { useTheme } from '@/design-system'
@@ -77,11 +76,13 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 								<div className="p-1">
 									<h3 className="font-semibold text-sm mb-1">
 										{event.user?.username ? (
-											<Link
-												to={`/@${event.user.username}/${event.id}`}
+											<a
+												href={`/@${event.user.username}/${event.id}`}
+												target="_blank"
+												rel="noopener noreferrer"
 												className="hover:underline text-primary-600">
 												{event.title}
-												</Link>
+											</a>
 										) : (
 											<span className="text-text-primary">{event.title}</span>
 										)}

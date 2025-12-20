@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Spinner, Badge, Card, CardContent } from '@/components/ui'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { formatDate } from '@/lib/formatUtils'
 import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 import { Report } from '@/types'
@@ -83,7 +84,7 @@ export function ReportQueue() {
 										Reported by @{report.reporter?.username || 'Unknown'}
 									</span>
 									<span className="text-sm text-text-tertiary">
-										• {new Date(report.createdAt).toLocaleDateString()}
+									• {formatDate(report.createdAt)}
 									</span>
 								</div>
 								<p className="text-text-primary mb-3">{report.reason}</p>

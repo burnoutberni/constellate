@@ -248,9 +248,10 @@ app.get('/reports', async (c) => {
 		prisma.report.count({ where }),
 	])
 
-	// Extract all unique event and user IDs from reports
+	// Extract all unique event, user, and comment IDs from reports
 	const eventIds = new Set<string>()
 	const userIds = new Set<string>()
+	const commentIds = new Set<string>()
 
 	for (const report of reports) {
 		if (!report.contentUrl) continue
@@ -259,11 +260,13 @@ app.get('/reports', async (c) => {
 			eventIds.add(id)
 		} else if (type === 'user' && id) {
 			userIds.add(id)
+		} else if (type === 'comment' && id) {
+			commentIds.add(id)
 		}
 	}
 
 	// Fetch all events and users in bulk
-	const [events, users] = await Promise.all([
+	const [events, users, comments] = await Promise.all([
 		eventIds.size > 0
 			? prisma.event.findMany({
 					where: { id: { in: Array.from(eventIds) } },
@@ -276,11 +279,21 @@ app.get('/reports', async (c) => {
 					select: { id: true, username: true },
 			  })
 			: Promise.resolve([]),
+		commentIds.size > 0
+			? prisma.comment.findMany({
+					where: { id: { in: Array.from(commentIds) } },
+					select: {
+						id: true,
+						event: { select: { id: true, user: { select: { username: true } } } },
+					},
+			  })
+			: Promise.resolve([]),
 	])
 
 	// Create maps for efficient lookups
 	const eventMap = new Map(events.map((e) => [e.id, e]))
 	const userMap = new Map(users.map((u) => [u.id, u]))
+	const commentMap = new Map(comments.map((c) => [c.id, c]))
 
 	// Construct contentPath for each report using the maps
 	const reportsWithPaths = reports.map((report) => {
@@ -299,6 +312,14 @@ app.get('/reports', async (c) => {
 			const user = userMap.get(id)
 			if (user?.username) {
 				return { ...report, contentPath: `/@${user.username}` }
+			}
+		} else if (type === 'comment' && id) {
+			const comment = commentMap.get(id)
+			if (comment?.event?.user?.username) {
+				return {
+					...report,
+					contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
+				}
 			}
 		}
 

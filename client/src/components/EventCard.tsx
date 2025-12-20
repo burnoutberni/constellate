@@ -23,13 +23,16 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
-function renderReportButton(event: Event, zIndex?: boolean) {
+function renderReportButton(event: Event, className?: string) {
 	if (!event.id || !event.title) {
 		return null
 	}
 
+	const baseClasses = 'absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity'
+	const mergedClasses = className ? `${baseClasses} ${className}` : baseClasses
+
 	return (
-		<div className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity${zIndex ? ' z-10' : ''}`}>
+		<div className={mergedClasses}>
 			<ReportButton
 				targetType="event"
 				targetId={event.id}
@@ -209,7 +212,7 @@ export function EventCard(props: EventCardProps) {
 					</div>
 				</Card>
 			</Link>
-			{isAuthenticated && renderReportButton(event, true)}
+			{isAuthenticated && renderReportButton(event, 'z-10')}
 			{/* Sign Up CTA for unauthenticated users - outside the Link to avoid nesting */}
 			{!isAuthenticated && (
 				<div className="pt-2 px-4 pb-4">
