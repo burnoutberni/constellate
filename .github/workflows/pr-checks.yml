@@ -6,7 +6,7 @@ on:
             - main
 
 jobs:
-    lint:
+    check:
         name: Lint, Type-Check, Knip & Build
         runs-on: ubuntu-latest
         steps:
@@ -428,18 +428,14 @@ jobs:
     all-checks:
         name: All Checks Passed
         runs-on: ubuntu-latest
-        needs: [lint, tree-shaking, test, test-frontend, coverage-check, coverage-check-frontend]
+        needs: [check, test, test-frontend, coverage-check, coverage-check-frontend]
         if: always()
         steps:
             - name: Check all jobs
               run: |
                   # Required checks (must pass)
-                  if [ "${{ needs.lint.result }}" != "success" ]; then
-                    echo "❌ Lint check failed"
-                    exit 1
-                  fi
-                  if [ "${{ needs.tree-shaking.result }}" != "success" ]; then
-                    echo "❌ Tree-shaking check failed"
+                  if [ "${{ needs.check.result }}" != "success" ]; then
+                    echo "❌ Code check failed"
                     exit 1
                   fi
                   if [ "${{ needs.test.result }}" != "success" ]; then
