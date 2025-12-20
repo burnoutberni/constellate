@@ -108,7 +108,11 @@ export function ReportQueue() {
 										size="sm"
 										variant="ghost"
 										className="text-error-600 hover:text-error-700 hover:bg-error-50"
-										loading={updateStatusMutation.isPending}
+										loading={
+											updateStatusMutation.isPending &&
+											updateStatusMutation.variables?.id === report.id &&
+											updateStatusMutation.variables?.status === 'dismissed'
+										}
 										onClick={() =>
 											updateStatusMutation.mutate({
 												id: report.id,
@@ -120,7 +124,11 @@ export function ReportQueue() {
 									<Button
 										size="sm"
 										variant="primary"
-										loading={updateStatusMutation.isPending}
+										loading={
+											updateStatusMutation.isPending &&
+											updateStatusMutation.variables?.id === report.id &&
+											updateStatusMutation.variables?.status === 'resolved'
+										}
 										onClick={() =>
 											updateStatusMutation.mutate({
 												id: report.id,

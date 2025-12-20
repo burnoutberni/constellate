@@ -92,7 +92,11 @@ export function AppealQueue() {
 									size="sm"
 									variant="ghost"
 									className="text-error-600 hover:text-error-700 hover:bg-error-50"
-									loading={updateStatusMutation.isPending}
+									loading={
+										updateStatusMutation.isPending &&
+										updateStatusMutation.variables?.id === appeal.id &&
+										updateStatusMutation.variables?.status === 'rejected'
+									}
 									onClick={() =>
 										updateStatusMutation.mutate({
 											id: appeal.id,
@@ -104,7 +108,11 @@ export function AppealQueue() {
 								<Button
 									size="sm"
 									variant="primary"
-									loading={updateStatusMutation.isPending}
+									loading={
+										updateStatusMutation.isPending &&
+										updateStatusMutation.variables?.id === appeal.id &&
+										updateStatusMutation.variables?.status === 'approved'
+									}
 									onClick={() =>
 										updateStatusMutation.mutate({
 											id: appeal.id,
