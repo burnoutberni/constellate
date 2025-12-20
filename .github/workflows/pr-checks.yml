@@ -7,7 +7,7 @@ on:
 
 jobs:
     lint:
-        name: Lint
+        name: Lint, Type-Check, Knip & Build
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -20,52 +20,37 @@ jobs:
                   cache: 'npm'
 
             - name: Install root dependencies
-              run: npm ci
+              run: npm ci --legacy-peer-deps
 
             - name: Install client dependencies
-              run: npm ci --prefix client
+              run: npm ci --legacy-peer-deps --prefix client
 
-            - name: Type check root
+            - name: "[Server] Type-Check"
               run: npx tsc --noEmit
 
-            - name: Lint root
+            - name: "[Server] Lint"
               run: npm run lint
 
-            - name: Type check client
+            - name: "[Server] Knip"
+              run: npm run knip:server
+
+            - name: "[Server] Build"
+              run: npm run build
+
+            - name: "[Client] Type-Check"
               run: npx tsc --noEmit --project client/tsconfig.json
 
-            - name: Lint client
+            - name: "[Client] Lint"
               run: npm run lint --prefix client
 
-            - name: Build client
+            - name: "[Client] Knip"
+              working-directory: client
+              run: npx knip
+
+            - name: "[Client] Build"
               working-directory: client
               run: npx vite build
 
-    tree-shaking:
-        name: Tree-shaking Check
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'npm'
-
-            - name: Install root dependencies
-              run: npm ci
-
-            - name: Install client dependencies
-              run: npm ci --prefix client
-
-            - name: Run knip (server-side analysis)
-              run: npm run knip:server
-
-            - name: Run knip (client-side analysis)
-              working-directory: client
-              run: npx knip
 
     test:
         name: Test
@@ -103,10 +88,10 @@ jobs:
                   cache: 'npm'
 
             - name: Install root dependencies
-              run: npm ci
+              run: npm ci --legacy-peer-deps
 
             - name: Install client dependencies
-              run: npm ci --prefix client
+              run: npm ci --legacy-peer-deps --prefix client
 
             - name: Generate Prisma Client
               run: npm run db:generate
@@ -211,11 +196,11 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install root dependencies
-              run: npm ci
+              run: npm ci --legacy-peer-deps
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
-              run: npm ci --prefix client
+              run: npm ci --legacy-peer-deps --prefix client
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Generate Prisma Client
@@ -284,7 +269,7 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
-              run: npm ci --prefix client
+              run: npm ci --legacy-peer-deps --prefix client
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install Playwright browsers
