@@ -23,7 +23,7 @@ jobs:
               run: npm ci --legacy-peer-deps
 
             - name: Install client dependencies
-              run: npm ci --legacy-peer-deps --prefix client
+              run: npm ci --prefix client
 
             - name: "[Server] Type-Check"
               run: npx tsc --noEmit
@@ -92,7 +92,7 @@ jobs:
               run: npm ci --legacy-peer-deps
 
             - name: Install client dependencies
-              run: npm ci --legacy-peer-deps --prefix client
+              run: npm ci --prefix client
 
             - name: Generate Prisma Client
               run: npm run db:generate
@@ -201,7 +201,7 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
-              run: npm ci --legacy-peer-deps --prefix client
+              run: npm ci --prefix client
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Generate Prisma Client
@@ -270,7 +270,7 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
-              run: npm ci --legacy-peer-deps --prefix client
+              run: npm ci --prefix client
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install Playwright browsers
