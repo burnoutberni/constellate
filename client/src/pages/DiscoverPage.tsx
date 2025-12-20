@@ -510,7 +510,9 @@ export function DiscoverPage() {
 												}>
 												<EventCard
 													event={event}
-													variant={viewMode === 'list' ? 'compact' : 'full'}
+													variant={
+														viewMode === 'list' ? 'compact' : 'full'
+													}
 													isAuthenticated={Boolean(user)}
 												/>
 											</div>

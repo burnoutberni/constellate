@@ -25,33 +25,32 @@ jobs:
             - name: Install client dependencies
               run: npm ci --prefix client
 
-            - name: "[Server] Type-Check"
+            - name: '[Server] Type-Check'
               run: npx tsc --noEmit
 
-            - name: "[Server] Lint"
+            - name: '[Server] Lint'
               run: npx eslint src --ext .ts
 
-            - name: "[Server] Knip"
+            - name: '[Server] Knip'
               run: npm run knip:server
 
-            - name: "[Server] Build"
-              run: npm run build
+            - name: '[Server] Build'
+              run: npm run build:server
 
-            - name: "[Client] Type-Check"
+            - name: '[Client] Type-Check'
               run: npx tsc --noEmit --project client/tsconfig.json
 
-            - name: "[Client] Lint"
+            - name: '[Client] Lint'
               working-directory: client
               run: npx eslint src --ext .ts,.tsx
 
-            - name: "[Client] Knip"
+            - name: '[Client] Knip'
               working-directory: client
               run: npx knip
 
-            - name: "[Client] Build"
+            - name: '[Client] Build'
               working-directory: client
               run: npx vite build
-
 
     test:
         name: Test

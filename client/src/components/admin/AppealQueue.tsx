@@ -74,7 +74,9 @@ export function AppealQueue() {
 						<div className="flex justify-between items-start gap-4">
 							<div className="flex-1">
 								<div className="flex items-center gap-2 mb-2">
-								<Badge variant="secondary">{APPEAL_TYPE_LABELS[appeal.type]}</Badge>
+									<Badge variant="secondary">
+										{APPEAL_TYPE_LABELS[appeal.type]}
+									</Badge>
 									<span className="text-sm text-text-secondary">
 										Appealed by @{appeal.user.username}
 									</span>
@@ -92,7 +94,10 @@ export function AppealQueue() {
 									className="text-error-600 hover:text-error-700 hover:bg-error-50"
 									loading={updateStatusMutation.isPending}
 									onClick={() =>
-										updateStatusMutation.mutate({ id: appeal.id, status: 'rejected' })
+										updateStatusMutation.mutate({
+											id: appeal.id,
+											status: 'rejected',
+										})
 									}>
 									Reject
 								</Button>
@@ -101,7 +106,10 @@ export function AppealQueue() {
 									variant="primary"
 									loading={updateStatusMutation.isPending}
 									onClick={() =>
-										updateStatusMutation.mutate({ id: appeal.id, status: 'approved' })
+										updateStatusMutation.mutate({
+											id: appeal.id,
+											status: 'approved',
+										})
 									}>
 									Approve
 								</Button>

@@ -79,12 +79,14 @@ export function ReportQueue() {
 						<div className="flex justify-between items-start gap-4">
 							<div className="flex-1">
 								<div className="flex items-center gap-2 mb-2">
-									<Badge variant="warning">{REPORT_CATEGORY_LABELS[report.category]}</Badge>
+									<Badge variant="warning">
+										{REPORT_CATEGORY_LABELS[report.category]}
+									</Badge>
 									<span className="text-sm text-text-secondary">
 										Reported by @{report.reporter?.username || 'Unknown'}
 									</span>
 									<span className="text-sm text-text-tertiary">
-									• {formatDate(report.createdAt)}
+										• {formatDate(report.createdAt)}
 									</span>
 								</div>
 								<p className="text-text-primary mb-3">{report.reason}</p>
@@ -108,7 +110,10 @@ export function ReportQueue() {
 										className="text-error-600 hover:text-error-700 hover:bg-error-50"
 										loading={updateStatusMutation.isPending}
 										onClick={() =>
-											updateStatusMutation.mutate({ id: report.id, status: 'dismissed' })
+											updateStatusMutation.mutate({
+												id: report.id,
+												status: 'dismissed',
+											})
 										}>
 										Dismiss
 									</Button>
@@ -117,7 +122,10 @@ export function ReportQueue() {
 										variant="primary"
 										loading={updateStatusMutation.isPending}
 										onClick={() =>
-											updateStatusMutation.mutate({ id: report.id, status: 'resolved' })
+											updateStatusMutation.mutate({
+												id: report.id,
+												status: 'resolved',
+											})
 										}>
 										Resolve
 									</Button>

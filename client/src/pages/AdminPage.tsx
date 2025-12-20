@@ -79,7 +79,9 @@ export function AdminPage() {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
-	const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances' | 'reports' | 'appeals'>('users')
+	const [activeTab, setActiveTab] = useState<
+		'users' | 'api-keys' | 'instances' | 'reports' | 'appeals'
+	>('users')
 	const [showCreateUserModal, setShowCreateUserModal] = useState(false)
 	const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
 	const [, setSelectedUserId] = useState<string | null>(null)

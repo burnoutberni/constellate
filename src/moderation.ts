@@ -31,6 +31,93 @@ const ReportCategoryValues = [
 	ReportCategory.other,
 ] as const
 
+type ReportWithReporter = Awaited<ReturnType<typeof prisma.report.findMany>>
+
+async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
+	// Extract all unique event, user, and comment IDs from reports
+	const eventIds = new Set<string>()
+	const userIds = new Set<string>()
+	const commentIds = new Set<string>()
+
+	for (const report of reports) {
+		if (!report.contentUrl) continue
+		const [type, id] = report.contentUrl.split(':')
+		if (type === 'event' && id) {
+			eventIds.add(id)
+		} else if (type === 'user' && id) {
+			userIds.add(id)
+		} else if (type === 'comment' && id) {
+			commentIds.add(id)
+		}
+	}
+
+	// Fetch all events and users in bulk
+	const [events, users, comments] = await Promise.all([
+		eventIds.size > 0
+			? prisma.event.findMany({
+					where: { id: { in: Array.from(eventIds) } },
+					select: {
+						id: true,
+						user: { select: { username: true } },
+						sharedEvent: { select: { id: true } },
+					},
+				})
+			: Promise.resolve([]),
+		userIds.size > 0
+			? prisma.user.findMany({
+					where: { id: { in: Array.from(userIds) } },
+					select: { id: true, username: true },
+				})
+			: Promise.resolve([]),
+		commentIds.size > 0
+			? prisma.comment.findMany({
+					where: { id: { in: Array.from(commentIds) } },
+					select: {
+						id: true,
+						event: { select: { id: true, user: { select: { username: true } } } },
+					},
+				})
+			: Promise.resolve([]),
+	])
+
+	// Create maps for efficient lookups
+	const eventMap = new Map(events.map((e) => [e.id, e]))
+	const userMap = new Map(users.map((u) => [u.id, u]))
+	const commentMap = new Map(comments.map((c) => [c.id, c]))
+
+	// Construct contentPath for each report using the maps
+	return reports.map((report) => {
+		if (!report.contentUrl) {
+			return { ...report, contentPath: null }
+		}
+
+		const [type, id] = report.contentUrl.split(':')
+
+		if (type === 'event' && id) {
+			const event = eventMap.get(id)
+			if (event?.user?.username) {
+				const eventId = event.sharedEvent?.id || event.id
+				return { ...report, contentPath: `/@${event.user.username}/${eventId}` }
+			}
+		} else if (type === 'user' && id) {
+			const user = userMap.get(id)
+			if (user?.username) {
+				return { ...report, contentPath: `/@${user.username}` }
+			}
+		} else if (type === 'comment' && id) {
+			const comment = commentMap.get(id)
+			if (comment?.event?.user?.username) {
+				return {
+					...report,
+					contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
+				}
+			}
+		}
+
+		return { ...report, contentPath: null }
+	})
+}
+
 // Report schema
 const ReportSchema = z.object({
 	targetType: z.enum(['user', 'event', 'comment']),
@@ -248,88 +335,7 @@ app.get('/reports', async (c) => {
 		prisma.report.count({ where }),
 	])
 
-	// Extract all unique event, user, and comment IDs from reports
-	const eventIds = new Set<string>()
-	const userIds = new Set<string>()
-	const commentIds = new Set<string>()
-
-	for (const report of reports) {
-		if (!report.contentUrl) continue
-		const [type, id] = report.contentUrl.split(':')
-		if (type === 'event' && id) {
-			eventIds.add(id)
-		} else if (type === 'user' && id) {
-			userIds.add(id)
-		} else if (type === 'comment' && id) {
-			commentIds.add(id)
-		}
-	}
-
-	// Fetch all events and users in bulk
-	const [events, users, comments] = await Promise.all([
-		eventIds.size > 0
-			? prisma.event.findMany({
-					where: { id: { in: Array.from(eventIds) } },
-					select: {
-						id: true,
-						user: { select: { username: true } },
-						sharedEvent: { select: { id: true } },
-					},
-			  })
-			: Promise.resolve([]),
-		userIds.size > 0
-			? prisma.user.findMany({
-					where: { id: { in: Array.from(userIds) } },
-					select: { id: true, username: true },
-			  })
-			: Promise.resolve([]),
-		commentIds.size > 0
-			? prisma.comment.findMany({
-					where: { id: { in: Array.from(commentIds) } },
-					select: {
-						id: true,
-						event: { select: { id: true, user: { select: { username: true } } } },
-					},
-			  })
-			: Promise.resolve([]),
-	])
-
-	// Create maps for efficient lookups
-	const eventMap = new Map(events.map((e) => [e.id, e]))
-	const userMap = new Map(users.map((u) => [u.id, u]))
-	const commentMap = new Map(comments.map((c) => [c.id, c]))
-
-	// Construct contentPath for each report using the maps
-	const reportsWithPaths = reports.map((report) => {
-		if (!report.contentUrl) {
-			return { ...report, contentPath: null }
-		}
-
-		const [type, id] = report.contentUrl.split(':')
-
-		if (type === 'event' && id) {
-			const event = eventMap.get(id)
-			if (event?.user?.username) {
-				const eventId = event.sharedEvent?.id || event.id
-				return { ...report, contentPath: `/@${event.user.username}/${eventId}` }
-			}
-		} else if (type === 'user' && id) {
-			const user = userMap.get(id)
-			if (user?.username) {
-				return { ...report, contentPath: `/@${user.username}` }
-			}
-		} else if (type === 'comment' && id) {
-			const comment = commentMap.get(id)
-			if (comment?.event?.user?.username) {
-				return {
-					...report,
-					contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
-				}
-			}
-		}
-
-		return { ...report, contentPath: null }
-	})
+	const reportsWithPaths = await enrichReportsWithContentPaths(reports)
 
 	return c.json({
 		reports: reportsWithPaths,

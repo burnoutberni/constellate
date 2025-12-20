@@ -11,6 +11,7 @@ import {
 	Avatar,
 	SafeHTML,
 } from '@/components/ui'
+import { cn } from '@/lib/utils'
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
@@ -23,16 +24,17 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
-function renderReportButton(event: Event, className?: string) {
+function EventReportButton({ event, className }: { event: Event; className?: string }) {
 	if (!event.id || !event.title) {
 		return null
 	}
 
-	const baseClasses = 'absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity'
-	const mergedClasses = className ? `${baseClasses} ${className}` : baseClasses
-
 	return (
-		<div className={mergedClasses}>
+		<div
+			className={cn(
+				'absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity',
+				className
+			)}>
 			<ReportButton
 				targetType="event"
 				targetId={event.id}
@@ -99,7 +101,7 @@ export function EventCard(props: EventCardProps) {
 						</div>
 					</Card>
 				</Link>
-				{isAuthenticated && renderReportButton(event)}
+				{isAuthenticated && <EventReportButton event={event} />}
 			</div>
 		)
 	}
@@ -212,7 +214,7 @@ export function EventCard(props: EventCardProps) {
 					</div>
 				</Card>
 			</Link>
-			{isAuthenticated && renderReportButton(event, 'z-10')}
+			{isAuthenticated && <EventReportButton event={event} className="z-10" />}
 			{/* Sign Up CTA for unauthenticated users - outside the Link to avoid nesting */}
 			{!isAuthenticated && (
 				<div className="pt-2 px-4 pb-4">

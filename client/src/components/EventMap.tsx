@@ -1,4 +1,5 @@
 import { divIcon } from 'leaflet'
+import { useMemo } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
@@ -33,23 +34,33 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 	const { theme } = useTheme()
 
 	// Filter events with actual location coordinates
-	const eventsWithLocation = events.filter(
-		(e) => e.locationLatitude != null && e.locationLongitude != null
+	const eventsWithLocation = useMemo(
+		() =>
+			events.filter(
+				(e): e is Event & { locationLatitude: number; locationLongitude: number } =>
+					e.locationLatitude != null && e.locationLongitude != null
+			),
+		[events]
 	)
+
+	// Calculate map center from average of all event coordinates
+	const center: [number, number] = useMemo(() => {
+		if (eventsWithLocation.length === 0) {
+			return [0, 0]
+		}
+		const avgLat =
+			eventsWithLocation.reduce((sum, e) => sum + e.locationLatitude, 0) /
+			eventsWithLocation.length
+		const avgLng =
+			eventsWithLocation.reduce((sum, e) => sum + e.locationLongitude, 0) /
+			eventsWithLocation.length
+		return [avgLat, avgLng]
+	}, [eventsWithLocation])
 
 	// If no events with coordinates, don't render the map
 	if (eventsWithLocation.length === 0) {
 		return null
 	}
-
-	// Calculate map center from average of all event coordinates
-	const avgLat =
-		eventsWithLocation.reduce((sum, e) => sum + (e.locationLatitude ?? 0), 0) /
-		eventsWithLocation.length
-	const avgLng =
-		eventsWithLocation.reduce((sum, e) => sum + (e.locationLongitude ?? 0), 0) /
-		eventsWithLocation.length
-	const center: [number, number] = [avgLat, avgLng]
 
 	// Dark mode map tiles
 	const tileLayerUrl =
@@ -73,8 +84,8 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 					showCoverageOnHover={false}
 					zoomToBoundsOnClick={true}>
 					{eventsWithLocation.map((event) => {
-						const lat = event.locationLatitude!
-						const lng = event.locationLongitude!
+						const lat = event.locationLatitude
+						const lng = event.locationLongitude
 
 						return (
 							<Marker key={event.id} position={[lat, lng]} icon={markerIcon}>
@@ -82,17 +93,20 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 									<div className="p-1">
 										<h3 className="font-semibold text-sm mb-1">
 											{event.user?.username ? (
-											<Link
-												to={`/@${event.user.username}/${event.originalEventId || event.id}`}
-												className="hover:underline text-primary-600">
-												{event.title}
-											</Link>
+												<Link
+													to={`/@${event.user.username}/${event.originalEventId || event.id}`}
+													className="hover:underline text-primary-600">
+													{event.title}
+												</Link>
 											) : (
-												<span className="text-text-primary">{event.title}</span>
+												<span className="text-text-primary">
+													{event.title}
+												</span>
 											)}
 										</h3>
 										<p className="text-xs text-text-secondary mb-2">
-											{formatDate(event.startTime)} {formatTime(event.startTime)}
+											{formatDate(event.startTime)}{' '}
+											{formatTime(event.startTime)}
 										</p>
 										<div className="flex gap-1">
 											{event.tags.slice(0, 2).map((tag) => (
