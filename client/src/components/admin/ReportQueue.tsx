@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import { Button, Spinner, Badge, Card, CardContent } from '@/components/ui'
-import { api } from '@/lib/api-client'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
-import { useUIStore } from '@/stores'
+import { api } from '@/lib/api-client'
 import { generateId } from '@/lib/utils'
+import { useUIStore } from '@/stores'
 import { Report } from '@/types'
 
 const REPORT_CATEGORY_LABELS: Record<Report['category'], string> = {
@@ -18,6 +19,73 @@ export function ReportQueue() {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
+	const [resolvingId, setResolvingId] = useState<string | null>(null)
+
+	type EventSummary = { id: string; user?: { username?: string } }
+	type AdminUser = { username: string }
+
+	async function resolveTargetPath(report: Report): Promise<string | null> {
+		const content = report.contentUrl
+		if (!content) {
+			return null
+		}
+		const [type, id] = content.split(':')
+		try {
+			if (type === 'event' && id) {
+				const event = await api.get<EventSummary>(
+					`/events/${id}`,
+					undefined,
+					undefined,
+					'Failed to fetch event'
+				)
+				const username: string | undefined = event?.user?.username
+				if (!username) {
+					return null
+				}
+				return `/@${username}/${event.id}`
+			}
+			if (type === 'user' && id) {
+				const user = await api.get<AdminUser>(
+					`/admin/users/${id}`,
+					undefined,
+					undefined,
+					'Failed to fetch user'
+				)
+				const username: string | undefined = user?.username
+				if (!username) {
+					return null
+				}
+				return `/@${username}`
+			}
+			// Comments are part of an event page; resolving requires the parent event
+			// Not enough data here to resolve reliably
+			if (type === 'comment') {
+				return null
+			}
+			return null
+		} catch (error) {
+			handleError(error as Error, 'Failed to resolve content URL', {
+				context: 'ReportQueue.resolveTargetPath',
+			})
+			return null
+		}
+	}
+
+	async function handleViewContent(report: Report) {
+		setResolvingId(report.id)
+		const path = await resolveTargetPath(report)
+		setResolvingId(null)
+		if (path) {
+			window.open(path, '_blank')
+		} else {
+			addToast({
+				id: generateId(),
+				message:
+					'Resolution unavailable. Open the parent event/user manually from context.',
+				variant: 'error',
+			})
+		}
+	}
 
 	const { data, isLoading } = useQuery<{ reports: Report[] }>({
 		queryKey: ['admin', 'reports'],
@@ -85,7 +153,9 @@ export function ReportQueue() {
 								<Button
 									size="sm"
 									variant="secondary"
-									onClick={() => window.open(`/${report.contentUrl?.replace(':', '/')}`, '_blank')}>
+									loading={resolvingId === report.id}
+									onClick={() => handleViewContent(report)}
+									aria-label="View reported content">
 									View Content
 								</Button>
 								<div className="flex gap-2">

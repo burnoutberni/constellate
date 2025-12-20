@@ -53,16 +53,16 @@
 	"license": "AGPL-3.0",
 	"dependencies": {
 		"@hono/node-server": "^1.19.7",
-		"@hono/zod-openapi": "^1.1.5",
+		"@hono/zod-openapi": "^1.2.0",
 		"@prisma/client": "^6.19.1",
-		"@scalar/hono-api-reference": "^0.9.28",
+		"@scalar/hono-api-reference": "^0.9.30",
 		"@touch4it/ical-timezones": "^1.9.0",
-		"better-auth": "^1.4.6",
-		"hono": "^4.10.8",
+		"better-auth": "^1.4.7",
+		"hono": "^4.11.1",
 		"ical-generator": "^10.0.0",
 		"isomorphic-dompurify": "^2.34.0",
 		"nodemailer": "^7.0.11",
-		"zod": "^4.1.13"
+		"zod": "^4.2.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.2",

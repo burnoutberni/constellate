@@ -1,20 +1,26 @@
+import { divIcon } from 'leaflet'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Icon } from 'leaflet'
 import { Link } from 'react-router-dom'
+
+import { Badge, LocationIcon } from '@/components/ui'
 import { useTheme } from '@/design-system'
-import { Badge } from './ui'
 import { Event } from '@/types'
 
-// Fix for default marker icon
-const defaultIcon = new Icon({
-	iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-	iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-	shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-	iconSize: [25, 41],
-	iconAnchor: [12, 41],
-	popupAnchor: [1, -34],
-	shadowSize: [41, 41],
+import { formatDate, formatTime } from '../lib/formatUtils'
+
+// Custom marker icon using our UI icon component (no external CDN)
+const markerIcon = divIcon({
+	className: 'constellate-marker-icon',
+	html: renderToStaticMarkup(
+		<span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+			<LocationIcon className="w-6 h-6 text-primary-600 drop-shadow" />
+		</span>
+	),
+	iconSize: [24, 24],
+	iconAnchor: [12, 24],
+	popupAnchor: [0, -24],
 })
 
 interface EventMapProps {
@@ -24,6 +30,15 @@ interface EventMapProps {
 
 export function EventMap({ events, height = '500px' }: EventMapProps) {
 	const { theme } = useTheme()
+
+	function getOffset(seed: string) {
+		let hash = 0
+		for (let i = 0; i < seed.length; i++) {
+			hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+		}
+		const x = (hash % 1000) / 1000
+		return (x - 0.5) * 0.1
+	}
 
 	// Filter events with location coordinates (assuming location field might contain them in future)
 	// For now, we'll mock coordinates for demo purposes if location string is present
@@ -49,24 +64,28 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 			<MapContainer center={center} zoom={13} style={{ height, width: '100%' }}>
 				<TileLayer attribution={attribution} url={tileLayerUrl} />
 				{eventsWithLocation.map((event) => {
-					// Mock random coordinates near center for demo
+					// Demo coordinates based on deterministic hash of event id
 					// In production, use event.latitude and event.longitude
-					const lat = center[0] + (Math.random() - 0.5) * 0.1
-					const lng = center[1] + (Math.random() - 0.5) * 0.1
+					const lat = center[0] + getOffset(`${event.id}-lat`)
+					const lng = center[1] + getOffset(`${event.id}-lng`)
 
 					return (
-						<Marker key={event.id} position={[lat, lng]} icon={defaultIcon}>
+						<Marker key={event.id} position={[lat, lng]} icon={markerIcon}>
 							<Popup>
 								<div className="p-1">
 									<h3 className="font-semibold text-sm mb-1">
-										<Link
-											to={`/@${event.user?.username || 'unknown'}/${event.id}`}
-											className="hover:underline text-primary-600">
-											{event.title}
-										</Link>
+										{event.user?.username ? (
+											<Link
+												to={`/@${event.user.username}/${event.id}`}
+												className="hover:underline text-primary-600">
+												{event.title}
+												</Link>
+										) : (
+											<span className="text-text-primary">{event.title}</span>
+										)}
 									</h3>
 									<p className="text-xs text-text-secondary mb-2">
-										{new Date(event.startTime).toLocaleString()}
+										{formatDate(event.startTime)} {formatTime(event.startTime)}
 									</p>
 									<div className="flex gap-1">
 										{event.tags.slice(0, 2).map((tag) => (

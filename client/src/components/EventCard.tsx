@@ -14,6 +14,7 @@ import {
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
+
 import { ReportButton } from './ReportButton'
 
 interface EventCardProps {
