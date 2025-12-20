@@ -270,7 +270,11 @@ app.get('/reports', async (c) => {
 		eventIds.size > 0
 			? prisma.event.findMany({
 					where: { id: { in: Array.from(eventIds) } },
-					select: { id: true, user: { select: { username: true } } },
+					select: {
+						id: true,
+						user: { select: { username: true } },
+						sharedEvent: { select: { id: true } },
+					},
 			  })
 			: Promise.resolve([]),
 		userIds.size > 0
@@ -306,7 +310,8 @@ app.get('/reports', async (c) => {
 		if (type === 'event' && id) {
 			const event = eventMap.get(id)
 			if (event?.user?.username) {
-				return { ...report, contentPath: `/@${event.user.username}/${event.id}` }
+				const eventId = event.sharedEvent?.id || event.id
+				return { ...report, contentPath: `/@${event.user.username}/${eventId}` }
 			}
 		} else if (type === 'user' && id) {
 			const user = userMap.get(id)
