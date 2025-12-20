@@ -9,6 +9,8 @@ client/dist/
 # Environment variables
 .env
 .env.local
+.encryption-key
+.encryption-key.bak
 
 # Database
 *.db
