@@ -21,70 +21,19 @@ export function ReportQueue() {
 	const addToast = useUIStore((state) => state.addToast)
 	const [resolvingId, setResolvingId] = useState<string | null>(null)
 
-	type EventSummary = { id: string; user?: { username?: string } }
-	type AdminUser = { username: string }
-
-	async function resolveTargetPath(report: Report): Promise<string | null> {
-		const content = report.contentUrl
-		if (!content) {
-			return null
-		}
-		const [type, id] = content.split(':')
-		try {
-			if (type === 'event' && id) {
-				const event = await api.get<EventSummary>(
-					`/events/${id}`,
-					undefined,
-					undefined,
-					'Failed to fetch event'
-				)
-				const username: string | undefined = event?.user?.username
-				if (!username) {
-					return null
-				}
-				return `/@${username}/${event.id}`
-			}
-			if (type === 'user' && id) {
-				const user = await api.get<AdminUser>(
-					`/admin/users/${id}`,
-					undefined,
-					undefined,
-					'Failed to fetch user'
-				)
-				const username: string | undefined = user?.username
-				if (!username) {
-					return null
-				}
-				return `/@${username}`
-			}
-			// Comments are part of an event page; resolving requires the parent event
-			// Not enough data here to resolve reliably
-			if (type === 'comment') {
-				return null
-			}
-			return null
-		} catch (error) {
-			handleError(error as Error, 'Failed to resolve content URL', {
-				context: 'ReportQueue.resolveTargetPath',
-			})
-			return null
-		}
-	}
-
 	async function handleViewContent(report: Report) {
 		setResolvingId(report.id)
-		const path = await resolveTargetPath(report)
-		setResolvingId(null)
-		if (path) {
-			window.open(path, '_blank')
+		if (report.contentPath) {
+			window.open(report.contentPath, '_blank')
 		} else {
 			addToast({
 				id: generateId(),
 				message:
-					'Resolution unavailable. Open the parent event/user manually from context.',
+					'Resolution unavailable. The reported content may have been deleted or the target cannot be resolved.',
 				variant: 'error',
 			})
 		}
+		setResolvingId(null)
 	}
 
 	const { data, isLoading } = useQuery<{ reports: Report[] }>({

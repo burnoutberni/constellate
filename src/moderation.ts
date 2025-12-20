@@ -248,8 +248,44 @@ app.get('/reports', async (c) => {
 		prisma.report.count({ where }),
 	])
 
+	// Compute contentPath for each report
+	const reportsWithPaths = await Promise.all(
+		reports.map(async (report) => {
+			if (!report.contentUrl) {
+				return { ...report, contentPath: null }
+			}
+
+			const [type, id] = report.contentUrl.split(':')
+
+			try {
+				if (type === 'event' && id) {
+					const event = await prisma.event.findUnique({
+						where: { id },
+						select: { id: true, user: { select: { username: true } } },
+					})
+					if (event?.user?.username) {
+						return { ...report, contentPath: `/@${event.user.username}/${event.id}` }
+					}
+				} else if (type === 'user' && id) {
+					const user = await prisma.user.findUnique({
+						where: { id },
+						select: { username: true },
+					})
+					if (user?.username) {
+						return { ...report, contentPath: `/@${user.username}` }
+					}
+				}
+			} catch {
+				// Silently fail for unresolvable paths
+				// This can happen if the target was deleted or permissions changed
+			}
+
+			return { ...report, contentPath: null }
+		})
+	)
+
 	return c.json({
-		reports,
+		reports: reportsWithPaths,
 		pagination: {
 			page,
 			limit,

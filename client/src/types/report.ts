@@ -14,6 +14,7 @@ export interface Report {
 	}
 	reportedUserId?: string | null
 	contentUrl?: string | null
+	contentPath?: string | null
 	reason: string
 	category: ReportCategory
 	status: ReportStatus

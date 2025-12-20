@@ -23,6 +23,17 @@ const markerIcon = divIcon({
 	popupAnchor: [0, -24],
 })
 
+// Generate a deterministic offset from a seed string
+// Used to create slight variations in marker positions for events at the same location
+function getOffset(seed: string): number {
+	let hash = 0
+	for (let i = 0; i < seed.length; i++) {
+		hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+	}
+	const x = (hash % 1000) / 1000
+	return (x - 0.5) * 0.1
+}
+
 interface EventMapProps {
 	events: Event[]
 	height?: string
@@ -30,15 +41,6 @@ interface EventMapProps {
 
 export function EventMap({ events, height = '500px' }: EventMapProps) {
 	const { theme } = useTheme()
-
-	function getOffset(seed: string) {
-		let hash = 0
-		for (let i = 0; i < seed.length; i++) {
-			hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-		}
-		const x = (hash % 1000) / 1000
-		return (x - 0.5) * 0.1
-	}
 
 	// Filter events with location coordinates (assuming location field might contain them in future)
 	// For now, we'll mock coordinates for demo purposes if location string is present

@@ -23,6 +23,25 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
+function renderReportButton(event: Event, zIndex?: boolean) {
+	if (!event.id || !event.title) {
+		return null
+	}
+
+	return (
+		<div className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity${zIndex ? ' z-10' : ''}`}>
+			<ReportButton
+				targetType="event"
+				targetId={event.id}
+				contentTitle={event.title}
+				variant="ghost"
+				size="sm"
+				className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
+			/>
+		</div>
+	)
+}
+
 export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
 
@@ -77,18 +96,7 @@ export function EventCard(props: EventCardProps) {
 						</div>
 					</Card>
 				</Link>
-				{isAuthenticated && (
-					<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-						<ReportButton
-							targetType="event"
-							targetId={event.id}
-							contentTitle={event.title}
-							variant="ghost"
-							size="sm"
-							className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
-						/>
-					</div>
-				)}
+				{isAuthenticated && renderReportButton(event)}
 			</div>
 		)
 	}
@@ -201,18 +209,7 @@ export function EventCard(props: EventCardProps) {
 					</div>
 				</Card>
 			</Link>
-			{isAuthenticated && (
-				<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-					<ReportButton
-						targetType="event"
-						targetId={event.id}
-						contentTitle={event.title}
-						variant="ghost"
-						size="sm"
-						className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
-					/>
-				</div>
-			)}
+			{isAuthenticated && renderReportButton(event, true)}
 			{/* Sign Up CTA for unauthenticated users - outside the Link to avoid nesting */}
 			{!isAuthenticated && (
 				<div className="pt-2 px-4 pb-4">
