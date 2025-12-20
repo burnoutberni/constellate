@@ -61,7 +61,7 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 			: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 	return (
-		<div className="rounded-xl overflow-hidden border border-border-default shadow-sm z-0 relative">
+		<div className="rounded-xl overflow-hidden border border-border-default shadow-sm relative">
 			<MapContainer center={center} zoom={13} style={{ height, width: '100%' }}>
 				<TileLayer attribution={attribution} url={tileLayerUrl} />
 				{eventsWithLocation.map((event) => {

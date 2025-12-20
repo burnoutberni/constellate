@@ -19,6 +19,10 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
+            - name: Clean node modules
+              run: |
+                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
+
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
 
@@ -29,7 +33,7 @@ jobs:
               run: npx tsc --noEmit
 
             - name: "[Server] Lint"
-              run: npm run lint
+              run: eslint src --ext .ts
 
             - name: "[Server] Knip"
               run: npm run knip:server
@@ -41,7 +45,8 @@ jobs:
               run: npx tsc --noEmit --project client/tsconfig.json
 
             - name: "[Client] Lint"
-              run: npm run lint --prefix client
+              working-directory: client
+              run: eslint src --ext .ts,.tsx
 
             - name: "[Client] Knip"
               working-directory: client
@@ -87,6 +92,10 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
+            - name: Clean node modules
+              run: |
+                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
+
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
 
@@ -130,6 +139,10 @@ jobs:
               with:
                   node-version: '20'
                   cache: 'npm'
+
+            - name: Clean node modules
+              run: |
+                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install client dependencies
               run: npm ci --prefix client
@@ -194,6 +207,11 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
+
+            - name: Clean node modules
+              if: steps.base_cache.outputs.cache-hit != 'true'
+              run: |
+                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
@@ -267,6 +285,11 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
+
+            - name: Clean node modules
+              if: steps.base_cache.outputs.cache-hit != 'true'
+              run: |
+                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install client dependencies
               run: npm ci --legacy-peer-deps --prefix client
