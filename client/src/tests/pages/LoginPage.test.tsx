@@ -1,8 +1,11 @@
+/* eslint-disable no-unused-vars */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { LoginPage } from '../../pages/LoginPage'
 import { createTestWrapper } from '../testUtils'
 import { useAuth } from '../../hooks/useAuth'
+
+type CheckboxChange = (checked: boolean) => void
 
 // Mock useAuth
 vi.mock('../../hooks/useAuth', () => ({
@@ -11,12 +14,12 @@ vi.mock('../../hooks/useAuth', () => ({
 
 // Mock TermsOfServiceAgreement to simplify testing
 vi.mock('../../components/TermsOfServiceAgreement', () => ({
-	TermsOfServiceAgreement: ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
+	TermsOfServiceAgreement: (props: { checked: boolean; onChange: CheckboxChange }) => (
 		<label>
 			<input
 				type="checkbox"
-				checked={checked}
-				onChange={(e) => onChange(e.target.checked)}
+				checked={props.checked}
+				onChange={(e) => props.onChange(e.target.checked)}
 			/>
 			Agree to Terms
 		</label>
