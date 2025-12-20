@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 
 import { Button, Spinner, Badge, Card, CardContent } from '@/components/ui'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -19,10 +18,8 @@ export function ReportQueue() {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
-	const [resolvingId, setResolvingId] = useState<string | null>(null)
 
-	async function handleViewContent(report: Report) {
-		setResolvingId(report.id)
+	function handleViewContent(report: Report) {
 		if (report.contentPath) {
 			window.open(report.contentPath, '_blank')
 		} else {
@@ -33,7 +30,6 @@ export function ReportQueue() {
 				variant: 'error',
 			})
 		}
-		setResolvingId(null)
 	}
 
 	const { data, isLoading } = useQuery<{ reports: Report[] }>({
@@ -90,9 +86,7 @@ export function ReportQueue() {
 										• {new Date(report.createdAt).toLocaleDateString()}
 									</span>
 								</div>
-								
 								<p className="text-text-primary mb-3">{report.reason}</p>
-								
 								<div className="bg-background-secondary p-2 rounded text-sm font-mono text-text-secondary mb-3">
 									Target: {report.contentUrl}
 								</div>
@@ -102,7 +96,6 @@ export function ReportQueue() {
 								<Button
 									size="sm"
 									variant="secondary"
-									loading={resolvingId === report.id}
 									onClick={() => handleViewContent(report)}
 									aria-label="View reported content">
 									View Content

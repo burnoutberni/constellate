@@ -18,6 +18,11 @@ interface Appeal {
 	}
 }
 
+const APPEAL_TYPE_LABELS: Record<Appeal['type'], string> = {
+	CONTENT_REMOVAL: 'Content Removal',
+	ACCOUNT_SUSPENSION: 'Account Suspension',
+}
+
 export function AppealQueue() {
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
@@ -69,7 +74,7 @@ export function AppealQueue() {
 						<div className="flex justify-between items-start gap-4">
 							<div className="flex-1">
 								<div className="flex items-center gap-2 mb-2">
-									<Badge variant="secondary">{appeal.type.replace('_', ' ')}</Badge>
+								<Badge variant="secondary">{APPEAL_TYPE_LABELS[appeal.type]}</Badge>
 									<span className="text-sm text-text-secondary">
 										Appealed by @{appeal.user.username}
 									</span>
@@ -77,7 +82,6 @@ export function AppealQueue() {
 										• {formatDate(appeal.createdAt)}
 									</span>
 								</div>
-								
 								<p className="text-text-primary">{appeal.reason}</p>
 							</div>
 

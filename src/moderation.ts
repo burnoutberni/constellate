@@ -248,41 +248,62 @@ app.get('/reports', async (c) => {
 		prisma.report.count({ where }),
 	])
 
-	// Compute contentPath for each report
-	const reportsWithPaths = await Promise.all(
-		reports.map(async (report) => {
-			if (!report.contentUrl) {
-				return { ...report, contentPath: null }
-			}
+	// Extract all unique event and user IDs from reports
+	const eventIds = new Set<string>()
+	const userIds = new Set<string>()
 
-			const [type, id] = report.contentUrl.split(':')
+	for (const report of reports) {
+		if (!report.contentUrl) continue
+		const [type, id] = report.contentUrl.split(':')
+		if (type === 'event' && id) {
+			eventIds.add(id)
+		} else if (type === 'user' && id) {
+			userIds.add(id)
+		}
+	}
 
-			try {
-				if (type === 'event' && id) {
-					const event = await prisma.event.findUnique({
-						where: { id },
-						select: { id: true, user: { select: { username: true } } },
-					})
-					if (event?.user?.username) {
-						return { ...report, contentPath: `/@${event.user.username}/${event.id}` }
-					}
-				} else if (type === 'user' && id) {
-					const user = await prisma.user.findUnique({
-						where: { id },
-						select: { username: true },
-					})
-					if (user?.username) {
-						return { ...report, contentPath: `/@${user.username}` }
-					}
-				}
-			} catch {
-				// Silently fail for unresolvable paths
-				// This can happen if the target was deleted or permissions changed
-			}
+	// Fetch all events and users in bulk
+	const [events, users] = await Promise.all([
+		eventIds.size > 0
+			? prisma.event.findMany({
+					where: { id: { in: Array.from(eventIds) } },
+					select: { id: true, user: { select: { username: true } } },
+			  })
+			: Promise.resolve([]),
+		userIds.size > 0
+			? prisma.user.findMany({
+					where: { id: { in: Array.from(userIds) } },
+					select: { id: true, username: true },
+			  })
+			: Promise.resolve([]),
+	])
 
+	// Create maps for efficient lookups
+	const eventMap = new Map(events.map((e) => [e.id, e]))
+	const userMap = new Map(users.map((u) => [u.id, u]))
+
+	// Construct contentPath for each report using the maps
+	const reportsWithPaths = reports.map((report) => {
+		if (!report.contentUrl) {
 			return { ...report, contentPath: null }
-		})
-	)
+		}
+
+		const [type, id] = report.contentUrl.split(':')
+
+		if (type === 'event' && id) {
+			const event = eventMap.get(id)
+			if (event?.user?.username) {
+				return { ...report, contentPath: `/@${event.user.username}/${event.id}` }
+			}
+		} else if (type === 'user' && id) {
+			const user = userMap.get(id)
+			if (user?.username) {
+				return { ...report, contentPath: `/@${user.username}` }
+			}
+		}
+
+		return { ...report, contentPath: null }
+	})
 
 	return c.json({
 		reports: reportsWithPaths,

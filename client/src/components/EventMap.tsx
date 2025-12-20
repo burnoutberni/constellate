@@ -31,7 +31,7 @@ function getOffset(seed: string): number {
 		hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
 	}
 	const x = (hash % 1000) / 1000
-	return (x - 0.5) * 0.1
+	return (x - 0.5) * 0.001
 }
 
 interface EventMapProps {
