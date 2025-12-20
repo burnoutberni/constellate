@@ -19,10 +19,6 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
-            - name: Clean node modules
-              run: |
-                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
-
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
 
@@ -92,10 +88,6 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
-            - name: Clean node modules
-              run: |
-                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
-
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
 
@@ -139,10 +131,6 @@ jobs:
               with:
                   node-version: '20'
                   cache: 'npm'
-
-            - name: Clean node modules
-              run: |
-                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install client dependencies
               run: npm ci --prefix client
@@ -207,11 +195,6 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
-
-            - name: Clean node modules
-              if: steps.base_cache.outputs.cache-hit != 'true'
-              run: |
-                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install root dependencies
               run: npm ci --legacy-peer-deps
@@ -285,11 +268,6 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
               if: steps.base_cache.outputs.cache-hit != 'true'
-
-            - name: Clean node modules
-              if: steps.base_cache.outputs.cache-hit != 'true'
-              run: |
-                  rm -rf node_modules client/node_modules package-lock.json client/package-lock.json
 
             - name: Install client dependencies
               run: npm ci --legacy-peer-deps --prefix client
