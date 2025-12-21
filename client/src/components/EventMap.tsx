@@ -2,7 +2,7 @@ import { divIcon, LatLngBounds } from 'leaflet'
 import { useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import 'leaflet/dist/leaflet.css'
 
 import { Badge, LOCATION_ICON_PATH_DATA } from '@/components/ui'
@@ -47,6 +47,7 @@ interface EventMapProps {
 
 export function EventMap({ events, height = '500px' }: EventMapProps) {
 	const { theme } = useTheme()
+	const navigate = useNavigate()
 	const markerIcon = theme === 'dark' ? darkMarkerIcon : lightMarkerIcon
 
 	// Filter events with actual location coordinates
@@ -110,17 +111,24 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 								<Popup>
 									<div className="p-1">
 										<h3 className="font-semibold text-sm mb-1">
-											{event.user?.username ? (
-												<Link
-													to={`/@${event.user.username}/${event.originalEventId || event.id}`}
-													className="hover:underline text-primary-600">
-													{event.title}
-												</Link>
-											) : (
-												<span className="text-text-primary">
-													{event.title}
-												</span>
-											)}
+											{(() => {
+												const username = event.user?.username
+												return username ? (
+													<button
+														onClick={() =>
+															navigate(
+																`/@${username}/${event.originalEventId || event.id}`
+															)
+														}
+														className="hover:underline text-primary-600 bg-transparent border-none p-0 cursor-pointer text-left">
+														{event.title}
+													</button>
+												) : (
+													<span className="text-text-primary">
+														{event.title}
+													</span>
+												)
+											})()}
 										</h3>
 										<p className="text-xs text-text-secondary mb-2">
 											{formatDate(event.startTime)}{' '}
