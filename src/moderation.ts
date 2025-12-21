@@ -74,7 +74,13 @@ async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
 					where: { id: { in: Array.from(commentIds) } },
 					select: {
 						id: true,
-						event: { select: { id: true, user: { select: { username: true } } } },
+						event: {
+							select: {
+								id: true,
+								user: { select: { username: true } },
+								sharedEvent: { select: { id: true } },
+							},
+						},
 					},
 				})
 			: Promise.resolve([]),
@@ -107,9 +113,10 @@ async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
 		} else if (type === 'comment' && id) {
 			const comment = commentMap.get(id)
 			if (comment?.event?.user?.username) {
+				const eventId = comment.event.sharedEvent?.id || comment.event.id
 				return {
 					...report,
-					contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
+					contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
 				}
 			}
 		}
