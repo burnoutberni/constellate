@@ -358,6 +358,94 @@ export function DiscoverPage() {
 		[viewMode]
 	)
 
+	const SkeletonGrid = () => (
+		<div
+			className={
+				viewMode === 'grid'
+					? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+					: 'space-y-4'
+			}>
+			{skeletonKeys.map((key) => (
+				<Card key={key} padding="sm" className="space-y-3">
+					<Skeleton className="h-48 w-full rounded-lg" />
+					<Skeleton className="h-6 w-3/4" />
+					<Skeleton className="h-4 w-1/2" />
+				</Card>
+			))}
+		</div>
+	)
+
+	const NoResultsFound = () => (
+		<Card className="py-16 px-6 text-center border-dashed">
+			<div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+				<div className="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4 text-3xl">
+					🔍
+				</div>
+				<h3 className="text-xl font-bold text-text-primary mb-2">No events found</h3>
+				<p className="text-text-secondary mb-6">
+					We couldn&apos;t find any events matching your filters. Try adjusting your
+					search terms or browsing all events.
+				</p>
+				<Button variant="primary" onClick={handleClearFilters}>
+					Clear Filters
+				</Button>
+			</div>
+		</Card>
+	)
+
+	const ErrorComponent = () => (
+		<Card className="p-8 border-error-200 bg-error-50 dark:bg-error-900/20 dark:border-error-900">
+			<div className="text-center text-error-700 dark:text-error-300">
+				<p className="font-semibold">Something went wrong</p>
+				<p className="text-sm mt-1">
+					{(error as Error)?.message || 'Please try again later.'}
+				</p>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => window.location.reload()}
+					className="mt-4 border-error-300 text-error-700 hover:bg-error-100">
+					Reload Page
+				</Button>
+			</div>
+		</Card>
+	)
+
+	const EventList = () => (
+		<div
+			className={
+				viewMode === 'grid'
+					? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+					: 'space-y-4'
+			}>
+			{events.map((event) => (
+				<div key={event.id} className={viewMode === 'list' ? 'max-w-4xl mx-auto' : ''}>
+					<EventCard
+						event={event}
+						variant={viewMode === 'list' ? 'compact' : 'full'}
+						isAuthenticated={Boolean(user)}
+					/>
+				</div>
+			))}
+		</div>
+	)
+
+	const renderResults = () => {
+		if (isLoading) {
+			return <SkeletonGrid />
+		}
+
+		if (events.length === 0 && !isError) {
+			return <NoResultsFound />
+		}
+
+		if (viewMode === 'map') {
+			return <EventMap events={events} />
+		}
+
+		return <EventList />
+	}
+
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -459,88 +547,8 @@ export function DiscoverPage() {
 
 						{/* Results Grid/List/Map */}
 						<div className="min-h-[400px]">
-							{isError && (
-								<Card className="p-8 border-error-200 bg-error-50 dark:bg-error-900/20 dark:border-error-900">
-									<div className="text-center text-error-700 dark:text-error-300">
-										<p className="font-semibold">Something went wrong</p>
-										<p className="text-sm mt-1">
-											{(error as Error)?.message || 'Please try again later.'}
-										</p>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => window.location.reload()}
-											className="mt-4 border-error-300 text-error-700 hover:bg-error-100">
-											Reload Page
-										</Button>
-									</div>
-								</Card>
-							)}
-
-							{isLoading ? (
-								<div
-									className={
-										viewMode === 'grid'
-											? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-											: 'space-y-4'
-									}>
-									{skeletonKeys.map((key) => (
-										<Card key={key} padding="sm" className="space-y-3">
-											<Skeleton className="h-48 w-full rounded-lg" />
-											<Skeleton className="h-6 w-3/4" />
-											<Skeleton className="h-4 w-1/2" />
-										</Card>
-									))}
-								</div>
-							) : events.length > 0 ? (
-								viewMode === 'map' ? (
-									<EventMap events={events} />
-								) : (
-									<div
-										className={
-											viewMode === 'grid'
-												? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-												: 'space-y-4'
-										}>
-										{events.map((event) => (
-											<div
-												key={event.id}
-												className={
-													viewMode === 'list' ? 'max-w-4xl mx-auto' : ''
-												}>
-												<EventCard
-													event={event}
-													variant={
-														viewMode === 'list' ? 'compact' : 'full'
-													}
-													isAuthenticated={Boolean(user)}
-												/>
-											</div>
-										))}
-									</div>
-								)
-							) : (
-								!isError && (
-									<Card className="py-16 px-6 text-center border-dashed">
-										<div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-											<div className="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4 text-3xl">
-												🔍
-											</div>
-											<h3 className="text-xl font-bold text-text-primary mb-2">
-												No events found
-											</h3>
-											<p className="text-text-secondary mb-6">
-												We couldn&apos;t find any events matching your
-												filters. Try adjusting your search terms or browsing
-												all events.
-											</p>
-											<Button variant="primary" onClick={handleClearFilters}>
-												Clear Filters
-											</Button>
-										</div>
-									</Card>
-								)
-							)}
+							{isError && <ErrorComponent />}
+							{renderResults()}
 						</div>
 
 						{/* Pagination */}

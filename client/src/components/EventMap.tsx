@@ -111,24 +111,21 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 								<Popup>
 									<div className="p-1">
 										<h3 className="font-semibold text-sm mb-1">
-											{(() => {
-												const username = event.user?.username
-												return username ? (
-													<button
-														onClick={() =>
-															navigate(
-																`/@${username}/${event.originalEventId || event.id}`
-															)
-														}
-														className="hover:underline text-primary-600 bg-transparent border-none p-0 cursor-pointer text-left">
-														{event.title}
-													</button>
-												) : (
-													<span className="text-text-primary">
-														{event.title}
-													</span>
-												)
-											})()}
+											{event.user?.username ? (
+												<button
+													onClick={() =>
+														navigate(
+															`/@${event.user?.username}/${event.originalEventId || event.id}`
+														)
+													}
+													className="hover:underline text-primary-600 bg-transparent border-none p-0 cursor-pointer text-left">
+													{event.title}
+												</button>
+											) : (
+												<span className="text-text-primary">
+													{event.title}
+												</span>
+											)}
 										</h3>
 										<p className="text-xs text-text-secondary mb-2">
 											{formatDate(event.startTime)}{' '}
