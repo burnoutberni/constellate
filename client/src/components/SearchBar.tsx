@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
+import { useState, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
+import { SearchIcon, Button, Input, Spinner, GlobeIcon, CloseIcon } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
@@ -174,9 +174,26 @@ export function SearchBar() {
 
 	const selectableItems = getSelectableItems()
 
+	const clearSearch = () => {
+		setQuery('')
+		setIsOpen(false)
+		inputRef.current?.focus()
+	}
+
 	const searchIcon = <SearchIcon className="w-5 h-5" />
 
-	const loadingSpinner = isLoading ? <Spinner size="sm" variant="secondary" /> : undefined
+	// Determine right icon content
+	let rightIcon: ReactNode | undefined
+	let onRightIconClick: (() => void) | undefined
+	let rightIconLabel: string | undefined
+
+	if (isLoading) {
+		rightIcon = <Spinner size="sm" variant="secondary" />
+	} else if (query) {
+		rightIcon = <CloseIcon className="w-5 h-5" />
+		onRightIconClick = clearSearch
+		rightIconLabel = 'Clear search'
+	}
 
 	return (
 		<div ref={searchRef} className="relative w-full max-w-md">
@@ -189,7 +206,9 @@ export function SearchBar() {
 				onFocus={() => query && setIsOpen(true)}
 				placeholder="Search events, users, or @user@domain..."
 				leftIcon={searchIcon}
-				rightIcon={loadingSpinner}
+				rightIcon={rightIcon}
+				onRightIconClick={onRightIconClick}
+				rightIconLabel={rightIconLabel}
 				className="w-full"
 			/>
 
