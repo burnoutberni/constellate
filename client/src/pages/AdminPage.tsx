@@ -73,15 +73,15 @@ interface Instance {
 	}
 }
 
+type AdminTab = 'users' | 'api-keys' | 'instances' | 'reports' | 'appeals'
+
 export function AdminPage() {
 	const { user, logout } = useAuth()
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
-	const [activeTab, setActiveTab] = useState<
-		'users' | 'api-keys' | 'instances' | 'reports' | 'appeals'
-	>('users')
+	const [activeTab, setActiveTab] = useState<AdminTab>('users')
 	const [showCreateUserModal, setShowCreateUserModal] = useState(false)
 	const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
 	const [, setSelectedUserId] = useState<string | null>(null)
@@ -239,7 +239,7 @@ export function AdminPage() {
 		)
 	}
 
-	const getTabClassName = (tab: string) =>
+	const getTabClassName = (tab: AdminTab) =>
 		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
 			activeTab === tab
 				? 'border-primary-500 text-primary-600 dark:text-primary-400'

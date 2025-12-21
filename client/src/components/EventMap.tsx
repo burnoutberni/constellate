@@ -12,9 +12,9 @@ import { Event } from '@/types'
 import { formatDate, formatTime } from '../lib/formatUtils'
 
 // Custom marker icon using our UI icon component (no external CDN)
-const markerHtml = `
+const createMarkerHtml = (colorClass: string) => `
 <span style="display: inline-flex; align-items: center; justify-content: center;">
-  <svg class="w-6 h-6 text-primary-600 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <svg class="w-6 h-6 ${colorClass} drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     ${LOCATION_ICON_PATH_DATA.map(
 		(d) =>
 			`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"></path>`
@@ -23,9 +23,17 @@ const markerHtml = `
 </span>
 `
 
-const markerIcon = divIcon({
+const lightMarkerIcon = divIcon({
 	className: 'constellate-marker-icon',
-	html: markerHtml,
+	html: createMarkerHtml('text-primary-600'),
+	iconSize: [24, 24],
+	iconAnchor: [12, 24],
+	popupAnchor: [0, -24],
+})
+
+const darkMarkerIcon = divIcon({
+	className: 'constellate-marker-icon',
+	html: createMarkerHtml('text-primary-400'),
 	iconSize: [24, 24],
 	iconAnchor: [12, 24],
 	popupAnchor: [0, -24],
@@ -38,6 +46,7 @@ interface EventMapProps {
 
 export function EventMap({ events, height = '500px' }: EventMapProps) {
 	const { theme } = useTheme()
+	const markerIcon = theme === 'dark' ? darkMarkerIcon : lightMarkerIcon
 
 	// Filter events with actual location coordinates
 	const eventsWithLocation = useMemo(
