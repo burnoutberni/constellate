@@ -63,7 +63,7 @@ export function ReportQueue() {
 		)
 	}
 
-	if (!data?.reports.length) {
+	if (!data?.reports?.length) {
 		return (
 			<div className="text-center py-12 text-text-secondary bg-background-primary rounded-lg border border-border-default">
 				No pending reports. Good job! 🎉

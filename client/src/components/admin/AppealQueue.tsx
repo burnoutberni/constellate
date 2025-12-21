@@ -58,7 +58,7 @@ export function AppealQueue() {
 		)
 	}
 
-	if (!data?.appeals.length) {
+	if (!data?.appeals?.length) {
 		return (
 			<div className="text-center py-12 text-text-secondary bg-background-primary rounded-lg border border-border-default">
 				No pending appeals.

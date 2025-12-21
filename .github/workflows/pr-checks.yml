@@ -13,16 +13,6 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: Prepare repo
-              run: |
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install --legacy-peer-deps
-                  cd client
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install
-
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
@@ -91,16 +81,6 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: Prepare repo
-              run: |
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install --legacy-peer-deps
-                  cd client
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install
-
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
@@ -144,16 +124,6 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-
-            - name: Prepare repo
-              run: |
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install --legacy-peer-deps
-                  cd client
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
@@ -210,16 +180,6 @@ jobs:
               with:
                   ref: ${{ github.base_ref }}
               if: steps.base_cache.outputs.cache-hit != 'true'
-
-            - name: Prepare repo
-              run: |
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install --legacy-peer-deps
-                  cd client
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install
 
             - name: Restore cached base coverage
               id: base_cache
@@ -293,16 +253,6 @@ jobs:
               with:
                   ref: ${{ github.base_ref }}
               if: steps.base_cache.outputs.cache-hit != 'true'
-
-            - name: Prepare repo
-              run: |
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install --legacy-peer-deps
-                  cd client
-                  rm -rf node_modules
-                  rm -f package-lock.json
-                  npm install
 
             - name: Restore cached base coverage
               id: base_cache

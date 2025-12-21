@@ -1,25 +1,31 @@
 import { divIcon } from 'leaflet'
 import { useMemo } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import { Link } from 'react-router-dom'
 import 'leaflet/dist/leaflet.css'
 
-import { Badge, LocationIcon } from '@/components/ui'
+import { Badge, LOCATION_ICON_PATH_DATA } from '@/components/ui'
 import { useTheme } from '@/design-system'
 import { Event } from '@/types'
 
 import { formatDate, formatTime } from '../lib/formatUtils'
 
 // Custom marker icon using our UI icon component (no external CDN)
+const markerHtml = `
+<span style="display: inline-flex; align-items: center; justify-content: center;">
+  <svg class="w-6 h-6 text-primary-600 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    ${LOCATION_ICON_PATH_DATA.map(
+		(d) =>
+			`<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"></path>`
+	).join('')}
+  </svg>
+</span>
+`
+
 const markerIcon = divIcon({
 	className: 'constellate-marker-icon',
-	html: renderToStaticMarkup(
-		<span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-			<LocationIcon className="w-6 h-6 text-primary-600 drop-shadow" />
-		</span>
-	),
+	html: markerHtml,
 	iconSize: [24, 24],
 	iconAnchor: [12, 24],
 	popupAnchor: [0, -24],
