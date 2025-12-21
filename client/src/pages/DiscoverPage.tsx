@@ -547,8 +547,7 @@ export function DiscoverPage() {
 
 						{/* Results Grid/List/Map */}
 						<div className="min-h-[400px]">
-							{isError && <ErrorComponent />}
-							{renderResults()}
+							{isError ? <ErrorComponent /> : renderResults()}
 						</div>
 
 						{/* Pagination */}
