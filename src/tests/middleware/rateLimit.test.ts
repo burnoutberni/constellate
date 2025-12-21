@@ -321,4 +321,34 @@ describe('Rate Limiting Middleware', () => {
 			}
 		})
 	})
+
+	describe('Scope Isolation', () => {
+		it('should not share state between different limiters', async () => {
+			// Limiter A: Strict (max 2)
+			const strictLimiter = rateLimit({ windowMs: 60000, maxRequests: 2 })
+
+			// Limiter B: Lenient (max 10)
+			const lenientLimiter = rateLimit({ windowMs: 60000, maxRequests: 10 })
+
+			// 1. Make 5 requests to Lenient (Valid)
+			for (let i = 0; i < 5; i++) {
+				mockRequest.header.mockImplementation((name: string) => {
+					if (name === 'x-forwarded-for') return uniqueIp
+					return undefined
+				})
+				await lenientLimiter(mockContext, mockNext)
+			}
+
+			// 2. Make 1 request to Strict
+			// If shared, count is 5. Max is 2. Should fail.
+			// If independent, count is 0. Should pass.
+			mockRequest.header.mockImplementation((name: string) => {
+				if (name === 'x-forwarded-for') return uniqueIp
+				return undefined
+			})
+
+			await strictLimiter(mockContext, mockNext)
+			expect(mockNext).toHaveBeenCalled()
+		})
+	})
 })

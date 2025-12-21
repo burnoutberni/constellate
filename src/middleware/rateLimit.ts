@@ -4,6 +4,7 @@
  */
 
 import { Context, Next } from 'hono'
+import { randomUUID } from 'node:crypto'
 import { Errors } from '../lib/errors.js'
 
 /**
@@ -65,6 +66,7 @@ export interface RateLimitConfig {
 	keyGenerator?: (c: Context) => string // Custom key generator
 	skipSuccessfulRequests?: boolean // Don't count successful requests
 	skipFailedRequests?: boolean // Don't count failed requests
+	scope?: string // Scope to prevent collisions between different limiters
 }
 
 /**
@@ -81,6 +83,7 @@ const defaultConfig: RateLimitConfig = {
  */
 export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	const finalConfig = { ...defaultConfig, ...config }
+	const scope = finalConfig.scope || randomUUID()
 
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
@@ -96,6 +99,9 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 		} else {
 			key = `ip:${ip}`
 		}
+
+		// Apply scope to prevent collisions
+		key = `${scope}:${key}`
 
 		const now = Date.now()
 		const entry = rateLimitStore.get(key)
@@ -149,6 +155,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 export const strictRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
+	scope: 'strict',
 })
 
 /**
@@ -157,6 +164,7 @@ export const strictRateLimit = rateLimit({
 export const moderateRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	scope: 'moderate',
 })
 
 /**
@@ -165,4 +173,5 @@ export const moderateRateLimit = rateLimit({
 export const lenientRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
+	scope: 'lenient',
 })
