@@ -109,13 +109,13 @@ interface EventButtonProps {
 }
 
 // Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
-const MonthEventButton = memo(function MonthEventButton({
+const MonthEventButton = memo(({
 	event,
 	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
-}: EventButtonProps) {
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -272,13 +272,13 @@ function MonthView({
 }
 
 // Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
-const WeekEventButton = memo(function WeekEventButton({
+const WeekEventButton = memo(({
 	event,
 	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
-}: EventButtonProps) {
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -456,12 +456,12 @@ function WeekView({
 }
 
 // Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
-const DayEventButton = memo(function DayEventButton({
+const DayEventButton = memo(({
 	event,
 	isAttending,
 	onEventClick,
 	onEventHover,
-}: EventButtonProps) {
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
