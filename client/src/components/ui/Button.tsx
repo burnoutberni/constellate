@@ -180,22 +180,8 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 		if (asChild && React.isValidElement(children)) {
 			const child = children as React.ReactElement<{ className?: string }>
 
-			// Extract props that should be forwarded to the child element
-			const {
-				variant: _variant,
-				size: _size,
-				loading: _loading,
-				fullWidth: _fullWidth,
-				leftIcon: _leftIcon,
-				rightIcon: _rightIcon,
-				asChild: _asChild,
-				to: _to,
-				children: _children,
-				...forwardedProps
-			} = props as ButtonAsChild
-
 			return React.cloneElement(child, {
-				...forwardedProps,
+				...props,
 				className: cn(classes, child.props.className),
 			})
 		}

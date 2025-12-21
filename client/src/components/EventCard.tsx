@@ -51,7 +51,7 @@ export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
 
 	const eventPath = event.user?.username
-		? `/@${event.user.username}/${event.originalEventId || event.id}`
+		? `/@${event.user.username}/${event.id}`
 		: `/events/${event.id}`
 
 	// Compact variant
