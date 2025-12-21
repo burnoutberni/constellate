@@ -422,7 +422,7 @@ export function DiscoverPage() {
 				<div key={event.id} className={viewMode === 'list' ? 'max-w-4xl mx-auto' : ''}>
 					<EventCard
 						event={event}
-						variant={viewMode === 'list' ? 'compact' : 'full'}
+						variant={viewMode === 'list' ? 'full' : 'compact'}
 						isAuthenticated={Boolean(user)}
 					/>
 				</div>

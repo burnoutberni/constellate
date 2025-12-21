@@ -139,7 +139,7 @@ type ReportEntityMaps = {
  */
 function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps) {
 	if (!report.contentUrl) {
-		return { ...report, contentPath: null }
+		return { ...report, contentPath: null, contentInfo: null }
 	}
 
 	const [type, id] = report.contentUrl.split(':')
@@ -148,24 +148,47 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 	if (type === 'event' && id) {
 		const event = eventMap.get(id)
 		if (event?.user?.username) {
-			return { ...report, contentPath: `/@${event.user.username}/${event.id}` }
+			const eventId = event.sharedEvent?.id || event.id
+			return {
+				...report,
+				contentPath: `/@${event.user.username}/${eventId}`,
+				contentInfo: {
+					type: 'event',
+					username: event.user.username,
+					id: eventId,
+				},
+			}
 		}
 	} else if (type === 'user' && id) {
 		const user = userMap.get(id)
 		if (user?.username) {
-			return { ...report, contentPath: `/@${user.username}` }
+			return {
+				...report,
+				contentPath: `/@${user.username}`,
+				contentInfo: {
+					type: 'user',
+					username: user.username,
+				},
+			}
 		}
 	} else if (type === 'comment' && id) {
 		const comment = commentMap.get(id)
 		if (comment?.event?.user?.username) {
+			const eventId = comment.event.sharedEvent?.id || comment.event.id
 			return {
 				...report,
-				contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
+				contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
+				contentInfo: {
+					type: 'comment',
+					username: comment.event.user.username,
+					eventId,
+					commentId: comment.id,
+				},
 			}
 		}
 	}
 
-	return { ...report, contentPath: null }
+	return { ...report, contentPath: null, contentInfo: null }
 }
 
 async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
