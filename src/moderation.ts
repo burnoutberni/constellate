@@ -33,8 +33,10 @@ const ReportCategoryValues = [
 
 type ReportWithReporter = Awaited<ReturnType<typeof prisma.report.findMany>>
 
-async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
-	// Extract all unique event, user, and comment IDs from reports
+/**
+ * Extracts unique IDs from reports for batch fetching
+ */
+function extractReportEntityIds(reports: ReportWithReporter) {
 	const eventIds = new Set<string>()
 	const userIds = new Set<string>()
 	const commentIds = new Set<string>()
@@ -51,7 +53,17 @@ async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
 		}
 	}
 
-	// Fetch all events and users in bulk
+	return { eventIds, userIds, commentIds }
+}
+
+/**
+ * Fetches related entities (events, users, comments) in bulk
+ */
+async function fetchReportEntities(
+	eventIds: Set<string>,
+	userIds: Set<string>,
+	commentIds: Set<string>
+) {
 	const [events, users, comments] = await Promise.all([
 		eventIds.size > 0
 			? prisma.event.findMany({
@@ -86,43 +98,87 @@ async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
 			: Promise.resolve([]),
 	])
 
-	// Create maps for efficient lookups
-	const eventMap = new Map(events.map((e) => [e.id, e]))
-	const userMap = new Map(users.map((u) => [u.id, u]))
-	const commentMap = new Map(comments.map((c) => [c.id, c]))
+	return {
+		eventMap: new Map(events.map((e) => [e.id, e])),
+		userMap: new Map(users.map((u) => [u.id, u])),
+		commentMap: new Map(comments.map((c) => [c.id, c])),
+	}
+}
+
+type ReportEntityMaps = {
+	eventMap: Map<
+		string,
+		{
+			id: string
+			user: { username: string } | null
+			sharedEvent: { id: string } | null
+		}
+	>
+	userMap: Map<
+		string,
+		{
+			id: string
+			username: string
+		}
+	>
+	commentMap: Map<
+		string,
+		{
+			id: string
+			event: {
+				id: string
+				user: { username: string } | null
+				sharedEvent: { id: string } | null
+			}
+		}
+	>
+}
+
+/**
+ * Enriches a single report with its content path
+ */
+function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps) {
+	if (!report.contentUrl) {
+		return { ...report, contentPath: null }
+	}
+
+	const [type, id] = report.contentUrl.split(':')
+	const { eventMap, userMap, commentMap } = maps
+
+	if (type === 'event' && id) {
+		const event = eventMap.get(id)
+		if (event?.user?.username) {
+			const eventId = event.sharedEvent?.id || event.id
+			return { ...report, contentPath: `/@${event.user.username}/${eventId}` }
+		}
+	} else if (type === 'user' && id) {
+		const user = userMap.get(id)
+		if (user?.username) {
+			return { ...report, contentPath: `/@${user.username}` }
+		}
+	} else if (type === 'comment' && id) {
+		const comment = commentMap.get(id)
+		if (comment?.event?.user?.username) {
+			const eventId = comment.event.sharedEvent?.id || comment.event.id
+			return {
+				...report,
+				contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
+			}
+		}
+	}
+
+	return { ...report, contentPath: null }
+}
+
+async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
+	// Extract all unique event, user, and comment IDs from reports
+	const { eventIds, userIds, commentIds } = extractReportEntityIds(reports)
+
+	// Fetch all related entities in bulk and create lookup maps
+	const maps = await fetchReportEntities(eventIds, userIds, commentIds)
 
 	// Construct contentPath for each report using the maps
-	return reports.map((report) => {
-		if (!report.contentUrl) {
-			return { ...report, contentPath: null }
-		}
-
-		const [type, id] = report.contentUrl.split(':')
-
-		if (type === 'event' && id) {
-			const event = eventMap.get(id)
-			if (event?.user?.username) {
-				const eventId = event.sharedEvent?.id || event.id
-				return { ...report, contentPath: `/@${event.user.username}/${eventId}` }
-			}
-		} else if (type === 'user' && id) {
-			const user = userMap.get(id)
-			if (user?.username) {
-				return { ...report, contentPath: `/@${user.username}` }
-			}
-		} else if (type === 'comment' && id) {
-			const comment = commentMap.get(id)
-			if (comment?.event?.user?.username) {
-				const eventId = comment.event.sharedEvent?.id || comment.event.id
-				return {
-					...report,
-					contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
-				}
-			}
-		}
-
-		return { ...report, contentPath: null }
-	})
+	return reports.map((report) => enrichReportPath(report, maps))
 }
 
 // Report schema

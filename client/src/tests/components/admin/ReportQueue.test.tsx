@@ -123,7 +123,6 @@ describe('ReportQueue', () => {
 				},
 			],
 		})
-		const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
 
 		const { wrapper } = createTestWrapper()
 		render(<ReportQueue />, { wrapper })
@@ -132,8 +131,10 @@ describe('ReportQueue', () => {
 			expect(screen.getByText('Harassment')).toBeInTheDocument()
 		})
 
-		fireEvent.click(screen.getByText('View Content'))
-
-		expect(openSpy).toHaveBeenCalledWith('/@user/event-1', '_blank')
+		const link = screen.getByText('View Content')
+		expect(link.tagName).toBe('A')
+		expect(link).toHaveAttribute('href', '/@user/event-1')
+		expect(link).toHaveAttribute('target', '_blank')
+		expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 	})
 })

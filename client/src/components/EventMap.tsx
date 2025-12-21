@@ -9,6 +9,7 @@ import { Badge, LOCATION_ICON_PATH_DATA } from '@/components/ui'
 import { useTheme } from '@/design-system'
 import { Event } from '@/types'
 
+import { MAP_CONFIG } from '../config'
 import { formatDate, formatTime } from '../lib/formatUtils'
 
 // Custom marker icon using our UI icon component (no external CDN)
@@ -83,15 +84,7 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 	}
 
 	// Dark mode map tiles
-	const tileLayerUrl =
-		theme === 'dark'
-			? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-			: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-
-	const attribution =
-		theme === 'dark'
-			? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-			: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+	const { tileLayerUrl, attribution } = theme === 'dark' ? MAP_CONFIG.dark : MAP_CONFIG.light
 
 	return (
 		<div className="rounded-xl overflow-hidden border border-border-default shadow-sm relative">

@@ -22,7 +22,11 @@ export function ReportQueue() {
 
 	function handleViewContent(report: Report) {
 		if (report.contentPath) {
-			window.open(report.contentPath, '_blank')
+			const link = document.createElement('a')
+			link.href = report.contentPath
+			link.target = '_blank'
+			link.rel = 'noopener noreferrer'
+			link.click()
 		} else {
 			addToast({
 				id: generateId(),
@@ -104,13 +108,23 @@ export function ReportQueue() {
 							</div>
 
 							<div className="flex flex-col gap-2">
-								<Button
-									size="sm"
-									variant="secondary"
-									onClick={() => handleViewContent(report)}
-									aria-label="View reported content">
-									View Content
-								</Button>
+								{report.contentPath ? (
+									<a
+										href={report.contentPath}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.98] bg-white text-text-primary border border-border-default hover:bg-neutral-50 hover:border-border-hover hover:shadow-sm active:bg-neutral-100 focus-visible:ring-neutral-400 dark:bg-background-tertiary dark:border-border-default dark:text-text-primary dark:hover:bg-background-secondary dark:hover:border-border-hover dark:active:bg-background-primary text-sm px-3 py-1.5 gap-1.5 min-h-[32px]">
+										View Content
+									</a>
+								) : (
+									<Button
+										size="sm"
+										variant="secondary"
+										onClick={() => handleViewContent(report)}
+										aria-label="View reported content">
+										View Content
+									</Button>
+								)}
 								<div className="flex gap-2">
 									<Button
 										size="sm"
