@@ -108,13 +108,14 @@ interface EventButtonProps {
 	className?: string
 }
 
-function MonthEventButton({
+// Bolt: Memoized to prevent unnecessary re-renders
+const MonthEventButton = React.memo(({
 	event,
 	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
-}: EventButtonProps) {
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -136,7 +137,7 @@ function MonthEventButton({
 			{event.title}
 		</Button>
 	)
-}
+})
 
 function MonthView({
 	currentDate,
@@ -146,7 +147,11 @@ function MonthView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Bolt: Memoize handler to keep it stable across renders
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const monthMetadata = useMemo(() => {
 		const year = currentDate.getFullYear()
@@ -266,13 +271,14 @@ function MonthView({
 	)
 }
 
-function WeekEventButton({
+// Bolt: Memoized to prevent unnecessary re-renders
+const WeekEventButton = React.memo(({
 	event,
 	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
-}: EventButtonProps) {
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -300,7 +306,7 @@ function WeekEventButton({
 			</div>
 		</Button>
 	)
-}
+})
 
 function WeekView({
 	currentDate,
@@ -310,7 +316,11 @@ function WeekView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Bolt: Memoize handler to keep it stable across renders
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const weekDays = useMemo(() => {
 		const dayOfWeek = currentDate.getDay()
@@ -445,7 +455,13 @@ function WeekView({
 	)
 }
 
-function DayEventButton({ event, isAttending, onEventClick, onEventHover }: EventButtonProps) {
+// Bolt: Memoized to prevent unnecessary re-renders
+const DayEventButton = React.memo(({
+	event,
+	isAttending,
+	onEventClick,
+	onEventHover,
+}: EventButtonProps) => {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -481,7 +497,7 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
 			)}
 		</Button>
 	)
-}
+})
 
 function DayView({
 	currentDate,
@@ -491,7 +507,11 @@ function DayView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Bolt: Memoize handler to keep it stable across renders
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
