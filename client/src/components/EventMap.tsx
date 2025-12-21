@@ -79,7 +79,7 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 	}, [eventsWithLocation])
 
 	// If no events with coordinates, don't render the map
-	if (eventsWithLocation.length === 0 || !bounds) {
+	if (!bounds) {
 		return null
 	}
 

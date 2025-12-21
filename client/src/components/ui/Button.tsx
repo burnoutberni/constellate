@@ -56,13 +56,20 @@ type ButtonAsLink = BaseButtonProps &
 		disabled?: boolean
 	}
 
-export type ButtonProps = ButtonAsButton | ButtonAsLink
+type ButtonAsChild = BaseButtonProps & {
+	asChild?: boolean
+	to?: never
+	disabled?: boolean
+} & React.HTMLAttributes<HTMLElement>
+
+export type ButtonProps = ButtonAsButton | ButtonAsLink | ButtonAsChild
 
 /**
  * Button component with multiple variants and sizes.
  * Fully accessible with keyboard navigation and ARIA support.
  * Supports dark mode through Tailwind classes.
  * When `to` prop is provided, renders as a Link styled as a button for navigation.
+ * When `asChild` is true, renders children directly but applies button styles (useful for wrapping <a> tags).
  */
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 	(
@@ -81,6 +88,7 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 		},
 		ref
 	) => {
+		const { asChild } = props as { asChild?: boolean }
 		const isDisabled = disabled || loading
 
 		// Base styles - using design tokens via Tailwind
@@ -167,6 +175,15 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 				{!loading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
 			</>
 		)
+
+		// Render as child using React.cloneElement to apply styles to the child element
+		if (asChild && React.isValidElement(children)) {
+			const child = children as React.ReactElement<{ className?: string }>
+			return React.cloneElement(child, {
+				...child.props,
+				className: cn(classes, child.props.className),
+			})
+		}
 
 		// Render as Link when `to` prop is provided
 		if (to) {
