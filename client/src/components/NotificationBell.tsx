@@ -120,7 +120,9 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 			<Button
 				type="button"
 				id="notification-bell-button"
-				aria-label="Notifications"
+				aria-label={
+					unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+				}
 				aria-expanded={isOpen}
 				aria-haspopup="menu"
 				onClick={() => setIsOpen((prev) => !prev)}
