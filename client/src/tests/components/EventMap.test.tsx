@@ -5,7 +5,7 @@ import '@testing-library/jest-dom'
 
 import { EventMap } from '../../components/EventMap'
 import { createTestWrapper } from '../testUtils'
-import { Event } from '../../../types'
+import { Event } from '../../types'
 
 // Mock react-leaflet and leaflet
 vi.mock('react-leaflet', () => ({
@@ -35,28 +35,42 @@ describe('EventMap', () => {
 			startTime: new Date().toISOString(),
 			locationLatitude: 40.7128,
 			locationLongitude: -74.006,
+			timezone: 'UTC',
 			tags: [],
-			user: { username: 'user1' },
-		} as unknown as Event,
+			user: {
+				id: 'user1',
+				username: 'user1',
+				isRemote: false,
+			},
+		},
 		{
 			id: 'event-2',
 			title: 'Event Two',
 			startTime: new Date().toISOString(),
 			locationLatitude: 34.0522,
 			locationLongitude: -118.2437,
+			timezone: 'UTC',
 			tags: [],
-			user: { username: 'user2' },
-		} as unknown as Event,
+			user: {
+				id: 'user2',
+				username: 'user2',
+				isRemote: false,
+			},
+		},
 		{
 			id: 'event-3',
 			title: 'Event Three',
 			startTime: new Date().toISOString(),
-			// No location
 			locationLatitude: null,
 			locationLongitude: null,
+			timezone: 'UTC',
 			tags: [],
-			user: { username: 'user3' },
-		} as unknown as Event,
+			user: {
+				id: 'user3',
+				username: 'user3',
+				isRemote: false,
+			},
+		},
 	]
 
 	beforeEach(() => {

@@ -33,24 +33,34 @@ const mockEvents: Event[] = [
 		startTime: new Date().toISOString(),
 		locationLatitude: 40.7829,
 		locationLongitude: -73.9654,
+		timezone: 'UTC',
 		tags: [
 			{ id: '1', tag: 'outdoor' },
 			{ id: '2', tag: 'social' },
 		],
-		user: { username: 'park_ranger' },
-	} as unknown as Event,
+		user: {
+			id: 'user-1',
+			username: 'park_ranger',
+			isRemote: false,
+		},
+	},
 	{
 		id: 'event-2',
 		title: 'Times Square Gathering',
 		startTime: new Date().toISOString(),
 		locationLatitude: 40.758,
 		locationLongitude: -73.9855,
+		timezone: 'UTC',
 		tags: [
 			{ id: '3', tag: 'city' },
 			{ id: '4', tag: 'nightlife' },
 		],
-		user: { username: 'city_guide' },
-	} as unknown as Event,
+		user: {
+			id: 'user-2',
+			username: 'city_guide',
+			isRemote: false,
+		},
+	},
 ]
 
 export const Default: Story = {
