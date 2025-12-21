@@ -305,12 +305,13 @@ describe('EventCard Component', () => {
 			expect(link).toHaveAttribute('href', '/events/1')
 		})
 
-		it('uses originalEventId when available', () => {
-			const event = createMockEvent({ originalEventId: 'original-123' })
+		it('uses event id even when originalEventId is available (links to share)', () => {
+			const event = createMockEvent({ id: 'share-1', originalEventId: 'original-123' })
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
 
 			const link = screen.getByRole('link', { name: /Test Event/ })
-			expect(link).toHaveAttribute('href', '/@testuser/original-123')
+			// We expect it to link to the share, not the original event
+			expect(link).toHaveAttribute('href', '/@testuser/share-1')
 		})
 	})
 

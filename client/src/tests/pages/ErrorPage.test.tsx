@@ -214,3 +214,4 @@ describe('ErrorPage', () => {
 		expect(mockNavigate).toHaveBeenCalledWith('/')
 	})
 })
+

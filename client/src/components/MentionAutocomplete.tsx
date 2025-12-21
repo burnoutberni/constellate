@@ -1,3 +1,5 @@
+import { MouseEvent } from 'react'
+
 import { Avatar, Button } from './ui'
 
 export interface MentionSuggestion {
@@ -37,7 +39,7 @@ export function MentionAutocomplete({
 						className={`flex w-full items-center gap-3 p-2 justify-start transition-colors hover:bg-primary-50 ${
 							isActive ? 'bg-primary-50' : 'bg-background-primary'
 						}`}
-						onMouseDown={(e) => {
+						onMouseDown={(e: MouseEvent) => {
 							e.preventDefault()
 							onSelect(suggestion)
 						}}>

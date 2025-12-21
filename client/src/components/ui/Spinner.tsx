@@ -65,3 +65,4 @@ export function Spinner({ size = 'md', variant = 'primary', className, ...props 
 		</svg>
 	)
 }
+

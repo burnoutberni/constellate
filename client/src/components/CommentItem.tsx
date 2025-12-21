@@ -24,7 +24,7 @@ export function CommentItem({
 	onReply,
 	isDeleting = false,
 	depth = 0,
-	isAuthenticated,
+	isAuthenticated = false,
 }: CommentItemProps) {
 	const isOwner = currentUserId === comment.author.id
 	const canReply = depth < 2 // Only allow replies up to 2 levels deep
@@ -99,7 +99,7 @@ export function CommentItem({
 										contentTitle={`Comment by ${comment.author.username}`}
 										variant="ghost"
 										size="sm"
-										className="h-6 w-6 p-0"
+										className="h-6 w-6 p-0 text-text-tertiary hover:text-text-primary"
 									/>
 								</div>
 							)}

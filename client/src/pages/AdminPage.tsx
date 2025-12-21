@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { AppealQueue } from '@/components/admin/AppealQueue'
+import { ReportQueue } from '@/components/admin/ReportQueue'
 import { Input, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
 import { queryKeys } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -71,13 +73,15 @@ interface Instance {
 	}
 }
 
+type AdminTab = 'users' | 'api-keys' | 'instances' | 'reports' | 'appeals'
+
 export function AdminPage() {
 	const { user, logout } = useAuth()
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
 	const handleError = useErrorHandler()
 	const addToast = useUIStore((state) => state.addToast)
-	const [activeTab, setActiveTab] = useState<'users' | 'api-keys' | 'instances'>('users')
+	const [activeTab, setActiveTab] = useState<AdminTab>('users')
 	const [showCreateUserModal, setShowCreateUserModal] = useState(false)
 	const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false)
 	const [, setSelectedUserId] = useState<string | null>(null)
@@ -235,6 +239,13 @@ export function AdminPage() {
 		)
 	}
 
+	const getTabClassName = (tab: AdminTab) =>
+		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
+			activeTab === tab
+				? 'border-primary-500 text-primary-600 dark:text-primary-400'
+				: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
+		}`
+
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={false} user={user} onLogout={logout} />
@@ -248,34 +259,36 @@ export function AdminPage() {
 							onClick={() => setActiveTab('users')}
 							variant="ghost"
 							size="sm"
-							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
-								activeTab === 'users'
-									? 'border-primary-500 text-primary-600 dark:text-primary-400'
-									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
-							}`}>
+							className={getTabClassName('users')}>
 							Users
 						</Button>
 						<Button
 							onClick={() => setActiveTab('api-keys')}
 							variant="ghost"
 							size="sm"
-							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
-								activeTab === 'api-keys'
-									? 'border-primary-500 text-primary-600 dark:text-primary-400'
-									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
-							}`}>
+							className={getTabClassName('api-keys')}>
 							API Keys
 						</Button>
 						<Button
 							onClick={() => setActiveTab('instances')}
 							variant="ghost"
 							size="sm"
-							className={`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
-								activeTab === 'instances'
-									? 'border-primary-500 text-primary-600 dark:text-primary-400'
-									: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
-							}`}>
+							className={getTabClassName('instances')}>
 							Instances
+						</Button>
+						<Button
+							onClick={() => setActiveTab('reports')}
+							variant="ghost"
+							size="sm"
+							className={getTabClassName('reports')}>
+							Reports
+						</Button>
+						<Button
+							onClick={() => setActiveTab('appeals')}
+							variant="ghost"
+							size="sm"
+							className={getTabClassName('appeals')}>
+							Appeals
 						</Button>
 					</nav>
 				</div>
@@ -629,6 +642,30 @@ export function AdminPage() {
 								</div>
 							</>
 						)}
+					</div>
+				)}
+
+				{/* Reports Tab */}
+				{activeTab === 'reports' && (
+					<div>
+						<div className="flex justify-between items-center mb-4">
+							<h2 className="text-xl font-semibold text-text-primary">
+								Content Moderation
+							</h2>
+						</div>
+						<ReportQueue />
+					</div>
+				)}
+
+				{/* Appeals Tab */}
+				{activeTab === 'appeals' && (
+					<div>
+						<div className="flex justify-between items-center mb-4">
+							<h2 className="text-xl font-semibold text-text-primary">
+								Appeal Requests
+							</h2>
+						</div>
+						<AppealQueue />
 					</div>
 				)}
 

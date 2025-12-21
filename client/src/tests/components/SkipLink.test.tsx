@@ -95,3 +95,4 @@ describe('SkipLink Component', () => {
 		expect(document.activeElement).not.toBe(document.body)
 	})
 })
+

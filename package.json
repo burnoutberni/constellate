@@ -25,9 +25,14 @@
 		"check": "concurrently \"npm run check:server\" \"npm run check:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
 		"check:server": "npm run lint:server && npm run typecheck:server && npm run knip:server",
 		"check:client": "npm run lint:client && npm run typecheck:client && npm run knip:client",
+		"check-fix": "concurrently \"npm run check-fix:server\" \"npm run check-fix:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
+		"check-fix:server": "npm run format:server && npm run format:prisma && npm run lint:server:fix && npm run typecheck:server && npm run knip:server",
+		"check-fix:client": "npm run format:client && npm run lint:client:fix && npm run typecheck:client && npm run knip:client",
 		"lint": "concurrently \"npm run lint:server\" \"npm run lint:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
 		"lint:server": "eslint src --ext .ts",
+		"lint:server:fix": "eslint src --ext .ts --fix",
 		"lint:client": "npm --prefix client run lint",
+		"lint:client:fix": "npm --prefix client run lint:fix",
 		"typecheck": "concurrently \"npm run typecheck:server\" \"npm run typecheck:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
 		"typecheck:server": "tsc --noEmit",
 		"typecheck:client": "tsc -p client/tsconfig.json --noEmit",
@@ -37,10 +42,10 @@
 		"test": "vitest run",
 		"test:watch": "vitest --coverage --watch --reporter=dot",
 		"test:coverage": "vitest run --coverage --reporter=default",
-		"format": "concurrently \"npm run format:server\" \"npm run format:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
-		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore",
-		"format:server": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore && prisma format",
-		"format:client": "npm --prefix client run format"
+		"format": "concurrently \"npm run format:server\" \"npm run format:client\" \"npm run format:prisma\" --names \"SERVER,CLIENT,PRISMA\" --kill-others-on-fail false",
+		"format:server": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore",
+		"format:client": "npm --prefix client run format",
+		"format:prisma": "prisma format"
 	},
 	"keywords": [
 		"activitypub",
@@ -53,16 +58,16 @@
 	"license": "AGPL-3.0",
 	"dependencies": {
 		"@hono/node-server": "^1.19.7",
-		"@hono/zod-openapi": "^1.1.5",
+		"@hono/zod-openapi": "^1.2.0",
 		"@prisma/client": "^6.19.1",
-		"@scalar/hono-api-reference": "^0.9.28",
+		"@scalar/hono-api-reference": "^0.9.30",
 		"@touch4it/ical-timezones": "^1.9.0",
-		"better-auth": "^1.4.6",
-		"hono": "^4.10.8",
+		"better-auth": "^1.4.7",
+		"hono": "^4.11.1",
 		"ical-generator": "^10.0.0",
 		"isomorphic-dompurify": "^2.34.0",
 		"nodemailer": "^7.0.11",
-		"zod": "^4.1.13"
+		"zod": "^4.2.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.2",

@@ -1,3 +1,4 @@
 -- AlterTable
 ALTER TABLE "DataExport" ADD COLUMN "retryCount" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "DataExport" ADD COLUMN "maxRetries" INTEGER NOT NULL DEFAULT 3;
+

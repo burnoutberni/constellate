@@ -336,3 +336,4 @@ describe('AppealModal Component', () => {
 		})
 	})
 })
+

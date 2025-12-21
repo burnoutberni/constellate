@@ -9,3 +9,4 @@ export interface Appeal {
 	resolvedAt?: string
 	adminNotes?: string
 }
+

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import { ReportButton } from './ReportButton'
 import { Button } from './ui'
 
 interface EventActionsProps {
@@ -47,7 +48,15 @@ export function EventActions({
 	isDuplicating = false,
 }: EventActionsProps) {
 	if (!isOwner) {
-		return null
+		return (
+			<ReportButton
+				targetType="event"
+				targetId={eventId}
+				variant="ghost"
+				size="sm"
+				className="text-text-secondary hover:text-text-primary"
+			/>
+		)
 	}
 
 	return (
