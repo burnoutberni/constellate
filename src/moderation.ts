@@ -139,7 +139,7 @@ type ReportEntityMaps = {
  */
 function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps) {
 	if (!report.contentUrl) {
-		return { ...report, contentPath: null, contentInfo: null }
+		return { ...report, contentPath: null }
 	}
 
 	const [type, id] = report.contentUrl.split(':')
@@ -152,11 +152,6 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 			return {
 				...report,
 				contentPath: `/@${event.user.username}/${eventId}`,
-				contentInfo: {
-					type: 'event',
-					username: event.user.username,
-					id: eventId,
-				},
 			}
 		}
 	} else if (type === 'user' && id) {
@@ -165,10 +160,6 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 			return {
 				...report,
 				contentPath: `/@${user.username}`,
-				contentInfo: {
-					type: 'user',
-					username: user.username,
-				},
 			}
 		}
 	} else if (type === 'comment' && id) {
@@ -178,17 +169,11 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 			return {
 				...report,
 				contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
-				contentInfo: {
-					type: 'comment',
-					username: comment.event.user.username,
-					eventId,
-					commentId: comment.id,
-				},
 			}
 		}
 	}
 
-	return { ...report, contentPath: null, contentInfo: null }
+	return { ...report, contentPath: null }
 }
 
 async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
