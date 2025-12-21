@@ -42,10 +42,10 @@ const darkMarkerIcon = divIcon({
 
 interface EventMapProps {
 	events: Event[]
-	height?: string
+	height: string
 }
 
-export function EventMap({ events, height = '500px' }: EventMapProps) {
+export function EventMap({ events, height }: EventMapProps) {
 	const { theme } = useTheme()
 	const navigate = useNavigate()
 	const markerIcon = theme === 'dark' ? darkMarkerIcon : lightMarkerIcon
@@ -112,15 +112,17 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 									<div className="p-1">
 										<h3 className="font-semibold text-sm mb-1">
 											{event.user?.username ? (
-												<button
-													onClick={() =>
+												<a
+													href={`/@${event.user?.username}/${event.id}`}
+													onClick={(e) => {
+														e.preventDefault()
 														navigate(
 															`/@${event.user?.username}/${event.id}`
 														)
-													}
-													className="hover:underline text-primary-600 bg-transparent border-none p-0 cursor-pointer text-left">
+													}}
+													className="hover:underline text-primary-600 cursor-pointer text-left">
 													{event.title}
-												</button>
+												</a>
 											) : (
 												<span className="text-text-primary">
 													{event.title}

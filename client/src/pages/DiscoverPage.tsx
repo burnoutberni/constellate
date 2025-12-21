@@ -440,7 +440,7 @@ export function DiscoverPage() {
 		}
 
 		if (viewMode === 'map') {
-			return <EventMap events={events} />
+			return <EventMap events={events} height="500px" />
 		}
 
 		return <EventList />
