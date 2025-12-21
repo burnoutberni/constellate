@@ -31,6 +31,160 @@ const ReportCategoryValues = [
 	ReportCategory.other,
 ] as const
 
+type ReportWithReporter = Awaited<ReturnType<typeof prisma.report.findMany>>
+
+/**
+ * Extracts unique IDs from reports for batch fetching
+ */
+function extractReportEntityIds(reports: ReportWithReporter) {
+	const eventIds = new Set<string>()
+	const userIds = new Set<string>()
+	const commentIds = new Set<string>()
+
+	for (const report of reports) {
+		if (!report.contentUrl) continue
+		const [type, id] = report.contentUrl.split(':')
+		if (type === 'event' && id) {
+			eventIds.add(id)
+		} else if (type === 'user' && id) {
+			userIds.add(id)
+		} else if (type === 'comment' && id) {
+			commentIds.add(id)
+		}
+	}
+
+	return { eventIds, userIds, commentIds }
+}
+
+/**
+ * Fetches related entities (events, users, comments) in bulk
+ */
+async function fetchReportEntities(
+	eventIds: Set<string>,
+	userIds: Set<string>,
+	commentIds: Set<string>
+) {
+	const [events, users, comments] = await Promise.all([
+		eventIds.size > 0
+			? prisma.event.findMany({
+					where: { id: { in: Array.from(eventIds) } },
+					select: {
+						id: true,
+						user: { select: { username: true } },
+						sharedEvent: { select: { id: true } },
+					},
+				})
+			: Promise.resolve([]),
+		userIds.size > 0
+			? prisma.user.findMany({
+					where: { id: { in: Array.from(userIds) } },
+					select: { id: true, username: true },
+				})
+			: Promise.resolve([]),
+		commentIds.size > 0
+			? prisma.comment.findMany({
+					where: { id: { in: Array.from(commentIds) } },
+					select: {
+						id: true,
+						event: {
+							select: {
+								id: true,
+								user: { select: { username: true } },
+								sharedEvent: { select: { id: true } },
+							},
+						},
+					},
+				})
+			: Promise.resolve([]),
+	])
+
+	return {
+		eventMap: new Map(events.map((e) => [e.id, e])),
+		userMap: new Map(users.map((u) => [u.id, u])),
+		commentMap: new Map(comments.map((c) => [c.id, c])),
+	}
+}
+
+type ReportEntityMaps = {
+	eventMap: Map<
+		string,
+		{
+			id: string
+			user: { username: string } | null
+			sharedEvent: { id: string } | null
+		}
+	>
+	userMap: Map<
+		string,
+		{
+			id: string
+			username: string
+		}
+	>
+	commentMap: Map<
+		string,
+		{
+			id: string
+			event: {
+				id: string
+				user: { username: string } | null
+				sharedEvent: { id: string } | null
+			}
+		}
+	>
+}
+
+/**
+ * Enriches a single report with its content path
+ */
+function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps) {
+	if (!report.contentUrl) {
+		return { ...report, contentPath: null }
+	}
+
+	const [type, id] = report.contentUrl.split(':')
+	const { eventMap, userMap, commentMap } = maps
+
+	if (type === 'event' && id) {
+		const event = eventMap.get(id)
+		if (event?.user?.username) {
+			return {
+				...report,
+				contentPath: `/@${event.user.username}/${event.id}`,
+			}
+		}
+	} else if (type === 'user' && id) {
+		const user = userMap.get(id)
+		if (user?.username) {
+			return {
+				...report,
+				contentPath: `/@${user.username}`,
+			}
+		}
+	} else if (type === 'comment' && id) {
+		const comment = commentMap.get(id)
+		if (comment?.event?.user?.username) {
+			return {
+				...report,
+				contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
+			}
+		}
+	}
+
+	return { ...report, contentPath: null }
+}
+
+async function enrichReportsWithContentPaths(reports: ReportWithReporter) {
+	// Extract all unique event, user, and comment IDs from reports
+	const { eventIds, userIds, commentIds } = extractReportEntityIds(reports)
+
+	// Fetch all related entities in bulk and create lookup maps
+	const maps = await fetchReportEntities(eventIds, userIds, commentIds)
+
+	// Construct contentPath for each report using the maps
+	return reports.map((report) => enrichReportPath(report, maps))
+}
+
 // Report schema
 const ReportSchema = z.object({
 	targetType: z.enum(['user', 'event', 'comment']),
@@ -248,8 +402,10 @@ app.get('/reports', async (c) => {
 		prisma.report.count({ where }),
 	])
 
+	const reportsWithPaths = await enrichReportsWithContentPaths(reports)
+
 	return c.json({
-		reports,
+		reports: reportsWithPaths,
 		pagination: {
 			page,
 			limit,

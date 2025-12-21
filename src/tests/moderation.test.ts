@@ -17,6 +17,7 @@ vi.mock('../lib/prisma.js', () => ({
 	prisma: {
 		user: {
 			findUnique: vi.fn(),
+			findMany: vi.fn(),
 		},
 		blockedUser: {
 			upsert: vi.fn(),
@@ -37,9 +38,11 @@ vi.mock('../lib/prisma.js', () => ({
 		},
 		event: {
 			findUnique: vi.fn(),
+			findMany: vi.fn(),
 		},
 		comment: {
 			findUnique: vi.fn(),
+			findMany: vi.fn(),
 		},
 		appeal: {
 			create: vi.fn(),
@@ -96,6 +99,9 @@ describe('Moderation API', () => {
 		vi.clearAllMocks()
 		vi.mocked(requireAuth).mockReturnValue('user_123')
 		vi.mocked(requireAdmin).mockResolvedValue(undefined)
+		vi.mocked(prisma.user.findMany).mockResolvedValue([])
+		vi.mocked(prisma.event.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
 	})
 
 	describe('POST /block/user', () => {
@@ -743,6 +749,11 @@ describe('Moderation API', () => {
 
 			vi.mocked(prisma.report.findMany).mockResolvedValue(mockReports as any)
 			vi.mocked(prisma.report.count).mockResolvedValue(1)
+			vi.mocked(prisma.user.findMany).mockResolvedValue([
+				{ id: 'user_456', username: 'bob' },
+			] as any)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.comment.findMany).mockResolvedValue([])
 
 			const res = await app.request('/api/moderation/reports')
 

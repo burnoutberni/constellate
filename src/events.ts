@@ -75,6 +75,11 @@ const eventBaseInclude = {
 		select: eventUserSummarySelect,
 	},
 	tags: true,
+	sharedEvent: {
+		select: {
+			id: true,
+		},
+	},
 	_count: {
 		select: {
 			attendance: true,
@@ -125,6 +130,23 @@ async function hydrateEventUsers<T extends { user: unknown; attributedTo: string
 			return event
 		})
 	)
+}
+
+// Transform sharedEvent to originalEventId for client compatibility
+function transformEventForClient<T extends { sharedEvent?: { id: string } | null }>(
+	event: T
+): Omit<T, 'sharedEvent'> & { originalEventId?: string | null } {
+	const { sharedEvent, ...rest } = event
+	return {
+		...rest,
+		originalEventId: sharedEvent?.id ?? null,
+	}
+}
+
+function transformEventsForClient<T extends { sharedEvent?: { id: string } | null }>(
+	events: T[]
+): Array<Omit<T, 'sharedEvent'> & { originalEventId?: string | null }> {
+	return events.map(transformEventForClient)
 }
 
 function buildCountMap(records: Array<{ eventId: string }>) {
@@ -563,11 +585,12 @@ app.get('/', async (c) => {
 		})
 
 		const eventsWithUsers = await hydrateEventUsers(events)
+		const eventsForClient = transformEventsForClient(eventsWithUsers)
 
 		const total = await prisma.event.count({ where })
 
 		return c.json({
-			events: eventsWithUsers,
+			events: eventsForClient,
 			pagination: {
 				page,
 				limit,
@@ -696,7 +719,7 @@ app.get('/trending', lenientRateLimit, async (c) => {
 			.slice(0, limit)
 
 		const events = scoredEvents.map(({ event, metrics, score }, index) => ({
-			...event,
+			...transformEventForClient(event),
 			trendingScore: score,
 			trendingRank: index + 1,
 			trendingMetrics: metrics,

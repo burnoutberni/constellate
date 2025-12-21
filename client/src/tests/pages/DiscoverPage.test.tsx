@@ -197,7 +197,8 @@ describe('DiscoverPage', () => {
 		await user.click(clearButton)
 
 		// Filters should be cleared (URL should update)
-		expect(clearButton).toBeInTheDocument()
+		const remainingClearButtons = screen.getAllByRole('button', { name: /Clear Filters/i })
+		expect(remainingClearButtons.length).toBeGreaterThan(0)
 	})
 
 	it('user can see error state when search fails', async () => {
