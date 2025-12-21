@@ -22,13 +22,3 @@ export function generateId(): string {
 	// Fallback for environments without crypto.randomUUID support
 	return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
-
-/**
- * Converts a content URL (e.g. "event:123") to a routable path (e.g. "/event/123")
- */
-export function getContentUrlPath(contentUrl?: string | null): string {
-	if (!contentUrl) {
-		return '#'
-	}
-	return `/${contentUrl.replace(':', '/')}`
-}

@@ -1416,4 +1416,3 @@ describe('Moderation API', () => {
 		})
 	})
 })
-

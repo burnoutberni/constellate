@@ -309,4 +309,3 @@ Sitemap: ${sitemapUrl}
 })
 
 export default app
-

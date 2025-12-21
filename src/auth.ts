@@ -281,13 +281,13 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 		//    we assume this was a failed signup attempt and delete the user to prevent an orphaned account.
 		// 3. If they DO have `tosAcceptedAt`, we assume they were already valid or this was a migration/login issue,
 		//    so we leave them alone to avoid deleting valid users.
-		
+
 		try {
-			const user = await prisma.user.findUnique({ 
+			const user = await prisma.user.findUnique({
 				where: { id: userId },
-				select: { tosAcceptedAt: true } 
+				select: { tosAcceptedAt: true },
 			})
-			
+
 			if (user && !user.tosAcceptedAt) {
 				await prisma.user.delete({
 					where: { id: userId },

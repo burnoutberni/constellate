@@ -261,4 +261,3 @@ describe('Privacy Helper Functions', () => {
 		})
 	})
 })
-

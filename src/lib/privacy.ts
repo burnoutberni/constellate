@@ -172,4 +172,3 @@ export async function canViewPrivateProfile(
 
 	return Boolean(following)
 }
-

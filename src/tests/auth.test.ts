@@ -371,10 +371,10 @@ describe('Authentication Setup', () => {
 
 			// Mock transaction to fail
 			vi.mocked(prisma.$transaction).mockRejectedValue(transactionError)
-			
+
 			// Mock findUnique for the cleanup check
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			
+
 			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
 
 			// Key generation is required - if it fails, signup should fail and user should be deleted
@@ -385,7 +385,7 @@ describe('Authentication Setup', () => {
 			// Verify that user fetch was attempted for cleanup check
 			expect(prisma.user.findUnique).toHaveBeenCalledWith({
 				where: { id: userId },
-				select: { tosAcceptedAt: true }
+				select: { tosAcceptedAt: true },
 			})
 
 			// Verify that user deletion was attempted to rollback signup
@@ -400,16 +400,16 @@ describe('Authentication Setup', () => {
 				id: userId,
 				tosAcceptedAt: null, // No ToS, so should be deleted
 			}
-			
+
 			const transactionError = new Error('Database error during transaction')
 			const deleteError = new Error('Failed to delete user')
 
 			// Mock transaction to fail
 			vi.mocked(prisma.$transaction).mockRejectedValue(transactionError)
-			
+
 			// Mock findUnique for the cleanup check
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
-			
+
 			vi.mocked(prisma.user.delete).mockRejectedValue(deleteError)
 
 			// Should throw the original transaction error, not the delete error
@@ -432,7 +432,7 @@ describe('Authentication Setup', () => {
 				publicKey: null,
 				privateKey: null,
 			}
-			
+
 			const mockUserForCleanup = {
 				id: userId,
 				tosAcceptedAt: null,
@@ -449,10 +449,10 @@ describe('Authentication Setup', () => {
 			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
 				return callback(mockTx)
 			})
-			
+
 			// Mock findUnique for the cleanup check (outside transaction)
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUserForCleanup as any)
-			
+
 			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
 
 			// Username is required - if missing, should throw error and delete user
@@ -468,7 +468,7 @@ describe('Authentication Setup', () => {
 
 		it('should delete user if user is not found', async () => {
 			const userId = 'user-123'
-			
+
 			const mockUserForCleanup = {
 				id: userId,
 				tosAcceptedAt: null,
@@ -485,10 +485,10 @@ describe('Authentication Setup', () => {
 			vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
 				return callback(mockTx)
 			})
-			
+
 			// Mock findUnique for the cleanup check
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUserForCleanup as any)
-			
+
 			vi.mocked(prisma.user.delete).mockResolvedValue({} as any)
 
 			// Should throw error and delete user
