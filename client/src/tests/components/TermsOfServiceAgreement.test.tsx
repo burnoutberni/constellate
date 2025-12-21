@@ -97,3 +97,4 @@ describe('TermsOfServiceAgreement Component', () => {
 		expect(checkbox).toHaveAttribute('id', label?.getAttribute('for'))
 	})
 })
+

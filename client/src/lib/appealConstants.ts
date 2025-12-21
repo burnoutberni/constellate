@@ -17,3 +17,4 @@ export const APPEAL_TYPE_LABELS: Record<AppealType, string> = {
 	[APPEAL_TYPE.ACCOUNT_SUSPENSION]: 'Account Suspension',
 	[APPEAL_TYPE.CONTENT_REMOVAL]: 'Content Removal',
 }
+

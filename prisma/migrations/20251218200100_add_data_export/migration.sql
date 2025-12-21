@@ -23,3 +23,4 @@ CREATE INDEX "DataExport_expiresAt_idx" ON "DataExport"("expiresAt");
 
 -- AddForeignKey
 ALTER TABLE "DataExport" ADD CONSTRAINT "DataExport_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

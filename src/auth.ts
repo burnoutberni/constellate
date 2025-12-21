@@ -270,28 +270,17 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 	} catch (error) {
 		console.error(`❌ Post-signup/login processing failed for user ${userId}:`, error)
 
-		// If this was likely a NEW user (missing ToS), and initialization failed,
-		// we should delete them to prevent zombie accounts.
-		// If they had ToS but just missing keys (migration?), we probably shouldn't delete them.
-		
-		// We'll re-fetch to check if it was a new user state (we can't know for sure from inside the failed transaction,
-		// but we can try to infer or just rely on the error).
-		
-		// Actually, to be safe, we will ONLY delete if we are sure it was a signup flow context,
-		// but since we are in a generic helper, we can't easily know the context.
-		// However, if ToS was missing, they technically haven't completed "signup" legally.
-		
-		// For now, to match previous strict behavior: if we fail to initialize a user who NEEDED initialization,
-		// we should probably error out. The deletion part is tricky.
-		// Let's rely on the fact that if we throw, the user sees an error.
-		// But better-auth created the user already.
-		
-		// Let's keep the deletion logic ONLY if we think it's a new user (no ToS).
-		// We need to check the user again? No, we can't.
-		
-		// Simplified approach: Re-throw. Manual cleanup might be needed if it happens often.
-		// But wait, the previous code explicitly deleted the user.
-		// I will keep the deletion logic but wrap it in a check.
+		// Attempt to cleanup potential zombie user if initialization failed.
+		//
+		// If the transaction failed, the user might be left in a "half-baked" state (e.g., created by better-auth
+		// but missing ToS acceptance or keys).
+		//
+		// Strategy:
+		// 1. Re-fetch the user to check their current state.
+		// 2. If they still don't have `tosAcceptedAt` (meaning the update failed and they didn't have it before),
+		//    we assume this was a failed signup attempt and delete the user to prevent an orphaned account.
+		// 3. If they DO have `tosAcceptedAt`, we assume they were already valid or this was a migration/login issue,
+		//    so we leave them alone to avoid deleting valid users.
 		
 		try {
 			const user = await prisma.user.findUnique({ 
@@ -299,9 +288,6 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				select: { tosAcceptedAt: true } 
 			})
 			
-			// If they still don't have ToS accepted (meaning the update failed), 
-			// and they didn't have it before (implied by the fact we tried to update it),
-			// then they are a half-baked user.
 			if (user && !user.tosAcceptedAt) {
 				await prisma.user.delete({
 					where: { id: userId },

@@ -92,3 +92,4 @@ export function TosAcceptanceModal({ isOpen }: TosAcceptanceModalProps) {
 		</Modal>
 	)
 }
+

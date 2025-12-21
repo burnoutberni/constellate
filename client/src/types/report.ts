@@ -19,3 +19,4 @@ export interface Report {
 	category: ReportCategory
 	status: ReportStatus
 }
+

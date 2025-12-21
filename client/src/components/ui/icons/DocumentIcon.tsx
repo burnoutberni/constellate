@@ -18,3 +18,4 @@ export function DocumentIcon({ className = 'w-12 h-12' }: { className?: string }
 		</svg>
 	)
 }
+

@@ -39,3 +39,4 @@ export function useThemeColors() {
 	const { theme } = useTheme()
 	return tokens.colors[theme as 'light' | 'dark']
 }
+
