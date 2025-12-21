@@ -71,6 +71,14 @@ export function ReportQueue() {
 		)
 	}
 
+	const isUpdating = (id: string, status: 'resolved' | 'dismissed') => {
+		return (
+			updateStatusMutation.isPending &&
+			updateStatusMutation.variables?.id === id &&
+			updateStatusMutation.variables?.status === status
+		)
+	}
+
 	return (
 		<div className="space-y-4">
 			{data.reports.map((report) => (
@@ -108,11 +116,7 @@ export function ReportQueue() {
 										size="sm"
 										variant="ghost"
 										className="text-error-600 hover:text-error-700 hover:bg-error-50"
-										loading={
-											updateStatusMutation.isPending &&
-											updateStatusMutation.variables?.id === report.id &&
-											updateStatusMutation.variables?.status === 'dismissed'
-										}
+										loading={isUpdating(report.id, 'dismissed')}
 										onClick={() =>
 											updateStatusMutation.mutate({
 												id: report.id,
@@ -124,11 +128,7 @@ export function ReportQueue() {
 									<Button
 										size="sm"
 										variant="primary"
-										loading={
-											updateStatusMutation.isPending &&
-											updateStatusMutation.variables?.id === report.id &&
-											updateStatusMutation.variables?.status === 'resolved'
-										}
+										loading={isUpdating(report.id, 'resolved')}
 										onClick={() =>
 											updateStatusMutation.mutate({
 												id: report.id,

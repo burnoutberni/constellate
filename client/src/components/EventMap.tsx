@@ -1,4 +1,4 @@
-import { divIcon } from 'leaflet'
+import { divIcon, LatLngBounds } from 'leaflet'
 import { useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
@@ -49,22 +49,27 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 		[events]
 	)
 
-	// Calculate map center from average of all event coordinates
-	const center: [number, number] = useMemo(() => {
+	// Calculate bounds of all events
+	const bounds = useMemo(() => {
 		if (eventsWithLocation.length === 0) {
-			return [0, 0]
+			return null
 		}
-		const avgLat =
-			eventsWithLocation.reduce((sum, e) => sum + e.locationLatitude, 0) /
-			eventsWithLocation.length
-		const avgLng =
-			eventsWithLocation.reduce((sum, e) => sum + e.locationLongitude, 0) /
-			eventsWithLocation.length
-		return [avgLat, avgLng]
+
+		const latLngBounds = new LatLngBounds([])
+		eventsWithLocation.forEach((event) => {
+			latLngBounds.extend([event.locationLatitude, event.locationLongitude])
+		})
+
+		// Add padding if it's a single point so we don't zoom in too much
+		if (eventsWithLocation.length === 1) {
+			latLngBounds.pad(0.1)
+		}
+
+		return latLngBounds
 	}, [eventsWithLocation])
 
 	// If no events with coordinates, don't render the map
-	if (eventsWithLocation.length === 0) {
+	if (eventsWithLocation.length === 0 || !bounds) {
 		return null
 	}
 
@@ -81,7 +86,12 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 
 	return (
 		<div className="rounded-xl overflow-hidden border border-border-default shadow-sm relative">
-			<MapContainer center={center} zoom={13} style={{ height, width: '100%' }}>
+			<MapContainer
+				bounds={bounds}
+				style={{ height, width: '100%' }}
+				// Default center/zoom (will be overridden by bounds)
+				center={[0, 0]}
+				zoom={13}>
 				<TileLayer attribution={attribution} url={tileLayerUrl} />
 				<MarkerClusterGroup
 					chunkedLoading

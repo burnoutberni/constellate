@@ -37,9 +37,8 @@
 		"test": "vitest run",
 		"test:watch": "vitest --coverage --watch --reporter=dot",
 		"test:coverage": "vitest run --coverage --reporter=default",
-		"format": "concurrently \"npm run format:server\" \"npm run format:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
+		"format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore && prisma format",
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore",
-		"format:server": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,scss,html}\" --ignore-path .prettierignore && prisma format",
 		"format:client": "npm --prefix client run format"
 	},
 	"keywords": [

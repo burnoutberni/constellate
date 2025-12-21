@@ -66,6 +66,14 @@ export function AppealQueue() {
 		)
 	}
 
+	const isUpdating = (id: string, status: 'approved' | 'rejected') => {
+		return (
+			updateStatusMutation.isPending &&
+			updateStatusMutation.variables?.id === id &&
+			updateStatusMutation.variables?.status === status
+		)
+	}
+
 	return (
 		<div className="space-y-4">
 			{data.appeals.map((appeal) => (
@@ -92,11 +100,7 @@ export function AppealQueue() {
 									size="sm"
 									variant="ghost"
 									className="text-error-600 hover:text-error-700 hover:bg-error-50"
-									loading={
-										updateStatusMutation.isPending &&
-										updateStatusMutation.variables?.id === appeal.id &&
-										updateStatusMutation.variables?.status === 'rejected'
-									}
+									loading={isUpdating(appeal.id, 'rejected')}
 									onClick={() =>
 										updateStatusMutation.mutate({
 											id: appeal.id,
@@ -108,11 +112,7 @@ export function AppealQueue() {
 								<Button
 									size="sm"
 									variant="primary"
-									loading={
-										updateStatusMutation.isPending &&
-										updateStatusMutation.variables?.id === appeal.id &&
-										updateStatusMutation.variables?.status === 'approved'
-									}
+									loading={isUpdating(appeal.id, 'approved')}
 									onClick={() =>
 										updateStatusMutation.mutate({
 											id: appeal.id,
