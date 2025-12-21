@@ -163,16 +163,20 @@ function MonthView({
 		const map = new Map<number, Event[]>()
 		const { year, month, daysInMonth } = monthMetadata
 
+		// Initialize buckets
 		for (let day = 1; day <= daysInMonth; day++) {
-			const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-			const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
-
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= dayStart && eventDate <= dayEnd
-			})
-			map.set(day, filtered)
+			map.set(day, [])
 		}
+
+		// Single pass optimization: O(N) instead of O(N*Days)
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			if (eventDate.getFullYear() === year && eventDate.getMonth() === month) {
+				const day = eventDate.getDate()
+				map.get(day)?.push(event)
+			}
+		}
+
 		return map
 	}, [events, monthMetadata])
 
@@ -345,33 +349,43 @@ function WeekView({
 	const eventsByDayAndHour = useMemo(() => {
 		const map = new Map<string, Event[]>()
 
-		for (const day of weekDays) {
-			for (const hour of hours) {
-				const key = `${day.toISOString()}-${hour}`
-				const hourStart = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
+		// Pre-calculate day timestamps for fast lookup
+		const dayKeyMap = new Map<number, string>()
+		weekDays.forEach((d) => {
+			// Normalize to midnight of the date object
+			const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)
+			dayKeyMap.set(midnight.getTime(), d.toISOString())
+		})
+
+		const minHour = hours[0]
+		const maxHour = hours[hours.length - 1]
+
+		// Single pass optimization: O(N) instead of O(N*Slots)
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			const eventHour = eventDate.getHours()
+
+			if (eventHour >= minHour && eventHour <= maxHour) {
+				const eventMidnight = new Date(
+					eventDate.getFullYear(),
+					eventDate.getMonth(),
+					eventDate.getDate(),
+					0,
 					0,
 					0,
 					0
 				)
-				const hourEnd = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					59,
-					59,
-					999
-				)
+				const dayKey = dayKeyMap.get(eventMidnight.getTime())
 
-				const filtered = events.filter((event) => {
-					const eventDate = new Date(event.startTime)
-					return eventDate >= hourStart && eventDate <= hourEnd
-				})
-				map.set(key, filtered)
+				if (dayKey) {
+					const key = `${dayKey}-${eventHour}`
+					let list = map.get(key)
+					if (!list) {
+						list = []
+						map.set(key, list)
+					}
+					list.push(event)
+				}
 			}
 		}
 		return map
@@ -498,31 +512,32 @@ function DayView({
 	const eventsByHour = useMemo(() => {
 		const map = new Map<number, Event[]>()
 
-		for (const hour of hours) {
-			const hourStart = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				0,
-				0,
-				0
-			)
-			const hourEnd = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				59,
-				59,
-				999
-			)
+		const targetYear = currentDate.getFullYear()
+		const targetMonth = currentDate.getMonth()
+		const targetDate = currentDate.getDate()
 
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= hourStart && eventDate <= hourEnd
-			})
-			map.set(hour, filtered)
+		const minHour = hours[0]
+		const maxHour = hours[hours.length - 1]
+
+		// Single pass optimization: O(N) instead of O(N*Hours)
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+
+			if (
+				eventDate.getFullYear() === targetYear &&
+				eventDate.getMonth() === targetMonth &&
+				eventDate.getDate() === targetDate
+			) {
+				const hour = eventDate.getHours()
+				if (hour >= minHour && hour <= maxHour) {
+					let list = map.get(hour)
+					if (!list) {
+						list = []
+						map.set(hour, list)
+					}
+					list.push(event)
+				}
+			}
 		}
 		return map
 	}, [events, currentDate, hours])
