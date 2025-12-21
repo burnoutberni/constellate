@@ -18,3 +18,4 @@ export function MenuIcon({ className = 'w-6 h-6' }: { className?: string }) {
 		</svg>
 	)
 }
+

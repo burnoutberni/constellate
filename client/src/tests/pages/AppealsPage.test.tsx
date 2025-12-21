@@ -290,3 +290,4 @@ describe('AppealsPage', () => {
 		expect(settingsLink).toHaveAttribute('href', '/settings')
 	})
 })
+

@@ -123,17 +123,25 @@ export const auth = betterAuth({
 		},
 	},
 	hooks: {
-		// Before hook: Validate ToS acceptance for signup requests
+		// Before hook: Validate ToS acceptance and username for signup requests
 		// This uses better-auth's official hooks API instead of intercepting
 		// request/response bodies, making it more maintainable and resilient
 		// to changes in better-auth's internal structure.
 		before: createAuthMiddleware(async (ctx) => {
-			// Only validate ToS and username for email/password signup
-			if (ctx.path !== '/sign-up/email') {
+			// Check if this is a signup attempt (Email/Password or Magic Link)
+			const isEmailSignup = ctx.path === '/sign-up/email'
+			const isMagicLink = ctx.path === '/sign-in/magic-link'
+
+			if (!isEmailSignup && !isMagicLink) {
 				return
 			}
 
 			const body = ctx.body as { tosAccepted?: boolean; username?: string }
+
+			// If it's Magic Link, we only validate if username is provided (implying signup intent)
+			if (isMagicLink && !body.username) {
+				return
+			}
 
 			// Validate username is provided and non-empty
 			// Username is required for all users as it's their public identifier
@@ -160,15 +168,13 @@ export const auth = betterAuth({
 			}
 		}),
 		// After hook: Handle post-signup actions (ToS timestamp, key generation)
-		// This runs after a successful signup and has access to the newly created
-		// user via ctx.context.newSession.user, avoiding the need to parse response bodies.
-		// If post-signup operations fail, the user is deleted to rollback the entire signup.
+		// This runs after a successful signup/login and has access to the user
+		// via ctx.context.newSession.user.
+		// If post-signup operations fail for a NEW user, the user is deleted.
 		after: createAuthMiddleware(async (ctx) => {
-			// Only process email/password signup
-			if (ctx.path !== '/sign-up/email') {
-				return
-			}
-
+			// We want to run this whenever a session is created to ensure the user is fully initialized
+			// (Has keys, ToS accepted, etc.)
+			// This covers /sign-up/email, /magic-link/verify, etc.
 			const newSession = ctx.context.newSession
 			if (!newSession?.user) {
 				return
@@ -177,8 +183,6 @@ export const auth = betterAuth({
 			const userId = newSession.user.id
 
 			// Process post-signup operations atomically in a transaction
-			// If any operation fails, the user is deleted and the error is propagated
-			// This ensures no partial user state exists in the database
 			await processSignupSuccess(userId)
 		}),
 	},
@@ -186,21 +190,20 @@ export const auth = betterAuth({
 
 /**
  * Process post-signup operations:
- * 1. Update user with ToS acceptance timestamp and version
- * 2. Generate cryptographic keys for ActivityPub (required for local users)
+ * 1. Update user with ToS acceptance timestamp and version (if missing)
+ * 2. Generate cryptographic keys for ActivityPub (if missing)
  *
- * All operations are performed atomically in a single transaction. If any operation fails,
- * the transaction is rolled back and the user is deleted to ensure no partial user state.
+ * All operations are performed atomically in a single transaction.
  *
  * Exported for testing purposes.
- * @throws If any operation fails, the user is deleted and the error is propagated
+ * @throws If any operation fails
  */
 export async function processSignupSuccess(userId: string): Promise<void> {
 	try {
 		// Perform all post-signup operations in a single transaction
 		// This ensures atomicity: either all operations succeed or none do
 		await prisma.$transaction(async (tx) => {
-			// First, fetch the user to check if keys are needed
+			// First, fetch the user to check if keys/ToS are needed
 			const user = await tx.user.findUnique({
 				where: { id: userId },
 				select: {
@@ -209,6 +212,7 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 					isRemote: true,
 					publicKey: true,
 					privateKey: true,
+					tosAcceptedAt: true,
 				},
 			})
 
@@ -216,21 +220,30 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				throw new Error(`User with id ${userId} not found`)
 			}
 
-			// Prepare update data with ToS acceptance
-			const updateData: {
-				tosAcceptedAt: Date
-				tosVersion: number
-				publicKey?: string
-				privateKey?: string
-			} = {
-				tosAcceptedAt: new Date(),
-				tosVersion: config.tosVersion,
+			// Check what needs to be done
+			const needsTos = !user.tosAcceptedAt
+			// Generate keys for local users if missing
+			const needsKeys = !user.isRemote && (!user.publicKey || !user.privateKey)
+
+			// If user is already fully initialized, do nothing
+			if (!needsTos && !needsKeys) {
+				return
 			}
 
-			// Generate keys for local users (required for ActivityPub federation)
-			// If key generation fails, the entire transaction will roll back
-			// Username is required for all users - it's their public identifier
-			if (!user.isRemote && (!user.publicKey || !user.privateKey)) {
+			// Prepare update data
+			const updateData: {
+				tosAcceptedAt?: Date
+				tosVersion?: number
+				publicKey?: string
+				privateKey?: string
+			} = {}
+
+			if (needsTos) {
+				updateData.tosAcceptedAt = new Date()
+				updateData.tosVersion = config.tosVersion
+			}
+
+			if (needsKeys) {
 				if (!user.username) {
 					throw new Error(
 						'Username is required but was not found. This should not happen as username is validated during signup.'
@@ -250,21 +263,39 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				data: updateData,
 			})
 
-			if (updateData.publicKey) {
+			if (needsKeys) {
 				console.log(`✅ Generated and encrypted keys for user: ${user.username}`)
 			}
 		})
 	} catch (error) {
-		// If the transaction fails, delete the user to roll back the entire signup
-		// This ensures no partial user state exists in the database
+		console.error(`❌ Post-signup/login processing failed for user ${userId}:`, error)
+
+		// Attempt to cleanup potential zombie user if initialization failed.
+		//
+		// If the transaction failed, the user might be left in a "half-baked" state (e.g., created by better-auth
+		// but missing ToS acceptance or keys).
+		//
+		// Strategy:
+		// 1. Re-fetch the user to check their current state.
+		// 2. If they still don't have `tosAcceptedAt` (meaning the update failed and they didn't have it before),
+		//    we assume this was a failed signup attempt and delete the user to prevent an orphaned account.
+		// 3. If they DO have `tosAcceptedAt`, we assume they were already valid or this was a migration/login issue,
+		//    so we leave them alone to avoid deleting valid users.
+
 		try {
-			await prisma.user.delete({
+			const user = await prisma.user.findUnique({
 				where: { id: userId },
+				select: { tosAcceptedAt: true },
 			})
-			console.error(`❌ Signup failed for user ${userId}, user deleted:`, error)
-		} catch (deleteError) {
-			// Log but don't throw - the original error is more important
-			console.error(`❌ Failed to delete user ${userId} after signup failure:`, deleteError)
+
+			if (user && !user.tosAcceptedAt) {
+				await prisma.user.delete({
+					where: { id: userId },
+				})
+				console.log(`⚠️ Deleted uninitialized user ${userId}`)
+			}
+		} catch (cleanupError) {
+			console.error(`❌ Failed to cleanup user ${userId}:`, cleanupError)
 		}
 
 		// Re-throw the original error so better-auth returns an error response
