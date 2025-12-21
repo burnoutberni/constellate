@@ -115,7 +115,7 @@ export function EventMap({ events, height = '500px' }: EventMapProps) {
 												<button
 													onClick={() =>
 														navigate(
-															`/@${event.user?.username}/${event.originalEventId || event.id}`
+															`/@${event.user?.username}/${event.id}`
 														)
 													}
 													className="hover:underline text-primary-600 bg-transparent border-none p-0 cursor-pointer text-left">
