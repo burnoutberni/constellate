@@ -148,10 +148,9 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 	if (type === 'event' && id) {
 		const event = eventMap.get(id)
 		if (event?.user?.username) {
-			const eventId = event.sharedEvent?.id || event.id
 			return {
 				...report,
-				contentPath: `/@${event.user.username}/${eventId}`,
+				contentPath: `/@${event.user.username}/${event.id}`,
 			}
 		}
 	} else if (type === 'user' && id) {
@@ -165,10 +164,9 @@ function enrichReportPath(report: ReportWithReporter[0], maps: ReportEntityMaps)
 	} else if (type === 'comment' && id) {
 		const comment = commentMap.get(id)
 		if (comment?.event?.user?.username) {
-			const eventId = comment.event.sharedEvent?.id || comment.event.id
 			return {
 				...report,
-				contentPath: `/@${comment.event.user.username}/${eventId}#${comment.id}`,
+				contentPath: `/@${comment.event.user.username}/${comment.event.id}#${comment.id}`,
 			}
 		}
 	}
