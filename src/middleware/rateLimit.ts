@@ -83,7 +83,7 @@ const defaultConfig: RateLimitConfig = {
  */
 export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	const finalConfig = { ...defaultConfig, ...config }
-	const scope = finalConfig.scope || randomUUID()
+const scope = finalConfig.scope || crypto.randomUUID()
 
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
