@@ -94,9 +94,9 @@ export function LoginPage() {
 							<br />
 							Click the link to {isLogin ? 'sign in' : 'create your account'}.
 						</p>
-						<Button onClick={() => setSuccess(false)} variant="outline" fullWidth>
-							Back to Sign In
-						</Button>
+            <Button onClick={() => setSuccess(false)} variant="outline" fullWidth>
+              Back
+            </Button>
 					</CardContent>
 				</Card>
 			</div>
