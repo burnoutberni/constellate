@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { memo, useMemo } from 'react'
 
 import type { Event } from '@/types'
 
@@ -108,7 +108,8 @@ interface EventButtonProps {
 	className?: string
 }
 
-function MonthEventButton({
+// Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
+const MonthEventButton = memo(function MonthEventButton({
 	event,
 	isAttending,
 	onEventClick,
@@ -136,7 +137,7 @@ function MonthEventButton({
 			{event.title}
 		</Button>
 	)
-}
+})
 
 function MonthView({
 	currentDate,
@@ -146,7 +147,11 @@ function MonthView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Optimization: Stabilize the click handler to avoid breaking memoization of child buttons
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const monthMetadata = useMemo(() => {
 		const year = currentDate.getFullYear()
@@ -266,7 +271,8 @@ function MonthView({
 	)
 }
 
-function WeekEventButton({
+// Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
+const WeekEventButton = memo(function WeekEventButton({
 	event,
 	isAttending,
 	onEventClick,
@@ -300,7 +306,7 @@ function WeekEventButton({
 			</div>
 		</Button>
 	)
-}
+})
 
 function WeekView({
 	currentDate,
@@ -310,7 +316,11 @@ function WeekView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Optimization: Stabilize the click handler to avoid breaking memoization of child buttons
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const weekDays = useMemo(() => {
 		const dayOfWeek = currentDate.getDay()
@@ -445,7 +455,13 @@ function WeekView({
 	)
 }
 
-function DayEventButton({ event, isAttending, onEventClick, onEventHover }: EventButtonProps) {
+// Optimization: Memoize event button to prevent unnecessary re-renders when parent view updates but this event hasn't changed
+const DayEventButton = memo(function DayEventButton({
+	event,
+	isAttending,
+	onEventClick,
+	onEventHover,
+}: EventButtonProps) {
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => onEventClick(event, e)
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
@@ -481,7 +497,7 @@ function DayEventButton({ event, isAttending, onEventClick, onEventHover }: Even
 			)}
 		</Button>
 	)
-}
+})
 
 function DayView({
 	currentDate,
@@ -491,7 +507,11 @@ function DayView({
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
-	const handleEventClick = createEventClickHandler(onEventClick)
+	// Optimization: Stabilize the click handler to avoid breaking memoization of child buttons
+	const handleEventClick = useMemo(
+		() => createEventClickHandler(onEventClick),
+		[onEventClick]
+	)
 
 	const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
