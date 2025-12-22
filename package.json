@@ -8,7 +8,7 @@
 		"install:client": "npm --prefix client install",
 		"build": "concurrently \"npm run build:server\" \"npm run build:client\" --names \"SERVER,CLIENT\" --kill-others-on-fail false",
 		"build:server": "tsc",
-		"build:client": "npm --prefix client run build && npm --prefix client run build-storybook",
+		"build:client": "npm --prefix client run build",
 		"start": "node dist/server.js",
 		"dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" --names \"SERVER,CLIENT\" --prefix-colors \"blue,magenta\" --kill-others-on-fail false",
 		"dev:server": "tsx watch src/server.ts",
