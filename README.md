@@ -79,7 +79,6 @@ CORS_ORIGINS=https://yourdomain.com
 # Database
 # In production with Docker Secrets, DATABASE_URL is constructed automatically.
 # Just set POSTGRES_USER, POSTGRES_DB and use POSTGRES_PASSWORD_FILE.
-# DATABASE_URL=postgresql://user:password@db:5432/constellate?schema=public
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
 POSTGRES_DB=constellate

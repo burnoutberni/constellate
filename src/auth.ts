@@ -17,14 +17,6 @@ import { sendEmail } from './lib/email.js'
 const generateKeyPairAsync = promisify(generateKeyPair)
 
 /**
- * Detect database provider from DATABASE_URL
- * Returns 'postgresql' for PostgreSQL URLs, 'sqlite' for SQLite URLs
- */
-function detectDatabaseProvider(): 'postgresql' {
-	return 'postgresql'
-}
-
-/**
  * Generate RSA key pair and encrypt the private key.
  * This is the single source of truth for key generation parameters.
  * @returns Object with publicKey (PEM) and encryptedPrivateKey
@@ -74,7 +66,7 @@ export async function generateUserKeys(
 
 export const auth = betterAuth({
 	database: prismaAdapter(prisma, {
-		provider: detectDatabaseProvider(),
+		provider: 'postgresql',
 	}),
 	baseURL: config.betterAuthUrl,
 	trustedOrigins: config.betterAuthTrustedOrigins,

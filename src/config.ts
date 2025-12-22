@@ -5,17 +5,6 @@
 
 import { readFileSync, existsSync } from 'fs'
 
-function requireEnv(key: string): string {
-	const value = process.env[key]
-	if (!value) {
-		if (process.env.NODE_ENV === 'production') {
-			throw new Error(`Required environment variable ${key} is missing`)
-		}
-		throw new Error(`Required environment variable ${key} is missing (even in development)`)
-	}
-	return value
-}
-
 function getEnv(key: string, defaultValue: string, requiredInProduction: boolean = false): string {
 	const value = process.env[key]
 	if (!value) {
@@ -75,9 +64,6 @@ export const config = {
 
 	// Base URL - required in production
 	baseUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000', true),
-
-	// Database
-	databaseUrl: requireEnv('DATABASE_URL'),
 
 	// Encryption key for private keys (32 bytes = 64 hex chars)
 	encryptionKey: ((): string => {

@@ -4,7 +4,7 @@ set -e
 # Construct DATABASE_URL from secrets if present
 if [ -n "$POSTGRES_PASSWORD_FILE" ] && [ -f "$POSTGRES_PASSWORD_FILE" ]; then
   POSTGRES_PASSWORD=$(cat "$POSTGRES_PASSWORD_FILE")
-  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
   echo "✅ Constructed DATABASE_URL from secrets"
 else
   echo "⚠️ POSTGRES_PASSWORD_FILE not set or file does not exist, aborting."
