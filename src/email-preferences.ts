@@ -3,7 +3,6 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { AppError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
-import { type NotificationType } from '@prisma/client'
 
 type JsonStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
 
@@ -34,16 +33,10 @@ app.get('/', moderateRateLimit, async (c) => {
 
 		// Return preferences with defaults for missing values
 		const preferences = (user.emailNotifications as Record<string, boolean>) || {}
-		const preferencesWithDefaults = Object.keys(DEFAULT_EMAIL_PREFERENCES).reduce(
-			(acc, key) => ({
-				...acc,
-				[key]:
-					preferences[key] !== undefined
-						? preferences[key]
-						: DEFAULT_EMAIL_PREFERENCES[key as NotificationType],
-			}),
-			{}
-		)
+		const preferencesWithDefaults = {
+			...DEFAULT_EMAIL_PREFERENCES,
+			...preferences,
+		}
 
 		return c.json({
 			preferences: preferencesWithDefaults,

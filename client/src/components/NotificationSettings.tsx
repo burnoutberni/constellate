@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { 
     useEmailPreferences, 
@@ -79,18 +79,20 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const [localPreferences, setLocalPreferences] = useState<EmailPreferences>(defaultPreferences)
 
-    const [hasChanges, setHasChanges] = useState(false)
-    const [prevPreferences, setPrevPreferences] = useState<EmailPreferences | undefined>(undefined)
 
-    // Update local preferences when data changes
-    if (data?.preferences !== prevPreferences) {
-        setPrevPreferences(data?.preferences)
-        // When data is loaded, sync local state with server state.
-        // The `!hasChanges` guard prevents overwriting the user's pending edits during background refetches.
+    const [hasChanges, setHasChanges] = useState(false)
+
+    useEffect(() => {
+        // Only update localPreferences if data.preferences is available, user has not made changes,
+        // and the preferences are actually different (shallow compare)
         if (data?.preferences && !hasChanges) {
-            setLocalPreferences(data.preferences)
+            const keys = Object.keys(data.preferences) as (keyof EmailPreferences)[]
+            const isDifferent = keys.some(key => data.preferences[key] !== localPreferences[key])
+            if (isDifferent) {
+                Promise.resolve().then(() => setLocalPreferences(data.preferences))
+            }
         }
-    }
+    }, [data, hasChanges, localPreferences])
 
     const handleToggle = (type: keyof EmailPreferences) => {
         setLocalPreferences((prev) => ({
