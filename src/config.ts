@@ -37,6 +37,8 @@ function getSecret(
 	defaultValue: string = '',
 	requiredInProduction: boolean = false
 ): string {
+	let value = ''
+
 	// 1. Try generic _FILE env var (e.g. SMTP_PASS_FILE)
 	const fileVar = process.env[`${key}_FILE`]
 	if (fileVar) {
@@ -44,22 +46,27 @@ function getSecret(
 			throw new Error(`Secret file "${fileVar}" (specified by ${key}_FILE) does not exist.`)
 		}
 		try {
-			return readFileSync(fileVar, 'utf-8').trim()
+			value = readFileSync(fileVar, 'utf-8').trim()
 		} catch (error) {
 			throw new Error(
 				`Failed to read secret file "${fileVar}" (specified by ${key}_FILE): ${error instanceof Error ? error.message : String(error)}`
 			)
 		}
+	} else {
+		// 2. Fallback to direct value if no file var is specified
+		value = process.env[key] || ''
 	}
 
-	// 2. Fallback to direct value
-	const value = process.env[key]
+	// 3. Unified Validation
 	if (!value) {
 		if (requiredInProduction && process.env.NODE_ENV === 'production') {
-			throw new Error(`Required secret ${key} (or ${key}_FILE) is missing in production`)
+			throw new Error(
+				`Required secret ${key} (or ${key}_FILE) is missing or empty in production`
+			)
 		}
 		return defaultValue
 	}
+
 	return value
 }
 

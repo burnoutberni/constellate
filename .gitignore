@@ -9,6 +9,7 @@ client/dist/
 # Environment variables
 .env
 .env.local
+secrets/
 
 # Database
 *.db
