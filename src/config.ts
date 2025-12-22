@@ -34,7 +34,7 @@ function getEnv(key: string, defaultValue: string, requiredInProduction: boolean
 function getSecret(
 	key: string,
 	defaultValue: string = '',
-	requiredInProduction: boolean = false
+	requiresFileInProduction: boolean = false
 ): string {
 	let value = ''
 
@@ -52,11 +52,11 @@ function getSecret(
 	}
 
 	// 2. If production requires file, throw an error if not found
-	if (requiredInProduction && process.env.NODE_ENV === 'production') {
+	if (requiresFileInProduction && process.env.NODE_ENV === 'production') {
 		throw new Error(`Required secret ${key} (or ${key}_FILE) is missing or empty in production`)
 	}
 
-	// 3. Fallback to direct value if no file var is specified
+	// 3. Use direct value if no file var is specified, else fall back to default value
 	value = process.env[key] || defaultValue
 
 	return value

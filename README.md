@@ -80,9 +80,13 @@ BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
 CORS_ORIGINS=https://yourdomain.com
 
 # Database
-DATABASE_URL=postgresql://user:password@db:5432/constellate?schema=public
+# In production with Docker Secrets, DATABASE_URL is constructed automatically.
+# Just set POSTGRES_USER, POSTGRES_DB and use POSTGRES_PASSWORD_FILE.
+# DATABASE_URL=postgresql://user:password@db:5432/constellate?schema=public
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<strong-password>
+# Or use Docker Secrets:
+# POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
 POSTGRES_DB=constellate
 
 # Encryption (for private keys)
@@ -109,6 +113,16 @@ For improved security in production, it is recommended to use Docker Secrets ins
 2.  Create files for each secret containing the value (e.g., `secrets/smtp_pass`, `secrets/better_auth_secret`).
 3.  The `docker-compose.prod.yml` is already configured to mount these secrets.
 4.  Set the `*_FILE` environment variables to point to the mounted secrets in `/run/secrets/`.
+
+Example `secrets` directory structure:
+
+```
+secrets/
+  better_auth_secret
+  encryption_key
+  smtp_pass
+  postgres_password
+```
 
 **Important Notes:**
 

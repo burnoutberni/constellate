@@ -9,7 +9,9 @@ services:
         environment:
             - NODE_ENV=production
             - PORT=3000
-            - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-constellate}?schema=public
+            - POSTGRES_USER=${POSTGRES_USER:-postgres}
+            - POSTGRES_DB=${POSTGRES_DB:-constellate}
+            - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
             - BETTER_AUTH_URL=${BETTER_AUTH_URL}
             - BETTER_AUTH_SECRET_FILE=/run/secrets/better_auth_secret
             - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
@@ -25,6 +27,7 @@ services:
             - better_auth_secret
             - encryption_key
             - smtp_pass
+            - postgres_password
         networks:
             - constellate-network
         restart: always
@@ -70,3 +73,5 @@ secrets:
         file: ./secrets/encryption_key
     smtp_pass:
         file: ./secrets/smtp_pass
+    postgres_password:
+        file: ./secrets/postgres_password
