@@ -82,7 +82,7 @@ jobs:
 
         env:
             DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
-            BETTER_AUTH_URL: http://test.local
+            BASE_URL: http://test.local
             BETTER_AUTH_SECRET: test-secret-change-in-production
             BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
             NODE_ENV: test
@@ -199,7 +199,7 @@ jobs:
 
         env:
             DATABASE_URL: postgresql://postgres:postgres@localhost:5432/constellate_test?schema=public
-            BETTER_AUTH_URL: http://test.local
+            BASE_URL: http://test.local
             BETTER_AUTH_SECRET: test-secret-change-in-production
             BETTER_AUTH_TRUSTED_ORIGINS: http://test.local
             NODE_ENV: test

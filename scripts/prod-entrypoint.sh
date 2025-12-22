@@ -1,6 +1,16 @@
 #!/bin/sh
 set -e
 
+# Construct DATABASE_URL from secrets if present
+if [ -n "$POSTGRES_PASSWORD_FILE" ] && [ -f "$POSTGRES_PASSWORD_FILE" ]; then
+  POSTGRES_PASSWORD=$(cat "$POSTGRES_PASSWORD_FILE")
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
+  echo "✅ Constructed DATABASE_URL from secrets"
+else
+  echo "⚠️ POSTGRES_PASSWORD_FILE not set or file does not exist, aborting."
+  exit 1
+fi
+
 echo "⏳ Waiting for database to be ready and running migrations..."
 # Retry migration until database is ready (max 30 attempts, 1 second apart)
 max_attempts=30

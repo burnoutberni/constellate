@@ -69,9 +69,9 @@ describe('Server Setup', () => {
 			expect(body).toHaveProperty('info')
 		})
 
-		it('should set server URL from BETTER_AUTH_URL', async () => {
-			const originalEnv = process.env.BETTER_AUTH_URL
-			process.env.BETTER_AUTH_URL = 'https://example.com'
+		it('should set server URL from BASE_URL', async () => {
+			const originalEnv = process.env.BASE_URL
+			process.env.BASE_URL = 'https://example.com'
 
 			// Reload server to pick up new env var
 			vi.resetModules()
@@ -83,12 +83,12 @@ describe('Server Setup', () => {
 			expect(body.servers).toBeDefined()
 			expect(body.servers[0].url).toBe('https://example.com')
 
-			process.env.BETTER_AUTH_URL = originalEnv
+			process.env.BASE_URL = originalEnv
 		})
 
 		it('should use localhost as default server URL', async () => {
-			const originalEnv = process.env.BETTER_AUTH_URL
-			delete process.env.BETTER_AUTH_URL
+			const originalEnv = process.env.BASE_URL
+			delete process.env.BASE_URL
 
 			// Reload server
 			vi.resetModules()
@@ -99,7 +99,7 @@ describe('Server Setup', () => {
 
 			expect(body.servers[0].url).toBe('http://localhost:3000')
 
-			process.env.BETTER_AUTH_URL = originalEnv
+			process.env.BASE_URL = originalEnv
 		})
 
 		it('should return 500 when OpenAPI spec file is missing', async () => {

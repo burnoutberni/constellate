@@ -7,7 +7,7 @@ import { updateEventPopularityScore } from '../services/popularityUpdater.js'
 
 describe('Popularity Score Integration Tests', () => {
 	let testUser: any
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 
 	beforeEach(async () => {
 		await prisma.eventTag.deleteMany({})

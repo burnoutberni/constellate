@@ -8,13 +8,28 @@ services:
             - '127.0.0.1:8765:3000'
         environment:
             - NODE_ENV=production
-            - PORT=3000
-            - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-constellate}?schema=public
-            - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-            - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+            - PORT=${PORT:-3000}
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_DB=${POSTGRES_DB}
+            - POSTGRES_HOST=${POSTGRES_HOST}
+            - POSTGRES_PORT=${POSTGRES_PORT}
+            - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+            - BASE_URL=${BASE_URL}
+            - BETTER_AUTH_SECRET_FILE=/run/secrets/better_auth_secret
             - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
             - CORS_ORIGINS=${CORS_ORIGINS}
-            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+            - ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+            - SMTP_HOST=${SMTP_HOST}
+            - SMTP_PORT=${SMTP_PORT}
+            - SMTP_SECURE=${SMTP_SECURE}
+            - SMTP_USER=${SMTP_USER}
+            - SMTP_PASS_FILE=/run/secrets/smtp_pass
+            - SMTP_FROM=${SMTP_FROM}
+        secrets:
+            - better_auth_secret
+            - encryption_key
+            - smtp_pass
+            - postgres_password
         networks:
             - constellate-network
         restart: always
@@ -28,20 +43,16 @@ services:
         image: postgres:15-alpine
         container_name: constellate-db
         environment:
-            - POSTGRES_USER=${POSTGRES_USER:-postgres}
-            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-            - POSTGRES_DB=${POSTGRES_DB:-constellate}
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+            - POSTGRES_DB=${POSTGRES_DB}
         volumes:
             - db-data:/var/lib/postgresql/data
         networks:
             - constellate-network
         restart: always
         healthcheck:
-            test:
-                [
-                    'CMD-SHELL',
-                    'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-constellate}',
-                ]
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
             interval: 5s
             timeout: 5s
             retries: 5
@@ -52,3 +63,13 @@ volumes:
 networks:
     constellate-network:
         driver: bridge
+
+secrets:
+    better_auth_secret:
+        file: ./secrets/better_auth_secret
+    encryption_key:
+        file: ./secrets/encryption_key
+    smtp_pass:
+        file: ./secrets/smtp_pass
+    postgres_password:
+        file: ./secrets/postgres_password

@@ -3,19 +3,7 @@
  * Validates and exports environment variables with proper defaults
  */
 
-import { randomBytes } from 'crypto'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-
-function requireEnv(key: string): string {
-	const value = process.env[key]
-	if (!value) {
-		if (process.env.NODE_ENV === 'production') {
-			throw new Error(`Required environment variable ${key} is missing`)
-		}
-		throw new Error(`Required environment variable ${key} is missing (even in development)`)
-	}
-	return value
-}
+import { readFileSync, existsSync } from 'fs'
 
 function getEnv(key: string, defaultValue: string, requiredInProduction: boolean = false): string {
 	const value = process.env[key]
@@ -28,83 +16,80 @@ function getEnv(key: string, defaultValue: string, requiredInProduction: boolean
 	return value
 }
 
+/**
+ * Helper to retrieve a secret from a file (Docker secret) or environment variable.
+ * Checks for <KEY>_FILE environment variable first, then <KEY>.
+ */
+function getSecret(
+	key: string,
+	defaultValue: string = '',
+	requiresFileInProduction: boolean = false
+): string {
+	let value: string | undefined
+
+	// 1. Try to read from file path specified by <KEY>_FILE
+	const filePath = process.env[`${key}_FILE`]
+	if (filePath) {
+		if (!existsSync(filePath)) {
+			throw new Error(`Secret file (specified by ${key}_FILE at ${filePath}) does not exist.`)
+		}
+		try {
+			value = readFileSync(filePath, 'utf-8').trim()
+		} catch (e) {
+			throw new Error(
+				`Failed to read secret file (specified by ${key}_FILE at ${filePath}): ${(e as Error).message}`
+			)
+		}
+	}
+
+	// 2. If we have a value, return it
+	if (value) {
+		return value
+	}
+
+	// 3. If production requires a secret file, throw an error if not found
+	if (requiresFileInProduction && process.env.NODE_ENV === 'production') {
+		throw new Error(`Required secret ${key} (or ${key}_FILE) is missing or empty in production`)
+	}
+
+	// 4. Else return value from environment variable or fallback to default
+	value = process.env[key] || defaultValue
+	return value
+}
+
 export const config = {
 	// Server configuration
 	port: parseInt(getEnv('PORT', '3000')),
 	nodeEnv: process.env.NODE_ENV || 'development',
 
 	// Base URL - required in production
-	baseUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000', true),
-
-	// Database
-	databaseUrl: requireEnv('DATABASE_URL'),
+	baseUrl: getEnv('BASE_URL', 'http://localhost:3000', true),
 
 	// Encryption key for private keys (32 bytes = 64 hex chars)
 	encryptionKey: ((): string => {
-		const key = process.env.ENCRYPTION_KEY
-		const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
-
-		// If key is provided via env var, use it
-		if (key) {
-			if (key.length !== 64) {
-				throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
-			}
-			return key
-		}
-
-		// In production, require the key
-		if (process.env.NODE_ENV === 'production') {
+		const key = getSecret('ENCRYPTION_KEY', '', true)
+		if (!key) {
 			throw new Error(
-				'ENCRYPTION_KEY is required in production. Generate with: openssl rand -hex 32'
+				'Required secret ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) is missing. Generate with: openssl rand -hex 32'
 			)
 		}
-
-		// In development, try to read from or create a persistent key file
-		// This ensures the same key is used across container restarts
-		const keyFilePath = process.env.ENCRYPTION_KEY_FILE || '/app/.encryption-key'
-
-		try {
-			if (existsSync(keyFilePath)) {
-				const fileKey = readFileSync(keyFilePath, 'utf8').trim()
-				if (fileKey.length === 64) {
-					if (!isTest) {
-						console.log(`✅ Loaded encryption key from ${keyFilePath}`)
-					}
-					return fileKey
-				} else {
-					console.warn(
-						`⚠️  Encryption key file exists but has invalid length, generating new key`
-					)
-				}
-			}
-
-			// Generate a new key and save it
-			const devKey = randomBytes(32).toString('hex')
-			writeFileSync(keyFilePath, devKey, { mode: 0o600 }) // Read/write for owner only
-
-			if (!isTest) {
-				console.log(`✅ Generated and saved encryption key to ${keyFilePath}`)
-				console.log('   This key will persist across container restarts in development.')
-			}
-			return devKey
-		} catch {
-			// If file operations fail (e.g., in tests or read-only filesystem), fall back to in-memory key
-			const devKey = randomBytes(32).toString('hex')
-			if (!isTest) {
-				console.warn(
-					'⚠️  WARNING: Could not persist encryption key to file. Using in-memory key.'
-				)
-				console.warn(
-					'   This key will be lost on restart. Set ENCRYPTION_KEY environment variable.'
-				)
-			}
-			return devKey
+		if (key.length !== 64) {
+			throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
 		}
+		return key
 	})(),
 
 	// Better Auth configuration
-	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
-	betterAuthSecret: getEnv('BETTER_AUTH_SECRET', '', true), // Required in production
+	betterAuthUrl: getEnv('BASE_URL', 'http://localhost:3000/api/auth'),
+	betterAuthSecret: ((): string => {
+		const secret = getSecret('BETTER_AUTH_SECRET', '', true)
+		if (!secret) {
+			throw new Error(
+				'Required secret BETTER_AUTH_SECRET (or BETTER_AUTH_SECRET_FILE) is missing. Generate with: openssl rand -base64 32'
+			)
+		}
+		return secret
+	})(),
 	betterAuthTrustedOrigins: (
 		process.env.BETTER_AUTH_TRUSTED_ORIGINS || 'http://localhost:5173'
 	).split(','),
@@ -155,7 +140,7 @@ export const config = {
 		port: parseInt(getEnv('SMTP_PORT', '587')),
 		secure: getEnv('SMTP_SECURE', 'false') === 'true',
 		user: getEnv('SMTP_USER', ''),
-		pass: getEnv('SMTP_PASS', ''),
+		pass: getSecret('SMTP_PASS', ''),
 		from: getEnv('SMTP_FROM', 'noreply@example.com'),
 	},
 

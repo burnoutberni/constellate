@@ -38,7 +38,7 @@ export default defineConfig({
 		env: {
 			VITEST: 'true',
 			NODE_ENV: 'test',
-			BETTER_AUTH_URL: 'http://test.local',
+			BASE_URL: 'http://test.local',
 			BETTER_AUTH_SECRET: 'test-secret-change-in-production',
 			BETTER_AUTH_TRUSTED_ORIGINS: 'http://test.local',
 			ENCRYPTION_KEY:

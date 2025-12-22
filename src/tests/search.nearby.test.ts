@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { app } from '../server.js'
 import { prisma } from '../lib/prisma.js'
 
-const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 
 describe('Search API - Nearby events', () => {
 	beforeEach(async () => {

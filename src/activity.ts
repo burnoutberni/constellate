@@ -88,7 +88,7 @@ async function getFollowing(userId: string) {
 }
 
 async function resolveFollowedUserIds(following: Array<{ actorUrl: string }>) {
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 	const followedUserIds: string[] = []
 
 	for (const follow of following) {
