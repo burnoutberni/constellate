@@ -44,6 +44,20 @@ export const Default: Story = {
 	},
 }
 
+export const InteractiveRightIcon: Story = {
+	args: {
+		label: 'Password',
+		type: 'password',
+		rightIcon: <EyeIcon />,
+		onRightIconClick: () => {}, // no-op for demo
+		rightIconLabel: 'Toggle password visibility',
+		placeholder: 'Enter password',
+	},
+	parameters: {
+		layout: 'padded',
+	},
+}
+
 export const WithLabel: Story = {
 	args: {
 		label: 'Email Address',

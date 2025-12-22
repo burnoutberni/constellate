@@ -147,4 +147,37 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should render interactive right icon as button', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>👁</span>}
+				onRightIconClick={handleClick}
+				rightIconLabel="Toggle visibility"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Toggle visibility' })
+		expect(button).toBeInTheDocument()
+
+		fireEvent.click(button)
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
+
+	it('should not apply pointer-events-none when right icon is interactive', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>👁</span>}
+				onRightIconClick={handleClick}
+				rightIconLabel="Toggle visibility"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Toggle visibility' })
+		expect(button.className).not.toContain('pointer-events-none')
+	})
 })
