@@ -40,7 +40,7 @@ describe('Configuration Management', () => {
 		})
 
 		it('should use default baseUrl when not set', async () => {
-			delete process.env.BETTER_AUTH_URL
+			delete process.env.BASE_URL
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
@@ -50,19 +50,17 @@ describe('Configuration Management', () => {
 
 		it('should throw error when baseUrl is missing in production', async () => {
 			process.env.NODE_ENV = 'production'
-			delete process.env.BETTER_AUTH_URL
+			delete process.env.BASE_URL
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
 			await expect(async () => {
 				await import('../config.js')
-			}).rejects.toThrow(
-				'Required environment variable BETTER_AUTH_URL is missing in production'
-			)
+			}).rejects.toThrow('Required environment variable BASE_URL is missing in production')
 		})
 
 		it('should use provided baseUrl', async () => {
-			process.env.BETTER_AUTH_URL = 'https://example.com'
+			process.env.BASE_URL = 'https://example.com'
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
@@ -122,7 +120,7 @@ describe('Configuration Management', () => {
 		})
 
 		it('should use default betterAuthUrl when not set', async () => {
-			delete process.env.BETTER_AUTH_URL
+			delete process.env.BASE_URL
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
@@ -131,7 +129,7 @@ describe('Configuration Management', () => {
 		})
 
 		it('should use provided betterAuthUrl', async () => {
-			process.env.BETTER_AUTH_URL = 'https://auth.example.com'
+			process.env.BASE_URL = 'https://auth.example.com'
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 

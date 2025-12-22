@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma.js'
 
 describe('Search API - Advanced Filters', () => {
 	let testUser: any
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 
 	beforeEach(async () => {
 		await prisma.eventTag.deleteMany({})

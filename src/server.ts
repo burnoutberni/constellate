@@ -71,7 +71,7 @@ app.get('/doc', async (c) => {
 		const openapi = JSON.parse(spec)
 
 		// Dynamically set server URL based on environment
-		const serverUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+		const serverUrl = process.env.BASE_URL || 'http://localhost:3000'
 		openapi.servers = [
 			{
 				url: serverUrl,

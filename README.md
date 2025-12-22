@@ -71,7 +71,7 @@ npm run docker:prod
 # Server Configuration
 NODE_ENV=production
 PORT=3000
-BETTER_AUTH_URL=https://yourdomain.com
+BASE_URL=https://yourdomain.com
 BETTER_AUTH_SECRET_FILE=/run/secrets/better_auth_secret
 BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
 CORS_ORIGINS=https://yourdomain.com

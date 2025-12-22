@@ -13,7 +13,7 @@ const app = new Hono()
 app.route('/api/recommendations', recommendationsApp)
 
 describe('Event recommendations API', () => {
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://test.local'
+	const baseUrl = process.env.BASE_URL || 'http://test.local'
 	let viewer: { id: string; username: string }
 	let organizer: { id: string; username: string }
 

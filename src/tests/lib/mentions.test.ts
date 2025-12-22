@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma.js'
 import { resolveMentions } from '../../lib/mentions.js'
 
 beforeAll(() => {
-	process.env.BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	process.env.BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 })
 
 describe('resolveMentions', () => {

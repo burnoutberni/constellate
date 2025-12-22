@@ -70,7 +70,7 @@ function buildTestActivity(id: string): FeedActivity {
 describe('activity helpers', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
-		process.env.BETTER_AUTH_URL = 'http://localhost:3000'
+		process.env.BASE_URL = 'http://localhost:3000'
 	})
 
 	it('buildEventSummary formats date fields', () => {

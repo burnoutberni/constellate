@@ -20,7 +20,7 @@ describe('Profile API', () => {
 	let testUser: any
 	let otherUser: any
 	let remoteUser: any
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 
 	const mockAuth = (user: any) => {
 		vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({

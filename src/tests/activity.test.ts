@@ -17,7 +17,7 @@ vi.mock('../realtime.js')
 describe('Activity Feed API', () => {
 	let testUser: any
 	let followedUser: any
-	const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
 
 	beforeEach(async () => {
 		// Clean up

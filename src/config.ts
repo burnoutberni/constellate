@@ -63,7 +63,7 @@ export const config = {
 	nodeEnv: process.env.NODE_ENV || 'development',
 
 	// Base URL - required in production
-	baseUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000', true),
+	baseUrl: getEnv('BASE_URL', 'http://localhost:3000', true),
 
 	// Encryption key for private keys (32 bytes = 64 hex chars)
 	encryptionKey: ((): string => {
@@ -80,7 +80,7 @@ export const config = {
 	})(),
 
 	// Better Auth configuration
-	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
+	betterAuthUrl: getEnv('BASE_URL', 'http://localhost:3000/api/auth'),
 	betterAuthSecret: ((): string => {
 		const secret = getSecret('BETTER_AUTH_SECRET', '', true)
 		if (!secret) {

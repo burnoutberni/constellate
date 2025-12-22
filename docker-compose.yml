@@ -8,7 +8,7 @@ services:
             - NODE_ENV=development
             - PORT=3000
             - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/constellate_test?schema=public
-            - BETTER_AUTH_URL=http://test.local
+            - BASE_URL=http://test.local
             - BETTER_AUTH_SECRET=test-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
             # Test encryption key
@@ -52,7 +52,7 @@ services:
             - NODE_ENV=development
             - PORT=3000
             - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/constellate_app1?schema=public
-            - BETTER_AUTH_URL=http://app1.local
+            - BASE_URL=http://app1.local
             - BETTER_AUTH_SECRET=app1-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
             - ENCRYPTION_KEY=${ENCRYPTION_KEY}
@@ -87,7 +87,7 @@ services:
             - NODE_ENV=development
             - PORT=3000
             - DATABASE_URL=postgresql://postgres:postgres@db-dev:5432/constellate_app2?schema=public
-            - BETTER_AUTH_URL=http://app2.local
+            - BASE_URL=http://app2.local
             - BETTER_AUTH_SECRET=app2-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
             - ENCRYPTION_KEY=${ENCRYPTION_KEY}

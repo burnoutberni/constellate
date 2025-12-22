@@ -12,7 +12,7 @@ import { normalizeTimeZone } from './lib/timezone.js'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
-const DEFAULT_BASE_URL = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+const DEFAULT_BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 const APP_HOSTNAME = (() => {
 	try {
 		return new URL(DEFAULT_BASE_URL).hostname
