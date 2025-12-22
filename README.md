@@ -73,6 +73,9 @@ NODE_ENV=production
 PORT=3000
 BETTER_AUTH_URL=https://yourdomain.com
 BETTER_AUTH_SECRET=<generate-with-openssl-rand-hex-32>
+# Or use Docker Secrets:
+# BETTER_AUTH_SECRET_FILE=/run/secrets/better_auth_secret
+
 BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
 CORS_ORIGINS=https://yourdomain.com
 
@@ -84,7 +87,28 @@ POSTGRES_DB=constellate
 
 # Encryption (for private keys)
 ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
+# Or use Docker Secrets:
+# ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+
+# Email (SMTP)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=user@example.com
+SMTP_PASS=password
+# Or use Docker Secrets:
+# SMTP_PASS_FILE=/run/secrets/smtp_pass
+SMTP_FROM=noreply@example.com
 ```
+
+### Docker Secrets (Recommended for Production)
+
+For improved security in production, it is recommended to use Docker Secrets instead of environment variables for sensitive values (`SMTP_PASS`, `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`).
+
+1.  Create a `secrets` directory in your project root (or wherever you run docker-compose).
+2.  Create files for each secret containing the value (e.g., `secrets/smtp_pass`, `secrets/better_auth_secret`).
+3.  The `docker-compose.prod.yml` is already configured to mount these secrets.
+4.  Set the `*_FILE` environment variables to point to the mounted secrets in `/run/secrets/`.
 
 **Important Notes:**
 
