@@ -21,6 +21,8 @@ interface UseRealtimeSSEOptions {
 	onDisconnect?: () => void
 }
 
+const defaultOptions: UseRealtimeSSEOptions = {}
+
 const checkLikeExists = (
 	likes: Array<{ user?: EventUser }> | undefined,
 	userId: string | undefined
@@ -601,7 +603,7 @@ const setupEventListeners = (
 	})
 }
 
-export function useRealtimeSSE(options: UseRealtimeSSEOptions = {}) {
+export function useRealtimeSSE(options: UseRealtimeSSEOptions = defaultOptions) {
 	const queryClient = useQueryClient()
 	const setSSEConnected = useUIStore((state) => state.setSSEConnected)
 	const addMentionNotification = useUIStore((state) => state.addMentionNotification)
