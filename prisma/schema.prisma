@@ -702,6 +702,16 @@ model DataExport {
 }
 
 // Email delivery tracking for analytics and debugging
+
+enum EmailDeliveryStatus {
+  SENT
+  FAILED
+  BOUNCED
+  DELIVERED
+  OPENED
+  CLICKED
+}
+
 model EmailDelivery {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -716,8 +726,8 @@ model EmailDelivery {
   subject      String // Email subject line
 
   // Delivery tracking
-  status      String    @default("SENT") // SENT, FAILED, BOUNCED, DELIVERED, OPENED, CLICKED
-  sentAt      DateTime  @default(now())
+  status      EmailDeliveryStatus @default(SENT)
+  sentAt      DateTime            @default(now())
   deliveredAt DateTime?
   openedAt    DateTime?
   clickedAt   DateTime?

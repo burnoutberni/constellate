@@ -1,6 +1,13 @@
 import * as nodemailer from 'nodemailer'
 import DOMPurify from 'isomorphic-dompurify'
 import { config } from '../config.js'
+function replaceEmailPlaceholders(html: string): string {
+	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
+	return html
+		.replace(/\{\{\{UNSUBSCRIBE_URL\}\}\}/g, baseUrl ? `${baseUrl}/email/unsubscribe` : '#')
+		.replace(/\{\{\{PREFERENCES_URL\}\}\}/g, baseUrl ? `${baseUrl}/settings/email-preferences` : '#')
+		.replace(/\{\{\{NOTIFICATIONS_URL\}\}\}/g, baseUrl ? `${baseUrl}/notifications` : '#')
+}
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
 
@@ -73,11 +80,13 @@ export async function sendTemplatedEmail({
 	// Log email sending for analytics and debugging
 	console.log(`📧 Sending email template: ${templateName} to ${to}`)
 
+	const htmlWithUrls = replaceEmailPlaceholders(html)
+
 	const result = await sendEmail({
 		to,
 		subject,
-		text: text || generateTextFromHtml(html),
-		html,
+		text: text || generateTextFromHtml(htmlWithUrls),
+		html: htmlWithUrls,
 	})
 
 	// Store email delivery record only after successful send

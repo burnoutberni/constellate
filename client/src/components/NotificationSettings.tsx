@@ -82,17 +82,12 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const [hasChanges, setHasChanges] = useState(false)
 
+ 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
-        // Only update localPreferences if data.preferences is available, user has not made changes,
-        // and the preferences are actually different (shallow compare)
-        if (data?.preferences && !hasChanges) {
-            const keys = Object.keys(data.preferences) as (keyof EmailPreferences)[]
-            const isDifferent = keys.some(key => data.preferences[key] !== localPreferences[key])
-            if (isDifferent) {
-                Promise.resolve().then(() => setLocalPreferences(data.preferences))
-            }
-        }
-    }, [data, hasChanges, localPreferences])
+    if (!data?.preferences || hasChanges) {return}
+    setLocalPreferences(data.preferences)
+    }, [data?.preferences, hasChanges])
 
     const handleToggle = (type: keyof EmailPreferences) => {
         setLocalPreferences((prev) => ({
