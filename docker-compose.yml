@@ -11,7 +11,8 @@ services:
             - BETTER_AUTH_URL=http://test.local
             - BETTER_AUTH_SECRET=test-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
-            - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
+            # Test encryption key
+            - ENCRYPTION_KEY=0bfdb305039173a7abd9d0f45a4c50f8e899a1cfeeeb381abd7a55940b81344b
         volumes:
             - .:/app
             - /app/node_modules
@@ -54,7 +55,7 @@ services:
             - BETTER_AUTH_URL=http://app1.local
             - BETTER_AUTH_SECRET=app1-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://app1.local
-            - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
+            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
             - SMTP_HOST=${SMTP_HOST}
             - SMTP_PORT=${SMTP_PORT}
             - SMTP_SECURE=${SMTP_SECURE}
@@ -89,7 +90,7 @@ services:
             - BETTER_AUTH_URL=http://app2.local
             - BETTER_AUTH_SECRET=app2-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://app2.local
-            - ENCRYPTION_KEY_FILE=/app/.keys/.encryption-key
+            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
             - SMTP_HOST=${SMTP_HOST}
             - SMTP_PORT=${SMTP_PORT}
             - SMTP_SECURE=${SMTP_SECURE}

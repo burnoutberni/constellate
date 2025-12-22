@@ -15,6 +15,8 @@ describe('Configuration Management', () => {
 		process.env = { ...originalEnv }
 		console.warn = originalConsoleWarn
 		console.log = originalConsoleLog
+		// Set default required env vars for most tests
+		process.env.BETTER_AUTH_SECRET = 'secret'
 		// Clear module cache to reload config
 		vi.resetModules()
 	})
@@ -24,7 +26,6 @@ describe('Configuration Management', () => {
 			delete process.env.PORT
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.port).toBe(3000)
@@ -34,7 +35,6 @@ describe('Configuration Management', () => {
 			process.env.PORT = '8080'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.port).toBe(8080)
@@ -43,7 +43,6 @@ describe('Configuration Management', () => {
 		it('should throw error when DATABASE_URL is missing', async () => {
 			delete process.env.DATABASE_URL
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -54,7 +53,6 @@ describe('Configuration Management', () => {
 			process.env.NODE_ENV = 'production'
 			delete process.env.DATABASE_URL
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -65,7 +63,6 @@ describe('Configuration Management', () => {
 			delete process.env.BETTER_AUTH_URL
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.baseUrl).toBe('http://localhost:3000')
@@ -76,7 +73,6 @@ describe('Configuration Management', () => {
 			delete process.env.BETTER_AUTH_URL
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -89,7 +85,6 @@ describe('Configuration Management', () => {
 			process.env.BETTER_AUTH_URL = 'https://example.com'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.baseUrl).toBe('https://example.com')
@@ -102,7 +97,6 @@ describe('Configuration Management', () => {
 			delete process.env.ENCRYPTION_KEY
 			delete process.env.VITEST
 			process.env.DATABASE_URL = 'file:./test.db'
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -113,7 +107,6 @@ describe('Configuration Management', () => {
 			process.env.NODE_ENV = 'production'
 			delete process.env.ENCRYPTION_KEY
 			process.env.DATABASE_URL = 'file:./test.db'
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -123,7 +116,6 @@ describe('Configuration Management', () => {
 		it('should throw error when ENCRYPTION_KEY has wrong length', async () => {
 			process.env.ENCRYPTION_KEY = 'too-short'
 			process.env.DATABASE_URL = 'file:./test.db'
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			await expect(async () => {
 				await import('../config.js')
@@ -134,7 +126,6 @@ describe('Configuration Management', () => {
 			const validKey = randomBytes(32).toString('hex')
 			process.env.ENCRYPTION_KEY = validKey
 			process.env.DATABASE_URL = 'file:./test.db'
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.encryptionKey).toBe(validKey)
@@ -158,7 +149,6 @@ describe('Configuration Management', () => {
 			delete process.env.BETTER_AUTH_URL
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.betterAuthUrl).toBe('http://localhost:3000/api/auth')
@@ -168,7 +158,6 @@ describe('Configuration Management', () => {
 			process.env.BETTER_AUTH_URL = 'https://auth.example.com'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.betterAuthUrl).toBe('https://auth.example.com')
@@ -178,7 +167,6 @@ describe('Configuration Management', () => {
 			process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'http://localhost:5173,https://example.com'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.betterAuthTrustedOrigins).toEqual([
@@ -191,7 +179,6 @@ describe('Configuration Management', () => {
 			delete process.env.BETTER_AUTH_TRUSTED_ORIGINS
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.betterAuthTrustedOrigins).toEqual(['http://localhost:5173'])
@@ -203,7 +190,6 @@ describe('Configuration Management', () => {
 			process.env.CORS_ORIGINS = 'http://localhost:5173,https://example.com,http://app.local'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.corsOrigins).toEqual([
@@ -217,7 +203,6 @@ describe('Configuration Management', () => {
 			delete process.env.CORS_ORIGINS
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.corsOrigins).toEqual(['http://localhost:5173', 'http://localhost:3000'])
@@ -229,7 +214,6 @@ describe('Configuration Management', () => {
 			process.env.NODE_ENV = 'development'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.isDevelopment).toBe(true)
@@ -241,7 +225,6 @@ describe('Configuration Management', () => {
 			delete process.env.NODE_ENV
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const { config } = await import('../config.js')
 			expect(config.nodeEnv).toBe('development')
@@ -255,7 +238,6 @@ describe('Configuration Management', () => {
 			delete process.env.VITEST
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -272,7 +254,6 @@ describe('Configuration Management', () => {
 			process.env.NODE_ENV = 'test'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -288,7 +269,6 @@ describe('Configuration Management', () => {
 			process.env.VITEST = 'true'
 			process.env.DATABASE_URL = 'file:./test.db'
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
-			process.env.BETTER_AUTH_SECRET = 'secret'
 
 			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 

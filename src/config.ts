@@ -36,29 +36,35 @@ function getSecret(
 	defaultValue: string = '',
 	requiresFileInProduction: boolean = false
 ): string {
-	let value = ''
+	let value: string | undefined
 
-	// 1. Try generic _FILE env var (e.g. SMTP_PASS_FILE)
-	const fileVar = process.env[`${key}_FILE`]
-	if (fileVar) {
-		if (!existsSync(fileVar)) {
-			throw new Error(`Secret file (specified by ${key}_FILE) does not exist.`)
+	// 1. Try to read from file path specified by <KEY>_FILE
+	const filePath = process.env[`${key}_FILE`]
+	if (filePath) {
+		if (!existsSync(filePath)) {
+			throw new Error(`Secret file (specified by ${key}_FILE at ${filePath}) does not exist.`)
 		}
 		try {
-			value = readFileSync(fileVar, 'utf-8').trim()
-		} catch {
-			throw new Error(`Failed to read secret file (specified by ${key}_FILE)}`)
+			value = readFileSync(filePath, 'utf-8').trim()
+		} catch (e) {
+			throw new Error(
+				`Failed to read secret file (specified by ${key}_FILE at ${filePath}): ${(e as Error).message}`
+			)
 		}
 	}
 
-	// 2. If production requires file, throw an error if not found
+	// 2. If we have a value, return it
+	if (value) {
+		return value
+	}
+
+	// 3. If production requires a secret file, throw an error if not found
 	if (requiresFileInProduction && process.env.NODE_ENV === 'production') {
 		throw new Error(`Required secret ${key} (or ${key}_FILE) is missing or empty in production`)
 	}
 
-	// 3. Use direct value if no file var is specified, else fall back to default value
+	// 4. Else return value from environment variable or fallback to default
 	value = process.env[key] || defaultValue
-
 	return value
 }
 

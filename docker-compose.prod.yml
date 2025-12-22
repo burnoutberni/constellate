@@ -11,6 +11,8 @@ services:
             - PORT=3000
             - POSTGRES_USER=${POSTGRES_USER:-postgres}
             - POSTGRES_DB=${POSTGRES_DB:-constellate}
+            - POSTGRES_HOST=db
+            - POSTGRES_PORT=5432
             - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
             - BETTER_AUTH_URL=${BETTER_AUTH_URL}
             - BETTER_AUTH_SECRET_FILE=/run/secrets/better_auth_secret
