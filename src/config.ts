@@ -81,11 +81,31 @@ export const config = {
 	// Database
 	databaseUrl: requireEnv('DATABASE_URL'),
 
-	encryptionKey: getSecret('ENCRYPTION_KEY', randomBytes(32).toString('hex'),true), // Required in production
+	// Encryption key for private keys (32 bytes = 64 hex chars)
+	encryptionKey: ((): string => {
+		const key = getSecret('ENCRYPTION_KEY')
+		if (!key) {
+			throw new Error(
+				'Required secret ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) is missing. Generate with: openssl rand -hex 32'
+			)
+		}
+		if (key.length !== 64) {
+			throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
+		}
+		return key
+	})(),
 
 	// Better Auth configuration
 	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
-	betterAuthSecret: getSecret('BETTER_AUTH_SECRET', '', true), // Required in production
+	betterAuthSecret: ((): string => {
+		const secret = getSecret('BETTER_AUTH_SECRET')
+		if (!secret) {
+			throw new Error(
+				'Required secret BETTER_AUTH_SECRET (or BETTER_AUTH_SECRET_FILE) is missing. Generate with: openssl rand -base64 32'
+			)
+		}
+		return secret
+	})(),
 	betterAuthTrustedOrigins: (
 		process.env.BETTER_AUTH_TRUSTED_ORIGINS || 'http://localhost:5173'
 	).split(','),
