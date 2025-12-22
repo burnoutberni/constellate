@@ -29,6 +29,7 @@ import setupRoutes from './setup.js'
 import recommendationsRoutes from './recommendations.js'
 import instancesRoutes from './instances.js'
 import sitemapRoutes from './sitemap.js'
+import emailPreferencesRoutes from './email-preferences.js'
 import { auth } from './auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { securityHeaders } from './middleware/security.js'
@@ -227,6 +228,7 @@ app.route('/api', activityRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/setup', setupRoutes)
 app.route('/api/instances', instancesRoutes)
+app.route('/api/email-preferences', emailPreferencesRoutes)
 app.route('/', sitemapRoutes)
 
 // Serve static frontend files in production

@@ -1,209 +1,266 @@
 import { useState } from 'react'
 
-import type { NotificationType } from '@/types'
+import { 
+    useEmailPreferences, 
+    useUpdateEmailPreferences, 
+    useResetEmailPreferences 
+} from '@/hooks/queries'
+import type { EmailPreferences } from '@/hooks/queries'
 
 import { Stack } from './layout'
-import { Card, CardHeader, CardTitle, CardContent, Button, CardFooter } from './ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, CardFooter, Spinner } from './ui'
 
-interface NotificationPreferences {
-	[key: string]: boolean
-}
-
-const notificationTypes: Array<{ type: NotificationType; label: string; description: string }> = [
-	{
-		type: 'FOLLOW',
-		label: 'New Followers',
-		description: 'Get notified when someone follows you',
-	},
-	{
-		type: 'COMMENT',
-		label: 'Comments',
-		description: 'Get notified when someone comments on your events',
-	},
-	{
-		type: 'LIKE',
-		label: 'Likes',
-		description: 'Get notified when someone likes your events',
-	},
-	{
-		type: 'MENTION',
-		label: 'Mentions',
-		description: 'Get notified when someone mentions you',
-	},
-	{
-		type: 'EVENT',
-		label: 'Event Updates',
-		description: "Get notified about events you're attending",
-	},
-	{
-		type: 'SYSTEM',
-		label: 'System Notifications',
-		description: 'Important updates from the platform',
-	},
+const notificationTypes: Array<{ 
+    type: keyof EmailPreferences
+    label: string
+    description: string
+    icon: string
+}> = [
+    {
+        type: 'FOLLOW',
+        label: 'New Followers',
+        description: 'Get notified when someone follows you',
+        icon: '👥',
+    },
+    {
+        type: 'COMMENT',
+        label: 'Comments',
+        description: 'Get notified when someone comments on your events',
+        icon: '💬',
+    },
+    {
+        type: 'LIKE',
+        label: 'Likes',
+        description: 'Get notified when someone likes your events',
+        icon: '❤️',
+    },
+    {
+        type: 'MENTION',
+        label: 'Mentions',
+        description: 'Get notified when someone mentions you',
+        icon: '@️⃣',
+    },
+    {
+        type: 'EVENT',
+        label: 'Event Updates',
+        description: "Get notified about events you're attending",
+        icon: '📅',
+    },
+    {
+        type: 'SYSTEM',
+        label: 'System Notifications',
+        description: 'Important updates from the platform',
+        icon: '⚙️',
+    },
 ]
 
 interface NotificationSettingsProps {
-	/** Current notification preferences */
-	preferences?: NotificationPreferences
-	/** Callback when preferences are updated */
-	onUpdate?: (preferences: NotificationPreferences) => void
-	/** Whether the component is in a loading state */
-	loading?: boolean
+    /** Whether the component should use email preferences instead of generic preferences */
+    emailMode?: boolean
 }
 
 /**
  * NotificationSettings component for managing notification preferences
  * Allows users to enable/disable different types of notifications
  */
-export function NotificationSettings({
-	preferences = {},
-	onUpdate,
-	loading = false,
-}: NotificationSettingsProps) {
-	const [localPreferences, setLocalPreferences] = useState<NotificationPreferences>(() => {
-		// Initialize with default preferences (all enabled)
-		const defaults: NotificationPreferences = {}
-		notificationTypes.forEach(({ type }) => {
-			defaults[type] = preferences[type] ?? true
-		})
-		return defaults
-	})
+export function NotificationSettings({ emailMode = false }: NotificationSettingsProps) {
+    const { data, isLoading, error } = useEmailPreferences()
+    const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
+    const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
-	const [hasChanges, setHasChanges] = useState(false)
+    const [localPreferences, setLocalPreferences] = useState<EmailPreferences>(() => {
+        // Initialize with current preferences or defaults
+        return data?.preferences || {
+            FOLLOW: true,
+            COMMENT: true,
+            LIKE: true,
+            MENTION: true,
+            EVENT: true,
+            SYSTEM: true,
+        }
+    })
 
-	const handleToggle = (type: string) => {
-		setLocalPreferences((prev) => ({
-			...prev,
-			[type]: !prev[type],
-		}))
-		setHasChanges(true)
-	}
+    const [hasChanges, setHasChanges] = useState(false)
 
-	const handleSave = () => {
-		if (onUpdate) {
-			onUpdate(localPreferences)
-		}
-		setHasChanges(false)
-	}
+    // Update local preferences when data changes
+    if (data?.preferences && !hasChanges) {
+        setLocalPreferences(data.preferences)
+    }
 
-	const handleReset = () => {
-		setLocalPreferences(() => {
-			const defaults: NotificationPreferences = {}
-			notificationTypes.forEach(({ type }) => {
-				defaults[type] = preferences[type] ?? true
-			})
-			return defaults
-		})
-		setHasChanges(false)
-	}
+    const handleToggle = (type: keyof EmailPreferences) => {
+        setLocalPreferences((prev) => ({
+            ...prev,
+            [type]: !prev[type],
+        }))
+        setHasChanges(true)
+    }
 
-	const toggleAll = (enabled: boolean) => {
-		const updated: NotificationPreferences = {}
-		notificationTypes.forEach(({ type }) => {
-			updated[type] = enabled
-		})
-		setLocalPreferences(updated)
-		setHasChanges(true)
-	}
+    const handleSave = () => {
+        updatePreferences(localPreferences, {
+            onSuccess: () => {
+                setHasChanges(false)
+            },
+        })
+    }
 
-	return (
-		<Card variant="default" padding="lg">
-			<CardHeader>
-				<div className="flex items-center justify-between w-full">
-					<CardTitle>Notification Preferences</CardTitle>
-					<div className="flex gap-2">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => toggleAll(true)}
-							disabled={loading}>
-							Enable All
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => toggleAll(false)}
-							disabled={loading}>
-							Disable All
-						</Button>
-					</div>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<Stack gap="lg">
-					<p className="text-sm text-text-secondary">
-						Choose which notifications you&apos;d like to receive. You can always change
-						these settings later.
-					</p>
+    const handleReset = () => {
+        resetPreferences(undefined, {
+            onSuccess: () => {
+                setHasChanges(false)
+            },
+        })
+    }
 
-					<Stack gap="md">
-						{notificationTypes.map(({ type, label, description }) => (
-							<div
-								key={type}
-								className="flex items-start justify-between gap-4 py-3 border-b border-border-default last:border-b-0">
-								<div className="flex-1">
-									<label
-										htmlFor={`notification-${type}`}
-										className="text-sm font-medium text-text-primary cursor-pointer">
-										{label}
-									</label>
-									<p className="text-xs text-text-tertiary mt-1">{description}</p>
-								</div>
-								<Button
-									id={`notification-${type}`}
-									type="button"
-									role="switch"
-									aria-checked={localPreferences[type]}
-									onClick={() => handleToggle(type)}
-									disabled={loading}
-									variant="ghost"
-									className={`
+    const toggleAll = (enabled: boolean) => {
+        const updated: EmailPreferences = {
+            FOLLOW: enabled,
+            COMMENT: enabled,
+            LIKE: enabled,
+            MENTION: enabled,
+            EVENT: enabled,
+            SYSTEM: enabled,
+        }
+        setLocalPreferences(updated)
+        setHasChanges(true)
+    }
+
+    if (isLoading) {
+        return (
+            <Card variant="default" padding="lg">
+                <div className="flex items-center justify-center min-h-[200px]">
+                    <Spinner size="md" />
+                </div>
+            </Card>
+        )
+    }
+
+    if (error) {
+        return (
+            <Card variant="default" padding="lg">
+                <div className="text-center">
+                    <p className="text-lg font-semibold text-text-primary mb-2">
+                        Failed to load notification preferences
+                    </p>
+                    <p className="text-text-secondary mb-4">
+                        {error instanceof Error ? error.message : 'An error occurred'}
+                    </p>
+                    <Button variant="primary" onClick={() => window.location.reload()}>
+                        Retry
+                    </Button>
+                </div>
+            </Card>
+        )
+    }
+
+    return (
+        <Card variant="default" padding="lg">
+            <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                    <CardTitle>
+                        {emailMode ? 'Email Notifications' : 'Notification Preferences'}
+                    </CardTitle>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAll(true)}
+                            disabled={isUpdating || isResetting}>
+                            Enable All
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAll(false)}
+                            disabled={isUpdating || isResetting}>
+                            Disable All
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Stack gap="lg">
+                    <p className="text-sm text-text-secondary">
+                        {emailMode 
+                            ? 'Choose which notifications you\'d like to receive via email. You can always change these settings later.'
+                            : 'Choose which notifications you\'d like to receive. You can always change these settings later.'
+                        }
+                    </p>
+
+                    <Stack gap="md">
+                        {notificationTypes.map(({ type, label, description, icon }) => (
+                            <div
+                                key={type}
+                                className="flex items-start justify-between gap-4 py-3 border-b border-border-default last:border-b-0">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-lg">{icon}</span>
+                                        <label
+                                            htmlFor={`notification-${type}`}
+                                            className="text-sm font-medium text-text-primary cursor-pointer">
+                                            {label}
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-text-tertiary">{description}</p>
+                                </div>
+                                <Button
+                                    id={`notification-${type}`}
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={localPreferences[type]}
+                                    onClick={() => handleToggle(type)}
+                                    disabled={isUpdating || isResetting}
+                                    variant="ghost"
+                                    className={`
                                         relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
                                         border-2 border-transparent transition-colors duration-200 ease-in-out
                                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
                                         disabled:opacity-50 disabled:cursor-not-allowed
                                         ${
-											localPreferences[type]
-												? 'bg-primary-600'
-												: 'bg-neutral-200 dark:bg-neutral-700'
-										}
+                                            localPreferences[type]
+                                                ? 'bg-primary-600'
+                                                : 'bg-neutral-200 dark:bg-neutral-700'
+                                        }
                                     `}>
-									<span className="sr-only">
-										{localPreferences[type] ? 'Disable' : 'Enable'} {label}
-									</span>
-									<span
-										aria-hidden="true"
-										className={`
+                                    <span className="sr-only">
+                                        {localPreferences[type] ? 'Disable' : 'Enable'} {label}
+                                    </span>
+                                    <span
+                                        aria-hidden="true"
+                                        className={`
                                             pointer-events-none inline-block h-5 w-5 transform rounded-full
                                             bg-white shadow ring-0 transition duration-200 ease-in-out
                                             ${
-												localPreferences[type]
-													? 'translate-x-5'
-													: 'translate-x-0'
-											}
+                                                localPreferences[type]
+                                                    ? 'translate-x-5'
+                                                    : 'translate-x-0'
+                                            }
                                         `}
-									/>
-								</Button>
-							</div>
-						))}
-					</Stack>
-				</Stack>
-			</CardContent>
-			{hasChanges && (
-				<CardFooter>
-					<Button variant="ghost" size="md" onClick={handleReset} disabled={loading}>
-						Cancel
-					</Button>
-					<Button
-						variant="primary"
-						size="md"
-						onClick={handleSave}
-						loading={loading}
-						disabled={loading}>
-						Save Changes
-					</Button>
-				</CardFooter>
-			)}
-		</Card>
-	)
+                                    />
+                                </Button>
+                            </div>
+                        ))}
+                    </Stack>
+                </Stack>
+            </CardContent>
+            {hasChanges && (
+                <CardFooter>
+                    <Button 
+                        variant="ghost" 
+                        size="md" 
+                        onClick={() => setLocalPreferences(data?.preferences || {})}
+                        disabled={isUpdating || isResetting}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={handleSave}
+                        loading={isUpdating}
+                        disabled={isUpdating || isResetting}>
+                        Save Changes
+                    </Button>
+                </CardFooter>
+            )}
+        </Card>
+    )
 }

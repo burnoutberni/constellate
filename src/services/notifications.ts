@@ -2,6 +2,7 @@ import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { sanitizeText } from '../lib/sanitization.js'
 import { broadcastToUser, BroadcastEvents } from '../realtime.js'
+import { sendNotificationEmail } from '../lib/email.js'
 
 const actorSelect = {
 	id: true,
@@ -99,11 +100,27 @@ export async function createNotification(input: CreateNotificationInput) {
 		include: notificationInclude,
 	})) as NotificationWithActor
 
+	// Send real-time notification via SSE
 	await broadcastToUser(input.userId, {
 		type: BroadcastEvents.NOTIFICATION_CREATED,
 		data: {
 			notification: serializeNotification(notification),
 		},
+	})
+
+	// Send email notification asynchronously (don't wait for it)
+	sendNotificationEmail({
+		userId: input.userId,
+		type: input.type,
+		title: input.title,
+		body: input.body,
+		contextUrl: input.contextUrl,
+		actorName: notification.actor?.name || notification.actor?.username,
+		actorUrl: notification.actor ? `/@${notification.actor.username}` : undefined,
+		data: input.data as Record<string, any>,
+	}).catch((error) => {
+		console.error('Failed to send email notification:', error)
+		// Don't fail the notification creation if email fails
 	})
 
 	return notification

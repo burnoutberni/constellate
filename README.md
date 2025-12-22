@@ -11,6 +11,8 @@ A federated event management platform implementing the ActivityPub protocol for 
 - **User Mentions**: `@username` mentions in comments with real-time notifications
 - **Timezone Support**: User timezone preferences with proper calendar export handling
 - **Event Reminders**: Configurable reminders for RSVP'd events
+- **Real-time Notifications**: In-app notifications via SSE with customizable email preferences
+- **Email Notifications**: Styled email templates for magic links, activity notifications, and system updates
 - **Follow System**: Follow users and build personalized activity feeds
 - **Notifications**: Real-time in-app notifications via SSE
 - **Event Recommendations**: Personalized event suggestions based on interests
@@ -44,6 +46,15 @@ cd client && npm install && cd ..
 # Set up PostgreSQL database
 createdb constellate_dev
 export DATABASE_URL="postgresql://user:password@localhost:5432/constellate_dev?schema=public"
+
+# Set up email (optional for development)
+# See docs/EMAIL_CONFIGURATION.md for detailed setup
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=noreply@localhost
 
 # Set up database
 npx prisma generate
@@ -153,6 +164,7 @@ Key endpoints:
 - **Search**: `GET /api/search` (with filters), `GET /api/search/nearby`
 - **Users**: `POST /api/users/:username/follow`, `GET /api/activity/feed`
 - **Notifications**: `GET /api/notifications`, `POST /api/notifications/:id/read`
+- **Email Preferences**: `GET /api/email-preferences`, `PUT /api/email-preferences`
 - **Reminders**: `GET /api/events/:id/reminders`, `POST /api/events/:id/reminders`
 - **Instances**: `GET /api/instances`, `GET /api/instances/search`
 
