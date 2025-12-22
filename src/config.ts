@@ -28,6 +28,36 @@ function getEnv(key: string, defaultValue: string, requiredInProduction: boolean
 	return value
 }
 
+/**
+ * Helper to retrieve a secret from a file (Docker secret) or environment variable.
+ * Checks for <KEY>_FILE environment variable first, then <KEY>.
+ */
+function getSecret(
+	key: string,
+	defaultValue: string = '',
+	requiredInProduction: boolean = false
+): string {
+	// 1. Try generic _FILE env var (e.g. SMTP_PASS_FILE)
+	const fileVar = process.env[`${key}_FILE`]
+	if (fileVar && existsSync(fileVar)) {
+		try {
+			return readFileSync(fileVar, 'utf-8').trim()
+		} catch (error) {
+			console.warn(`⚠️  Failed to read secret file ${fileVar} for ${key}:`, error)
+		}
+	}
+
+	// 2. Fallback to direct value
+	const value = process.env[key]
+	if (!value) {
+		if (requiredInProduction && process.env.NODE_ENV === 'production') {
+			throw new Error(`Required secret ${key} (or ${key}_FILE) is missing in production`)
+		}
+		return defaultValue
+	}
+	return value
+}
+
 export const config = {
 	// Server configuration
 	port: parseInt(getEnv('PORT', '3000')),
@@ -41,10 +71,10 @@ export const config = {
 
 	// Encryption key for private keys (32 bytes = 64 hex chars)
 	encryptionKey: ((): string => {
-		const key = process.env.ENCRYPTION_KEY
+		const key = getSecret('ENCRYPTION_KEY')
 		const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
 
-		// If key is provided via env var, use it
+		// If key is provided via env var or file, use it
 		if (key) {
 			if (key.length !== 64) {
 				throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
@@ -61,6 +91,8 @@ export const config = {
 
 		// In development, try to read from or create a persistent key file
 		// This ensures the same key is used across container restarts
+		// Note: We use the explicit ENCRYPTION_KEY_FILE logic here for dev auto-generation
+		// which is slightly different from the read-only getSecret behavior.
 		const keyFilePath = process.env.ENCRYPTION_KEY_FILE || '/app/.encryption-key'
 
 		try {
@@ -104,7 +136,7 @@ export const config = {
 
 	// Better Auth configuration
 	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
-	betterAuthSecret: getEnv('BETTER_AUTH_SECRET', '', true), // Required in production
+	betterAuthSecret: getSecret('BETTER_AUTH_SECRET', '', true), // Required in production
 	betterAuthTrustedOrigins: (
 		process.env.BETTER_AUTH_TRUSTED_ORIGINS || 'http://localhost:5173'
 	).split(','),
@@ -155,7 +187,7 @@ export const config = {
 		port: parseInt(getEnv('SMTP_PORT', '587')),
 		secure: getEnv('SMTP_SECURE', 'false') === 'true',
 		user: getEnv('SMTP_USER', ''),
-		pass: getEnv('SMTP_PASS', ''),
+		pass: getSecret('SMTP_PASS', ''),
 		from: getEnv('SMTP_FROM', 'noreply@example.com'),
 	},
 
