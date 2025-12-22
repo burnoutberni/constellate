@@ -4,15 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { prisma } from '../../lib/prisma.js'
-import {
-	sendEmail,
-	sendTemplatedEmail,
-	sendNotificationEmail,
-	getUserEmailPreference,
-} from '../../lib/email.js'
 
-// Mock nodemailer
+// Mock nodemailer before importing email module
 const mockSendMail = vi.fn()
 vi.mock('nodemailer', () => ({
 	default: {
@@ -20,12 +13,38 @@ vi.mock('nodemailer', () => ({
 			sendMail: mockSendMail,
 		})),
 	},
+	createTransport: vi.fn(() => ({
+		sendMail: mockSendMail,
+	})),
 }))
+
+// Mock config
+vi.mock('../../config.js', () => ({
+	config: {
+		smtp: {
+			host: 'smtp.test.com',
+			port: 587,
+			secure: false,
+			user: 'test',
+			pass: 'test',
+			from: 'test@example.com',
+		},
+	},
+}))
+
+// Import after mocks
+const { prisma } = await import('../../lib/prisma.js')
+const { sendEmail, sendTemplatedEmail, sendNotificationEmail, getUserEmailPreference } =
+	await import('../../lib/email.js')
 
 describe('Enhanced Email Library', () => {
 	let testUser: any
 
 	beforeEach(async () => {
+		// Reset mock
+		mockSendMail.mockClear()
+		mockSendMail.mockResolvedValue({ messageId: 'test-message-id' })
+
 		testUser = await prisma.user.create({
 			data: {
 				username: 'testuser',
@@ -113,6 +132,9 @@ describe('Enhanced Email Library', () => {
 			})
 
 			expect(mockSendMail).toHaveBeenCalledWith({
+				to: 'test@example.com',
+				from: 'test@example.com',
+				subject: 'Test Subject',
 				text: 'Hello World!',
 				html: '<p>Hello <strong>World</strong>!</p>',
 			})
@@ -218,8 +240,9 @@ describe('Enhanced Email Library', () => {
 
 			expect(mockSendMail).toHaveBeenCalledWith({
 				to: 'test@example.com',
+				from: 'test@example.com',
 				subject: 'New follower',
-				html: expect.stringContaining('New follower'),
+				html: expect.stringContaining('New Follower'),
 				text: expect.stringContaining('New follower'),
 			})
 
@@ -286,7 +309,8 @@ describe('Enhanced Email Library', () => {
 		})
 
 		it('should handle email sending failure gracefully', async () => {
-			mockSendMail.mockRejectedValue(new Error('SMTP failed'))
+			mockSendMail.mockReset()
+			mockSendMail.mockImplementation(() => Promise.reject(new Error('SMTP failed')))
 
 			const result = await sendNotificationEmail({
 				userId: testUser.id,
@@ -322,7 +346,11 @@ describe('Enhanced Email Library', () => {
 			})
 
 			expect(mockSendMail).toHaveBeenCalledWith({
+				to: 'test@example.com',
+				from: 'test@example.com',
+				subject: 'New comment',
 				html: expect.stringContaining('Actor User'),
+				text: expect.stringContaining('Actor User'),
 			})
 
 			await prisma.user.delete({ where: { id: actor.id } })

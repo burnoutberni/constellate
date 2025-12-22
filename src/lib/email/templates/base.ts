@@ -4,35 +4,35 @@
  */
 
 export interface BaseEmailProps {
-    /** Email subject */
-    subject: string
-    /** Preview text shown in email clients */
-    previewText?: string
-    /** Recipient's first name for personalization */
-    userName?: string
-    /** Main content of the email */
-    children: string
-    /** Footer content override */
-    footerContent?: string
-    /** Brand color for customization */
-    brandColor?: string
+	/** Email subject */
+	subject: string
+	/** Preview text shown in email clients */
+	previewText?: string
+	/** Recipient's first name for personalization */
+	userName?: string
+	/** Main content of the email */
+	children: string
+	/** Footer content override */
+	footerContent?: string
+	/** Brand color for customization */
+	brandColor?: string
 }
 
 export function BaseEmailTemplate({
-    subject,
-    previewText,
-    userName = 'there',
-    children,
-    footerContent,
-    brandColor = '#3b82f6',
+	subject,
+	previewText: _previewText,
+	userName = 'there',
+	children,
+	footerContent,
+	brandColor = '#3b82f6',
 }: BaseEmailProps) {
-    const currentDate = new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    })
+	const currentDate = new Date().toLocaleDateString('en-US', {
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric',
+	})
 
-    return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -118,15 +118,15 @@ export function BaseEmailTemplate({
                 <td style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0;">
                     <div style="color: #64748b; font-size: 14px; line-height: 1.5; text-align: center;" class="email-text-secondary">
                         ${
-                            footerContent ||
-                            `
+							footerContent ||
+							`
                             <p style="margin: 0 0 8px;">This email was sent by Constellate on ${currentDate}</p>
                             <p style="margin: 0;">
                                 <a href="{{{UNSUBSCRIBE_URL}}}" style="color: ${brandColor}; text-decoration: underline;">Unsubscribe</a> | 
                                 <a href="{{{PREFERENCES_URL}}}" style="color: ${brandColor}; text-decoration: underline;">Email Preferences</a>
                             </p>
                         `
-                        }
+						}
                     </div>
                 </td>
             </tr>
@@ -161,31 +161,31 @@ export function BaseEmailTemplate({
  * Button component for email templates
  */
 export interface EmailButtonProps {
-    /** Button text */
-    children: string
-    /** Button URL */
-    href: string
-    /** Button variant */
-    variant?: 'primary' | 'secondary'
-    /** Full width on mobile */
-    fullWidth?: boolean
+	/** Button text */
+	children: string
+	/** Button URL */
+	href: string
+	/** Button variant */
+	variant?: 'primary' | 'secondary'
+	/** Full width on mobile */
+	fullWidth?: boolean
 }
 
 export function EmailButton({
-    children,
-    href,
-    variant = 'primary',
-    fullWidth = false,
+	children,
+	href,
+	variant = 'primary',
+	fullWidth = false,
 }: EmailButtonProps) {
-    const backgroundColor = variant === 'primary' ? '#3b82f6' : '#ffffff'
-    const textColor = variant === 'primary' ? '#ffffff' : '#3b82f6'
-    const borderColor = variant === 'primary' ? '#3b82f6' : '#d1d5db'
+	const backgroundColor = variant === 'primary' ? '#3b82f6' : '#ffffff'
+	const textColor = variant === 'primary' ? '#ffffff' : '#3b82f6'
+	const borderColor = variant === 'primary' ? '#3b82f6' : '#d1d5db'
 
-    return `
+	return `
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="${fullWidth ? 'width: 100%;' : 'display: inline-block;'}">
             <tr>
                 <td style="background-color: ${backgroundColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 12px 24px; text-align: center;">
-                    <a href="${href}" style="color: ${textColor}; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; ${fullWidth ? 'width: 100%;' : ''}">
+                    <a href="${href}" style="color: ${textColor}; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; ${fullWidth ? 'width: 100%;' : ''}" aria-label="${children}">
                         ${children}
                     </a>
                 </td>
@@ -198,28 +198,28 @@ export function EmailButton({
  * Card component for email content sections
  */
 export interface EmailCardProps {
-    /** Card content */
-    children: string
-    /** Card title */
-    title?: string
-    /** Border color */
-    borderColor?: string
+	/** Card content */
+	children: string
+	/** Card title */
+	title?: string
+	/** Border color */
+	borderColor?: string
 }
 
 export function EmailCard({ children, title, borderColor = '#e2e8f0' }: EmailCardProps) {
-    return `
+	return `
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border: 1px solid ${borderColor}; border-radius: 8px; margin: 16px 0;">
             ${
-                title
-                    ? `
+				title
+					? `
             <tr>
                 <td style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid ${borderColor};">
                     <h3 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 600;">${title}</h3>
                 </td>
             </tr>
             `
-                    : ''
-            }
+					: ''
+			}
             <tr>
                 <td style="padding: 20px; color: #475569; font-size: 16px; line-height: 1.6;">
                     ${children}

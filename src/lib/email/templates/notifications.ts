@@ -21,7 +21,7 @@ export interface NotificationEmailProps {
 	/** Actor's profile URL */
 	actorUrl?: string
 	/** Additional notification data */
-	data?: Record<string, any>
+	data?: Record<string, unknown>
 }
 
 function getNotificationIcon(type: string): string {
@@ -55,7 +55,7 @@ export function NotificationEmailTemplate({
 	body,
 	contextUrl,
 	actorName,
-	actorUrl,
+	actorUrl: _actorUrl,
 	data,
 }: NotificationEmailProps) {
 	const icon = getNotificationIcon(type)
@@ -110,86 +110,104 @@ export function NotificationEmailTemplate({
 
 function getTypeSpecificContent(
 	type: string,
-	data?: Record<string, any>,
-	contextUrl?: string
+	data?: Record<string, unknown>,
+	_contextUrl?: string
 ): string {
 	switch (type) {
 		case 'FOLLOW':
-			return `
-				${EmailCard({
-					title: 'New Follower',
-					children: `
-						<p>You have a new follower! They'll now see your public events and updates in their feed.</p>
-						${data?.actorUsername ? `<p><strong>Username:</strong> @${data.actorUsername}</p>` : ''}
-						${data?.actorBio ? `<p><strong>Bio:</strong> ${data.actorBio}</p>` : ''}
-					`,
-				})}
-			`
-
+			return getFollowContent(data)
 		case 'COMMENT':
-			return `
-				${EmailCard({
-					title: 'New Comment',
-					children: `
-						<p>Someone commented on your event.</p>
-						${data?.eventTitle ? `<p><strong>Event:</strong> ${data.eventTitle}</p>` : ''}
-						${data?.commentPreview ? `<p><strong>Comment:</strong> "${data.commentPreview}"</p>` : ''}
-					`,
-				})}
-			`
-
+			return getCommentContent(data)
 		case 'LIKE':
-			return `
-				${EmailCard({
-					title: 'New Like',
-					children: `
-						<p>Someone liked your event!</p>
-						${data?.eventTitle ? `<p><strong>Event:</strong> ${data.eventTitle}</p>` : ''}
-						${data?.totalLikes ? `<p><strong>Total likes:</strong> ${data.totalLikes}</p>` : ''}
-					`,
-				})}
-			`
-
+			return getLikeContent(data)
 		case 'MENTION':
-			return `
-				${EmailCard({
-					title: 'You were mentioned',
-					children: `
-						<p>You were mentioned in a comment.</p>
-						${data?.eventTitle ? `<p><strong>Event:</strong> ${data.eventTitle}</p>` : ''}
-						${data?.commentPreview ? `<p><strong>Comment:</strong> "${data.commentPreview}"</p>` : ''}
-					`,
-				})}
-			`
-
+			return getMentionContent(data)
 		case 'EVENT':
-			return `
-				${EmailCard({
-					title: 'Event Update',
-					children: `
-						<p>There's an update for an event you're attending.</p>
-						${data?.eventTitle ? `<p><strong>Event:</strong> ${data.eventTitle}</p>` : ''}
-						${data?.eventDate ? `<p><strong>Date:</strong> ${new Date(data.eventDate).toLocaleDateString()}</p>` : ''}
-						${data?.updateType ? `<p><strong>Update:</strong> ${data.updateType}</p>` : ''}
-					`,
-				})}
-			`
-
+			return getEventContent(data)
 		case 'SYSTEM':
-			return `
-				${EmailCard({
-					title: 'System Notification',
-					children: `
-						<p>This is an important update from the Constellate platform.</p>
-						${data?.message ? `<p>${data.message}</p>` : ''}
-						${data?.actionRequired ? '<p><strong>Action may be required.</strong></p>' : ''}
-					`,
-				})}
-			`
-
+			return getSystemContent(data)
 		default:
 			return ''
 	}
+}
+
+function getFollowContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'New Follower',
+			children: `
+				<p>You have a new follower! They'll now see your public events and updates in their feed.</p>
+				${data?.actorUsername ? `<p><strong>Username:</strong> @${data.actorUsername}</p>` : ''}
+				${data?.actorBio ? `<p><strong>Bio:</strong> ${data.actorBio}</p>` : ''}
+			`,
+		})}
+	`
+}
+
+function getCommentContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'New Comment',
+			children: `
+				<p>Someone commented on your event.</p>
+				${data?.eventTitle ? `<p>Event: ${data.eventTitle}</p>` : ''}
+				${data?.commentPreview ? `<p><strong>Comment:</strong> "${data.commentPreview}"</p>` : ''}
+			`,
+		})}
+	`
+}
+
+function getLikeContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'New Like',
+			children: `
+				<p>Someone liked your event!</p>
+				${data?.eventTitle ? `<p>Event: ${data.eventTitle}</p>` : ''}
+				${data?.totalLikes ? `<p>Total likes: ${data.totalLikes}</p>` : ''}
+			`,
+		})}
+	`
+}
+
+function getMentionContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'You were mentioned',
+			children: `
+				<p>You were mentioned in a comment.</p>
+				${data?.eventTitle ? `<p><strong>Event:</strong> ${data.eventTitle}</p>` : ''}
+				${data?.commentPreview ? `<p><strong>Comment:</strong> "${data.commentPreview}"</p>` : ''}
+			`,
+		})}
+	`
+}
+
+function getEventContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'Event Update',
+			children: `
+				<p>There's an update for an event you're attending.</p>
+				${data?.eventTitle ? `<p>Event: ${data.eventTitle}</p>` : ''}
+				${data?.eventDate ? `<p>Date: ${new Date(data.eventDate as string).toLocaleDateString()}</p>` : ''}
+				${data?.updateType ? `<p>Update: ${data.updateType}</p>` : ''}
+			`,
+		})}
+	`
+}
+
+function getSystemContent(data?: Record<string, unknown>): string {
+	return `
+		${EmailCard({
+			title: 'System Notification',
+			children: `
+				<p>This is an important update from the Constellate platform.</p>
+				${data?.message ? `<p>${data.message}</p>` : ''}
+				${data?.actionRequired ? '<p><strong>Action may be required.</strong></p>' : ''}
+			`,
+		})}
+	`
 }
 
 /**
@@ -220,12 +238,20 @@ export function WeeklyDigestEmailTemplate({
 	const subject = 'Your weekly digest from Constellate'
 	const previewText = `Catch up on ${notifications.length} notifications from this week`
 
-	const startDateStr = startDate.toLocaleDateString()
-	const endDateStr = endDate.toLocaleDateString()
+	const startDateStr = startDate.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	})
+	const endDateStr = endDate.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	})
 
 	const groupedNotifications = notifications.reduce(
 		(groups, notif) => {
-			const type = notif.type.toLowerCase()
+			const type = notif.type.toUpperCase()
 			if (!groups[type]) groups[type] = []
 			groups[type].push(notif)
 			return groups
@@ -236,40 +262,48 @@ export function WeeklyDigestEmailTemplate({
 	const content = `
 		<p>Here's what happened on Constellate this week (${startDateStr} - ${endDateStr}):</p>
 		
-		${Object.entries(groupedNotifications)
-			.map(
-				([type, notifs]) => `
-			<div style="margin: 24px 0;">
-				<h4 style="margin: 0 0 12px; color: #1e293b; font-size: 16px; font-weight: 600; text-transform: capitalize;">
-					${getNotificationIcon(type)} ${type} (${notifs.length})
-				</h4>
-				${notifs
-					.map(
-						(notif) => `
-					<div style="background-color: #f8fafc; border-left: 3px solid ${getNotificationColor(type)}; padding: 12px 16px; margin-bottom: 8px; border-radius: 0 4px 4px 0;">
-						<p style="margin: 0 0 4px; color: #1e293b; font-weight: 500;">${notif.title}</p>
-						${notif.body ? `<p style="margin: 0 0 8px; color: #64748b; font-size: 14px;">${notif.body}</p>` : ''}
-						${
-							notif.contextUrl
-								? `
-							<a href="${notif.contextUrl}" style="color: ${getNotificationColor(type)}; text-decoration: none; font-size: 14px; font-weight: 500;">
-								View →
-							</a>
-						`
-								: ''
-						}
-						<p style="margin: 4px 0 0; color: #94a3b8; font-size: 12px;">
-							${new Date(notif.createdAt).toLocaleDateString()}
-							${notif.actorName ? ` • ${notif.actorName}` : ''}
-						</p>
-					</div>
-				`
-					)
-					.join('')}
-			</div>
-		`
-			)
-			.join('')}
+		${
+			notifications.length === 0
+				? '<p>You have 0 notifications this week. Check back next time!</p>'
+				: Object.entries(groupedNotifications)
+						.map(
+							([type, notifs]) => `
+				<div style="margin: 24px 0;">
+					<h4 style="margin: 0 0 12px; color: #1e293b; font-size: 16px; font-weight: 600; text-transform: capitalize;">
+						${getNotificationIcon(type)} ${type.toLowerCase()} (${notifs.length})
+					</h4>
+					${notifs
+						.map(
+							(notif) => `
+						<div style="background-color: #f8fafc; border-left: 3px solid ${getNotificationColor(type)}; padding: 12px 16px; margin-bottom: 8px; border-radius: 0 4px 4px 0;">
+							<p style="margin: 0 0 4px; color: #1e293b; font-weight: 500;">${notif.title}</p>
+							${notif.body ? `<p style="margin: 0 0 8px; color: #64748b; font-size: 14px;">${notif.body}</p>` : ''}
+							${
+								notif.contextUrl
+									? `
+								<a href="${notif.contextUrl}" style="color: ${getNotificationColor(type)}; text-decoration: none; font-size: 14px; font-weight: 500;">
+									View →
+								</a>
+							`
+									: ''
+							}
+							<p style="margin: 4px 0 0; color: #94a3b8; font-size: 12px;">
+								${new Date(notif.createdAt).toLocaleDateString('en-US', {
+									month: 'short',
+									day: 'numeric',
+									year: 'numeric',
+								})}
+								${notif.actorName ? ` • ${notif.actorName}` : ''}
+							</p>
+						</div>
+					`
+						)
+						.join('')}
+				</div>
+			`
+						)
+						.join('')
+		}
 		
 		<div style="text-align: center; margin: 32px 0;">
 			${EmailButton({

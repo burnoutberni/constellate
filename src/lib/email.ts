@@ -1,4 +1,5 @@
 import * as nodemailer from 'nodemailer'
+import DOMPurify from 'isomorphic-dompurify'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
@@ -72,8 +73,15 @@ export async function sendTemplatedEmail({
 	// Log email sending for analytics and debugging
 	console.log(`📧 Sending email template: ${templateName} to ${to}`)
 
-	// Store email delivery record if userId provided
-	if (userId) {
+	const result = await sendEmail({
+		to,
+		subject,
+		text: text || generateTextFromHtml(html),
+		html,
+	})
+
+	// Store email delivery record only after successful send
+	if (userId && result) {
 		try {
 			await prisma.emailDelivery.create({
 				data: {
@@ -83,6 +91,7 @@ export async function sendTemplatedEmail({
 					subject,
 					status: 'SENT',
 					sentAt: new Date(),
+					messageId: result.messageId,
 				},
 			})
 		} catch (error) {
@@ -91,26 +100,28 @@ export async function sendTemplatedEmail({
 		}
 	}
 
-	return sendEmail({
-		to,
-		subject,
-		text: text || generateTextFromHtml(html),
-		html,
-	})
+	return result
 }
 
 /**
  * Generate plain text from HTML (basic implementation)
  */
 function generateTextFromHtml(html: string): string {
-	return html
-		.replace(/<[^>]*>/g, '') // Remove HTML tags
+	// Sanitize HTML first to prevent XSS and ensure safe processing
+	const sanitized = DOMPurify.sanitize(html, {
+		ALLOWED_TAGS: [], // Strip all HTML tags
+		ALLOWED_ATTR: [], // No attributes allowed
+	})
+
+	// Decode HTML entities and clean up whitespace
+	return sanitized
 		.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-		.replace(/&amp;/g, '&') // Replace HTML entities
-		.replace(/&lt;/g, '<')
+		.replace(/&lt;/g, '<') // Decode HTML entities
 		.replace(/&gt;/g, '>')
 		.replace(/&quot;/g, '"')
 		.replace(/&#39;/g, "'")
+		.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
+		.replace(/[<>]/g, '') // Remove any remaining < and > to prevent reintroduced tags
 		.replace(/\s+/g, ' ') // Normalize whitespace
 		.trim()
 }
@@ -161,7 +172,7 @@ export async function sendNotificationEmail({
 	contextUrl?: string
 	actorName?: string
 	actorUrl?: string
-	data?: Record<string, any>
+	data?: Record<string, unknown>
 }) {
 	// Check if user has this email notification type enabled
 	const isEnabled = await getUserEmailPreference(userId, type)
@@ -195,11 +206,16 @@ export async function sendNotificationEmail({
 		data,
 	})
 
-	return sendTemplatedEmail({
-		to: user.email,
-		subject: title,
-		html,
-		templateName: `notification_${type.toLowerCase()}`,
-		userId,
-	})
+	try {
+		return await sendTemplatedEmail({
+			to: user.email,
+			subject: title,
+			html,
+			templateName: `notification_${type.toLowerCase()}`,
+			userId,
+		})
+	} catch (error) {
+		console.error('Failed to send email notification:', error)
+		// Don't re-throw - notification failures shouldn't break the app
+	}
 }

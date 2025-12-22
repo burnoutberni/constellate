@@ -63,7 +63,13 @@ app.get('/', moderateRateLimit, async (c) => {
 app.put('/', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
-		const body = await c.req.json()
+
+		let body
+		try {
+			body = await c.req.json()
+		} catch {
+			return c.json({ error: 'Invalid JSON' }, 400)
+		}
 
 		// Validate the preferences object
 		if (!body || typeof body !== 'object') {
@@ -84,16 +90,29 @@ app.put('/', moderateRateLimit, async (c) => {
 			validatedPreferences[key] = value
 		}
 
+		// Fetch existing preferences and merge
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { emailNotifications: true },
+		})
+
+		if (!user) {
+			throw new AppError('USER_NOT_FOUND', 'User not found')
+		}
+
+		const existingPreferences = (user.emailNotifications as Record<string, boolean>) || {}
+		const mergedPreferences = { ...existingPreferences, ...validatedPreferences }
+
 		// Update user preferences
 		await prisma.user.update({
 			where: { id: userId },
 			data: {
-				emailNotifications: validatedPreferences,
+				emailNotifications: mergedPreferences,
 			},
 		})
 
 		return c.json({
-			preferences: validatedPreferences,
+			preferences: mergedPreferences,
 			message: 'Email preferences updated successfully',
 		})
 	} catch (error) {
@@ -145,7 +164,7 @@ app.get('/deliveries', moderateRateLimit, async (c) => {
 
 		const deliveries = await prisma.emailDelivery.findMany({
 			where: { userId },
-			orderBy: { createdAt: 'desc' },
+			orderBy: { sentAt: 'desc' },
 			take: limit,
 			skip: offset,
 			select: {

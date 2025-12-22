@@ -1,7 +1,43 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { useState } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { vi } from 'vitest'
 
 import { NotificationSettings } from './NotificationSettings'
+
+// Mock the hooks
+vi.mock('@/hooks/queries', () => ({
+	useEmailPreferences: () => ({
+		data: {
+			preferences: {
+				FOLLOW: true,
+				COMMENT: true,
+				LIKE: false,
+				MENTION: true,
+				EVENT: true,
+				SYSTEM: true,
+			},
+		},
+		isLoading: false,
+		error: null,
+	}),
+	useUpdateEmailPreferences: () => ({
+		mutate: vi.fn(),
+		isPending: false,
+	}),
+	useResetEmailPreferences: () => ({
+		mutate: vi.fn(),
+		isPending: false,
+	}),
+}))
+
+// Create a client for Storybook
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			retry: false,
+		},
+	},
+})
 
 const meta = {
 	title: 'Components/NotificationSettings',
@@ -10,57 +46,26 @@ const meta = {
 		layout: 'padded',
 	},
 	tags: ['autodocs'],
-	args: {
-		preferences: {},
-		onUpdate: () => {},
-		loading: false,
-	},
-	argTypes: {
-		onUpdate: {
-			control: false,
-		},
-	},
+	decorators: [
+		(Story) => (
+			<QueryClientProvider client={queryClient}>
+				<Story />
+			</QueryClientProvider>
+		),
+	],
 } satisfies Meta<typeof NotificationSettings>
 
 export default meta
 type Story = StoryObj<typeof NotificationSettings>
 
-const SettingsWrapper = () => {
-	const [preferences, setPreferences] = useState<Record<string, boolean>>({
-		FOLLOW: true,
-		COMMENT: true,
-		LIKE: false,
-		MENTION: true,
-		EVENT: true,
-		SYSTEM: true,
-	})
-
-	return (
-		<NotificationSettings
-			preferences={preferences}
-			onUpdate={(newPrefs) => {
-				// Update preferences handler
-				setPreferences(newPrefs)
-			}}
-		/>
-	)
-}
-
 export const Default: Story = {
-	render: () => <SettingsWrapper />,
-}
-
-export const Loading: Story = {
 	args: {
-		loading: true,
+		emailMode: false,
 	},
 }
 
-export const Empty: Story = {
+export const EmailMode: Story = {
 	args: {
-		preferences: {},
-		onUpdate: (_prefs) => {
-			// Update handler
-		},
+		emailMode: true,
 	},
 }

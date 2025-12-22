@@ -117,7 +117,7 @@ export async function createNotification(input: CreateNotificationInput) {
 		contextUrl: input.contextUrl,
 		actorName: notification.actor?.name || notification.actor?.username,
 		actorUrl: notification.actor ? `/@${notification.actor.username}` : undefined,
-		data: input.data as Record<string, any>,
+		data: input.data as Record<string, unknown>,
 	}).catch((error) => {
 		console.error('Failed to send email notification:', error)
 		// Don't fail the notification creation if email fails

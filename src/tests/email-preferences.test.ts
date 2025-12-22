@@ -3,16 +3,11 @@
  * Tests for email preferences management endpoints
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { prisma } from '../../lib/prisma.js'
-import { app } from '../../email-preferences.js'
-import { AppError } from '../../lib/errors.js'
-
-// Mock auth middleware
-const mockRequireAuth = vi.fn()
-vi.mock('../../middleware/auth.js', () => ({
-	requireAuth: mockRequireAuth,
-}))
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { prisma } from '../lib/prisma.js'
+import { app } from '../server.js'
+import { AppError } from '../lib/errors.js'
+import * as authModule from '../auth.js'
 
 describe('Email Preferences API', () => {
 	let testUser: any
@@ -28,7 +23,19 @@ describe('Email Preferences API', () => {
 			},
 		})
 
-		mockRequireAuth.mockReturnValue(testUser.id)
+		// Mock authenticated session by default
+		vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+			user: {
+				id: testUser.id,
+				username: testUser.username,
+				email: testUser.email,
+			},
+			session: {
+				id: 'test-session',
+				userId: testUser.id,
+				expiresAt: new Date(Date.now() + 86400000),
+			},
+		} as any)
 	})
 
 	afterEach(async () => {
@@ -55,8 +62,8 @@ describe('Email Preferences API', () => {
 				},
 			})
 
-			const res = await app.request('/email-preferences')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.preferences).toEqual({
@@ -70,8 +77,8 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should return default preferences when none set', async () => {
-			const res = await app.request('/email-preferences')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.preferences).toEqual({
@@ -85,12 +92,11 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should require authentication', async () => {
-			mockRequireAuth.mockImplementation(() => {
-				throw new AppError('UNAUTHORIZED', 'Authentication required')
-			})
+			// Mock unauthenticated session
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
 
-			const res = await app.request('/email-preferences')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(401)
 			expect(data.error).toBe('UNAUTHORIZED')
@@ -108,13 +114,13 @@ describe('Email Preferences API', () => {
 				SYSTEM: true,
 			}
 
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(newPreferences),
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.preferences).toEqual(newPreferences)
@@ -135,13 +141,13 @@ describe('Email Preferences API', () => {
 				INVALID_KEY: false, // Invalid key
 			}
 
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(invalidPreferences),
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(400)
 			expect(data.error).toBe('Invalid preference key: INVALID_KEY')
@@ -152,13 +158,13 @@ describe('Email Preferences API', () => {
 				FOLLOW: 'not-a-boolean', // Invalid value type
 			}
 
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(invalidPreferences),
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(400)
 			expect(data.error).toBe('Invalid value for FOLLOW: must be boolean')
@@ -186,13 +192,13 @@ describe('Email Preferences API', () => {
 				COMMENT: false,
 			}
 
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(partialUpdate),
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.preferences).toEqual({
@@ -206,24 +212,23 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should require authentication', async () => {
-			mockRequireAuth.mockImplementation(() => {
-				throw new AppError('UNAUTHORIZED', 'Authentication required')
-			})
+			// Mock unauthenticated session
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
 
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ FOLLOW: false }),
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(401)
 			expect(data.error).toBe('UNAUTHORIZED')
 		})
 
 		it('should handle malformed JSON', async () => {
-			const res = await app.request('/email-preferences', {
+			const res = await app.request('/api/email-preferences', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: 'invalid json',
@@ -250,11 +255,11 @@ describe('Email Preferences API', () => {
 				},
 			})
 
-			const res = await app.request('/email-preferences/reset', {
+			const res = await app.request('/api/email-preferences/reset', {
 				method: 'POST',
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.preferences).toEqual({
@@ -284,15 +289,14 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should require authentication', async () => {
-			mockRequireAuth.mockImplementation(() => {
-				throw new AppError('UNAUTHORIZED', 'Authentication required')
-			})
+			// Mock unauthenticated session
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
 
-			const res = await app.request('/email-preferences/reset', {
+			const res = await app.request('/api/email-preferences/reset', {
 				method: 'POST',
 			})
 
-			const data = await res.json()
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(401)
 			expect(data.error).toBe('UNAUTHORIZED')
@@ -335,8 +339,8 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should return email delivery history', async () => {
-			const res = await app.request('/email-preferences/deliveries?limit=10&offset=0')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences/deliveries?limit=10&offset=0')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.deliveries).toHaveLength(3)
@@ -357,8 +361,8 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should paginate results', async () => {
-			const res = await app.request('/email-preferences/deliveries?limit=1&offset=0')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences/deliveries?limit=1&offset=0')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.deliveries).toHaveLength(1)
@@ -370,16 +374,16 @@ describe('Email Preferences API', () => {
 			})
 
 			// Get second page
-			const res2 = await app.request('/email-preferences/deliveries?limit=1&offset=1')
-			const data2 = await res2.json()
+			const res2 = await app.request('/api/email-preferences/deliveries?limit=1&offset=1')
+			const data2 = (await res2.json()) as any
 
 			expect(data2.deliveries).toHaveLength(1)
 			expect(data2.deliveries[0].id).not.toBe(data.deliveries[0].id)
 		})
 
 		it('should limit and clamp parameters', async () => {
-			const res = await app.request('/email-preferences/deliveries?limit=200&offset=-10')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences/deliveries?limit=200&offset=-10')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(200)
 			expect(data.pagination.limit).toBe(100) // Should be clamped to max 100
@@ -387,12 +391,11 @@ describe('Email Preferences API', () => {
 		})
 
 		it('should require authentication', async () => {
-			mockRequireAuth.mockImplementation(() => {
-				throw new AppError('UNAUTHORIZED', 'Authentication required')
-			})
+			// Mock unauthenticated session
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
 
-			const res = await app.request('/email-preferences/deliveries')
-			const data = await res.json()
+			const res = await app.request('/api/email-preferences/deliveries')
+			const data = (await res.json()) as any
 
 			expect(res.status).toBe(401)
 			expect(data.error).toBe('UNAUTHORIZED')

@@ -51,7 +51,7 @@ model User {
   // Privacy settings
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
   isPublicProfile     Boolean @default(true) // Profile visibility: true = public, false = private (followers only)
-  
+
   // Email notification preferences (JSON object with notification types as keys)
   emailNotifications Json? // e.g., {"FOLLOW": true, "COMMENT": false, "LIKE": true, ...}
 
@@ -74,11 +74,11 @@ model User {
   reminders              EventReminder[]
 
   // Auth
-  sessions    Session[]
-  accounts    Account[]
-  apiKeys     ApiKey[]
-  appeals     Appeal[]
-  dataExports DataExport[]
+  sessions        Session[]
+  accounts        Account[]
+  apiKeys         ApiKey[]
+  appeals         Appeal[]
+  dataExports     DataExport[]
   emailDeliveries EmailDelivery[]
 
   @@index([username])
@@ -716,19 +716,19 @@ model EmailDelivery {
   subject      String // Email subject line
 
   // Delivery tracking
-  status     String @default("SENT") // SENT, FAILED, BOUNCED, DELIVERED, OPENED, CLICKED
-  sentAt     DateTime @default(now())
+  status      String    @default("SENT") // SENT, FAILED, BOUNCED, DELIVERED, OPENED, CLICKED
+  sentAt      DateTime  @default(now())
   deliveredAt DateTime?
-  openedAt   DateTime?
-  clickedAt  DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
 
   // Error tracking
   errorMessage String?
   errorCode    String?
-  retryCount   Int @default(0)
+  retryCount   Int     @default(0)
 
   // Provider tracking IDs
-  messageId String? // SMTP message ID
+  messageId  String? // SMTP message ID
   providerId String? // External provider's delivery ID
 
   @@index([userId])

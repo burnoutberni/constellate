@@ -14,7 +14,6 @@ A federated event management platform implementing the ActivityPub protocol for 
 - **Real-time Notifications**: In-app notifications via SSE with customizable email preferences
 - **Email Notifications**: Styled email templates for magic links, activity notifications, and system updates
 - **Follow System**: Follow users and build personalized activity feeds
-- **Notifications**: Real-time in-app notifications via SSE
 - **Event Recommendations**: Personalized event suggestions based on interests
 - **Trending Events**: Algorithm-based trending events with engagement metrics
 - **Recurring Events**: Support for daily, weekly, and monthly recurring schedules

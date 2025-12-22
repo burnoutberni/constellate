@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { 
     useEmailPreferences, 
-    useUpdateEmailPreferences, 
-    useResetEmailPreferences 
+    useUpdateEmailPreferences,
+    useResetEmailPreferences,
+    type EmailPreferences
 } from '@/hooks/queries'
-import type { EmailPreferences } from '@/hooks/queries'
 
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button, CardFooter, Spinner } from './ui'
@@ -68,24 +68,35 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
     const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
-    const [localPreferences, setLocalPreferences] = useState<EmailPreferences>(() => {
-        // Initialize with current preferences or defaults
-        return data?.preferences || {
-            FOLLOW: true,
-            COMMENT: true,
-            LIKE: true,
-            MENTION: true,
-            EVENT: true,
-            SYSTEM: true,
-        }
-    })
+    const defaultPreferences: EmailPreferences = {
+        FOLLOW: true,
+        COMMENT: true,
+        LIKE: true,
+        MENTION: true,
+        EVENT: true,
+        SYSTEM: true,
+    }
+
+    const [localPreferences, setLocalPreferences] = useState<EmailPreferences>(defaultPreferences)
 
     const [hasChanges, setHasChanges] = useState(false)
+    const initializedRef = useRef(false)
 
     // Update local preferences when data changes
-    if (data?.preferences && !hasChanges) {
-        setLocalPreferences(data.preferences)
-    }
+    useEffect(() => {
+        if (data?.preferences && !hasChanges && !initializedRef.current) {
+            setLocalPreferences((prev) => {
+                // Only update if the preferences are actually different
+                const areDifferent = JSON.stringify(prev) !== JSON.stringify(data.preferences)
+                if (areDifferent) {
+                    initializedRef.current = true
+                    return data.preferences
+                }
+                initializedRef.current = true
+                return prev
+            })
+        }
+    }, [data?.preferences, hasChanges])
 
     const handleToggle = (type: keyof EmailPreferences) => {
         setLocalPreferences((prev) => ({
@@ -105,7 +116,8 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const handleReset = () => {
         resetPreferences(undefined, {
-            onSuccess: () => {
+            onSuccess: (response) => {
+                setLocalPreferences(response.preferences)
                 setHasChanges(false)
             },
         })
@@ -164,14 +176,14 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                             variant="ghost"
                             size="sm"
                             onClick={() => toggleAll(true)}
-                            disabled={isUpdating || isResetting}>
+                            disabled={isUpdating}>
                             Enable All
                         </Button>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => toggleAll(false)}
-                            disabled={isUpdating || isResetting}>
+                            disabled={isUpdating}>
                             Disable All
                         </Button>
                     </div>
@@ -208,7 +220,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                                     role="switch"
                                     aria-checked={localPreferences[type]}
                                     onClick={() => handleToggle(type)}
-                                    disabled={isUpdating || isResetting}
+                                    disabled={isUpdating}
                                     variant="ghost"
                                     className={`
                                         relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
@@ -247,16 +259,27 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                     <Button 
                         variant="ghost" 
                         size="md" 
-                        onClick={() => setLocalPreferences(data?.preferences || {})}
-                        disabled={isUpdating || isResetting}>
+                        onClick={() => {
+                            setLocalPreferences(data?.preferences || defaultPreferences)
+                            setHasChanges(false)
+                        }}
+                        disabled={isUpdating}>
                         Cancel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="md"
+                        onClick={handleReset}
+                        loading={isResetting}
+                        disabled={isUpdating || isResetting}>
+                        Reset to Defaults
                     </Button>
                     <Button
                         variant="primary"
                         size="md"
                         onClick={handleSave}
                         loading={isUpdating}
-                        disabled={isUpdating || isResetting}>
+                        disabled={isUpdating}>
                         Save Changes
                     </Button>
                 </CardFooter>

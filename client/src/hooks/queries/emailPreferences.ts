@@ -18,27 +18,6 @@ export interface EmailPreferencesResponse {
 	preferences: EmailPreferences
 }
 
-export interface EmailDelivery {
-	id: string
-	templateName: string
-	subject: string
-	status: string
-	sentAt: string
-	deliveredAt?: string
-	openedAt?: string
-	errorMessage?: string
-}
-
-export interface EmailDeliveriesResponse {
-	deliveries: EmailDelivery[]
-	pagination: {
-		total: number
-		limit: number
-		offset: number
-		hasMore: boolean
-	}
-}
-
 export function useEmailPreferences(options?: { enabled?: boolean }) {
 	const enabled = options?.enabled ?? true
 
@@ -95,26 +74,5 @@ export function useResetEmailPreferences() {
 		onSuccess: (response) => {
 			queryClient.setQueryData(queryKeys.emailPreferences.all(), response)
 		},
-	})
-}
-
-export function useEmailDeliveries(
-	limit = 20,
-	offset = 0,
-	options?: { enabled?: boolean }
-) {
-	const enabled = options?.enabled ?? true
-
-	return useQuery<EmailDeliveriesResponse>({
-		queryKey: queryKeys.emailPreferences.deliveries(limit, offset),
-		queryFn: () =>
-			api.get<EmailDeliveriesResponse>(
-				'/email-preferences/deliveries',
-				{ limit, offset },
-				undefined,
-				'Failed to fetch email delivery history'
-			),
-		enabled,
-		staleTime: 1000 * 60, // 1 minute
 	})
 }

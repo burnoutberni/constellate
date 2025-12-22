@@ -194,7 +194,8 @@ describe('App Routing', () => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
 		sessionStorage.clear()
-		// Ensure API mock resolves immediately
+		// Restore API mock to default implementation
+		vi.mocked(api.get).mockRestore()
 		vi.mocked(api.get).mockResolvedValue({ setupRequired: false })
 	})
 
