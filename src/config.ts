@@ -39,11 +39,16 @@ function getSecret(
 ): string {
 	// 1. Try generic _FILE env var (e.g. SMTP_PASS_FILE)
 	const fileVar = process.env[`${key}_FILE`]
-	if (fileVar && existsSync(fileVar)) {
+	if (fileVar) {
+		if (!existsSync(fileVar)) {
+			throw new Error(`Secret file "${fileVar}" (specified by ${key}_FILE) does not exist.`)
+		}
 		try {
 			return readFileSync(fileVar, 'utf-8').trim()
 		} catch (error) {
-			console.warn(`⚠️  Failed to read secret file ${fileVar} for ${key}:`, error)
+			throw new Error(
+				`Failed to read secret file "${fileVar}" (specified by ${key}_FILE): ${error instanceof Error ? error.message : String(error)}`
+			)
 		}
 	}
 
