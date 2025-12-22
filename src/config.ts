@@ -81,70 +81,7 @@ export const config = {
 	// Database
 	databaseUrl: requireEnv('DATABASE_URL'),
 
-	// Encryption key for private keys (32 bytes = 64 hex chars)
-	encryptionKey: ((): string => {
-		const key = getSecret('ENCRYPTION_KEY')
-		const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
-
-		// If key is provided via env var or file, use it
-		if (key) {
-			if (key.length !== 64) {
-				throw new Error('ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
-			}
-			return key
-		}
-
-		// In production, require the key
-		if (process.env.NODE_ENV === 'production') {
-			throw new Error(
-				'ENCRYPTION_KEY is required in production. Generate with: openssl rand -hex 32'
-			)
-		}
-
-		// In development, try to read from or create a persistent key file
-		// This ensures the same key is used across container restarts
-		// Note: We use the explicit ENCRYPTION_KEY_FILE logic here for dev auto-generation
-		// which is slightly different from the read-only getSecret behavior.
-		const keyFilePath = process.env.ENCRYPTION_KEY_FILE || '/app/.encryption-key'
-
-		try {
-			if (existsSync(keyFilePath)) {
-				const fileKey = readFileSync(keyFilePath, 'utf8').trim()
-				if (fileKey.length === 64) {
-					if (!isTest) {
-						console.log(`✅ Loaded encryption key from ${keyFilePath}`)
-					}
-					return fileKey
-				} else {
-					console.warn(
-						`⚠️  Encryption key file exists but has invalid length, generating new key`
-					)
-				}
-			}
-
-			// Generate a new key and save it
-			const devKey = randomBytes(32).toString('hex')
-			writeFileSync(keyFilePath, devKey, { mode: 0o600 }) // Read/write for owner only
-
-			if (!isTest) {
-				console.log(`✅ Generated and saved encryption key to ${keyFilePath}`)
-				console.log('   This key will persist across container restarts in development.')
-			}
-			return devKey
-		} catch {
-			// If file operations fail (e.g., in tests or read-only filesystem), fall back to in-memory key
-			const devKey = randomBytes(32).toString('hex')
-			if (!isTest) {
-				console.warn(
-					'⚠️  WARNING: Could not persist encryption key to file. Using in-memory key.'
-				)
-				console.warn(
-					'   This key will be lost on restart. Set ENCRYPTION_KEY environment variable.'
-				)
-			}
-			return devKey
-		}
-	})(),
+	encryptionKey: getSecret('ENCRYPTION_KEY', randomBytes(32).toString('hex'),true), // Required in production
 
 	// Better Auth configuration
 	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
