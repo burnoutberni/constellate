@@ -5,30 +5,34 @@ import { vi } from 'vitest'
 import { NotificationSettings } from './NotificationSettings'
 
 // Mock the hooks
-vi.mock('@/hooks/queries', () => ({
-	useEmailPreferences: () => ({
-		data: {
-			preferences: {
-				FOLLOW: true,
-				COMMENT: true,
-				LIKE: false,
-				MENTION: true,
-				EVENT: true,
-				SYSTEM: true,
-			},
+vi.mock('@/hooks/queries', () => {
+	const data = {
+		preferences: {
+			FOLLOW: true,
+			COMMENT: true,
+			LIKE: false,
+			MENTION: true,
+			EVENT: true,
+			SYSTEM: true,
 		},
-		isLoading: false,
-		error: null,
-	}),
-	useUpdateEmailPreferences: () => ({
-		mutate: vi.fn(),
-		isPending: false,
-	}),
-	useResetEmailPreferences: () => ({
-		mutate: vi.fn(),
-		isPending: false,
-	}),
-}))
+	}
+
+	return {
+		useEmailPreferences: () => ({
+			data,
+			isLoading: false,
+			error: null,
+		}),
+		useUpdateEmailPreferences: () => ({
+			mutate: vi.fn(),
+			isPending: false,
+		}),
+		useResetEmailPreferences: () => ({
+			mutate: vi.fn(),
+			isPending: false,
+		}),
+	}
+})
 
 // Create a client for Storybook
 const queryClient = new QueryClient({
