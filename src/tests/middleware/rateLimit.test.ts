@@ -321,4 +321,23 @@ describe('Rate Limiting Middleware', () => {
 			}
 		})
 	})
+
+	describe('Collision Prevention', () => {
+		it('should prevent collisions between different rate limiters', async () => {
+			mockRequest.header.mockImplementation((name: string) => {
+				if (name === 'x-forwarded-for') return uniqueIp
+				return undefined
+			})
+
+			// 1. Use lenient limit 20 times (allowed, max 200)
+			for (let i = 0; i < 20; i++) {
+				await lenientRateLimit(mockContext, mockNext)
+			}
+
+			// 2. Try to use strict limit (max 10)
+			// Should NOT throw because they should have different scopes
+			// If they collided, count would be 20, which is > 10, so strict limit would throw
+			await strictRateLimit(mockContext, mockNext)
+		})
+	})
 })
