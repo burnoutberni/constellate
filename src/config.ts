@@ -3,8 +3,7 @@
  * Validates and exports environment variables with proper defaults
  */
 
-import { randomBytes } from 'crypto'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 
 function requireEnv(key: string): string {
 	const value = process.env[key]
@@ -43,29 +42,22 @@ function getSecret(
 	const fileVar = process.env[`${key}_FILE`]
 	if (fileVar) {
 		if (!existsSync(fileVar)) {
-			throw new Error(`Secret file "${fileVar}" (specified by ${key}_FILE) does not exist.`)
+			throw new Error(`Secret file (specified by ${key}_FILE) does not exist.`)
 		}
 		try {
 			value = readFileSync(fileVar, 'utf-8').trim()
-		} catch (error) {
-			throw new Error(
-				`Failed to read secret file "${fileVar}" (specified by ${key}_FILE): ${error instanceof Error ? error.message : String(error)}`
-			)
+		} catch {
+			throw new Error(`Failed to read secret file (specified by ${key}_FILE)}`)
 		}
-	} else {
-		// 2. Fallback to direct value if no file var is specified
-		value = process.env[key] || ''
 	}
 
-	// 3. Unified Validation
-	if (!value) {
-		if (requiredInProduction && process.env.NODE_ENV === 'production') {
-			throw new Error(
-				`Required secret ${key} (or ${key}_FILE) is missing or empty in production`
-			)
-		}
-		return defaultValue
+	// 2. If production requires file, throw an error if not found
+	if (requiredInProduction && process.env.NODE_ENV === 'production') {
+		throw new Error(`Required secret ${key} (or ${key}_FILE) is missing or empty in production`)
 	}
+
+	// 3. Fallback to direct value if no file var is specified
+	value = process.env[key] || defaultValue
 
 	return value
 }
@@ -83,7 +75,7 @@ export const config = {
 
 	// Encryption key for private keys (32 bytes = 64 hex chars)
 	encryptionKey: ((): string => {
-		const key = getSecret('ENCRYPTION_KEY')
+		const key = getSecret('ENCRYPTION_KEY', '', true)
 		if (!key) {
 			throw new Error(
 				'Required secret ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) is missing. Generate with: openssl rand -hex 32'
@@ -98,7 +90,7 @@ export const config = {
 	// Better Auth configuration
 	betterAuthUrl: getEnv('BETTER_AUTH_URL', 'http://localhost:3000/api/auth'),
 	betterAuthSecret: ((): string => {
-		const secret = getSecret('BETTER_AUTH_SECRET')
+		const secret = getSecret('BETTER_AUTH_SECRET', '', true)
 		if (!secret) {
 			throw new Error(
 				'Required secret BETTER_AUTH_SECRET (or BETTER_AUTH_SECRET_FILE) is missing. Generate with: openssl rand -base64 32'
