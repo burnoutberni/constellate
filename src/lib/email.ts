@@ -1,16 +1,6 @@
 import * as nodemailer from 'nodemailer'
 import DOMPurify from 'isomorphic-dompurify'
 import { config } from '../config.js'
-function replaceEmailPlaceholders(html: string): string {
-	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
-	return html
-		.replace(/\{\{\{UNSUBSCRIBE_URL\}\}\}/g, baseUrl ? `${baseUrl}/email/unsubscribe` : '#')
-		.replace(
-			/\{\{\{PREFERENCES_URL\}\}\}/g,
-			baseUrl ? `${baseUrl}/settings/email-preferences` : '#'
-		)
-		.replace(/\{\{\{NOTIFICATIONS_URL\}\}\}/g, baseUrl ? `${baseUrl}/notifications` : '#')
-}
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
 
@@ -23,6 +13,17 @@ const transporter = nodemailer.createTransport({
 		pass: config.smtp.pass,
 	},
 })
+
+function replaceEmailPlaceholders(html: string): string {
+	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
+	return html
+		.replace(/\{\{\{UNSUBSCRIBE_URL\}\}\}/g, baseUrl ? `${baseUrl}/email/unsubscribe` : '#')
+		.replace(
+			/\{\{\{PREFERENCES_URL\}\}\}/g,
+			baseUrl ? `${baseUrl}/settings/email-preferences` : '#'
+		)
+		.replace(/\{\{\{NOTIFICATIONS_URL\}\}\}/g, baseUrl ? `${baseUrl}/notifications` : '#')
+}
 
 export async function sendEmail({
 	to,
@@ -115,32 +116,26 @@ export async function sendTemplatedEmail({
 	return result
 }
 
-function removeHtmlTags(html: string): string {
-	const tmp = DOMPurify.sanitize(html, {
-		ALLOWED_TAGS: [], // Remove all tags
-		ALLOWED_ATTR: [], // Remove all attributes
-	})
-	return tmp.replace(/\s+/g, ' ').trim() // Normalize whitespace
-}
-
 /**
  * Generate plain text from HTML (basic implementation)
  */
 function generateTextFromHtml(html: string): string {
 	// Sanitize HTML first to prevent XSS and ensure safe processing
-	const sanitized = removeHtmlTags(html)
+	const sanitized = DOMPurify.sanitize(html, {
+		ALLOWED_TAGS: [], // Remove all tags
+		ALLOWED_ATTR: [], // Remove all attributes
+	})
 
-	// Remove any remaining HTML tags (just in case)
-	return removeHtmlTags(
-		// Decode HTML entities and clean up whitespace
-		sanitized
-			.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-			.replace(/&lt;/g, '<') // Decode HTML entities
-			.replace(/&gt;/g, '>')
-			.replace(/&quot;/g, '"')
-			.replace(/&#39;/g, "'")
-			.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
-	)
+	// Decode HTML entities and clean up whitespace
+	return sanitized
+		.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+		.replace(/&lt;/g, '<') // Decode HTML entities
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
+		.replace(/\s+/g, ' ')
+		.trim() // Normalize whitespace
 }
 
 /**

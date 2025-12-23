@@ -68,16 +68,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
     const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
-    const defaultPreferences: EmailPreferences = {
-        FOLLOW: true,
-        COMMENT: true,
-        LIKE: true,
-        MENTION: true,
-        EVENT: true,
-        SYSTEM: true,
-    }
-
-    const [localPreferences, setLocalPreferences] = useState<EmailPreferences>(defaultPreferences)
+    const [localPreferences, setLocalPreferences] = useState<EmailPreferences | null>(null)
 
 
     const [hasChanges, setHasChanges] = useState(false)
@@ -95,14 +86,16 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     }, [data?.preferences])
 
     const handleToggle = (type: keyof EmailPreferences) => {
-        setLocalPreferences((prev) => ({
+        if (!localPreferences) {return}
+        setLocalPreferences((prev) => prev ? ({
             ...prev,
             [type]: !prev[type],
-        }))
+        }) : prev)
         setHasChanges(true)
     }
 
     const handleSave = () => {
+        if (!localPreferences) {return}
         updatePreferences(localPreferences, {
             onSuccess: () => {
                 setHasChanges(false)
@@ -120,6 +113,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     }
 
     const toggleAll = (enabled: boolean) => {
+        if (!localPreferences) {return}
         const updated: EmailPreferences = {
             FOLLOW: enabled,
             COMMENT: enabled,
@@ -159,6 +153,9 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
             </Card>
         )
     }
+
+    // If preferences are not loaded yet, don't render the form (loading state is handled above)
+    if (!localPreferences) {return null}
 
     return (
         <Card variant="default" padding="lg">
@@ -256,7 +253,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                         variant="ghost" 
                         size="md" 
                         onClick={() => {
-                            setLocalPreferences(data?.preferences || defaultPreferences)
+                            setLocalPreferences(data?.preferences || null)
                             setHasChanges(false)
                         }}
                         disabled={isUpdating}>
