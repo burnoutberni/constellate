@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import {
     useEmailPreferences,
@@ -68,25 +68,32 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
     const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
-
     const [localPreferences, setLocalPreferences] = useState<EmailPreferences | null>(null)
     const [hasChanges, setHasChanges] = useState(false)
     const [showResetConfirm, setShowResetConfirm] = useState(false)
 
+    // Store the initial preferences when editing begins
+    const initialPreferencesRef = useRef<EmailPreferences | null>(null)
 
     useEffect(() => {
         // Sync local state with server data, but only if there are no unsaved local changes.
         // This prevents overwriting user's edits if data is refetched in the background.
         if (data?.preferences && !hasChanges) {
             setLocalPreferences(data.preferences)
+            initialPreferencesRef.current = data.preferences
         }
         // `hasChanges` is intentionally omitted from the dependency array. We only want this
         // effect to run when `data.preferences` from the server changes.
         /* eslint-disable react-hooks/exhaustive-deps */
     }, [data?.preferences])
 
+
     const handleToggle = (type: keyof EmailPreferences) => {
         if (!localPreferences) { return }
+        // When the user makes their first change, store the initial preferences
+        if (!hasChanges && initialPreferencesRef.current == null && localPreferences) {
+            initialPreferencesRef.current = { ...localPreferences }
+        }
         setLocalPreferences((prev) => prev ? ({
             ...prev,
             [type]: !prev[type],
@@ -94,19 +101,24 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
         setHasChanges(true)
     }
 
+
     const handleSave = () => {
         if (!localPreferences) { return }
         updatePreferences(localPreferences, {
             onSuccess: () => {
                 setHasChanges(false)
+                // After saving, update the initial preferences snapshot
+                initialPreferencesRef.current = { ...localPreferences }
             },
         })
     }
 
 
+
     const handleReset = () => {
         setShowResetConfirm(true)
     }
+
 
     const confirmReset = () => {
         resetPreferences(undefined, {
@@ -114,17 +126,24 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                 setLocalPreferences(response.preferences)
                 setHasChanges(false)
                 setShowResetConfirm(false)
+                // After reset, update the initial preferences snapshot
+                initialPreferencesRef.current = response.preferences
             },
         })
     }
+
 
     const cancelReset = () => {
         setShowResetConfirm(false)
     }
 
+
     const toggleAll = (enabled: boolean) => {
         if (!localPreferences) { return }
-
+        // When the user makes their first change, store the initial preferences
+        if (!hasChanges && initialPreferencesRef.current == null && localPreferences) {
+            initialPreferencesRef.current = { ...localPreferences }
+        }
         const updated = notificationTypes.reduce<EmailPreferences>(
             (acc, { type }) => {
                 acc[type] = enabled
@@ -132,7 +151,6 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
             },
             { ...localPreferences }
         )
-
         setLocalPreferences(updated)
         setHasChanges(true)
     }
@@ -262,7 +280,8 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                         variant="ghost"
                         size="md"
                         onClick={() => {
-                            setLocalPreferences(data?.preferences || null)
+                            // Revert to the initial preferences snapshot
+                            setLocalPreferences(initialPreferencesRef.current ? { ...initialPreferencesRef.current } : localPreferences)
                             setHasChanges(false)
                         }}
                         disabled={isUpdating}>
