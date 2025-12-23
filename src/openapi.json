@@ -4454,7 +4454,7 @@
 						"application/json": {
 							"schema": {
 								"type": "object",
-								"required": ["email", "username", "name"],
+								"required": ["email", "username", "name", "password"],
 								"properties": {
 									"email": {
 										"type": "string",
