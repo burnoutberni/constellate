@@ -80,6 +80,65 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 	) => {
 		const contentRef = useRef<HTMLDivElement>(null)
 
+		// Focus management
+		useEffect(() => {
+			if (!isOpen) {return}
+
+			const previousActiveElement = document.activeElement as HTMLElement
+			const contentElement = contentRef.current
+
+			if (contentElement) {
+				const focusableElements = contentElement.querySelectorAll(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+				const firstElement = focusableElements[0] as HTMLElement
+
+				if (firstElement) {
+					firstElement.focus()
+				} else {
+					contentElement.setAttribute('tabindex', '-1')
+					contentElement.focus()
+				}
+			}
+
+			const handleTabKey = (e: KeyboardEvent) => {
+				if (e.key === 'Tab') {
+					if (!contentElement) {return}
+
+					const focusableElements = contentElement.querySelectorAll(
+						'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+					)
+
+					if (focusableElements.length === 0) {
+						e.preventDefault()
+						return
+					}
+
+					const firstElement = focusableElements[0] as HTMLElement
+					const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+					if (e.shiftKey) {
+						if (document.activeElement === firstElement) {
+							e.preventDefault()
+							lastElement.focus()
+						}
+					} else {
+						if (document.activeElement === lastElement) {
+							e.preventDefault()
+							firstElement.focus()
+						}
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTabKey)
+
+			return () => {
+				document.removeEventListener('keydown', handleTabKey)
+				previousActiveElement?.focus()
+			}
+		}, [isOpen])
+
 		// Handle escape key
 		useEffect(() => {
 			if (!isOpen || !closeOnEscape) {
@@ -157,4 +216,3 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 )
 
 Modal.displayName = 'Modal'
-
