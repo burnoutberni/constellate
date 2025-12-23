@@ -18,9 +18,13 @@ app.post('/', async (c) => {
 	const body = await c.req.json()
 	const { email, password, name, username, tosAccepted } = body
 
-	// Validate input first
-	if (!email?.trim() || !password?.trim() || !username?.trim() || !name?.trim()) {
-		return c.json({ error: 'Missing required fields' }, 400)
+	const requiredFields = { email, password, name, username }
+	const missingFields = Object.entries(requiredFields)
+		.filter(([, value]) => !value?.trim())
+		.map(([key]) => key)
+
+	if (missingFields.length > 0) {
+		return c.json({ error: `Missing required fields: ${missingFields.join(', ')}` }, 400);
 	}
 
 	if (!tosAccepted) {
