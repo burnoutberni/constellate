@@ -44,6 +44,9 @@ model User {
 
   // Admin role
   isAdmin Boolean @default(false) // Admin users can moderate content
+  
+  // Password status (computed/synced)
+  hasPassword Boolean @default(false)
 
   // Bot flag
   isBot Boolean @default(false) // Bot users (for crawlers, automated accounts)

@@ -16,6 +16,7 @@ export interface User {
 	isAdmin?: boolean
 	autoAcceptFollowers?: boolean
 	isPublicProfile: boolean
+	hasPassword?: boolean
 }
 
 export interface UserProfile extends User {

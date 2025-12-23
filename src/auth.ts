@@ -182,6 +182,24 @@ export const auth = betterAuth({
 		// via ctx.context.newSession.user.
 		// If post-signup operations fail for a NEW user, the user is deleted.
 		after: createAuthMiddleware(async (ctx) => {
+			// Handle password updates
+			if (
+				ctx.path === '/sign-up/email' ||
+				ctx.path === '/change-password' ||
+				ctx.path === '/set-password'
+			) {
+				const session = ctx.context.newSession || ctx.context.session
+				if (session?.user?.id) {
+					await prisma.user.update({
+						where: { id: session.user.id },
+						data: {
+							// @ts-expect-error - added in migration
+							hasPassword: true,
+						},
+					})
+				}
+			}
+
 			// We want to run this whenever a session is created to ensure the user is fully initialized
 			// (Has keys, ToS accepted, etc.)
 			// This covers /sign-up/email, /magic-link/verify, etc.

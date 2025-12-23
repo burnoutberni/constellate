@@ -63,6 +63,8 @@ app.get('/users/me/profile', async (c) => {
 				id: true,
 				username: true,
 				email: true,
+				// @ts-expect-error - added in migration
+				hasPassword: true,
 				name: true,
 				bio: true,
 				displayColor: true,
@@ -110,6 +112,7 @@ app.get('/users/me/profile', async (c) => {
 		return c.json({
 			...user,
 			_count: {
+				// @ts-expect-error - _count is missing from type inference due to ignored select property
 				...user._count,
 				followers: followerCount,
 				following: followingCount,

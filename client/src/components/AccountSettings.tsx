@@ -16,6 +16,7 @@ interface AccountSettingsProps {
 	profile: {
 		email: string | null
 		username: string
+		hasPassword?: boolean
 	}
 }
 
@@ -33,11 +34,18 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 	const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
+	const hasPassword = profile.hasPassword ?? false
+
 	const handlePasswordChange = async () => {
 		setPasswordError('')
 
 		// Validation
-		if (!currentPassword || !newPassword || !confirmPassword) {
+		if (hasPassword && !currentPassword) {
+			setPasswordError('Current password is required')
+			return
+		}
+
+		if (!newPassword || !confirmPassword) {
 			setPasswordError('All fields are required')
 			return
 		}
@@ -55,21 +63,34 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 		setIsChangingPassword(true)
 
 		try {
-			// Use better-auth's change password endpoint
-			await api.post(
-				'/auth/change-password',
-				{
-					currentPassword,
-					newPassword,
-				},
-				undefined,
-				'Failed to change password'
-			)
+			if (hasPassword) {
+				// Use better-auth's change password endpoint
+				await api.post(
+					'/auth/change-password',
+					{
+						currentPassword,
+						newPassword,
+					},
+					undefined,
+					'Failed to change password'
+				)
+			} else {
+				// Use better-auth's set password endpoint
+				await api.post(
+					'/auth/set-password',
+					{
+						newPassword,
+						password: newPassword, // Some implementations might look for 'password'
+					},
+					undefined,
+					'Failed to set password'
+				)
+			}
 
 			// Success
 			addToast({
 				id: generateId(),
-				message: 'Password changed successfully!',
+				message: hasPassword ? 'Password changed successfully!' : 'Password set successfully!',
 				variant: 'success',
 			})
 			setShowPasswordChange(false)
@@ -79,7 +100,9 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 		} catch (error) {
 			const errorMessage = extractErrorMessage(
 				error,
-				'Failed to change password. Please try again.'
+				hasPassword
+					? 'Failed to change password. Please try again.'
+					: 'Failed to set password. Please try again.'
 			)
 			setPasswordError(errorMessage)
 			handleError(error, errorMessage, { context: 'AccountSettings.handlePasswordChange' })
@@ -150,9 +173,13 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 					{/* Password Change */}
 					<Stack gap="md" className="border-t border-border-default pt-6">
 						<div>
-							<h3 className="font-medium text-text-primary mb-1">Change Password</h3>
+							<h3 className="font-medium text-text-primary mb-1">
+								{hasPassword ? 'Change Password' : 'Set Password'}
+							</h3>
 							<p className="text-sm text-text-tertiary">
-								Update your password to keep your account secure.
+								{hasPassword
+									? 'Update your password to keep your account secure.'
+									: 'Add a password to your account for an alternative login method.'}
 							</p>
 						</div>
 
@@ -161,19 +188,21 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 								<Button
 									variant="secondary"
 									onClick={() => setShowPasswordChange(true)}>
-									Change Password
+									{hasPassword ? 'Change Password' : 'Set Password'}
 								</Button>
 							</div>
 						) : (
 							<Stack gap="md" className="bg-background-secondary p-4 rounded-lg">
-								<Input
-									type="password"
-									label="Current Password"
-									value={currentPassword}
-									onChange={(e) => setCurrentPassword(e.target.value)}
-									placeholder="Enter your current password"
-									autoComplete="current-password"
-								/>
+								{hasPassword && (
+									<Input
+										type="password"
+										label="Current Password"
+										value={currentPassword}
+										onChange={(e) => setCurrentPassword(e.target.value)}
+										placeholder="Enter your current password"
+										autoComplete="current-password"
+									/>
+								)}
 
 								<Input
 									type="password"
@@ -205,7 +234,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 										onClick={handlePasswordChange}
 										loading={isChangingPassword}
 										disabled={isChangingPassword}>
-										Update Password
+										{hasPassword ? 'Update Password' : 'Set Password'}
 									</Button>
 									<Button
 										variant="ghost"

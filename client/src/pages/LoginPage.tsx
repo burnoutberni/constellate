@@ -19,7 +19,9 @@ export function LoginPage() {
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 	const [success, setSuccess] = useState(false)
-	const { user, sendMagicLink } = useAuth()
+	const [usePassword, setUsePassword] = useState(false)
+	const [password, setPassword] = useState('')
+	const { user, sendMagicLink, login, signup } = useAuth()
 
 	// Redirect if already logged in
 	if (user) {
@@ -38,16 +40,24 @@ export function LoginPage() {
 		setLoading(true)
 
 		try {
-			if (isLogin) {
-				await sendMagicLink(email)
+			if (usePassword) {
+				if (isLogin) {
+					await login(email, password)
+				} else {
+					await signup(email, password, name, username, tosAccepted)
+				}
 			} else {
-				await sendMagicLink(email, {
-					name,
-					username,
-					tosAccepted,
-				})
+				if (isLogin) {
+					await sendMagicLink(email)
+				} else {
+					await sendMagicLink(email, {
+						name,
+						username,
+						tosAccepted,
+					})
+				}
+				setSuccess(true)
 			}
-			setSuccess(true)
 		} catch (err: unknown) {
 			const errorMessage = extractErrorMessage(
 				err,
@@ -64,6 +74,7 @@ export function LoginPage() {
 		setIsLogin(!isLogin)
 		setError('')
 		setSuccess(false)
+		// Don't reset usePassword, let them stay in their preferred mode
 	}
 
 	if (success) {
@@ -155,6 +166,19 @@ export function LoginPage() {
 							required
 						/>
 
+						{usePassword && (
+							<div className="animate-in fade-in slide-in-from-top-2 duration-300">
+								<Input
+									type="password"
+									label="Password"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									placeholder="Your password"
+									required
+								/>
+							</div>
+						)}
+
 						{!isLogin && (
 							<div className="animate-in fade-in slide-in-from-top-2 duration-300">
 								<TermsOfServiceAgreement
@@ -166,9 +190,26 @@ export function LoginPage() {
 						)}
 
 						<Button type="submit" disabled={loading} loading={loading} fullWidth size="lg">
-							{isLogin ? 'Send Magic Link' : 'Create Account'}
+							{usePassword
+								? isLogin
+									? 'Sign In'
+									: 'Create Account'
+								: isLogin
+									? 'Send Magic Link'
+									: 'Create Account'}
 						</Button>
 					</form>
+
+					<div className="mt-4 text-center">
+						<Button
+							type="button"
+							onClick={() => setUsePassword(!usePassword)}
+							variant="ghost"
+							size="sm"
+							className="text-text-secondary hover:text-text-primary">
+							{usePassword ? 'Use magic link instead' : 'Use password instead'}
+						</Button>
+					</div>
 
 					<div className="mt-6 text-center text-sm text-text-tertiary">
 						<p>
