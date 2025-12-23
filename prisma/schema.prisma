@@ -11,6 +11,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Theme {
+  LIGHT
+  DARK
+}
+
 // User model - supports both local and remote (federated) users
 model User {
   id        String   @id @default(cuid())
@@ -30,6 +35,7 @@ model User {
   // Profile customization
   displayColor String  @default("#3b82f6") // User's color for calendar events
   timezone     String  @default("UTC") // Preferred IANA timezone identifier
+  theme        Theme? // User's theme preference: 'LIGHT', 'DARK', or null for system default
   bio          String?
   profileImage String? // URL to profile image
   headerImage  String? // URL to header/banner image

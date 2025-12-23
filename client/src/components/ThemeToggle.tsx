@@ -11,18 +11,40 @@
  * - Uses proper accessibility labels
  */
 
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
 import { useTheme } from '@/design-system'
+import { queryKeys } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/lib/api-client'
 
 import { Button } from './ui'
 
 export function ThemeToggle() {
-    const { theme, toggleTheme, systemPreference, hasUserPreference } = useTheme()
+    const { user } = useAuth()
+    const { theme, systemPreference, hasUserPreference } = useTheme()
+    const queryClient = useQueryClient()
+
+    const updateThemeMutation = useMutation({
+        mutationFn: async (newTheme: 'LIGHT' | 'DARK') => {
+            return api.put('/profile', { theme: newTheme }, undefined, 'Failed to update theme preference')
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(user?.id) })
+        },
+    })
+
+    const handleToggleTheme = () => {
+        const newTheme = theme === 'LIGHT' ? 'DARK' : 'LIGHT'
+        // Save to profile - the theme will update when the profile query invalidates
+        updateThemeMutation.mutate(newTheme)
+    }
 
     const getToggleLabel = () => {
         if (!hasUserPreference) {
-            return `Switch to ${theme === 'light' ? 'dark' : 'light'} mode (current: ${theme}, system: ${systemPreference})`
+            return `Switch to ${theme === 'LIGHT' ? 'DARK' : 'LIGHT'} mode (current: ${theme}, system: ${systemPreference})`
         }
-        return `Switch to ${theme === 'light' ? 'dark' : 'light'} mode (your preference: ${theme})`
+        return `Switch to ${theme === 'LIGHT' ? 'DARK' : 'LIGHT'} mode (your preference: ${theme})`
     }
 
     const getTitle = () => {
@@ -34,14 +56,14 @@ export function ThemeToggle() {
 
     return (
         <Button
-            onClick={toggleTheme}
+            onClick={handleToggleTheme}
             variant="secondary"
             size="sm"
             aria-label={getToggleLabel()}
             title={getTitle()}>
-            <span className="text-lg">{theme === 'light' ? '🌙' : '☀️'}</span>
+            <span className="text-lg">{theme === 'LIGHT' ? '🌙' : '☀️'}</span>
             <span className="text-sm font-medium hidden sm:inline">
-                {theme === 'light' ? 'Dark' : 'Light'}
+                {theme === 'LIGHT' ? 'Dark' : 'Light'}
             </span>
             {!hasUserPreference && (
                 <span className="text-xs text-text-tertiary hidden md:inline ml-1">

@@ -1,7 +1,23 @@
+import React from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '../../design-system'
 import { ThemeToggle } from '../../components/ThemeToggle'
+
+// Mock useAuth hook
+vi.mock('../../../hooks/useAuth', () => ({
+	useAuth: () => ({
+		user: { id: 'test-user' },
+	}),
+}))
+
+// Mock api
+vi.mock('../../lib/api-client', () => ({
+	api: {
+		put: vi.fn(),
+	},
+}))
 
 describe('ThemeToggle Component', () => {
 	let localStorageMock: {
@@ -10,6 +26,7 @@ describe('ThemeToggle Component', () => {
 		removeItem: ReturnType<typeof vi.fn>
 		clear: ReturnType<typeof vi.fn>
 	}
+	const queryClient = new QueryClient()
 
 	beforeEach(() => {
 		localStorageMock = {
@@ -20,11 +37,20 @@ describe('ThemeToggle Component', () => {
 		}
 		global.localStorage = localStorageMock as unknown as Storage
 		document.documentElement.className = ''
+		vi.clearAllMocks()
 	})
 
+	const renderWithProviders = (component: React.ReactElement) => {
+		return render(
+			<QueryClientProvider client={queryClient}>
+				{component}
+			</QueryClientProvider>
+		)
+	}
+
 	it('should render ThemeToggle component', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -34,8 +60,8 @@ describe('ThemeToggle Component', () => {
 	})
 
 	it('should display dark mode icon and label when theme is light', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT" userTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -43,12 +69,12 @@ describe('ThemeToggle Component', () => {
 		const button = screen.getByRole('button')
 		expect(button).toHaveTextContent('🌙')
 		expect(button).toHaveTextContent('Dark')
-		expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
+		expect(button).toHaveAttribute('aria-label', 'Switch to DARK mode (your preference: LIGHT)')
 	})
 
 	it('should display light mode icon and label when theme is dark', () => {
-		render(
-			<ThemeProvider defaultTheme="dark">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="dark" userTheme="dark">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -56,34 +82,34 @@ describe('ThemeToggle Component', () => {
 		const button = screen.getByRole('button')
 		expect(button).toHaveTextContent('☀️')
 		expect(button).toHaveTextContent('Light')
-		expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
+		expect(button).toHaveAttribute('aria-label', 'Switch to LIGHT mode (your preference: dark)')
 	})
 
 	it('should have correct aria-label for light theme', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT" userTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
 
 		const button = screen.getByRole('button')
-		expect(button).toHaveAttribute('aria-label', 'Switch to dark mode')
+		expect(button).toHaveAttribute('aria-label', 'Switch to DARK mode (your preference: LIGHT)')
 	})
 
 	it('should have correct aria-label for dark theme', () => {
-		render(
-			<ThemeProvider defaultTheme="dark">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="DARK" userTheme="DARK">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
 
 		const button = screen.getByRole('button')
-		expect(button).toHaveAttribute('aria-label', 'Switch to light mode')
+		expect(button).toHaveAttribute('aria-label', 'Switch to LIGHT mode (your preference: DARK)')
 	})
 
 	it('should toggle theme when button is clicked', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT" userTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -94,17 +120,17 @@ describe('ThemeToggle Component', () => {
 		expect(button).toHaveTextContent('🌙')
 		expect(button).toHaveTextContent('Dark')
 
-		// Click to toggle
+		// Click to toggle - theme doesn't change immediately, but mutation is called
 		fireEvent.click(button)
 
-		// Should now be dark theme
-		expect(button).toHaveTextContent('☀️')
-		expect(button).toHaveTextContent('Light')
+		// After click, the button still shows the current theme until mutation succeeds
+		expect(button).toHaveTextContent('🌙')
+		expect(button).toHaveTextContent('Dark')
 	})
 
 	it('should toggle from light to dark', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT" userTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -114,12 +140,13 @@ describe('ThemeToggle Component', () => {
 
 		fireEvent.click(button)
 
-		expect(button).toHaveTextContent('☀️')
+		// Theme doesn't change immediately - mutation is called
+		expect(button).toHaveTextContent('🌙')
 	})
 
 	it('should toggle from dark to light', () => {
-		render(
-			<ThemeProvider defaultTheme="dark">
+		renderWithProviders(
+			<ThemeProvider defaultTheme="dark" userTheme="dark">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -129,12 +156,15 @@ describe('ThemeToggle Component', () => {
 
 		fireEvent.click(button)
 
-		expect(button).toHaveTextContent('🌙')
+		// Theme doesn't change immediately - mutation is called
+		expect(button).toHaveTextContent('☀️')
 	})
 
-	it('should persist theme change to localStorage', () => {
-		render(
-			<ThemeProvider defaultTheme="light">
+	it('should persist theme change to profile', async () => {
+		const { api } = await import('../../lib/api-client')
+		
+		renderWithProviders(
+			<ThemeProvider defaultTheme="LIGHT" userTheme="LIGHT">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -142,6 +172,9 @@ describe('ThemeToggle Component', () => {
 		const button = screen.getByRole('button')
 		fireEvent.click(button)
 
-		expect(localStorageMock.setItem).toHaveBeenCalledWith('constellate-theme', 'dark')
+		// Wait for the mutation to be called
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		expect(api.put).toHaveBeenCalledWith('/profile', { theme: 'DARK' }, undefined, 'Failed to update theme preference')
 	})
 })

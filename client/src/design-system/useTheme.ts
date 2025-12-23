@@ -37,7 +37,7 @@ export function useTheme(): ThemeContextType {
  */
 export function useThemeColors() {
     const { theme } = useTheme()
-    return tokens.colors[theme as 'light' | 'dark']
+    return tokens.colors[theme]
 }
 
 /**
@@ -59,7 +59,7 @@ export function useThemeColors() {
  */
 export function useThemeShadows() {
     const { theme } = useTheme()
-    return tokens.shadows[theme as 'light' | 'dark']
+    return tokens.shadows[theme]
 }
 
 

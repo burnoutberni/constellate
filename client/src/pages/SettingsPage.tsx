@@ -1,13 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Card, CardContent, CardHeader, CardTitle, Spinner, Button } from '@/components/ui'
-import { queryKeys } from '@/hooks/queries'
-import { api } from '@/lib/api-client'
-import type { UserProfile } from '@/types'
+import { useCurrentUserProfile } from '@/hooks/queries'
 
 import { AccountSettings } from '../components/AccountSettings'
 import { DataExportSettings } from '../components/DataExportSettings'
@@ -21,21 +18,7 @@ import { setSEOMetadata } from '../lib/seo'
 export function SettingsPage() {
 	const { user, logout } = useAuth()
 
-	const { data: profile, isLoading } = useQuery<UserProfile | null>({
-		queryKey: queryKeys.users.currentProfile(user?.id),
-		queryFn: async () => {
-			if (!user?.id) {
-				return null
-			}
-			return api.get<UserProfile>(
-				'/users/me/profile',
-				undefined,
-				undefined,
-				'Failed to fetch profile'
-			)
-		},
-		enabled: Boolean(user?.id),
-	})
+	const { data: profile, isLoading } = useCurrentUserProfile(user?.id)
 
 	// Set SEO metadata
 	useEffect(() => {

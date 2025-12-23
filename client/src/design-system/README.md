@@ -286,7 +286,7 @@ Helper functions are available to validate token values:
 import { isValidTheme } from './design-system'
 
 if (isValidTheme(value)) {
-	// value is a valid theme ('light' or 'dark')
+	// value is a valid theme ('LIGHT' or 'DARK')
 }
 ```
 

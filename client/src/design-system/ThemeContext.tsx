@@ -34,16 +34,17 @@ const THEME_STORAGE_KEY = 'constellate-theme'
  */
 function getSystemTheme(): Theme {
     if (typeof window === 'undefined') {
-        return 'light'
+        return 'LIGHT'
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'DARK' : 'LIGHT'
 }
 
 interface ThemeProviderProps {
     children: ReactNode
     defaultTheme?: Theme
     storageKey?: string
+    userTheme?: Theme | null
 }
 
 /**
@@ -62,17 +63,24 @@ export function ThemeProvider({
     children,
     defaultTheme,
     storageKey = THEME_STORAGE_KEY,
+    userTheme,
 }: ThemeProviderProps) {
     // Use lazy initializer to access storageKey
     const [theme, setThemeState] = useState<Theme>((): Theme => {
+        // If user has set a theme in their profile, use that
+        if (userTheme) {
+            return userTheme
+        }
+
         if (defaultTheme) {
             return defaultTheme
         }
 
         if (typeof window === 'undefined') {
-            return 'light'
+            return 'LIGHT'
         }
 
+        // Fallback to localStorage for backward compatibility, but this should be removed eventually
         try {
             const stored = localStorage.getItem(storageKey)
             if (stored && isValidTheme(stored)) {
@@ -86,10 +94,16 @@ export function ThemeProvider({
     })
     const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
     const [hasUserPreference, setHasUserPreference] = useState<boolean>(() => {
+        // If userTheme is provided, user has a preference
+        if (userTheme) {
+            return true
+        }
+
         if (typeof window === 'undefined') {
             return false
         }
 
+        // Fallback to localStorage for backward compatibility
         try {
             const stored = localStorage.getItem(storageKey)
             return Boolean(stored && isValidTheme(stored))
@@ -104,7 +118,7 @@ export function ThemeProvider({
             return
         }
         const root = document.documentElement
-        root.classList.remove('light', 'dark')
+        root.classList.remove('LIGHT', 'DARK')
         root.classList.add(theme)
     }, [theme])
 
@@ -117,7 +131,7 @@ export function ThemeProvider({
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
         const handleChange = (e: MediaQueryListEvent) => {
-            const newPreference: Theme = e.matches ? 'dark' : 'light'
+            const newPreference: Theme = e.matches ? 'DARK' : 'LIGHT'
             setSystemPreference(newPreference)
 
             // Only update theme if user hasn't made an explicit choice
@@ -145,7 +159,7 @@ export function ThemeProvider({
     }
 
     const toggleTheme = () => {
-        setTheme(theme === 'light' ? 'dark' : 'light')
+        setTheme(theme === 'LIGHT' ? 'DARK' : 'LIGHT')
     }
 
     return (

@@ -22,7 +22,7 @@ export type ColorScale = Record<number | string, string>
 /**
  * Theme colors type
  */
-export type ThemeColors = typeof tokens.colors.light
+export type ThemeColors = typeof tokens.colors.LIGHT
 
 /**
  * Typography style type
@@ -51,7 +51,7 @@ export type BorderRadiusValue = keyof typeof tokens.borderRadius
 /**
  * Shadow value type
  */
-export type ShadowValue = keyof typeof tokens.shadows.light
+export type ShadowValue = keyof typeof tokens.shadows.LIGHT
 
 /**
  * Breakpoint value type
@@ -201,5 +201,5 @@ export type ColorShadeKeys<TColor extends ThemeColorKeys> = keyof ThemeColors[TC
  * Validates that a value is a valid theme
  */
 export function isValidTheme(value: string): value is Theme {
-	return value === 'light' || value === 'dark'
+	return value === 'LIGHT' || value === 'DARK'
 }

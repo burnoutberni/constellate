@@ -33,7 +33,7 @@ const mockAttendees: Attendee[] = [
 
 const createWrapper = () => {
 	return ({ children }: { children: ReactNode }) => (
-		<ThemeProvider defaultTheme="light">
+		<ThemeProvider defaultTheme="LIGHT">
 			<MemoryRouter>{children}</MemoryRouter>
 		</ThemeProvider>
 	)

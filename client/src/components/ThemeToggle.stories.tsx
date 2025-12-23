@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { ThemeProvider } from '@/design-system'
 
@@ -13,9 +14,11 @@ const meta = {
 	tags: ['autodocs'],
 	decorators: [
 		(Story) => (
-			<ThemeProvider>
-				<Story />
-			</ThemeProvider>
+			<QueryClientProvider client={new QueryClient()}>
+				<ThemeProvider>
+					<Story />
+				</ThemeProvider>
+			</QueryClientProvider>
 		),
 	],
 } satisfies Meta<typeof ThemeToggle>
