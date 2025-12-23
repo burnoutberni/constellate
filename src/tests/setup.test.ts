@@ -40,6 +40,7 @@ describe('Setup Routes', () => {
 				username: 'admin',
 				name: 'Admin User',
 				password: 'securepassword123',
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {
@@ -61,6 +62,7 @@ describe('Setup Routes', () => {
 				email: 'admin@example.com',
 				name: 'Admin User',
 				password: 'securepassword123',
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {
@@ -82,6 +84,7 @@ describe('Setup Routes', () => {
 				email: 'admin@example.com',
 				username: 'admin',
 				password: 'securepassword123',
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {
@@ -98,11 +101,34 @@ describe('Setup Routes', () => {
 			expect(data.error).toBe('Missing required fields')
 		})
 
+		it('should reject setup without accepting ToS', async () => {
+			const setupData = {
+				email: 'admin@example.com',
+				username: 'admin',
+				name: 'Admin User',
+				password: 'securepassword123',
+				tosAccepted: false,
+			}
+
+			const res = await app.request('/api/setup', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(setupData),
+			})
+
+			expect(res.status).toBe(400)
+			const data = (await res.json()) as { error: string }
+			expect(data.error).toBe('You must accept the Terms of Service')
+		})
+
 		it('should allow setup without password (for magic link only)', async () => {
 			const setupData = {
 				email: 'admin@example.com',
 				username: 'admin',
 				name: 'Admin User',
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {
@@ -126,6 +152,7 @@ describe('Setup Routes', () => {
 				username: 'admin',
 				name: 'Admin User',
 				password: '   ', // Whitespace only
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {
@@ -150,6 +177,7 @@ describe('Setup Routes', () => {
 				username: 'admin',
 				name: 'Admin User',
 				password: 'mySecurePassword123',
+				tosAccepted: true,
 			}
 
 			const res = await app.request('/api/setup', {

@@ -17,11 +17,15 @@ app.get('/status', async (c) => {
 // Create first admin user
 app.post('/', async (c) => {
 	const body = await c.req.json()
-	const { email, password, name, username } = body
+	const { email, password, name, username, tosAccepted } = body
 
 	// Validate input first
 	if (!email || !username || !name) {
 		return c.json({ error: 'Missing required fields' }, 400)
+	}
+
+	if (!tosAccepted) {
+		return c.json({ error: 'You must accept the Terms of Service' }, 400)
 	}
 
 	// Then check if setup is already completed
@@ -53,6 +57,7 @@ app.post('/', async (c) => {
 			where: { id: user.user.id },
 			data: {
 				isAdmin: true,
+				tosAcceptedAt: new Date(),
 			},
 		})
 

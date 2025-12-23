@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
 import { Input, Button } from '@/components/ui'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
@@ -13,6 +14,7 @@ export function OnboardingPage() {
 	const { login } = useAuth()
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [tosAccepted, setTosAccepted] = useState(false)
 	const [formData, setFormData] = useState({
 		email: '',
 		username: '',
@@ -36,8 +38,14 @@ export function OnboardingPage() {
 		setLoading(true)
 		setError(null)
 
+		if (!tosAccepted) {
+			setError('You must accept the Terms of Service')
+			setLoading(false)
+			return
+		}
+
 		try {
-			await api.post('/setup', formData, undefined, 'Setup failed')
+			await api.post('/setup', { ...formData, tosAccepted }, undefined, 'Setup failed')
 
 			// Auto login after setup
 			if (formData.password) {
@@ -100,14 +108,15 @@ export function OnboardingPage() {
 							id="password"
 							name="password"
 							type="password"
-							label="Password"
+							label="Password (optional)"
 							autoComplete="new-password"
-							required
 							placeholder="Password"
 							value={formData.password}
 							onChange={(e) => setFormData({ ...formData, password: e.target.value })}
 						/>
 					</div>
+
+					<TermsOfServiceAgreement checked={tosAccepted} onChange={setTosAccepted} />
 
 					{error && (
 						<div className="text-error-500 dark:text-error-400 text-sm text-center">
