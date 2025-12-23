@@ -421,7 +421,7 @@ describe('NotificationSettings Component', () => {
 			})
 		})
 
-		it('should reset preferences to defaults when reset button is clicked', async () => {
+		it('should show confirmation dialog and reset preferences to defaults only after confirmation', async () => {
 			const mockMutate = vi.fn()
 			mockUseResetEmailPreferences.mockReturnValue({
 				mutate: mockMutate,
@@ -452,6 +452,14 @@ describe('NotificationSettings Component', () => {
 			// Click reset button
 			const resetButton = screen.getByRole('button', { name: /reset to defaults/i })
 			fireEvent.click(resetButton)
+
+			// Confirmation dialog should appear
+			expect(screen.getByText(/reset to defaults\?/i)).toBeInTheDocument()
+			expect(screen.getByText(/this will overwrite your current notification preferences/i)).toBeInTheDocument()
+
+			// Click confirm in dialog
+			const confirmButton = screen.getByRole('button', { name: /yes, reset/i })
+			fireEvent.click(confirmButton)
 
 			// Should call the reset mutation
 			expect(mockMutate).toHaveBeenCalledWith(undefined, {

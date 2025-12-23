@@ -68,10 +68,10 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
     const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
+
     const [localPreferences, setLocalPreferences] = useState<EmailPreferences | null>(null)
-
-
     const [hasChanges, setHasChanges] = useState(false)
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
 
 
     useEffect(() => {
@@ -103,13 +103,23 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
         })
     }
 
+
     const handleReset = () => {
+        setShowResetConfirm(true)
+    }
+
+    const confirmReset = () => {
         resetPreferences(undefined, {
             onSuccess: (response) => {
                 setLocalPreferences(response.preferences)
                 setHasChanges(false)
+                setShowResetConfirm(false)
             },
         })
+    }
+
+    const cancelReset = () => {
+        setShowResetConfirm(false)
     }
 
     const toggleAll = (enabled: boolean) => {
@@ -275,6 +285,20 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                         Save Changes
                     </Button>
                 </CardFooter>
+            )}
+
+            {/* Confirmation Dialog for Reset */}
+            {showResetConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg p-6 max-w-sm w-full">
+                        <h2 className="text-lg font-semibold mb-2">Reset to Defaults?</h2>
+                        <p className="mb-4 text-text-secondary">This will overwrite your current notification preferences with the default settings. Are you sure you want to continue?</p>
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={cancelReset} disabled={isResetting}>Cancel</Button>
+                            <Button variant="primary" size="sm" onClick={confirmReset} loading={isResetting} disabled={isResetting}>Yes, Reset</Button>
+                        </div>
+                    </div>
+                </div>
             )}
         </Card>
     )
