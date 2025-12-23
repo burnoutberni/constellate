@@ -73,6 +73,7 @@
 	"devDependencies": {
 		"@eslint/js": "^9.39.2",
 		"@pkgverse/prismock": "^2.0.4",
+		"@types/html-to-text": "^9.0.4",
 		"@types/node": "^25.0.1",
 		"@types/nodemailer": "^7.0.4",
 		"@vitest/coverage-v8": "^4.0.15",

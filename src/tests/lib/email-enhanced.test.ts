@@ -243,7 +243,7 @@ describe('Enhanced Email Library', () => {
 				from: 'test@example.com',
 				subject: 'New follower',
 				html: expect.stringContaining('New Follower'),
-				text: expect.stringContaining('New follower'),
+				text: expect.stringContaining('NEW FOLLOWER'),
 			})
 
 			// Check delivery record

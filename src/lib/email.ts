@@ -1,9 +1,8 @@
 import * as nodemailer from 'nodemailer'
-import DOMPurify from 'isomorphic-dompurify'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
-import { htmlToText } from 'html-to-text';
+import { htmlToText } from 'html-to-text'
 
 const transporter = nodemailer.createTransport({
 	host: config.smtp.host,
@@ -121,9 +120,9 @@ export async function sendTemplatedEmail({
  * Generate plain text from HTML (basic implementation)
  */
 function generateTextFromHtml(html: string): string {
-  return htmlToText(html, {
-    wordwrap: 72,
-  });
+	return htmlToText(html, {
+		wordwrap: 72,
+	})
 }
 
 /**
