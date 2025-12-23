@@ -54,7 +54,7 @@ describe('Setup Routes', () => {
 			expect(res.status).toBe(400)
 
 			const data = (await res.json()) as { error: string }
-			expect(data.error).toBe('Missing required fields')
+			expect(data.error).toBe('Missing required fields: email')
 		})
 
 		it('should reject setup with missing username', async () => {
@@ -76,7 +76,7 @@ describe('Setup Routes', () => {
 			expect(res.status).toBe(400)
 
 			const data = (await res.json()) as { error: string }
-			expect(data.error).toBe('Missing required fields')
+			expect(data.error).toBe('Missing required fields: username')
 		})
 
 		it('should reject setup with missing name', async () => {
@@ -98,7 +98,7 @@ describe('Setup Routes', () => {
 			expect(res.status).toBe(400)
 
 			const data = (await res.json()) as { error: string }
-			expect(data.error).toBe('Missing required fields')
+			expect(data.error).toBe('Missing required fields: name')
 		})
 
 		it('should reject setup without accepting ToS', async () => {
