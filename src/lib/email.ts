@@ -204,6 +204,18 @@ export async function sendNotificationEmail({
 		return
 	}
 
+	// Ensure URLs are absolute
+	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
+	const makeAbsolute = (url?: string) => {
+		if (!url) return undefined
+		if (/^https?:\/\//i.test(url)) return url
+		if (url.startsWith('/')) return baseUrl + url
+		return url // fallback, should not happen
+	}
+
+	const absoluteContextUrl = makeAbsolute(contextUrl)
+	const absoluteActorUrl = makeAbsolute(actorUrl)
+
 	// Import the notification template
 	const { NotificationEmailTemplate } = await import('./email/templates/notifications.js')
 
@@ -212,9 +224,9 @@ export async function sendNotificationEmail({
 		type,
 		title,
 		body,
-		contextUrl,
+		contextUrl: absoluteContextUrl,
 		actorName,
-		actorUrl,
+		actorUrl: absoluteActorUrl,
 		data,
 	})
 

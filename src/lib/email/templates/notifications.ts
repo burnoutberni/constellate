@@ -55,7 +55,7 @@ export function NotificationEmailTemplate({
 	body,
 	contextUrl,
 	actorName,
-	actorUrl: _actorUrl,
+	actorUrl,
 	data,
 }: NotificationEmailProps) {
 	const icon = getNotificationIcon(type)
@@ -65,13 +65,14 @@ export function NotificationEmailTemplate({
 	const previewText = body || `New ${type.toLowerCase()} notification on Constellate`
 
 	const content = `
-		<div style="display: flex; align-items: center; margin-bottom: 20px;">
-			<div style="font-size: 24px; margin-right: 12px;">${icon}</div>
-			<div>
-				<h3 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 600;">${title}</h3>
-				${actorName ? `<p style="margin: 4px 0 0; color: #64748b; font-size: 14px;">from ${actorName}</p>` : ''}
-			</div>
-		</div>
+		   <div style="display: flex; align-items: center; margin-bottom: 20px;">
+			   <div style="font-size: 24px; margin-right: 12px;">${icon}</div>
+			   <div>
+				   <h3 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 600;">${title}</h3>
+				   ${actorName ? `<p style="margin: 4px 0 0; color: #64748b; font-size: 14px;">from ${actorName}</p>` : ''}
+				   ${actorUrl ? `<p style="margin: 0; color: #64748b; font-size: 13px;"><a href="${actorUrl}" style="color: #3b82f6; text-decoration: underline;">View profile</a></p>` : ''}
+			   </div>
+		   </div>
 		
 		${body ? `<p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">${body}</p>` : ''}
 		
