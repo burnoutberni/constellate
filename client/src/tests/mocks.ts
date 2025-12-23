@@ -11,7 +11,6 @@ vi.mock('../contexts/AuthContext', () => {
 		user: null,
 		loading: false,
 		login: vi.fn(),
-		sendMagicLink: vi.fn(),
 		signup: vi.fn(),
 		logout: vi.fn(),
 	}
@@ -27,7 +26,6 @@ vi.mock('../hooks/useAuth', () => ({
 		user: null,
 		loading: false,
 		login: vi.fn(),
-		sendMagicLink: vi.fn(),
 		signup: vi.fn(),
 		logout: vi.fn(),
 	})),

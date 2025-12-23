@@ -57,6 +57,42 @@ describe('AccountSettings Component', () => {
 		expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument()
 	})
 
+	it('should show change password button when user has password', () => {
+		renderComponent()
+
+		const changePasswordBtn = screen.getByRole('button', { name: /change password/i })
+		expect(changePasswordBtn).toBeInTheDocument()
+	})
+
+	it('should show password form when change password is clicked', () => {
+		renderComponent()
+
+		const changePasswordBtn = screen.getByRole('button', { name: /change password/i })
+		fireEvent.click(changePasswordBtn)
+
+		expect(screen.getByLabelText('Current Password')).toBeInTheDocument()
+		expect(screen.getByLabelText('New Password')).toBeInTheDocument()
+		expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument()
+	})
+
+	it('should show change password button when user has password', () => {
+		renderComponent()
+
+		const changePasswordBtn = screen.getByRole('button', { name: /change password/i })
+		expect(changePasswordBtn).toBeInTheDocument()
+	})
+
+	it('should show password form when change password is clicked', () => {
+		renderComponent()
+
+		const changePasswordBtn = screen.getByRole('button', { name: /change password/i })
+		fireEvent.click(changePasswordBtn)
+
+		expect(screen.getByLabelText('Current Password')).toBeInTheDocument()
+		expect(screen.getByLabelText('New Password')).toBeInTheDocument()
+		expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument()
+	})
+
 	it('should show delete account button', () => {
 		renderComponent()
 

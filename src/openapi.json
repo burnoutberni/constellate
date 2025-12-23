@@ -4474,7 +4474,7 @@
 									"password": {
 										"type": "string",
 										"minLength": 8,
-										"description": "Optional password. If not provided, user can only login via magic link."
+										"description": "Password for the admin user."
 									}
 								}
 							}

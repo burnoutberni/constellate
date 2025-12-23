@@ -28,14 +28,6 @@ interface AuthContextType {
 	tosStatus: TosStatus | null
 	checkTosStatus: () => Promise<void>
 	login: (email: string, password: string) => Promise<void>
-	sendMagicLink: (
-		email: string,
-		options?: {
-			name?: string
-			username?: string
-			tosAccepted?: boolean
-		}
-	) => Promise<void>
 	signup: (
 		email: string,
 		password: string,
@@ -120,25 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
-	const sendMagicLink = async (
-		email: string,
-		options?: {
-			name?: string
-			username?: string
-			tosAccepted?: boolean
-		}
-	) => {
-		const { error } = await authClient.signIn.magicLink({
-			email,
-			callbackURL: window.location.origin,
-			...options,
-		})
-
-		if (error) {
-			throw error
-		}
-	}
-
 	const signup = async (
 		email: string,
 		password: string,
@@ -177,7 +150,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				tosStatus,
 				checkTosStatus,
 				login,
-				sendMagicLink,
 				signup,
 				logout,
 			}}>

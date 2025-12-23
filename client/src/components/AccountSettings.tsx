@@ -37,8 +37,13 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 		setPasswordError('')
 
 		// Validation
-		if (!currentPassword || !newPassword || !confirmPassword) {
-			setPasswordError('All fields are required')
+		if (!currentPassword) {
+			setPasswordError('Current password is required')
+			return
+		}
+
+		if (!newPassword || !confirmPassword) {
+			setPasswordError('New and confirm password are required')
 			return
 		}
 
@@ -78,8 +83,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 			setConfirmPassword('')
 		} catch (error) {
 			const errorMessage = extractErrorMessage(
-				error,
-				'Failed to change password. Please try again.'
+				error, 'Failed to change password. Please try again.'
 			)
 			setPasswordError(errorMessage)
 			handleError(error, errorMessage, { context: 'AccountSettings.handlePasswordChange' })
@@ -150,9 +154,11 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 					{/* Password Change */}
 					<Stack gap="md" className="border-t border-border-default pt-6">
 						<div>
-							<h3 className="font-medium text-text-primary mb-1">Change Password</h3>
+							<h3 className="font-medium text-text-primary mb-1">
+								{'Change Password'}
+							</h3>
 							<p className="text-sm text-text-tertiary">
-								Update your password to keep your account secure.
+								{'Update your password to keep your account secure.'}
 							</p>
 						</div>
 
@@ -161,7 +167,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 								<Button
 									variant="secondary"
 									onClick={() => setShowPasswordChange(true)}>
-									Change Password
+									{'Change Password'}
 								</Button>
 							</div>
 						) : (
@@ -205,7 +211,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 										onClick={handlePasswordChange}
 										loading={isChangingPassword}
 										disabled={isChangingPassword}>
-										Update Password
+										{'Update Password'}
 									</Button>
 									<Button
 										variant="ghost"

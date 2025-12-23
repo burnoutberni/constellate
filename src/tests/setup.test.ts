@@ -123,7 +123,7 @@ describe('Setup Routes', () => {
 			expect(data.error).toBe('You must accept the Terms of Service')
 		})
 
-		it('should allow setup without password (for magic link only)', async () => {
+		it('should not allow setup without password', async () => {
 			const setupData = {
 				email: 'admin@example.com',
 				username: 'admin',
@@ -139,36 +139,7 @@ describe('Setup Routes', () => {
 				body: JSON.stringify(setupData),
 			})
 
-			expect(res.status).toBe(200)
-
-			const signUpCall = vi.mocked(authModule.auth.api.signUpEmail).mock.calls[0]?.[0]
-			expect(typeof signUpCall?.body?.password).toBe('string')
-			expect(signUpCall?.body?.password?.length || 0).toBeGreaterThan(0)
-		})
-
-		it('should generate password when password is whitespace only', async () => {
-			const setupData = {
-				email: 'admin@example.com',
-				username: 'admin',
-				name: 'Admin User',
-				password: '   ', // Whitespace only
-				tosAccepted: true,
-			}
-
-			const res = await app.request('/api/setup', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(setupData),
-			})
-
-			expect(res.status).toBe(200)
-
-			const signUpCall = vi.mocked(authModule.auth.api.signUpEmail).mock.calls[0]?.[0]
-			expect(typeof signUpCall?.body?.password).toBe('string')
-			// Should generate a password (48 hex chars = 24 bytes)
-			expect(signUpCall?.body?.password?.length || 0).toBe(48)
+			expect(res.status).toBe(400)
 		})
 
 		it('should use provided password when password is not empty', async () => {
