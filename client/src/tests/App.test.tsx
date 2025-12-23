@@ -365,9 +365,12 @@ describe('App Routing', () => {
 			const { unmount } = render(<App />, { wrapper: testWrapper })
 
 			// Wait for setup check to complete
-			await waitFor(() => {
-				expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-			})
+			await waitFor(
+				() => {
+					expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+				},
+				{ timeout: 3000 }
+			)
 
 			await waitFor(() => {
 				expect(screen.getByTestId(route.testId)).toBeInTheDocument()

@@ -64,7 +64,7 @@ interface NotificationSettingsProps {
  * Allows users to enable/disable different types of notifications
  */
 export function NotificationSettings({ emailMode = false }: NotificationSettingsProps) {
-    const { data, isLoading, error } = useEmailPreferences()
+    const { data, isLoading, error, refetch } = useEmailPreferences()
     const { mutate: updatePreferences, isPending: isUpdating } = useUpdateEmailPreferences()
     const { mutate: resetPreferences, isPending: isResetting } = useResetEmailPreferences()
 
@@ -175,7 +175,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                     <p className="text-text-secondary mb-4">
                         {error instanceof Error ? error.message : 'An error occurred'}
                     </p>
-                    <Button variant="primary" onClick={() => window.location.reload()}>
+                    <Button variant="primary" onClick={() => refetch()}>
                         Retry
                     </Button>
                 </div>
@@ -281,8 +281,10 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                         size="md"
                         onClick={() => {
                             // Revert to the initial preferences snapshot
-                            setLocalPreferences(initialPreferencesRef.current ? { ...initialPreferencesRef.current } : localPreferences)
-                            setHasChanges(false)
+                            if (initialPreferencesRef.current) {
+                                setLocalPreferences({ ...initialPreferencesRef.current });
+                            }
+                            setHasChanges(false);
                         }}
                         disabled={isUpdating}>
                         Cancel
