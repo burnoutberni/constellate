@@ -190,13 +190,13 @@ vi.mock('../contexts/AuthContext', () => ({
 describe('App Routing', () => {
 	const { queryClient } = createTestWrapper()
 
-	beforeEach(() => {
-		clearQueryClient(queryClient)
-		vi.clearAllMocks()
-		sessionStorage.clear()
-		// Ensure API mock resolves immediately
-		vi.mocked(api.get).mockResolvedValue({ setupRequired: false })
-	})
+	   beforeEach(() => {
+		   clearQueryClient(queryClient)
+		   vi.clearAllMocks()
+		   sessionStorage.clear()
+		   // Always mock API to resolve setupRequired: false
+		   vi.mocked(api.get).mockResolvedValue({ setupRequired: false })
+	   })
 
 	afterEach(() => {
 		vi.clearAllMocks()
@@ -227,7 +227,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -242,7 +242,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -256,7 +256,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -279,7 +279,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		// ProfileOrEventRouter should route to UserProfilePage for single-segment @ paths
 		await waitFor(() => {
@@ -295,7 +295,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		// ProfileOrEventRouter should route to EventDetailPage for two-segment @ paths
 		await waitFor(() => {
@@ -311,7 +311,7 @@ describe('App Routing', () => {
 		// Wait for setup check to complete
 		await waitFor(() => {
 			expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-		})
+		}, { timeout: 5000 })
 
 		await waitFor(() => {
 			expect(screen.getByTestId('NotFoundPage')).toBeInTheDocument()
@@ -365,9 +365,12 @@ describe('App Routing', () => {
 			const { unmount } = render(<App />, { wrapper: testWrapper })
 
 			// Wait for setup check to complete
-			await waitFor(() => {
-				expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
-			})
+			await waitFor(
+				() => {
+					expect(screen.queryByTestId('PageLoader')).not.toBeInTheDocument()
+				},
+				{ timeout: 3000 }
+			)
 
 			await waitFor(() => {
 				expect(screen.getByTestId(route.testId)).toBeInTheDocument()

@@ -52,6 +52,9 @@ model User {
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
   isPublicProfile     Boolean @default(true) // Profile visibility: true = public, false = private (followers only)
 
+  // Email notification preferences (JSON object with notification types as keys)
+  emailNotifications Json? // e.g., {"FOLLOW": true, "COMMENT": false, "LIKE": true, ...}
+
   // Relations
   events                 Event[]
   following              Following[]       @relation("UserFollowing")
@@ -71,11 +74,12 @@ model User {
   reminders              EventReminder[]
 
   // Auth
-  sessions    Session[]
-  accounts    Account[]
-  apiKeys     ApiKey[]
-  appeals     Appeal[]
-  dataExports DataExport[]
+  sessions        Session[]
+  accounts        Account[]
+  apiKeys         ApiKey[]
+  appeals         Appeal[]
+  dataExports     DataExport[]
+  emailDeliveries EmailDelivery[]
 
   @@index([username])
   @@index([externalActorUrl])
@@ -695,4 +699,50 @@ model DataExport {
   @@index([userId])
   @@index([status])
   @@index([expiresAt])
+}
+
+// Email delivery tracking for analytics and debugging
+
+enum EmailDeliveryStatus {
+  SENT
+  FAILED
+  BOUNCED
+  DELIVERED
+  OPENED
+  CLICKED
+}
+
+model EmailDelivery {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // User who received the email (optional for system emails)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Email details
+  to           String // Recipient email address
+  templateName String // Template type used (e.g., "magic_link", "notification_follow")
+  subject      String // Email subject line
+
+  // Delivery tracking
+  status      EmailDeliveryStatus @default(SENT)
+  sentAt      DateTime            @default(now())
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+
+  // Error tracking
+  errorMessage String?
+  errorCode    String?
+  retryCount   Int     @default(0)
+
+  // Provider tracking IDs
+  messageId  String? // SMTP message ID
+  providerId String? // External provider's delivery ID
+
+  @@index([userId])
+  @@index([status])
+  @@index([templateName])
+  @@index([createdAt])
 }

@@ -1,5 +1,8 @@
 import * as nodemailer from 'nodemailer'
 import { config } from '../config.js'
+import { prisma } from './prisma.js'
+import { type NotificationType } from '@prisma/client'
+import { htmlToText } from 'html-to-text'
 
 const transporter = nodemailer.createTransport({
 	host: config.smtp.host,
@@ -10,6 +13,17 @@ const transporter = nodemailer.createTransport({
 		pass: config.smtp.pass,
 	},
 })
+
+function replaceEmailPlaceholders(html: string): string {
+	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
+	return html
+		.replace(/\{\{\{UNSUBSCRIBE_URL\}\}\}/g, baseUrl ? `${baseUrl}/email/unsubscribe` : '#')
+		.replace(
+			/\{\{\{PREFERENCES_URL\}\}\}/g,
+			baseUrl ? `${baseUrl}/settings/email-preferences` : '#'
+		)
+		.replace(/\{\{\{NOTIFICATIONS_URL\}\}\}/g, baseUrl ? `${baseUrl}/notifications` : '#')
+}
 
 export async function sendEmail({
 	to,
@@ -27,6 +41,9 @@ export async function sendEmail({
 		console.log(`To: ${to}`)
 		console.log(`Subject: ${subject}`)
 		console.log(`Text: ${text}`)
+		if (html) {
+			console.log(`HTML: ${html}`)
+		}
 		return
 	}
 
@@ -39,8 +56,189 @@ export async function sendEmail({
 			html,
 		})
 		console.log(`📧 Email sent: ${info.messageId}`)
+		return info
 	} catch (error) {
 		console.error('❌ Error sending email:', error)
 		throw error
+	}
+}
+
+/**
+ * Send email using a template
+ */
+export async function sendTemplatedEmail({
+	to,
+	subject,
+	html,
+	text,
+	templateName,
+	userId,
+}: {
+	to: string
+	subject: string
+	html: string
+	text?: string
+	templateName: string
+	userId?: string
+}) {
+	// Log email sending for analytics and debugging
+	console.log(`📧 Sending email template: ${templateName} to ${to}`)
+
+	const htmlWithUrls = replaceEmailPlaceholders(html)
+
+	const result = await sendEmail({
+		to,
+		subject,
+		text: text || generateTextFromHtml(htmlWithUrls),
+		html: htmlWithUrls,
+	})
+
+	// Store email delivery record only after successful send
+	if (userId && result) {
+		try {
+			await prisma.emailDelivery.create({
+				data: {
+					userId,
+					to,
+					templateName,
+					subject,
+					status: 'SENT',
+					sentAt: new Date(),
+					messageId: result.messageId,
+				},
+			})
+		} catch (error) {
+			console.error('⚠️ Failed to record email delivery:', error)
+			// Don't fail the email send if we can't record it
+		}
+	}
+
+	return result
+}
+
+/**
+ * Generate plain text from HTML (basic implementation)
+ */
+function generateTextFromHtml(html: string): string {
+	return htmlToText(html, {
+		wordwrap: 72,
+	})
+}
+
+/**
+ * Check if user has email notifications enabled for a specific type
+ */
+export async function getUserEmailPreference(
+	userId: string,
+	type: NotificationType
+): Promise<boolean> {
+	try {
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { emailNotifications: true },
+		})
+
+		if (!user?.emailNotifications) {
+			// Default to enabled if no preferences set
+			return true
+		}
+
+		const preferences = user.emailNotifications as Record<string, boolean>
+		return preferences[type] !== false // Default to true unless explicitly disabled
+	} catch (error) {
+		console.error('Error checking email preferences:', error)
+		return true // Default to enabled on error
+	}
+}
+
+/**
+ * Send notification email if user has it enabled
+ */
+export async function sendNotificationEmail({
+	userId,
+	type,
+	title,
+	body,
+	contextUrl,
+	actorName,
+	actorUrl,
+	data,
+}: {
+	userId: string
+	type: NotificationType
+	title: string
+	body?: string
+	contextUrl?: string
+	actorName?: string
+	actorUrl?: string
+	data?: Record<string, unknown>
+}) {
+	// Check if user has this email notification type enabled
+	const isEnabled = await getUserEmailPreference(userId, type)
+	if (!isEnabled) {
+		console.log(`📧 Email notifications disabled for ${type}, skipping`)
+		return
+	}
+
+	// Get user details
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { email: true, name: true, username: true },
+	})
+
+	if (!user?.email) {
+		console.log(`📧 User ${userId} has no email address, skipping notification`)
+		return
+	}
+
+	const makeAbsolute = (url?: string) => {
+		if (!url) return undefined
+		// If the URL is already absolute, return it as is.
+		if (/^https?:\/\//i.test(url)) return url
+		// If no baseUrl is configured, we cannot make it absolute.
+		const baseUrl = config.baseUrl
+		if (!baseUrl) return url
+
+		// Use the URL constructor to safely join the base and relative path.
+		// This correctly handles paths that do or do not start with '/'.
+		try {
+			return new URL(url, baseUrl).href
+		} catch (e) {
+			console.error(
+				`Failed to create absolute URL for path "${url}" with base "${baseUrl}"`,
+				e
+			)
+			return url // Fallback on error
+		}
+	}
+
+	const absoluteContextUrl = makeAbsolute(contextUrl)
+	const absoluteActorUrl = makeAbsolute(actorUrl)
+
+	// Import the notification template
+	const { NotificationEmailTemplate } = await import('./email/templates/notifications.js')
+
+	const html = NotificationEmailTemplate({
+		userName: user.name || user.username,
+		type,
+		title,
+		body,
+		contextUrl: absoluteContextUrl,
+		actorName,
+		actorUrl: absoluteActorUrl,
+		data,
+	})
+
+	try {
+		return await sendTemplatedEmail({
+			to: user.email,
+			subject: title,
+			html,
+			templateName: `notification_${type.toLowerCase()}`,
+			userId,
+		})
+	} catch (error) {
+		console.error('Failed to send email notification:', error)
+		// Don't re-throw - notification failures shouldn't break the app
 	}
 }

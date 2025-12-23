@@ -41,6 +41,7 @@ test-results/
 reports/
 
 # Misc
+.keys/
 .cache/
 tmp/
 temp/

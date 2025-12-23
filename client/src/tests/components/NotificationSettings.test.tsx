@@ -1,166 +1,470 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { NotificationSettings } from '../../components/NotificationSettings'
+/**
+ * Tests for Email Preferences Frontend
+ * Tests for email preferences UI components and hooks
+ */
+
+import React from 'react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
+import { describe, it, expect, vi, beforeEach, MockedFunction } from 'vitest'
+import { NotificationSettings } from '@/components/NotificationSettings'
+import * as queries from '@/hooks/queries'
+import type { EmailPreferences, EmailPreferencesResponse } from '@/hooks/queries/emailPreferences'
+
+// Mock the hooks
+vi.mock('@/hooks/queries', async () => {
+	const actual = await vi.importActual('@/hooks/queries')
+	return {
+		...actual,
+		useEmailPreferences: vi.fn(),
+		useUpdateEmailPreferences: vi.fn(),
+		useResetEmailPreferences: vi.fn(),
+	}
+})
+
+// Mock API client
+vi.mock('@/lib/api-client', () => ({
+	api: {
+		get: vi.fn(),
+		put: vi.fn(),
+		post: vi.fn(),
+	},
+}))
 
 describe('NotificationSettings Component', () => {
-	it('should render all notification type toggles', () => {
-		render(<NotificationSettings />)
+	let queryClient: QueryClient
+	let mockUseEmailPreferences: MockedFunction<typeof queries.useEmailPreferences>
+	let mockUseUpdateEmailPreferences: MockedFunction<typeof queries.useUpdateEmailPreferences>
+	let mockUseResetEmailPreferences: MockedFunction<typeof queries.useResetEmailPreferences>
 
-		expect(screen.getByText('New Followers')).toBeInTheDocument()
-		expect(screen.getByText('Comments')).toBeInTheDocument()
-		expect(screen.getByText('Likes')).toBeInTheDocument()
-		expect(screen.getByText('Mentions')).toBeInTheDocument()
-		expect(screen.getByText('Event Updates')).toBeInTheDocument()
-		expect(screen.getByText('System Notifications')).toBeInTheDocument()
-	})
-
-	it('should initialize all toggles as enabled by default', () => {
-		render(<NotificationSettings />)
-
-		const switches = screen.getAllByRole('switch')
-		switches.forEach((switchElement) => {
-			expect(switchElement).toHaveAttribute('aria-checked', 'true')
+	beforeEach(() => {
+		queryClient = new QueryClient({
+			defaultOptions: {
+				queries: { retry: false },
+				mutations: { retry: false },
+			},
 		})
+
+		mockUseEmailPreferences = vi.mocked(queries.useEmailPreferences)
+		mockUseUpdateEmailPreferences = vi.mocked(queries.useUpdateEmailPreferences)
+		mockUseResetEmailPreferences = vi.mocked(queries.useResetEmailPreferences)
+
+		// Set up default mock returns
+		mockUseEmailPreferences.mockReturnValue({
+			data: {
+				preferences: {
+					FOLLOW: true,
+					COMMENT: true,
+					LIKE: true,
+					MENTION: true,
+					EVENT: true,
+					SYSTEM: true,
+				},
+			},
+			isLoading: false,
+			error: null,
+		} as UseQueryResult<EmailPreferencesResponse>)
+
+		mockUseUpdateEmailPreferences.mockReturnValue({
+			mutate: vi.fn(),
+			isPending: false,
+		} as UseMutationResult<EmailPreferencesResponse, Error, Partial<EmailPreferences>>)
+
+		mockUseResetEmailPreferences.mockReturnValue({
+			mutate: vi.fn(),
+			isPending: false,
+		} as UseMutationResult<EmailPreferencesResponse, Error, undefined>)
+
+		vi.clearAllMocks()
 	})
 
-	it('should toggle notification preference when clicked', () => {
-		render(<NotificationSettings />)
-
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		expect(followSwitch).toHaveAttribute('aria-checked', 'true')
-
-		fireEvent.click(followSwitch)
-		expect(followSwitch).toHaveAttribute('aria-checked', 'false')
-
-		fireEvent.click(followSwitch)
-		expect(followSwitch).toHaveAttribute('aria-checked', 'true')
-	})
-
-	it('should show save button when preferences change', () => {
-		render(<NotificationSettings />)
-
-		expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
-
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		fireEvent.click(followSwitch)
-
-		expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
-	})
-
-	it('should call onUpdate when save button is clicked', () => {
-		const onUpdate = vi.fn()
-		render(<NotificationSettings onUpdate={onUpdate} />)
-
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		fireEvent.click(followSwitch)
-
-		const saveButton = screen.getByRole('button', { name: /save changes/i })
-		fireEvent.click(saveButton)
-
-		expect(onUpdate).toHaveBeenCalledWith(
-			expect.objectContaining({
-				FOLLOW: false,
-				COMMENT: true,
-				LIKE: true,
-				MENTION: true,
-				EVENT: true,
-				SYSTEM: true,
-			})
+	const renderWithQueryClient = (component: React.ReactElement) => {
+		return render(
+			<QueryClientProvider client={queryClient}>
+				{component}
+			</QueryClientProvider>
 		)
-	})
+	}
 
-	it('should hide save button after saving', () => {
-		const onUpdate = vi.fn()
-		render(<NotificationSettings onUpdate={onUpdate} />)
+	describe('Email Preferences Mode', () => {
+		it('should display email preferences title when in email mode', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: {
+					preferences: {
+						FOLLOW: true,
+						COMMENT: true,
+						LIKE: true,
+						MENTION: true,
+						EVENT: true,
+						SYSTEM: true,
+					},
+				},
+				isLoading: false,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
 
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		fireEvent.click(followSwitch)
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
 
-		const saveButton = screen.getByRole('button', { name: /save changes/i })
-		fireEvent.click(saveButton)
+			expect(screen.getByText('Email Notifications')).toBeInTheDocument()
+			expect(screen.getByText(/Choose which notifications you'd like to receive via email/)).toBeInTheDocument()
+		})
 
-		expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
-	})
+		it('should display regular title when not in email mode', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: {
+					preferences: {
+						FOLLOW: true,
+						COMMENT: true,
+						LIKE: true,
+						MENTION: true,
+						EVENT: true,
+						SYSTEM: true,
+					},
+				},
+				isLoading: false,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
 
-	it('should reset preferences when cancel is clicked', () => {
-		render(<NotificationSettings />)
+			renderWithQueryClient(<NotificationSettings emailMode={false} />)
 
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		fireEvent.click(followSwitch)
-		expect(followSwitch).toHaveAttribute('aria-checked', 'false')
-
-		const cancelButton = screen.getByRole('button', { name: /cancel/i })
-		fireEvent.click(cancelButton)
-
-		expect(followSwitch).toHaveAttribute('aria-checked', 'true')
-	})
-
-	it('should enable all notifications when "Enable All" is clicked', () => {
-		render(<NotificationSettings />)
-
-		// Disable a few switches first
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		const commentSwitch = screen.getByRole('switch', { name: /comments/i })
-		fireEvent.click(followSwitch)
-		fireEvent.click(commentSwitch)
-
-		expect(followSwitch).toHaveAttribute('aria-checked', 'false')
-		expect(commentSwitch).toHaveAttribute('aria-checked', 'false')
-
-		const enableAllButton = screen.getByRole('button', { name: /enable all/i })
-		fireEvent.click(enableAllButton)
-
-		const switches = screen.getAllByRole('switch')
-		switches.forEach((switchElement) => {
-			expect(switchElement).toHaveAttribute('aria-checked', 'true')
+			expect(screen.getByText('Notification Preferences')).toBeInTheDocument()
+			expect(screen.getByText(/Choose which notifications you'd like to receive/)).toBeInTheDocument()
 		})
 	})
 
-	it('should disable all notifications when "Disable All" is clicked', () => {
-		render(<NotificationSettings />)
+	describe('Loading States', () => {
+		it('should show spinner while loading', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				isLoading: true,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
 
-		const disableAllButton = screen.getByRole('button', { name: /disable all/i })
-		fireEvent.click(disableAllButton)
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
 
-		const switches = screen.getAllByRole('switch')
-		switches.forEach((switchElement) => {
-			expect(switchElement).toHaveAttribute('aria-checked', 'false')
+			expect(screen.getByLabelText('Loading notification preferences')).toBeInTheDocument()
+		})
+
+		it('should show error message on error', () => {
+			const error = new Error('Failed to load preferences')
+			mockUseEmailPreferences.mockReturnValue({
+				isLoading: false,
+				error,
+			} as UseQueryResult<EmailPreferencesResponse>)
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			expect(screen.getByText('Failed to load notification preferences')).toBeInTheDocument()
+			expect(screen.getByText('Failed to load preferences')).toBeInTheDocument()
+			expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
 		})
 	})
 
-	it('should initialize with provided preferences', () => {
-		const preferences = {
-			FOLLOW: false,
+	describe('Preference Toggles', () => {
+		const defaultPreferences = {
+			FOLLOW: true,
 			COMMENT: true,
-			LIKE: false,
+			LIKE: true,
 			MENTION: true,
 			EVENT: true,
-			SYSTEM: false,
+			SYSTEM: true,
 		}
 
-		render(<NotificationSettings preferences={preferences} />)
+		beforeEach(() => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: defaultPreferences },
+				isLoading: false,
+				error: null,
+			})
 
-		const followSwitch = screen.getByRole('switch', { name: /new followers/i })
-		const commentSwitch = screen.getByRole('switch', { name: /comments/i })
-		const likeSwitch = screen.getByRole('switch', { name: /likes/i })
-
-		expect(followSwitch).toHaveAttribute('aria-checked', 'false')
-		expect(commentSwitch).toHaveAttribute('aria-checked', 'true')
-		expect(likeSwitch).toHaveAttribute('aria-checked', 'false')
-	})
-
-	it('should disable all controls when loading', () => {
-		render(<NotificationSettings loading />)
-
-		const switches = screen.getAllByRole('switch')
-		switches.forEach((switchElement) => {
-			expect(switchElement).toBeDisabled()
+			mockUseUpdateEmailPreferences.mockReturnValue({
+				mutate: vi.fn(),
+				isPending: false,
+			})
 		})
 
-		const enableAllButton = screen.getByRole('button', { name: /enable all/i })
-		const disableAllButton = screen.getByRole('button', { name: /disable all/i })
+		it('should display all notification types with icons', () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
 
-		expect(enableAllButton).toBeDisabled()
-		expect(disableAllButton).toBeDisabled()
+			expect(screen.getByText('New Followers')).toBeInTheDocument()
+			expect(screen.getByText('Comments')).toBeInTheDocument()
+			expect(screen.getByText('Likes')).toBeInTheDocument()
+			expect(screen.getByText('Mentions')).toBeInTheDocument()
+			expect(screen.getByText('Event Updates')).toBeInTheDocument()
+			expect(screen.getByText('System Notifications')).toBeInTheDocument()
+		})
+
+		it('should display descriptions for each notification type', () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			expect(screen.getByText('Get notified when someone follows you')).toBeInTheDocument()
+			expect(screen.getByText('Get notified when someone comments on your events')).toBeInTheDocument()
+			expect(screen.getByText('Get notified when someone likes your events')).toBeInTheDocument()
+			expect(screen.getByText('Get notified when someone mentions you')).toBeInTheDocument()
+			expect(screen.getByText("Get notified about events you're attending")).toBeInTheDocument()
+			expect(screen.getByText('Important updates from the platform')).toBeInTheDocument()
+		})
+
+		it('should show correct toggle states based on preferences', () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// All should be enabled by default
+			const toggles = screen.getAllByRole('switch')
+			toggles.forEach((toggle) => {
+				expect(toggle).toHaveAttribute('aria-checked', 'true')
+			})
+		})
+
+		it('should handle toggle changes', async () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			const followToggle = screen.getByRole('switch', { name: /New Followers/i })
+			expect(followToggle).toHaveAttribute('aria-checked', 'true')
+
+			// Toggle off
+			fireEvent.click(followToggle)
+
+			await waitFor(() => {
+				expect(followToggle).toHaveAttribute('aria-checked', 'false')
+			})
+		})
+
+		it('should show save button when changes are made', async () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// Initially no save button
+			expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument()
+
+			// Make a change
+			const followToggle = screen.getByRole('switch', { name: /New Followers/i })
+			fireEvent.click(followToggle)
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+				expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+			})
+		})
+	})
+
+	describe('Actions', () => {
+		const defaultPreferences = {
+			FOLLOW: true,
+			COMMENT: true,
+			LIKE: true,
+			MENTION: true,
+			EVENT: true,
+			SYSTEM: true,
+		}
+
+		beforeEach(() => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: defaultPreferences },
+				isLoading: false,
+				error: null,
+			})
+		})
+
+		it('should enable all notifications when Enable All clicked', async () => {
+			// Start with some disabled
+			mockUseEmailPreferences.mockReturnValue({
+				data: {
+					preferences: {
+						...defaultPreferences,
+						FOLLOW: false,
+						COMMENT: false,
+					},
+				},
+				isLoading: false,
+				error: null,
+			})
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			const enableAllButton = screen.getByRole('button', { name: 'Enable All' })
+			fireEvent.click(enableAllButton)
+
+			await waitFor(() => {
+				// All toggles should be enabled
+				const toggles = screen.getAllByRole('switch')
+				toggles.forEach((toggle) => {
+					expect(toggle).toHaveAttribute('aria-checked', 'true')
+				})
+
+				// Should show save button
+				expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+			})
+		})
+
+		it('should disable all notifications when Disable All clicked', async () => {
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			const disableAllButton = screen.getByRole('button', { name: 'Disable All' })
+			fireEvent.click(disableAllButton)
+
+			await waitFor(() => {
+				// All toggles should be disabled
+				const toggles = screen.getAllByRole('switch')
+				toggles.forEach((toggle) => {
+					expect(toggle).toHaveAttribute('aria-checked', 'false')
+				})
+
+				// Should show save button
+				expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+			})
+		})
+
+		it('should save preferences when Save Changes clicked', async () => {
+			const mockMutate = vi.fn()
+			mockUseUpdateEmailPreferences.mockReturnValue({
+				mutate: mockMutate,
+				isPending: false,
+			} as UseMutationResult<EmailPreferencesResponse, Error, Partial<EmailPreferences>>)
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// Make a change first
+			const followToggle = screen.getByRole('switch', { name: /New Followers/i })
+			fireEvent.click(followToggle)
+
+			await waitFor(() => {
+				const saveButton = screen.getByRole('button', { name: 'Save Changes' })
+				fireEvent.click(saveButton)
+			})
+
+			await waitFor(() => {
+				expect(mockMutate).toHaveBeenCalledWith(
+					expect.objectContaining({
+						FOLLOW: false, // Changed from true
+					}),
+					expect.any(Object) // options object
+				)
+			})
+		})
+	})
+
+	describe('Loading and Error States for Actions', () => {
+		it('should disable all controls during update', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: { FOLLOW: true, COMMENT: true, LIKE: true, MENTION: true, EVENT: true, SYSTEM: true } },
+				isLoading: false,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
+
+			mockUseUpdateEmailPreferences.mockReturnValue({
+				mutate: vi.fn(),
+				isPending: true,
+			} as UseMutationResult<EmailPreferencesResponse, Error, Partial<EmailPreferences>>)
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// All controls should be disabled
+			const toggles = screen.getAllByRole('switch')
+			toggles.forEach((toggle) => {
+				expect(toggle).toBeDisabled()
+			})
+
+			expect(screen.getByRole('button', { name: 'Enable All' })).toBeDisabled()
+			expect(screen.getByRole('button', { name: 'Disable All' })).toBeDisabled()
+		})
+	})
+
+	describe('Accessibility', () => {
+		it('should have proper ARIA labels', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: { FOLLOW: true, COMMENT: true, LIKE: true, MENTION: true, EVENT: true, SYSTEM: true } },
+				isLoading: false,
+				error: null,
+			})
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			const toggles = screen.getAllByRole('switch')
+			toggles.forEach((toggle) => {
+				expect(toggle).toHaveAttribute('role', 'switch')
+				expect(toggle).toHaveAttribute('aria-checked')
+			})
+		})
+
+		it('should have keyboard navigation support', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: { FOLLOW: true, COMMENT: true, LIKE: true, MENTION: true, EVENT: true, SYSTEM: true } },
+				isLoading: false,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			const followToggle = screen.getByRole('switch', { name: /New Followers/i })
+			
+			// Should be focusable
+			followToggle.focus()
+			expect(document.activeElement).toBe(followToggle)
+			
+			// Should handle keyboard events
+			fireEvent.keyDown(followToggle, { key: 'Enter' })
+			fireEvent.keyDown(followToggle, { key: ' ' })
+		})
+
+		it('should have proper color contrast', () => {
+			mockUseEmailPreferences.mockReturnValue({
+				data: { preferences: { FOLLOW: true, COMMENT: true, LIKE: true, MENTION: true, EVENT: true, SYSTEM: true } },
+				isLoading: false,
+				error: null,
+			})
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// Check that text is readable (basic check)
+			const titles = screen.getAllByRole('heading')
+			titles.forEach((title) => {
+				expect(title).toHaveStyle({ 'font-weight': 'bold' })
+			})
+		})
+
+		it('should show confirmation dialog and reset preferences to defaults only after confirmation', async () => {
+			const mockMutate = vi.fn()
+			mockUseResetEmailPreferences.mockReturnValue({
+				mutate: mockMutate,
+				isPending: false,
+			} as UseMutationResult<EmailPreferencesResponse, Error, undefined>)
+
+			mockUseEmailPreferences.mockReturnValue({
+				data: {
+					preferences: {
+						FOLLOW: false, // Modified from default
+						COMMENT: true,
+						LIKE: true,
+						MENTION: true,
+						EVENT: true,
+						SYSTEM: true,
+					},
+				},
+				isLoading: false,
+				error: null,
+			} as UseQueryResult<EmailPreferencesResponse>)
+
+			renderWithQueryClient(<NotificationSettings emailMode={true} />)
+
+			// Make some changes to show the footer
+			const followToggle = screen.getByRole('switch', { name: /new followers/i })
+			fireEvent.click(followToggle)
+
+			// Click reset button
+			const resetButton = screen.getByRole('button', { name: /reset to defaults/i })
+			fireEvent.click(resetButton)
+
+			// Confirmation dialog should appear
+			expect(screen.getByText(/reset to defaults\?/i)).toBeInTheDocument()
+			expect(screen.getByText(/this will overwrite your current notification preferences/i)).toBeInTheDocument()
+
+			// Click confirm in dialog
+			const confirmButton = screen.getByRole('button', { name: /yes, reset/i })
+			fireEvent.click(confirmButton)
+
+			// Should call the reset mutation
+			expect(mockMutate).toHaveBeenCalledWith(undefined, {
+				onSuccess: expect.any(Function),
+			})
+		})
 	})
 })

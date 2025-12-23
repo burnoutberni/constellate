@@ -12,7 +12,7 @@ import { promisify } from 'util'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
-import { sendEmail } from './lib/email.js'
+import { sendTemplatedEmail } from './lib/email.js'
 
 const generateKeyPairAsync = promisify(generateKeyPair)
 
@@ -80,11 +80,28 @@ export const auth = betterAuth({
 				{ email, token: _token, url }: { email: string; token: string; url: string },
 				_ctx?: unknown
 			) => {
-				await sendEmail({
+				// Get user to determine if this is signup or login
+				const user = await prisma.user.findUnique({
+					where: { email },
+					select: { id: true, name: true, username: true },
+				})
+
+				// Import the magic link template
+				const { MagicLinkEmailTemplate } = await import('./lib/email/templates/auth.js')
+
+				const html = MagicLinkEmailTemplate({
+					userName: user?.name || user?.username,
+					loginUrl: url,
+					isSignup: !user, // If no user exists, this is a signup
+					expiresInMinutes: 15,
+				})
+
+				await sendTemplatedEmail({
 					to: email,
-					subject: 'Login to Constellate',
-					text: `Click here to login: ${url}`,
-					html: `<a href="${url}">Click here to login</a>`,
+					subject: user ? 'Login to Constellate' : 'Welcome to Constellate!',
+					html,
+					templateName: 'magic_link',
+					userId: user?.id,
 				})
 			},
 		}),
