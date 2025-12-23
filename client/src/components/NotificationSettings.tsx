@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
-import { 
-    useEmailPreferences, 
+import {
+    useEmailPreferences,
     useUpdateEmailPreferences,
     useResetEmailPreferences,
     type EmailPreferences
@@ -10,49 +10,49 @@ import {
 import { Stack } from './layout'
 import { Card, CardHeader, CardTitle, CardContent, Button, CardFooter, Spinner } from './ui'
 
-const notificationTypes: Array<{ 
+const notificationTypes: Array<{
     type: keyof EmailPreferences
     label: string
     description: string
     icon: string
 }> = [
-    {
-        type: 'FOLLOW',
-        label: 'New Followers',
-        description: 'Get notified when someone follows you',
-        icon: '👥',
-    },
-    {
-        type: 'COMMENT',
-        label: 'Comments',
-        description: 'Get notified when someone comments on your events',
-        icon: '💬',
-    },
-    {
-        type: 'LIKE',
-        label: 'Likes',
-        description: 'Get notified when someone likes your events',
-        icon: '❤️',
-    },
-    {
-        type: 'MENTION',
-        label: 'Mentions',
-        description: 'Get notified when someone mentions you',
-        icon: '@️⃣',
-    },
-    {
-        type: 'EVENT',
-        label: 'Event Updates',
-        description: "Get notified about events you're attending",
-        icon: '📅',
-    },
-    {
-        type: 'SYSTEM',
-        label: 'System Notifications',
-        description: 'Important updates from the platform',
-        icon: '⚙️',
-    },
-]
+        {
+            type: 'FOLLOW',
+            label: 'New Followers',
+            description: 'Get notified when someone follows you',
+            icon: '👥',
+        },
+        {
+            type: 'COMMENT',
+            label: 'Comments',
+            description: 'Get notified when someone comments on your events',
+            icon: '💬',
+        },
+        {
+            type: 'LIKE',
+            label: 'Likes',
+            description: 'Get notified when someone likes your events',
+            icon: '❤️',
+        },
+        {
+            type: 'MENTION',
+            label: 'Mentions',
+            description: 'Get notified when someone mentions you',
+            icon: '@️⃣',
+        },
+        {
+            type: 'EVENT',
+            label: 'Event Updates',
+            description: "Get notified about events you're attending",
+            icon: '📅',
+        },
+        {
+            type: 'SYSTEM',
+            label: 'System Notifications',
+            description: 'Important updates from the platform',
+            icon: '⚙️',
+        },
+    ]
 
 interface NotificationSettingsProps {
     /** Whether the component should use email preferences instead of generic preferences */
@@ -73,20 +73,20 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const [hasChanges, setHasChanges] = useState(false)
 
- 
+
     useEffect(() => {
         // Sync local state with server data, but only if there are no unsaved local changes.
         // This prevents overwriting user's edits if data is refetched in the background.
         if (data?.preferences && !hasChanges) {
             setLocalPreferences(data.preferences)
         }
-    // `hasChanges` is intentionally omitted from the dependency array. We only want this
-    // effect to run when `data.preferences` from the server changes.
-    /* eslint-disable react-hooks/exhaustive-deps */
+        // `hasChanges` is intentionally omitted from the dependency array. We only want this
+        // effect to run when `data.preferences` from the server changes.
+        /* eslint-disable react-hooks/exhaustive-deps */
     }, [data?.preferences])
 
     const handleToggle = (type: keyof EmailPreferences) => {
-        if (!localPreferences) {return}
+        if (!localPreferences) { return }
         setLocalPreferences((prev) => prev ? ({
             ...prev,
             [type]: !prev[type],
@@ -95,7 +95,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     }
 
     const handleSave = () => {
-        if (!localPreferences) {return}
+        if (!localPreferences) { return }
         updatePreferences(localPreferences, {
             onSuccess: () => {
                 setHasChanges(false)
@@ -113,10 +113,16 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     }
 
     const toggleAll = (enabled: boolean) => {
-        if (!localPreferences) {return}
-        const updated = Object.fromEntries(
-            notificationTypes.map((type) => [type, enabled])
-        ) as EmailPreferences;
+        if (!localPreferences) { return }
+
+        const updated = notificationTypes.reduce<EmailPreferences>(
+            (acc, { type }) => {
+                acc[type] = enabled
+                return acc
+            },
+            { ...localPreferences }
+        )
+
         setLocalPreferences(updated)
         setHasChanges(true)
     }
@@ -150,7 +156,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     }
 
     // If preferences are not loaded yet, don't render the form (loading state is handled above)
-    if (!localPreferences) {return null}
+    if (!localPreferences) { return null }
 
     return (
         <Card variant="default" padding="lg">
@@ -180,7 +186,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
             <CardContent>
                 <Stack gap="lg">
                     <p className="text-sm text-text-secondary">
-                        {emailMode 
+                        {emailMode
                             ? 'Choose which notifications you\'d like to receive via email. You can always change these settings later.'
                             : 'Choose which notifications you\'d like to receive. You can always change these settings later.'
                         }
@@ -215,10 +221,9 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                                         border-2 border-transparent transition-colors duration-200 ease-in-out
                                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
                                         disabled:opacity-50 disabled:cursor-not-allowed
-                                        ${
-                                            localPreferences[type]
-                                                ? 'bg-primary-600'
-                                                : 'bg-neutral-200 dark:bg-neutral-700'
+                                        ${localPreferences[type]
+                                            ? 'bg-primary-600'
+                                            : 'bg-neutral-200 dark:bg-neutral-700'
                                         }
                                     `}>
                                     <span className="sr-only">
@@ -229,10 +234,9 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
                                         className={`
                                             pointer-events-none inline-block h-5 w-5 transform rounded-full
                                             bg-white shadow ring-0 transition duration-200 ease-in-out
-                                            ${
-                                                localPreferences[type]
-                                                    ? 'translate-x-5'
-                                                    : 'translate-x-0'
+                                            ${localPreferences[type]
+                                                ? 'translate-x-5'
+                                                : 'translate-x-0'
                                             }
                                         `}
                                     />
@@ -244,9 +248,9 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
             </CardContent>
             {hasChanges && (
                 <CardFooter>
-                    <Button 
-                        variant="ghost" 
-                        size="md" 
+                    <Button
+                        variant="ghost"
+                        size="md"
                         onClick={() => {
                             setLocalPreferences(data?.preferences || null)
                             setHasChanges(false)
