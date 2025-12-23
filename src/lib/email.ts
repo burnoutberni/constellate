@@ -115,27 +115,32 @@ export async function sendTemplatedEmail({
 	return result
 }
 
+function removeHtmlTags(html: string): string {
+	const tmp = DOMPurify.sanitize(html, {
+		ALLOWED_TAGS: [], // Remove all tags
+		ALLOWED_ATTR: [], // Remove all attributes
+	})
+	return tmp.replace(/\s+/g, ' ').trim() // Normalize whitespace
+}
+
 /**
  * Generate plain text from HTML (basic implementation)
  */
 function generateTextFromHtml(html: string): string {
 	// Sanitize HTML first to prevent XSS and ensure safe processing
-	const sanitized = DOMPurify.sanitize(html, {
-		ALLOWED_TAGS: [], // Strip all HTML tags
-		ALLOWED_ATTR: [], // No attributes allowed
-	})
+	const sanitized = removeHtmlTags(html)
 
-	// Decode HTML entities and clean up whitespace
-	return sanitized
-		.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-		.replace(/&lt;/g, '<') // Decode HTML entities
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, "'")
-		.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
-		.replace(/[<>]/g, '') // Remove any remaining < and > to prevent reintroduced tags
-		.replace(/\s+/g, ' ') // Normalize whitespace
-		.trim()
+	// Remove any remaining HTML tags (just in case)
+	return removeHtmlTags(
+		// Decode HTML entities and clean up whitespace
+		sanitized
+			.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+			.replace(/&lt;/g, '<') // Decode HTML entities
+			.replace(/&gt;/g, '>')
+			.replace(/&quot;/g, '"')
+			.replace(/&#39;/g, "'")
+			.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
+	)
 }
 
 /**

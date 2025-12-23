@@ -142,7 +142,7 @@ describe('NotificationSettings Component', () => {
 
 			renderWithQueryClient(<NotificationSettings emailMode={true} />)
 
-			expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+			expect(screen.getByLabelText('Loading notification preferences')).toBeInTheDocument()
 		})
 
 		it('should show error message on error', () => {

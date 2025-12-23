@@ -134,7 +134,7 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     if (isLoading) {
         return (
-            <Card variant="default" padding="lg">
+            <Card variant="default" padding="lg" role="status" aria-label="Loading notification preferences">
                 <div className="flex items-center justify-center min-h-[200px]">
                     <Spinner size="md" />
                 </div>
