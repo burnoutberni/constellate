@@ -20,7 +20,7 @@ app.post('/', async (c) => {
 
 	const requiredFields = { email, password, name, username }
 	const missingFields = Object.entries(requiredFields)
-		.filter(([, value]) => !value?.trim())
+		.filter(([, value]) => typeof value !== 'string' || value.trim() === '')
 		.map(([key]) => key)
 
 	if (missingFields.length > 0) {
