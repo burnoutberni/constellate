@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { randomBytes } from 'crypto'
 import { prisma } from './lib/prisma.js'
 import { auth } from './auth.js'
 import { generateUserKeys } from './auth.js'
@@ -36,15 +35,14 @@ app.post('/', async (c) => {
 
 	try {
 		// Create user using better-auth
-		const generatedPassword =
-			password && password.trim().length > 0 ? password : randomBytes(24).toString('hex')
-
 		const user = await auth.api.signUpEmail({
 			body: {
 				email,
-				password: generatedPassword,
+				password,
 				name,
 				username,
+				// @ts-expect-error - tosAccepted is a virtual field required by our auth hook
+				tosAccepted,
 			},
 		})
 
@@ -53,11 +51,11 @@ app.post('/', async (c) => {
 		}
 
 		// Update user to make admin (username is already set via signUpEmail)
+		// tosAcceptedAt is handled by the auth 'after' hook
 		await prisma.user.update({
 			where: { id: user.user.id },
 			data: {
 				isAdmin: true,
-				tosAcceptedAt: new Date(),
 			},
 		})
 

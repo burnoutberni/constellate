@@ -108,8 +108,9 @@ export function OnboardingPage() {
 							id="password"
 							name="password"
 							type="password"
-							label="Password (optional)"
+							label="Password"
 							autoComplete="new-password"
+							required
 							placeholder="Password"
 							value={formData.password}
 							onChange={(e) => setFormData({ ...formData, password: e.target.value })}
