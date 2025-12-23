@@ -3,6 +3,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
+import { htmlToText } from 'html-to-text';
 
 const transporter = nodemailer.createTransport({
 	host: config.smtp.host,
@@ -120,22 +121,9 @@ export async function sendTemplatedEmail({
  * Generate plain text from HTML (basic implementation)
  */
 function generateTextFromHtml(html: string): string {
-	// Sanitize HTML first to prevent XSS and ensure safe processing
-	const sanitized = DOMPurify.sanitize(html, {
-		ALLOWED_TAGS: [], // Remove all tags
-		ALLOWED_ATTR: [], // Remove all attributes
-	})
-
-	// Decode HTML entities and clean up whitespace
-	return sanitized
-		.replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-		.replace(/&lt;/g, '<') // Decode HTML entities
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, "'")
-		.replace(/&amp;/g, '&') // Decode ampersand last to avoid double unescaping
-		.replace(/\s+/g, ' ')
-		.trim() // Normalize whitespace
+  return htmlToText(html, {
+    wordwrap: 72,
+  });
 }
 
 /**

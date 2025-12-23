@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 COPY package*.json ./
 COPY client/package*.json ./client/
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 RUN cd client && npm ci
 
 # Development stage

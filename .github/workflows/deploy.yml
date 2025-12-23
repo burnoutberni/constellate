@@ -31,8 +31,8 @@ jobs:
               with:
                   node-version: '20'
                   cache: 'npm'
-            - run: npm ci --legacy-peer-deps
-            - run: cd client && npm ci --legacy-peer-deps
+            - run: npm ci
+            - run: cd client && npm ci
             - run: npx prisma generate
             - run: npx prisma migrate deploy
             - run: npm test

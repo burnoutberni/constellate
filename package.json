@@ -62,11 +62,12 @@
 		"@prisma/client": "^6.19.1",
 		"@scalar/hono-api-reference": "^0.9.30",
 		"@touch4it/ical-timezones": "^1.9.0",
-		"better-auth": "^1.4.7",
+		"better-auth": "^1.4.8",
 		"hono": "^4.11.1",
+		"html-to-text": "^9.0.5",
 		"ical-generator": "^10.0.0",
 		"isomorphic-dompurify": "^2.34.0",
-		"nodemailer": "^7.0.11",
+		"nodemailer": "^7.0.12",
 		"zod": "^4.2.1"
 	},
 	"devDependencies": {
@@ -80,12 +81,12 @@
 		"eslint": "^9.39.2",
 		"eslint-plugin-sonarjs": "^3.0.5",
 		"globals": "^16.5.0",
-		"knip": "^5.73.4",
+		"knip": "^5.76.3",
 		"prettier": "^3.7.4",
 		"prisma": "^6.19.1",
 		"tsx": "^4.21.0",
 		"typescript": "^5.7.2",
-		"typescript-eslint": "^8.49.0",
+		"typescript-eslint": "^8.50.1",
 		"vitest": "^4.0.15"
 	}
 }

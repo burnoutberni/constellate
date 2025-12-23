@@ -17,7 +17,7 @@ jobs:
               run: |
                   rm -rf node_modules
                   rm -f package-lock.json
-                  npm install --legacy-peer-deps
+                  npm install
                   cd client
                   rm -rf node_modules
                   rm -f package-lock.json
@@ -30,7 +30,7 @@ jobs:
                   cache: 'npm'
 
             - name: Install root dependencies
-              run: npm ci --legacy-peer-deps
+              run: npm ci
 
             - name: Install client dependencies
               run: npm ci --prefix client
@@ -95,7 +95,7 @@ jobs:
               run: |
                   rm -rf node_modules
                   rm -f package-lock.json
-                  npm install --legacy-peer-deps
+                  npm install
                   cd client
                   rm -rf node_modules
                   rm -f package-lock.json
@@ -108,7 +108,7 @@ jobs:
                   cache: 'npm'
 
             - name: Install root dependencies
-              run: npm ci --legacy-peer-deps
+              run: npm ci
 
             - name: Install client dependencies
               run: npm ci --prefix client
@@ -149,7 +149,7 @@ jobs:
               run: |
                   rm -rf node_modules
                   rm -f package-lock.json
-                  npm install --legacy-peer-deps
+                  npm install
                   cd client
                   rm -rf node_modules
                   rm -f package-lock.json
@@ -215,7 +215,7 @@ jobs:
               run: |
                   rm -rf node_modules
                   rm -f package-lock.json
-                  npm install --legacy-peer-deps
+                  npm install
                   cd client
                   rm -rf node_modules
                   rm -f package-lock.json
@@ -236,7 +236,7 @@ jobs:
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install root dependencies
-              run: npm ci --legacy-peer-deps
+              run: npm ci
               if: steps.base_cache.outputs.cache-hit != 'true'
 
             - name: Install client dependencies
@@ -298,7 +298,7 @@ jobs:
               run: |
                   rm -rf node_modules
                   rm -f package-lock.json
-                  npm install --legacy-peer-deps
+                  npm install
                   cd client
                   rm -rf node_modules
                   rm -f package-lock.json
