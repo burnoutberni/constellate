@@ -19,7 +19,7 @@ app.post('/', async (c) => {
 	const { email, password, name, username, tosAccepted } = body
 
 	// Validate input first
-	if (!email || !password || !username || !name) {
+	if (!email?.trim() || !password?.trim() || !username?.trim() || !name?.trim()) {
 		return c.json({ error: 'Missing required fields' }, 400)
 	}
 

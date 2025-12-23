@@ -239,27 +239,56 @@ describe('Email Templates', () => {
 
 	describe('Template Common Features', () => {
 		it('should include brand styling', () => {
-			const html = NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' })
+			const templates = [
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
+				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
+			]
 
-			expect(html).toContain('⭐ Constellate')
-			expect(html).toContain('Connect through events')
-			expect(html).toContain('Federated event management platform')
+			templates.forEach((html) => {
+				expect(html).toContain('⭐ Constellate')
+				expect(html).toContain('Connect through events')
+				expect(html).toContain('Federated event management platform')
+			})
 		})
 
 		it('should include responsive design', () => {
-			const html = NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' })
-
-			expect(html).toContain('max-width: 600px')
-			expect(html).toContain('viewport')
-			expect(html).toContain('media (prefers-color-scheme: dark)')
+			const templates = [
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
+				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
+			]
+			templates.forEach((html) => {
+				expect(html).toContain('max-width: 600px')
+				expect(html).toContain('viewport')
+				expect(html).toContain('media (prefers-color-scheme: dark)')
+			})
 		})
 
 		it('should include footer information', () => {
-			const html = NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' })
+			const templates = [
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
+				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
+			]
 
-			expect(html).toContain('This email was sent by Constellate')
-			expect(html).toContain('Unsubscribe')
-			expect(html).toContain('Email Preferences')
+			templates.forEach((html) => {
+				expect(html).toContain('This email was sent by Constellate')
+				expect(html).toContain('Unsubscribe')
+				expect(html).toContain('Email Preferences')
+			})
 		})
 
 		it('should escape HTML content properly', () => {

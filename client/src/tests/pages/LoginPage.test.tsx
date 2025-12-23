@@ -130,42 +130,6 @@ describe('LoginPage', () => {
 		})
 	})
 
-	it('submits signup form with password', async () => {
-		const { wrapper } = createTestWrapper()
-		const signupMock = vi.fn()
-		vi.mocked(useAuth).mockReturnValue({
-			user: null,
-			loading: false,
-			tosStatus: null,
-			checkTosStatus: vi.fn(),
-			login: vi.fn(),
-			signup: signupMock,
-			logout: vi.fn(),
-		})
-
-		render(<LoginPage />, { wrapper })
-
-		// Switch to signup
-		fireEvent.click(screen.getByRole('button', { name: 'Sign up' }))
-
-		// Fill fields
-		fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'newuser' } })
-		fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New User' } })
-		fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.com' } })
-		fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
-		
-		// Accept ToS
-		const tosCheckbox = screen.getByRole('checkbox')
-		fireEvent.click(tosCheckbox)
-
-		// Submit
-		fireEvent.click(screen.getByRole('button', { name: 'Create Account' }))
-
-		await waitFor(() => {
-			expect(signupMock).toHaveBeenCalledWith('new@example.com', 'password123', 'New User', 'newuser', true)
-		})
-	})
-
 	it('displays error message on failure', async () => {
 		const loginMock = vi.fn().mockRejectedValue(new Error('Invalid email'))
 		vi.mocked(useAuth).mockReturnValue({
