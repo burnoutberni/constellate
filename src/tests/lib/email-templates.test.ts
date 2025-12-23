@@ -5,70 +5,12 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-	MagicLinkEmailTemplate,
 	PasswordResetEmailTemplate,
 	NotificationEmailTemplate,
 	WeeklyDigestEmailTemplate,
 } from '../../lib/email/templates/index.js'
 
 describe('Email Templates', () => {
-	describe('MagicLinkEmailTemplate', () => {
-		it('should generate login email for existing user', () => {
-			const html = MagicLinkEmailTemplate({
-				userName: 'John Doe',
-				loginUrl: 'https://example.com/login?token=abc123',
-				isSignup: false,
-			})
-
-			expect(html).toContain('Login to Constellate')
-			expect(html).toContain('Hi John Doe,')
-			expect(html).toContain('https://example.com/login?token=abc123')
-			expect(html).toContain('Sign In to Constellate')
-			expect(html).toContain('15 minutes')
-			expect(html).not.toContain('Welcome to Constellate!')
-			expect(html).toContain('⭐ Constellate')
-		})
-
-		it('should generate signup email for new user', () => {
-			const html = MagicLinkEmailTemplate({
-				loginUrl: 'https://example.com/login?token=abc123',
-				isSignup: true,
-			})
-
-			expect(html).toContain('Welcome to Constellate!')
-			expect(html).toContain('Hi there,')
-			expect(html).toContain('Complete Sign Up')
-			expect(html).toContain('Welcome to Constellate')
-			expect(html).toContain('federated event management platform')
-		})
-
-		it('should include security information', () => {
-			const html = MagicLinkEmailTemplate({
-				loginUrl: 'https://example.com/login?token=abc123',
-				expiresInMinutes: 30,
-			})
-
-			expect(html).toContain('Security:')
-			expect(html).toContain('Expiration:')
-			expect(html).toContain('30 minutes')
-			expect(html).toContain('Safe browsing:')
-		})
-
-		it('should be responsive and accessible', () => {
-			const html = MagicLinkEmailTemplate({
-				loginUrl: 'https://example.com/login',
-			})
-
-			// Check for responsive design elements
-			expect(html).toContain('viewport')
-			expect(html).toContain('max-width: 600px')
-
-			// Check for accessibility features
-			expect(html).toContain('role="presentation"')
-			expect(html).toContain('aria-label')
-		})
-	})
-
 	describe('PasswordResetEmailTemplate', () => {
 		it('should generate password reset email', () => {
 			const html = PasswordResetEmailTemplate({
@@ -298,8 +240,13 @@ describe('Email Templates', () => {
 	describe('Template Common Features', () => {
 		it('should include brand styling', () => {
 			const templates = [
-				MagicLinkEmailTemplate({ loginUrl: 'https://example.com' }),
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
 				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
 			]
 
 			templates.forEach((html) => {
@@ -310,19 +257,38 @@ describe('Email Templates', () => {
 		})
 
 		it('should include responsive design', () => {
-			const html = MagicLinkEmailTemplate({ loginUrl: 'https://example.com' })
-
-			expect(html).toContain('max-width: 600px')
-			expect(html).toContain('viewport')
-			expect(html).toContain('media (prefers-color-scheme: dark)')
+			const templates = [
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
+				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
+			]
+			templates.forEach((html) => {
+				expect(html).toContain('max-width: 600px')
+				expect(html).toContain('viewport')
+				expect(html).toContain('media (prefers-color-scheme: dark)')
+			})
 		})
 
 		it('should include footer information', () => {
-			const html = MagicLinkEmailTemplate({ loginUrl: 'https://example.com' })
+			const templates = [
+				PasswordResetEmailTemplate({ resetUrl: 'https://example.com' }),
+				NotificationEmailTemplate({ type: 'FOLLOW', title: 'Test' }),
+				WeeklyDigestEmailTemplate({
+					notifications: [],
+					startDate: new Date('2024-01-08'),
+					endDate: new Date('2024-01-14'),
+				}),
+			]
 
-			expect(html).toContain('This email was sent by Constellate')
-			expect(html).toContain('Unsubscribe')
-			expect(html).toContain('Email Preferences')
+			templates.forEach((html) => {
+				expect(html).toContain('This email was sent by Constellate')
+				expect(html).toContain('Unsubscribe')
+				expect(html).toContain('Email Preferences')
+			})
 		})
 
 		it('should escape HTML content properly', () => {

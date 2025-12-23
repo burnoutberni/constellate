@@ -39,7 +39,7 @@ describe('AccountSettings Component', () => {
 		expect(screen.getByText('test@example.com')).toBeInTheDocument()
 	})
 
-	it('should show change password button', () => {
+	it('should show change password button when user has password', () => {
 		renderComponent()
 
 		const changePasswordBtn = screen.getByRole('button', { name: /change password/i })

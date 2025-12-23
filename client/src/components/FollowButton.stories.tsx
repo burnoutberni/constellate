@@ -35,7 +35,6 @@ const mockAuthValue = {
 	tosStatus: null,
 	checkTosStatus: async () => {},
 	login: async () => {},
-	sendMagicLink: async () => {},
 	signup: async () => {},
 	logout: async () => {},
 }

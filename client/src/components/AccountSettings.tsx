@@ -37,8 +37,18 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 		setPasswordError('')
 
 		// Validation
-		if (!currentPassword || !newPassword || !confirmPassword) {
-			setPasswordError('All fields are required')
+if (!currentPassword) {
+			setPasswordError('Current password is required')
+			return
+		}
+
+		if (!newPassword) {
+			setPasswordError('New password is required')
+			return
+		}
+
+		if (!confirmPassword) {
+			setPasswordError('Please confirm your new password')
 			return
 		}
 
@@ -151,9 +161,7 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 					<Stack gap="md" className="border-t border-border-default pt-6">
 						<div>
 							<h3 className="font-medium text-text-primary mb-1">Change Password</h3>
-							<p className="text-sm text-text-tertiary">
-								Update your password to keep your account secure.
-							</p>
+							<p className="text-sm text-text-tertiary">Update your password to keep your account secure.</p>
 						</div>
 
 						{!showPasswordChange ? (

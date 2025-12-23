@@ -6,13 +6,11 @@
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
-import { magicLink } from 'better-auth/plugins'
 import { generateKeyPair } from 'crypto'
 import { promisify } from 'util'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
-import { sendTemplatedEmail } from './lib/email.js'
 
 const generateKeyPairAsync = promisify(generateKeyPair)
 
@@ -74,38 +72,7 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
-	plugins: [
-		magicLink({
-			sendMagicLink: async (
-				{ email, token: _token, url }: { email: string; token: string; url: string },
-				_ctx?: unknown
-			) => {
-				// Get user to determine if this is signup or login
-				const user = await prisma.user.findUnique({
-					where: { email },
-					select: { id: true, name: true, username: true },
-				})
-
-				// Import the magic link template
-				const { MagicLinkEmailTemplate } = await import('./lib/email/templates/auth.js')
-
-				const html = MagicLinkEmailTemplate({
-					userName: user?.name || user?.username,
-					loginUrl: url,
-					isSignup: !user, // If no user exists, this is a signup
-					expiresInMinutes: 15,
-				})
-
-				await sendTemplatedEmail({
-					to: email,
-					subject: user ? 'Login to Constellate' : 'Welcome to Constellate!',
-					html,
-					templateName: 'magic_link',
-					userId: user?.id,
-				})
-			},
-		}),
-	],
+	plugins: [],
 	session: {
 		expiresIn: 60 * 60 * 24 * 7, // 7 days
 		updateAge: 60 * 60 * 24, // Update session every 24 hours
@@ -138,20 +105,14 @@ export const auth = betterAuth({
 		// request/response bodies, making it more maintainable and resilient
 		// to changes in better-auth's internal structure.
 		before: createAuthMiddleware(async (ctx) => {
-			// Check if this is a signup attempt (Email/Password or Magic Link)
+			// Check if this is a signup attempt (Email/Password only)
 			const isEmailSignup = ctx.path === '/sign-up/email'
-			const isMagicLink = ctx.path === '/sign-in/magic-link'
 
-			if (!isEmailSignup && !isMagicLink) {
+			if (!isEmailSignup) {
 				return
 			}
 
 			const body = ctx.body as { tosAccepted?: boolean; username?: string }
-
-			// If it's Magic Link, we only validate if username is provided (implying signup intent)
-			if (isMagicLink && !body.username) {
-				return
-			}
 
 			// Validate username is provided and non-empty
 			// Username is required for all users as it's their public identifier
@@ -184,7 +145,7 @@ export const auth = betterAuth({
 		after: createAuthMiddleware(async (ctx) => {
 			// We want to run this whenever a session is created to ensure the user is fully initialized
 			// (Has keys, ToS accepted, etc.)
-			// This covers /sign-up/email, /magic-link/verify, etc.
+			// This covers /sign-up/email, etc.
 			const newSession = ctx.context.newSession
 			if (!newSession?.user) {
 				return
