@@ -191,13 +191,25 @@ export async function sendNotificationEmail({
 		return
 	}
 
-	// Ensure URLs are absolute
-	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
 	const makeAbsolute = (url?: string) => {
 		if (!url) return undefined
+		// If the URL is already absolute, return it as is.
 		if (/^https?:\/\//i.test(url)) return url
-		if (url.startsWith('/')) return baseUrl + url
-		return url // fallback, should not happen
+		// If no baseUrl is configured, we cannot make it absolute.
+		const baseUrl = config.baseUrl
+		if (!baseUrl) return url
+
+		// Use the URL constructor to safely join the base and relative path.
+		// This correctly handles paths that do or do not start with '/'.
+		try {
+			return new URL(url, baseUrl).href
+		} catch (e) {
+			console.error(
+				`Failed to create absolute URL for path "${url}" with base "${baseUrl}"`,
+				e
+			)
+			return url // Fallback on error
+		}
 	}
 
 	const absoluteContextUrl = makeAbsolute(contextUrl)
