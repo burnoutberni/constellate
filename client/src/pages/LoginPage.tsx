@@ -119,6 +119,7 @@ export function LoginPage() {
 							onChange={(e) => setPassword(e.target.value)}
 							placeholder="Your password"
 							required
+							autoComplete={isLogin ? 'current-password' : 'new-password'}
 						/>
 
 						{!isLogin && (
