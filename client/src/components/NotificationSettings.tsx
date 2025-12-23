@@ -83,11 +83,16 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
     const [hasChanges, setHasChanges] = useState(false)
 
  
-    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
-    if (!data?.preferences || hasChanges) {return}
-    setLocalPreferences(data.preferences)
-    }, [data?.preferences, hasChanges])
+        // Sync local state with server data, but only if there are no unsaved local changes.
+        // This prevents overwriting user's edits if data is refetched in the background.
+        if (data?.preferences && !hasChanges) {
+            setLocalPreferences(data.preferences)
+        }
+    // `hasChanges` is intentionally omitted from the dependency array. We only want this
+    // effect to run when `data.preferences` from the server changes.
+    /* eslint-disable react-hooks/exhaustive-deps */
+    }, [data?.preferences])
 
     const handleToggle = (type: keyof EmailPreferences) => {
         setLocalPreferences((prev) => ({

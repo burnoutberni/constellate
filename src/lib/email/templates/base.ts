@@ -20,7 +20,7 @@ export interface BaseEmailProps {
 
 export function BaseEmailTemplate({
 	subject,
-	previewText: _previewText,
+	previewText,
 	userName = 'there',
 	children,
 	footerContent,
@@ -31,6 +31,11 @@ export function BaseEmailTemplate({
 		month: 'long',
 		day: 'numeric',
 	})
+
+	// Add preview text as a hidden snippet for email clients
+	const previewSnippet = previewText
+		? `<div style="display:none;max-height:0;overflow:hidden;color:transparent;">${previewText}</div>`
+		: ''
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -76,7 +81,8 @@ export function BaseEmailTemplate({
     </style>
 </head>
 <body style="margin: 0 !important; padding: 0 !important; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;">
-    <!--[if mso]>
+    ${previewSnippet}
+    <!--[if mso]-->
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc;">
     <tr>
     <td>
@@ -148,7 +154,7 @@ export function BaseEmailTemplate({
         </table>
     </div>
     
-    <!--[if mso]>
+    <!--[if mso]-->
     </td>
     </tr>
     </table>

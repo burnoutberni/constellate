@@ -5,7 +5,10 @@ function replaceEmailPlaceholders(html: string): string {
 	const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.replace(/\/$/, '') : ''
 	return html
 		.replace(/\{\{\{UNSUBSCRIBE_URL\}\}\}/g, baseUrl ? `${baseUrl}/email/unsubscribe` : '#')
-		.replace(/\{\{\{PREFERENCES_URL\}\}\}/g, baseUrl ? `${baseUrl}/settings/email-preferences` : '#')
+		.replace(
+			/\{\{\{PREFERENCES_URL\}\}\}/g,
+			baseUrl ? `${baseUrl}/settings/email-preferences` : '#'
+		)
 		.replace(/\{\{\{NOTIFICATIONS_URL\}\}\}/g, baseUrl ? `${baseUrl}/notifications` : '#')
 }
 import { prisma } from './prisma.js'
