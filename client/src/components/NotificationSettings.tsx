@@ -90,10 +90,6 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const handleToggle = (type: keyof EmailPreferences) => {
         if (!localPreferences) { return }
-        // When the user makes their first change, store the initial preferences
-        if (!hasChanges && initialPreferencesRef.current == null && localPreferences) {
-            initialPreferencesRef.current = { ...localPreferences }
-        }
         setLocalPreferences((prev) => prev ? ({
             ...prev,
             [type]: !prev[type],
@@ -140,10 +136,6 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const toggleAll = (enabled: boolean) => {
         if (!localPreferences) { return }
-        // When the user makes their first change, store the initial preferences
-        if (!hasChanges && initialPreferencesRef.current == null && localPreferences) {
-            initialPreferencesRef.current = { ...localPreferences }
-        }
         const updated = notificationTypes.reduce<EmailPreferences>(
             (acc, { type }) => {
                 acc[type] = enabled
