@@ -37,13 +37,18 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
 		setPasswordError('')
 
 		// Validation
-		if (!currentPassword) {
+if (!currentPassword) {
 			setPasswordError('Current password is required')
 			return
 		}
 
-		if (!newPassword || !confirmPassword) {
-			setPasswordError('New and confirm password are required')
+		if (!newPassword) {
+			setPasswordError('New password is required')
+			return
+		}
+
+		if (!confirmPassword) {
+			setPasswordError('Please confirm your new password')
 			return
 		}
 
