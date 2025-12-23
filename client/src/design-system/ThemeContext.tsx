@@ -102,14 +102,6 @@ export function ThemeProvider({
         if (typeof window === 'undefined') {
             return false
         }
-
-        // Fallback to localStorage for backward compatibility
-        try {
-            const stored = localStorage.getItem(storageKey)
-            return Boolean(stored && isValidTheme(stored))
-        } catch (_e) {
-            return false
-        }
     })
 
     // Apply theme class to document root
@@ -118,7 +110,7 @@ export function ThemeProvider({
             return
         }
         const root = document.documentElement
-        root.classList.remove('LIGHT', 'DARK')
+        root.classList.remove('light', 'dark')
         root.classList.add(theme)
     }, [theme])
 
