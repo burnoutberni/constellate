@@ -114,14 +114,9 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
     const toggleAll = (enabled: boolean) => {
         if (!localPreferences) {return}
-        const updated: EmailPreferences = {
-            FOLLOW: enabled,
-            COMMENT: enabled,
-            LIKE: enabled,
-            MENTION: enabled,
-            EVENT: enabled,
-            SYSTEM: enabled,
-        }
+        const updated = Object.fromEntries(
+            notificationTypes.map((type) => [type, enabled])
+        ) as EmailPreferences;
         setLocalPreferences(updated)
         setHasChanges(true)
     }
