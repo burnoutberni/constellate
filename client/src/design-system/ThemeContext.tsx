@@ -18,6 +18,7 @@ import { type Theme } from './tokens'
 export interface ThemeContextType {
     theme: Theme
     systemPreference: Theme
+    userTheme?: Theme | null
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -113,6 +114,7 @@ export function ThemeProvider({
             value={{
                 theme,
                 systemPreference,
+                userTheme,
             }}>
             {children}
         </ThemeContext.Provider>

@@ -61,7 +61,7 @@ describe('ThemeToggle Component', () => {
 
 	it('should display light mode icon and label when theme is dark', () => {
 		renderWithProviders(
-			<ThemeProvider defaultTheme="dark" userTheme="dark">
+			<ThemeProvider defaultTheme="DARK" userTheme="DARK">
 				<ThemeToggle />
 			</ThemeProvider>
 		)
@@ -69,7 +69,7 @@ describe('ThemeToggle Component', () => {
 		const button = screen.getByRole('button')
 		expect(button).toHaveTextContent('☀️')
 		expect(button).toHaveTextContent('Light')
-		expect(button).toHaveAttribute('aria-label', 'Switch to LIGHT mode (your preference: dark)')
+		expect(button).toHaveAttribute('aria-label', 'Switch to LIGHT mode (your preference: DARK)')
 	})
 
 	it('should have correct aria-label for light theme', () => {
@@ -164,4 +164,14 @@ describe('ThemeToggle Component', () => {
 
 		expect(api.put).toHaveBeenCalledWith('/profile', { theme: 'DARK' }, undefined, 'Failed to update theme preference')
 	})
+
+	it('should show (Auto) indicator when no user preference is set', () => {
+		renderWithProviders(
+			<ThemeProvider>
+				<ThemeToggle />
+			</ThemeProvider>
+		);
+		// This assumes the fix for displaying the (Auto) label is implemented
+		expect(screen.getByText('(Auto)')).toBeInTheDocument();
+	});
 })

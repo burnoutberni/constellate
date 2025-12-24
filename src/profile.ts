@@ -49,7 +49,7 @@ const ProfileUpdateSchema = z.object({
 	autoAcceptFollowers: z.boolean().optional(),
 	isPublicProfile: z.boolean().optional(),
 	timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
-	theme: z.enum(['LIGHT', 'DARK']).optional(),
+	theme: z.enum(['LIGHT', 'DARK']).nullable().optional(),
 })
 
 // Get current user's own profile (includes admin status)
