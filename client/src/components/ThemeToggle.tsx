@@ -17,6 +17,7 @@ import { useTheme } from '@/design-system'
 import { queryKeys } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api-client'
+import { useUIStore } from '@/stores'
 
 import { Button } from './ui'
 
@@ -24,6 +25,7 @@ export function ThemeToggle() {
     const { user } = useAuth()
     const { theme, systemPreference, hasUserPreference } = useTheme()
     const queryClient = useQueryClient()
+    const addToast = useUIStore((state) => state.addToast)
 
     const updateThemeMutation = useMutation({
         mutationFn: async (newTheme: 'LIGHT' | 'DARK') => {
@@ -31,6 +33,13 @@ export function ThemeToggle() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.currentProfile(user?.id) })
+        },
+        onError: () => {
+            addToast({
+                id: 'theme-update-error',
+                message: 'Failed to save your theme preference. Please try again.',
+                variant: 'error',
+            })
         },
     })
 
