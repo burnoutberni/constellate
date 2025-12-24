@@ -24,7 +24,7 @@ app.post('/', async (c) => {
 		.map(([key]) => key)
 
 	if (missingFields.length > 0) {
-		return c.json({ error: `Missing required fields: ${missingFields.join(', ')}` }, 400);
+		return c.json({ error: `Missing required fields: ${missingFields.join(', ')}` }, 400)
 	}
 
 	if (!tosAccepted) {

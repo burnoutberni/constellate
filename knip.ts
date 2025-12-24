@@ -8,7 +8,7 @@ import type { KnipConfig } from 'knip'
 const config: KnipConfig = {
 	ignoreExportsUsedInFile: true, // Allow exports that are only used in the same file
 
-	entry: ['src/server.ts', 'prisma/seed.ts'],
+	entry: [],
 	project: ['src/**/*.ts'],
 
 	ignore: [
