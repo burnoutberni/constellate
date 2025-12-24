@@ -6,7 +6,7 @@ import { ThemeProvider } from '../../design-system'
 import { ThemeToggle } from '../../components/ThemeToggle'
 
 // Mock useAuth hook
-vi.mock('../../../hooks/useAuth', () => ({
+vi.mock('../../hooks/useAuth', () => ({
 	useAuth: () => ({
 		user: { id: 'test-user' },
 	}),
