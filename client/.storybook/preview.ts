@@ -6,10 +6,10 @@ const preview: Preview = {
 	decorators: [
 		withThemeByClassName({
 			themes: {
-				light: 'LIGHT',
-				dark: 'DARK',
+				light: 'light',
+				dark: 'dark',
 			},
-			defaultTheme: 'LIGHT',
+			defaultTheme: 'light',
 		}),
 	],
 	parameters: {
