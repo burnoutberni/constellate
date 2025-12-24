@@ -302,8 +302,8 @@ export function NotificationSettings({ emailMode = false }: NotificationSettings
 
             {/* Confirmation Dialog for Reset */}
             {showResetConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg p-6 max-w-sm w-full">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-overlay backdrop-blur-sm">
+                    <div className="bg-background-primary dark:bg-neutral-900 rounded-lg shadow-lg p-6 max-w-sm w-full">
                         <h2 className="text-lg font-semibold mb-2">Reset to Defaults?</h2>
                         <p className="mb-4 text-text-secondary">This will overwrite your current notification preferences with the default settings. Are you sure you want to continue?</p>
                         <div className="flex justify-end gap-2">

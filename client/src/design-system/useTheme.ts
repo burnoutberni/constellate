@@ -9,13 +9,13 @@ import { tokens } from './tokens'
  * @throws Error if used outside ThemeProvider
  */
 export function useTheme(): ThemeContextType {
-	const context = useContext(ThemeContext)
+    const context = useContext(ThemeContext)
 
-	if (context === undefined) {
-		throw new Error('useTheme must be used within a ThemeProvider')
-	}
+    if (context === undefined) {
+        throw new Error('useTheme must be used within a ThemeProvider')
+    }
 
-	return context
+    return context
 }
 
 /**
@@ -36,7 +36,30 @@ export function useTheme(): ThemeContextType {
  * ```
  */
 export function useThemeColors() {
-	const { theme } = useTheme()
-	return tokens.colors[theme as 'light' | 'dark']
+    const { theme } = useTheme()
+    return tokens.colors[theme]
 }
+
+/**
+ * Hook to get current theme shadows
+ *
+ * Returns the shadow tokens for the current theme.
+ *
+ * @public
+ * Part of the design system public API. Use this hook to access
+ * theme-aware shadows in your components.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const shadows = useThemeShadows()
+ *   return <div style={{ boxShadow: shadows.md }}>Themed shadow</div>
+ * }
+ * ```
+ */
+export function useThemeShadows() {
+    const { theme } = useTheme()
+    return tokens.shadows[theme]
+}
+
 

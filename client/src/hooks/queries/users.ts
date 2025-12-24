@@ -26,6 +26,24 @@ export function useUserProfile(username: string) {
 	})
 }
 
+export function useCurrentUserProfile(userId?: string | null) {
+	return useQuery<UserProfile | null>({
+		queryKey: queryKeys.users.currentProfile(userId),
+		queryFn: async () => {
+			if (!userId) {
+				return null
+			}
+			return api.get<UserProfile>(
+				'/users/me/profile',
+				undefined,
+				undefined,
+				'Failed to fetch profile'
+			)
+		},
+		enabled: Boolean(userId),
+	})
+}
+
 export function useFollowStatus(username: string) {
 	return useQuery<FollowStatus>({
 		queryKey: queryKeys.users.followStatus(username),

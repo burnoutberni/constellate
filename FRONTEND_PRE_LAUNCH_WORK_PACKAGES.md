@@ -255,7 +255,7 @@ This document outlines all remaining frontend work packages needed before launch
 
 - Create dark mode color scheme using design tokens
 - Add theme toggle in settings (WP-203)
-- Implement theme persistence (localStorage)
+- Implement theme persistence
 - Update all components for dark mode
 - Add system preference detection
 - Ensure proper contrast ratios

@@ -3,138 +3,120 @@
  *
  * Provides theme management (light/dark mode) with persistence
  * and system preference detection.
+ *
+ * SINGLE SOURCE OF TRUTH:
+ * 1. If user has explicitly set a theme preference (stored in database), use that
+ * 2. Otherwise, use system preference (follows OS/browser setting)
+ * 3. When user makes an explicit choice, it overrides system preference
+ * 4. If user clears their choice, it falls back to system preference
  */
 
 import { createContext, useEffect, useState, ReactNode } from 'react'
 
 import { type Theme } from './tokens'
-import { isValidTheme } from './types'
 
 export interface ThemeContextType {
-	theme: Theme
-	setTheme: (theme: Theme) => void
-	toggleTheme: () => void
-	systemPreference: Theme
+    theme: Theme
+    systemPreference: Theme
+    userTheme?: Theme | null
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-const THEME_STORAGE_KEY = 'constellate-theme'
-
 /**
  * Get system theme preference
  */
 function getSystemTheme(): Theme {
-	if (typeof window === 'undefined') {
-		return 'light'
-	}
+    if (typeof window === 'undefined') {
+        return 'LIGHT'
+    }
 
-	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'DARK' : 'LIGHT'
 }
 
 interface ThemeProviderProps {
-	children: ReactNode
-	defaultTheme?: Theme
-	storageKey?: string
+    children: ReactNode
+    defaultTheme?: Theme
+    storageKey?: string
+    userTheme?: Theme | null
 }
 
 /**
  * Theme Provider Component
  *
  * Manages theme state and applies theme class to document root.
- * Persists theme preference to localStorage.
+ *
+ * SINGLE SOURCE OF TRUTH IMPLEMENTATION:
+ * - If user has explicit preference (stored in database), use that
+ * - Otherwise, use system preference
+ * - When user makes explicit choice, it overrides system preference
+ * - If user clears choice, falls back to system preference
  */
 export function ThemeProvider({
-	children,
-	defaultTheme,
-	storageKey = THEME_STORAGE_KEY,
+    children,
+    defaultTheme,
+    userTheme,
 }: ThemeProviderProps) {
-	// Use lazy initializer to access storageKey
-	const [theme, setThemeState] = useState<Theme>((): Theme => {
-		if (defaultTheme) {
-			return defaultTheme
-		}
+    // Use lazy initializer to access storageKey
+    const [theme, setThemeState] = useState<Theme>((): Theme => {
+        // If user has set a theme in their profile, use that
+        if (userTheme) {
+            return userTheme
+        }
 
-		if (typeof window === 'undefined') {
-			return 'light'
-		}
+        if (defaultTheme) {
+            return defaultTheme
+        }
 
-		try {
-			const stored = localStorage.getItem(storageKey)
-			if (stored && isValidTheme(stored)) {
-				return stored
-			}
-		} catch (_e) {
-			// localStorage is not available, proceed to system theme.
-		}
+        if (typeof window === 'undefined') {
+            return 'LIGHT'
+        }
 
-		return getSystemTheme()
-	})
-	const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
+        return getSystemTheme()
+    })
+    const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
 
-	// Apply theme class to document root
-	useEffect(() => {
-		if (typeof document === 'undefined') {
-			return
-		}
-		const root = document.documentElement
-		root.classList.remove('light', 'dark')
-		root.classList.add(theme)
-	}, [theme])
+    // Apply theme class to document root
+    useEffect(() => {
+        if (typeof document === 'undefined') {
+            return
+        }
+        const root = document.documentElement
+        root.classList.remove('light', 'dark')
+        root.classList.add(theme.toLowerCase())
+    }, [theme])
 
-	// Listen for system theme changes
-	useEffect(() => {
-		if (typeof window === 'undefined') {
-			return
-		}
+    // Listen for system theme changes
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
 
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-		const handleChange = (e: MediaQueryListEvent) => {
-			const newPreference: Theme = e.matches ? 'dark' : 'light'
-			setSystemPreference(newPreference)
+        const handleChange = (e: MediaQueryListEvent) => {
+            const newPreference: Theme = e.matches ? 'DARK' : 'LIGHT'
+            setSystemPreference(newPreference)
 
-			// Only update theme if no explicit preference is stored
-			try {
-				const stored = localStorage.getItem(storageKey)
-				if (!stored) {
-					setThemeState(newPreference)
-				}
-			} catch (_e) {
-				// localStorage is not available, update theme to system preference
-				setThemeState(newPreference)
-			}
-		}
+            // Only update theme if user hasn't made an explicit choice
+            if (!userTheme) {
+                setThemeState(newPreference)
+            }
+        }
 
-		mediaQuery.addEventListener('change', handleChange)
-		return () => mediaQuery.removeEventListener('change', handleChange)
-	}, [storageKey])
+        mediaQuery.addEventListener('change', handleChange)
+        return () => mediaQuery.removeEventListener('change', handleChange)
+    }, [userTheme])
 
-	const setTheme = (newTheme: Theme) => {
-		setThemeState(newTheme)
-		if (typeof window !== 'undefined') {
-			try {
-				localStorage.setItem(storageKey, newTheme)
-			} catch (_e) {
-				// localStorage is not available.
-			}
-		}
-	}
-
-	const toggleTheme = () => {
-		setTheme(theme === 'light' ? 'dark' : 'light')
-	}
-
-	return (
-		<ThemeContext.Provider
-			value={{
-				theme,
-				setTheme,
-				toggleTheme,
-				systemPreference,
-			}}>
-			{children}
-		</ThemeContext.Provider>
-	)
+    return (
+        <ThemeContext.Provider
+            value={{
+                theme,
+                systemPreference,
+                userTheme,
+            }}>
+            {children}
+        </ThemeContext.Provider>
+    )
 }

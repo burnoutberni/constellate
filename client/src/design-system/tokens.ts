@@ -517,15 +517,15 @@ export const tokens = {
 		neutral: neutralColors,
 		semantic: semanticColors,
 		// Theme-specific color mappings
-		light: lightThemeColors,
-		dark: darkThemeColors,
+		LIGHT: lightThemeColors,
+		DARK: darkThemeColors,
 	},
 	typography,
 	spacing,
 	borderRadius,
 	shadows: {
-		light: shadows,
-		dark: darkShadows,
+		LIGHT: shadows,
+		DARK: darkShadows,
 	},
 	breakpoints,
 	zIndex,
@@ -539,4 +539,4 @@ export const tokens = {
 	letterSpacing,
 } as const
 
-export type Theme = 'light' | 'dark'
+export type Theme = 'LIGHT' | 'DARK'

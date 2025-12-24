@@ -235,7 +235,7 @@ function MyComponent() {
 
 ### Theme Persistence
 
-The theme preference is automatically saved to `localStorage` and persists across page reloads.
+The theme preference is automatically saved to database and persists across page reloads.
 
 ### System Preference Detection
 
@@ -286,7 +286,7 @@ Helper functions are available to validate token values:
 import { isValidTheme } from './design-system'
 
 if (isValidTheme(value)) {
-	// value is a valid theme ('light' or 'dark')
+	// value is a valid theme ('LIGHT' or 'DARK')
 }
 ```
 

@@ -44,6 +44,12 @@ vi.mock('../lib/logger', () => ({
 		error: vi.fn(),
 	},
 	configureLogger: vi.fn(),
+	createLogger: vi.fn(() => ({
+		error: vi.fn(),
+		info: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+	})),
 }))
 
 // Mock all lazy-loaded pages to return simple test components

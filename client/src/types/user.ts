@@ -6,6 +6,7 @@ export interface User {
 	email?: string | null
 	displayColor: string
 	timezone?: string // Not included in minimal responses for private profiles
+	theme?: 'LIGHT' | 'DARK' | null
 	bio?: string | null
 	profileImage?: string | null
 	headerImage?: string | null

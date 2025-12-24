@@ -37,7 +37,7 @@ export function createTestWrapper(initialEntries: string[] = ['/']) {
 	})
 
 	const wrapper = ({ children }: { children: ReactNode }) => (
-		<ThemeProvider defaultTheme="light">
+		<ThemeProvider defaultTheme="LIGHT">
 			<QueryClientProvider client={queryClient}>
 				<MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
 			</QueryClientProvider>

@@ -48,7 +48,7 @@ interface EventMapProps {
 export function EventMap({ events, height }: EventMapProps) {
 	const { theme } = useTheme()
 	const navigate = useNavigate()
-	const markerIcon = theme === 'dark' ? darkMarkerIcon : lightMarkerIcon
+	const markerIcon = theme === 'DARK' ? darkMarkerIcon : lightMarkerIcon
 
 	// Filter events with actual location coordinates
 	const eventsWithLocation = useMemo(
@@ -85,7 +85,7 @@ export function EventMap({ events, height }: EventMapProps) {
 	}
 
 	// Dark mode map tiles
-	const { tileLayerUrl, attribution } = theme === 'dark' ? MAP_CONFIG.dark : MAP_CONFIG.light
+	const { tileLayerUrl, attribution } = theme === 'DARK' ? MAP_CONFIG.dark : MAP_CONFIG.light
 
 	return (
 		<div className="rounded-xl overflow-hidden border border-border-default shadow-sm relative">

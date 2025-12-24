@@ -14,7 +14,7 @@ const meta: Meta<typeof EventMap> = {
 	},
 	decorators: [
 		(Story) => (
-			<ThemeProvider defaultTheme="light">
+			<ThemeProvider defaultTheme="LIGHT">
 				<MemoryRouter>
 					<Story />
 				</MemoryRouter>

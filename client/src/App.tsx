@@ -1,6 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState, useMemo, lazy, Suspense } from 'react'
+import { useEffect, useState, useMemo, lazy, Suspense, type ReactNode } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+
+import { useCurrentUserProfile } from '@/hooks/queries'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Footer } from './components/Footer'
@@ -133,6 +135,17 @@ function ProfileOrEventRouter() {
 	return <NotFoundPage />
 }
 
+function ThemeWrapper({ children }: { children: ReactNode }) {
+	const { user } = useAuth()
+	const { data: profile } = useCurrentUserProfile(user?.id)
+
+	return (
+		<ThemeProvider key={profile?.theme ?? 'system'} userTheme={profile?.theme ?? null}>
+			{children}
+		</ThemeProvider>
+	)
+}
+
 function AppContent() {
 	// Global SSE connection
 	useRealtimeSSE()
@@ -263,11 +276,11 @@ function App() {
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<ThemeProvider>
-				<AuthProvider>
+			<AuthProvider>
+				<ThemeWrapper>
 					<AppContent />
-				</AuthProvider>
-			</ThemeProvider>
+				</ThemeWrapper>
+			</AuthProvider>
 		</QueryClientProvider>
 	)
 }
