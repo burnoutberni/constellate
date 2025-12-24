@@ -17,10 +17,7 @@ import { type Theme } from './tokens'
 
 export interface ThemeContextType {
     theme: Theme
-    setTheme: (theme: Theme) => void
-    toggleTheme: () => void
     systemPreference: Theme
-    hasUserPreference: boolean
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -78,7 +75,6 @@ export function ThemeProvider({
         return getSystemTheme()
     })
     const [systemPreference, setSystemPreference] = useState<Theme>(() => getSystemTheme())
-    const [hasUserPreference, setHasUserPreference] = useState<boolean>(() => Boolean(userTheme))
 
     // Apply theme class to document root
     useEffect(() => {
@@ -103,33 +99,20 @@ export function ThemeProvider({
             setSystemPreference(newPreference)
 
             // Only update theme if user hasn't made an explicit choice
-            if (!hasUserPreference) {
+            if (!userTheme) {
                 setThemeState(newPreference)
             }
         }
 
         mediaQuery.addEventListener('change', handleChange)
         return () => mediaQuery.removeEventListener('change', handleChange)
-    }, [hasUserPreference])
-
-    const setTheme = (newTheme: Theme) => {
-        // User is making an explicit choice
-        setHasUserPreference(true)
-        setThemeState(newTheme)
-    }
-
-    const toggleTheme = () => {
-        setTheme(theme === 'LIGHT' ? 'DARK' : 'LIGHT')
-    }
+    }, [userTheme])
 
     return (
         <ThemeContext.Provider
             value={{
                 theme,
-                setTheme,
-                toggleTheme,
                 systemPreference,
-                hasUserPreference,
             }}>
             {children}
         </ThemeContext.Provider>

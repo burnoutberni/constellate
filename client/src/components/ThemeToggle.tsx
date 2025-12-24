@@ -23,7 +23,7 @@ import { Button } from './ui'
 
 export function ThemeToggle() {
     const { user } = useAuth()
-    const { theme, systemPreference, hasUserPreference } = useTheme()
+    const { theme, systemPreference } = useTheme()
     const queryClient = useQueryClient()
     const addToast = useUIStore((state) => state.addToast)
 
@@ -50,14 +50,14 @@ export function ThemeToggle() {
     }
 
     const getToggleLabel = () => {
-        if (!hasUserPreference) {
+        if (!theme) {
             return `Switch to ${theme === 'LIGHT' ? 'DARK' : 'LIGHT'} mode (current: ${theme}, system: ${systemPreference})`
         }
         return `Switch to ${theme === 'LIGHT' ? 'DARK' : 'LIGHT'} mode (your preference: ${theme})`
     }
 
     const getTitle = () => {
-        if (!hasUserPreference) {
+        if (!theme) {
             return `Current: ${theme} (following system: ${systemPreference}). Click to override.`
         }
         return `Current theme: ${theme} (your preference). Click to switch.`
@@ -74,7 +74,7 @@ export function ThemeToggle() {
             <span className="text-sm font-medium hidden sm:inline">
                 {theme === 'LIGHT' ? 'Dark' : 'Light'}
             </span>
-            {!hasUserPreference && (
+            {!theme && (
                 <span className="text-xs text-text-tertiary hidden md:inline ml-1">
                     (Auto)
                 </span>
