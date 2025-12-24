@@ -133,9 +133,9 @@ describe('ThemeToggle Component', () => {
 
 	it('should toggle from dark to light', () => {
 		renderWithProviders(
-			<ThemeProvider defaultTheme="dark" userTheme="dark">
-				<ThemeToggle />
-			</ThemeProvider>
+            <ThemeProvider defaultTheme="DARK" userTheme="DARK">
+                <ThemeToggle />
+            </ThemeProvider>
 		)
 
 		const button = screen.getByRole('button')
