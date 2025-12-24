@@ -235,7 +235,7 @@ function MyComponent() {
 
 ### Theme Persistence
 
-The theme preference is automatically saved to `localStorage` and persists across page reloads.
+The theme preference is automatically saved to database and persists across page reloads.
 
 ### System Preference Detection
 

@@ -20,22 +20,9 @@ vi.mock('../../lib/api-client', () => ({
 }))
 
 describe('ThemeToggle Component', () => {
-	let localStorageMock: {
-		getItem: ReturnType<typeof vi.fn>
-		setItem: ReturnType<typeof vi.fn>
-		removeItem: ReturnType<typeof vi.fn>
-		clear: ReturnType<typeof vi.fn>
-	}
 	const queryClient = new QueryClient()
 
 	beforeEach(() => {
-		localStorageMock = {
-			getItem: vi.fn(() => null),
-			setItem: vi.fn(),
-			removeItem: vi.fn(),
-			clear: vi.fn(),
-		}
-		global.localStorage = localStorageMock as unknown as Storage
 		document.documentElement.className = ''
 		vi.clearAllMocks()
 	})

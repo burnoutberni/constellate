@@ -37,14 +37,6 @@ const originalGet = api.get.bind(api)
 	return originalGet<T>(url, queryParams, options, baseErrorMessage)
 }
 
-// Mock localStorage for recent searches
-if (typeof window !== 'undefined' && !localStorage.getItem('constellate_recent_searches')) {
-	localStorage.setItem(
-		'constellate_recent_searches',
-		JSON.stringify(['music festival', 'tech meetup', 'art exhibition'])
-	)
-}
-
 const meta = {
 	title: 'Components/SearchSuggestions',
 	component: SearchSuggestions,
