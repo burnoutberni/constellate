@@ -20,14 +20,8 @@ async function makeRequest(endpoint: string, options: RequestInit = {}) {
 	}
 
 	// Extract session cookie
-	const setCookie = response.headers.get('set-cookie')
-	let sessionCookie = ''
-	if (setCookie) {
-		const match = setCookie.match(/better-auth\.session_token=([^;]+)/)
-		if (match) {
-			sessionCookie = `better-auth.session_token=${match[1]}`
-		}
-	}
+	const cookies = response.headers.getSetCookie()
+	const sessionCookie = cookies.find(cookie => cookie.startsWith('better-auth.session_token=')) || ''
 
 	return { response, sessionCookie }
 }
@@ -84,7 +78,7 @@ async function authenticateUser(email: string, password: string, username: strin
 	throw new Error(`Could not authenticate user ${email}`)
 }
 
-async function createEvent(sessionCookie: string, eventData: any) {
+async function createEvent(sessionCookie: string, eventData: ReturnType<typeof generateRandomEvent>) {
 	console.log(`Creating event: ${eventData.title}`)
 
 	const { response } = await makeRequest('/api/events', {
@@ -100,7 +94,7 @@ async function createEvent(sessionCookie: string, eventData: any) {
 	return data
 }
 
-async function createEventTemplate(sessionCookie: string, templateData: any) {
+async function createEventTemplate(sessionCookie: string, templateData: { name: string; description: string; data: { title: string; summary: string; location: string; duration: string } }) {
 	console.log(`Creating event template: ${templateData.name}`)
 
 	const { response } = await makeRequest('/api/event-templates', {

@@ -16,7 +16,7 @@
 		"dev:client": "npm run dev --prefix client",
 		"docker:dev": "docker compose up app1 caddy --build",
 		"docker:dev:multi": "docker compose up app1 app2 caddy --build",
-		"docker:dev:down": "docker compose stop app1 app2 caddy",
+		"docker:dev:down": "docker compose down",
 		"docker:prod": "docker compose -f docker-compose.prod.yml up --build",
 		"docker:prod:down": "docker compose -f docker-compose.prod.yml down",
 		"db:generate": "prisma generate",
