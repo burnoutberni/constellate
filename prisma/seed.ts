@@ -1,3 +1,5 @@
+import { PrismaClient } from '@prisma/client'
+
 async function makeRequest(endpoint: string, options: RequestInit = {}) {
 	const url = `${process.env.BASE_URL}${endpoint}`
 	const response = await fetch(url, {
@@ -15,7 +17,8 @@ async function makeRequest(endpoint: string, options: RequestInit = {}) {
 
 	// Extract session cookie
 	const cookies = response.headers.getSetCookie()
-	const sessionCookie = cookies.find(cookie => cookie.startsWith('better-auth.session_token=')) || ''
+	const sessionCookie =
+		cookies.find((cookie) => cookie.startsWith('better-auth.session_token=')) || ''
 
 	return { response, sessionCookie }
 }
@@ -37,7 +40,6 @@ async function authenticateUser(email: string, password: string, username: strin
 		})
 
 		const data = await response.json()
-		console.log('Signup response:', data)
 
 		if (sessionCookie) {
 			console.log(`✅ Signed up new user: ${email}`)
@@ -58,7 +60,6 @@ async function authenticateUser(email: string, password: string, username: strin
 		})
 
 		const data = await response.json()
-		console.log('Signin response:', data)
 
 		if (sessionCookie) {
 			console.log(`✅ Signed in existing user: ${email}`)
@@ -72,23 +73,37 @@ async function authenticateUser(email: string, password: string, username: strin
 	throw new Error(`Could not authenticate user ${email}`)
 }
 
-async function createEvent(sessionCookie: string, eventData: ReturnType<typeof generateRandomEvent>) {
-	console.log(`Creating event: ${eventData.title}`)
+async function createEvent(
+	sessionCookie: string,
+	eventData: ReturnType<typeof generateRandomEvent>
+) {
+	console.log(`Creating event: ${eventData.title} (${eventData.startTime})`)
 
-	const { response } = await makeRequest('/api/events', {
-		method: 'POST',
-		body: JSON.stringify(eventData),
-		headers: {
-			Cookie: sessionCookie,
-		},
-	})
+	try {
+		const { response } = await makeRequest('/api/events', {
+			method: 'POST',
+			body: JSON.stringify(eventData),
+			headers: {
+				Cookie: sessionCookie,
+			},
+		})
 
-	const data = await response.json()
-	console.log('Event created:', data)
-	return data
+		const data = await response.json()
+		return data
+	} catch (error) {
+		console.error('Failed to create event:', error)
+		throw error
+	}
 }
 
-async function createEventTemplate(sessionCookie: string, templateData: { name: string; description: string; data: { title: string; summary: string; location: string; duration: string } }) {
+async function createEventTemplate(
+	sessionCookie: string,
+	templateData: {
+		name: string
+		description: string
+		data: { title: string; summary: string; location: string; duration: string }
+	}
+) {
 	console.log(`Creating event template: ${templateData.name}`)
 
 	const { response } = await makeRequest('/api/event-templates', {
@@ -216,7 +231,9 @@ function generateRandomEvent(baseDate: Date, userIndex: number) {
 async function main() {
 	console.log('🌱 Seeding database via APIs...')
 
-	const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD;
+	const prisma = new PrismaClient()
+
+	const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD
 	if (!SEED_USER_PASSWORD) {
 		console.error('❌ SEED_USER_PASSWORD environment variable is not set.')
 		process.exit(1)
@@ -284,6 +301,17 @@ async function main() {
 				} catch (error) {
 					console.log('Event template might already exist, skipping...')
 				}
+
+				// Make Alice an admin
+				try {
+					await prisma.user.update({
+						where: { email: 'alice@example.com' },
+						data: { isAdmin: true },
+					})
+					console.log('✅ Made Alice an admin')
+				} catch (error) {
+					console.log('Failed to make Alice admin:', error)
+				}
 			}
 		}
 
@@ -292,7 +320,7 @@ async function main() {
 		console.error('❌ Seeding failed:', error)
 		process.exit(1)
 	} finally {
-		process.exit(0)
+		await prisma.$disconnect()
 	}
 }
 
