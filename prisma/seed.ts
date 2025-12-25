@@ -26,7 +26,27 @@ async function makeRequest(endpoint: string, options: RequestInit = {}) {
 async function authenticateUser(email: string, password: string, username: string, name: string) {
 	console.log(`Authenticating user: ${email}`)
 
-	// Try to sign up first
+	// Try signin
+	try {
+		const { response, sessionCookie } = await makeRequest('/api/auth/sign-in/email', {
+			method: 'POST',
+			body: JSON.stringify({
+				email,
+				password,
+			}),
+		})
+
+		const data = await response.json()
+
+		if (sessionCookie) {
+			console.log(`✅ Signed in existing user: ${email}`)
+			return sessionCookie
+		}
+	} catch (error) {
+		console.error(`❌ Failed to authenticate user ${email}:`, error)
+	}
+
+	// Try to sign up instead
 	try {
 		const { response, sessionCookie } = await makeRequest('/api/auth/sign-up/email', {
 			method: 'POST',
@@ -46,31 +66,8 @@ async function authenticateUser(email: string, password: string, username: strin
 			return sessionCookie
 		}
 	} catch (error) {
-		console.log(`User ${email} might already exist, trying signin...`)
+		throw new Error(`Could not authenticate user ${email}`)
 	}
-
-	// If signup failed or no session, try signin
-	try {
-		const { response, sessionCookie } = await makeRequest('/api/auth/sign-in/email', {
-			method: 'POST',
-			body: JSON.stringify({
-				email,
-				password,
-			}),
-		})
-
-		const data = await response.json()
-
-		if (sessionCookie) {
-			console.log(`✅ Signed in existing user: ${email}`)
-			return sessionCookie
-		}
-	} catch (error) {
-		console.error(`❌ Failed to authenticate user ${email}:`, error)
-		throw error
-	}
-
-	throw new Error(`Could not authenticate user ${email}`)
 }
 
 async function createEvent(

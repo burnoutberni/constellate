@@ -141,6 +141,7 @@ services:
         restart: unless-stopped
         depends_on:
             - app1
+            - app2
 
 volumes:
     test-data:
