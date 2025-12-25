@@ -12,7 +12,7 @@ services:
             - BETTER_AUTH_SECRET=test-secret-change-in-production
             - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
             # Test encryption key
-            - ENCRYPTION_KEY=0bfdb305039173a7abd9d0f45a4c50f8e899a1cfeeeb381abd7a55940b81344b
+            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
         volumes:
             - .:/app
             - /app/node_modules
@@ -142,7 +142,6 @@ services:
         restart: unless-stopped
         depends_on:
             - app1
-            - app2
 
 volumes:
     test-data:

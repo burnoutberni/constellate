@@ -486,7 +486,7 @@ model Report {
 // Better-Auth Models
 
 model Session {
-  id        String   @id
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String
@@ -500,7 +500,7 @@ model Session {
 }
 
 model Account {
-  id           String    @id
+  id           String    @id @default(cuid())
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   userId       String
@@ -512,11 +512,12 @@ model Account {
   password     String?
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([providerId, accountId])
   @@index([userId])
 }
 
 model Verification {
-  id         String   @id
+  id         String   @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
