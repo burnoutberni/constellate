@@ -23,12 +23,17 @@ async function makeRequest(endpoint: string, options: RequestInit = {}) {
 	return { response, sessionCookie }
 }
 
-async function authenticateUser(email: string, password: string, username: string, name: string) {
+async function authenticateUser(
+	email: string,
+	password: string,
+	username: string,
+	name: string
+): Promise<string> {
 	console.log(`Authenticating user: ${email}`)
 
 	// Try signin
 	try {
-		const { response, sessionCookie } = await makeRequest('/api/auth/sign-in/email', {
+		const { sessionCookie } = await makeRequest('/api/auth/sign-in/email', {
 			method: 'POST',
 			body: JSON.stringify({
 				email,
@@ -36,19 +41,17 @@ async function authenticateUser(email: string, password: string, username: strin
 			}),
 		})
 
-		const data = await response.json()
-
 		if (sessionCookie) {
 			console.log(`✅ Signed in existing user: ${email}`)
 			return sessionCookie
 		}
 	} catch (error) {
-		console.error(`❌ Failed to authenticate user ${email}:`, error)
+		console.log(`Sign-in for ${email} failed, attempting sign-up.`)
 	}
 
 	// Try to sign up instead
 	try {
-		const { response, sessionCookie } = await makeRequest('/api/auth/sign-up/email', {
+		const { sessionCookie } = await makeRequest('/api/auth/sign-up/email', {
 			method: 'POST',
 			body: JSON.stringify({
 				email,
@@ -59,15 +62,15 @@ async function authenticateUser(email: string, password: string, username: strin
 			}),
 		})
 
-		const data = await response.json()
-
 		if (sessionCookie) {
 			console.log(`✅ Signed up new user: ${email}`)
 			return sessionCookie
 		}
 	} catch (error) {
-		throw new Error(`Could not authenticate user ${email}`)
+		throw new Error(`Could not sign up user ${email}: ${error}`)
 	}
+
+	throw new Error(`Authentication failed for ${email}: No session cookie received.`)
 }
 
 async function createEvent(
