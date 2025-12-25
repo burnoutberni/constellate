@@ -28,7 +28,7 @@ import { Errors } from '../lib/errors.js'
  * const redis = new Redis(process.env.REDIS_URL)
  *
  * // In rateLimit function:
- * const key = `ratelimit:${finalConfig.keyGenerator ? finalConfig.keyGenerator(c) : userId ? `user:${userId}` : `ip:${ip}`}`
+ * const key = `ratelimit:${finalConfig.scope}:${finalConfig.keyGenerator ? finalConfig.keyGenerator(c) : userId ? `user:${userId}` : `ip:${ip}`}`
  * const count = await redis.incr(key)
  * if (count === 1) await redis.expire(key, Math.ceil(finalConfig.windowMs / 1000))
  * if (count > finalConfig.maxRequests) throw Errors.tooManyRequests(...)
@@ -62,6 +62,7 @@ setInterval(
 export interface RateLimitConfig {
 	windowMs: number // Time window in milliseconds
 	maxRequests: number // Maximum requests per window
+	scope?: string // Scope to namespace the rate limit (prevents collisions)
 	keyGenerator?: (c: Context) => string // Custom key generator
 	skipSuccessfulRequests?: boolean // Don't count successful requests
 	skipFailedRequests?: boolean // Don't count failed requests
@@ -74,6 +75,7 @@ export interface RateLimitConfig {
 const defaultConfig: RateLimitConfig = {
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	scope: 'default',
 }
 
 /**
@@ -81,6 +83,8 @@ const defaultConfig: RateLimitConfig = {
  */
 export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	const finalConfig = { ...defaultConfig, ...config }
+	// Ensure scope is present if not provided in config
+	const scope = finalConfig.scope || 'default'
 
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
@@ -96,6 +100,9 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 		} else {
 			key = `ip:${ip}`
 		}
+
+		// Prepend scope to key to prevent collisions between different rate limiters
+		key = `${scope}:${key}`
 
 		const now = Date.now()
 		const entry = rateLimitStore.get(key)
@@ -149,6 +156,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 export const strictRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
+	scope: 'strict',
 })
 
 /**
@@ -157,6 +165,7 @@ export const strictRateLimit = rateLimit({
 export const moderateRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	scope: 'moderate',
 })
 
 /**
@@ -165,4 +174,5 @@ export const moderateRateLimit = rateLimit({
 export const lenientRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
+	scope: 'lenient',
 })
