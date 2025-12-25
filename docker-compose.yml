@@ -17,7 +17,6 @@ services:
             - .:/app
             - /app/node_modules
             - /app/client/node_modules
-            - test-keys:/app/.keys
         networks:
             - constellate-network
         depends_on:
@@ -62,11 +61,11 @@ services:
             - SMTP_USER=${SMTP_USER}
             - SMTP_PASS=${SMTP_PASS}
             - SMTP_FROM=${SMTP_FROM}
+            - SEED_USER_PASSWORD=${SEED_USER_PASSWORD}
         volumes:
             - .:/app
             - /app/node_modules
             - /app/client/node_modules
-            - app1-keys:/app/.keys
         networks:
             - constellate-network
         extra_hosts:
@@ -97,11 +96,11 @@ services:
             - SMTP_USER=${SMTP_USER}
             - SMTP_PASS=${SMTP_PASS}
             - SMTP_FROM=${SMTP_FROM}
+            - SEED_USER_PASSWORD=${SEED_USER_PASSWORD}
         volumes:
             - .:/app
             - /app/node_modules
             - /app/client/node_modules
-            - app2-keys:/app/.keys
         networks:
             - constellate-network
         extra_hosts:
@@ -146,9 +145,6 @@ services:
 volumes:
     test-data:
     db-dev-data:
-    test-keys:
-    app1-keys:
-    app2-keys:
     caddy-data:
     caddy-config:
 

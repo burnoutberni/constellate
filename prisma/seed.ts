@@ -1,11 +1,5 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
-
-const BASE_URL = 'http://app1.local'
-
 async function makeRequest(endpoint: string, options: RequestInit = {}) {
-	const url = `${BASE_URL}${endpoint}`
+	const url = `${process.env.BASE_URL}${endpoint}`
 	const response = await fetch(url, {
 		...options,
 		headers: {
@@ -222,23 +216,34 @@ function generateRandomEvent(baseDate: Date, userIndex: number) {
 async function main() {
 	console.log('🌱 Seeding database via APIs...')
 
+	const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD;
+	if (!SEED_USER_PASSWORD) {
+		console.error('❌ SEED_USER_PASSWORD environment variable is not set.')
+		process.exit(1)
+	}
+
 	const users = [
 		{
 			email: 'alice@example.com',
-			password: 'password123!',
+			password: SEED_USER_PASSWORD,
 			username: 'alice',
 			name: 'Alice Wonder',
 		},
-		{ email: 'bob@example.com', password: 'password123!', username: 'bob', name: 'Bob Smith' },
+		{
+			email: 'bob@example.com',
+			password: SEED_USER_PASSWORD,
+			username: 'bob',
+			name: 'Bob Smith',
+		},
 		{
 			email: 'charlie@example.com',
-			password: 'password123!',
+			password: SEED_USER_PASSWORD,
 			username: 'charlie',
 			name: 'Charlie Brown',
 		},
 		{
 			email: 'diana@example.com',
-			password: 'password123!',
+			password: SEED_USER_PASSWORD,
 			username: 'diana',
 			name: 'Diana Prince',
 		},
@@ -287,7 +292,7 @@ async function main() {
 		console.error('❌ Seeding failed:', error)
 		process.exit(1)
 	} finally {
-		await prisma.$disconnect()
+		process.exit(0)
 	}
 }
 

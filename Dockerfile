@@ -13,6 +13,7 @@ RUN cd client && npm ci
 # Development stage
 FROM base AS development
 WORKDIR /app
+RUN apk add --no-cache curl
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/client/node_modules ./client/node_modules
 COPY . .
