@@ -65,6 +65,7 @@ export interface RateLimitConfig {
 	keyGenerator?: (c: Context) => string // Custom key generator
 	skipSuccessfulRequests?: boolean // Don't count successful requests
 	skipFailedRequests?: boolean // Don't count failed requests
+	scope?: string // Scope to differentiate rate limits (default: 'default')
 }
 
 /**
@@ -74,6 +75,7 @@ export interface RateLimitConfig {
 const defaultConfig: RateLimitConfig = {
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	scope: 'default',
 }
 
 /**
@@ -87,14 +89,15 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 		const userId = c.get('userId') as string | undefined
 		const ip =
 			c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || 'unknown'
+		const scope = finalConfig.scope || 'default'
 
 		let key: string
 		if (finalConfig.keyGenerator) {
 			key = finalConfig.keyGenerator(c)
 		} else if (userId) {
-			key = `user:${userId}`
+			key = `${scope}:user:${userId}`
 		} else {
-			key = `ip:${ip}`
+			key = `${scope}:ip:${ip}`
 		}
 
 		const now = Date.now()
@@ -149,6 +152,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 export const strictRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
+	scope: 'strict',
 })
 
 /**
@@ -157,6 +161,7 @@ export const strictRateLimit = rateLimit({
 export const moderateRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	scope: 'moderate',
 })
 
 /**
@@ -165,4 +170,5 @@ export const moderateRateLimit = rateLimit({
 export const lenientRateLimit = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
+	scope: 'lenient',
 })
