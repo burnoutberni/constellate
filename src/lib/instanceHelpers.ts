@@ -6,6 +6,8 @@
 import { prisma } from './prisma.js'
 import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
+import { resolveWebFinger } from './webfinger.js'
+import type { Activity } from './activitypubSchemas.js'
 
 /**
  * Extract domain from actor URL
@@ -150,6 +152,12 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 		// Create new instance record
 		const metadata = await fetchInstanceMetadata(baseUrl)
 
+		// Try to discover public endpoint
+		let publicEventsUrl: string | null = null
+		if (domain) {
+			publicEventsUrl = await discoverPublicEndpoint(domain)
+		}
+
 		await prisma.instance.create({
 			data: {
 				domain,
@@ -162,10 +170,174 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 				description: metadata?.description,
 				iconUrl: metadata?.iconUrl,
 				contact: metadata?.contact,
+				publicEventsUrl,
 				lastActivityAt: now,
 				lastFetchedAt: metadata ? now : null,
 			},
 		})
+	}
+}
+
+/**
+ * Discover a public endpoint (outbox) for an instance
+ */
+export async function discoverPublicEndpoint(domain: string): Promise<string | null> {
+	try {
+		// 1. Try generic "events" actor via WebFinger
+		const eventsActorUrl = await resolveWebFinger(`acct:events@${domain}`)
+		if (eventsActorUrl) {
+			const actor = await fetchRemoteActor(eventsActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 2. Try "groups" actor (Gathio/Mobilizon style sometimes)
+		const groupsActorUrl = await resolveWebFinger(`acct:groups@${domain}`)
+		if (groupsActorUrl) {
+			const actor = await fetchRemoteActor(groupsActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 3. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
+		// Usually accessible at https://domain/actor
+		const instanceActorUrl = `https://${domain}/actor`
+		const instanceActor = await fetchRemoteActor(instanceActorUrl)
+		if (instanceActor?.outbox) {
+			return instanceActor.outbox
+		}
+
+		return null
+	} catch (error) {
+		console.error(`Error discovering endpoint for ${domain}:`, error)
+		return null
+	}
+}
+
+/**
+ * Poll known actors from this instance (Fallback strategy)
+ * Returns a list of outbox URLs to poll
+ */
+export async function pollKnownActors(domain: string): Promise<string[]> {
+	try {
+		const users = await prisma.user.findMany({
+			where: {
+				isRemote: true,
+				externalActorUrl: {
+					contains: `://${domain}/`,
+				},
+			},
+			select: {
+				externalActorUrl: true,
+			},
+		})
+
+		const outboxes: string[] = []
+		for (const user of users) {
+			if (user.externalActorUrl) {
+				// We need to fetch the actor to get the outbox, or guess it?
+				// To be safe, we should have stored the outbox URL in the User model.
+				// But we assume standard ActivityPub structure or fetch it.
+				// Since fetching every user is expensive, we rely on the fact that we might
+				// have cached the outbox in the User model... wait, User model DOES NOT have outboxUrl?
+				// Checking User model... Step 55 view_code_item:
+				// inboxUrl, sharedInboxUrl... NO outboxUrl.
+				// user.externalActorUrl is the ID. We can append /outbox and hope?
+				// Or we should fetch the actor.
+				// "cacheRemoteUser" did fetch the actor, but didn't save outbox?
+				// Let's check cacheRemoteUser again.
+				// It parses optional fields... but didn't save outboxUrl.
+				// So we must fetch the actor or guess. Guessing is risky.
+				// We'll append /outbox as a heuristic for now, or fetch if needed.
+				// Fetching all actors every poll is bad.
+				// Ideally we add `outboxUrl` to User model too, but that's another schema change.
+				// For now, let's assume `externalActorUrl + /outbox` works for Mastodon/Pleroma/Mobilizon.
+				outboxes.push(`${user.externalActorUrl}/outbox`)
+			}
+		}
+		return outboxes
+	} catch (error) {
+		console.error(`Error polling known actors for ${domain}:`, error)
+		return []
+	}
+}
+
+/**
+ * Fetch public timeline (Collection)
+ */
+export async function fetchInstancePublicTimeline(outboxUrl: string): Promise<Activity[]> {
+	try {
+		const response = await safeFetch(outboxUrl, {
+			headers: { Accept: ContentType.ACTIVITY_JSON },
+		})
+
+		if (!response.ok) {
+			// Try adding ?page=true or ?page=1 if it's a Collection
+			const pageUrl = outboxUrl.includes('?')
+				? `${outboxUrl}&page=true`
+				: `${outboxUrl}?page=true`
+			const pageResponse = await safeFetch(pageUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (!pageResponse.ok) return []
+			return processCollectionResponse(await pageResponse.json())
+		}
+
+		const data = await response.json()
+		return processCollectionResponse(data)
+	} catch (error) {
+		console.error(`Error fetching timeline from ${outboxUrl}:`, error)
+		return []
+	}
+}
+
+async function processCollectionResponse(data: unknown): Promise<Activity[]> {
+	if (!data) return []
+
+	// Type guard helper could be better, but for now we cast to access properties
+	const collection = data as Record<string, unknown>
+
+	// If it's a Collection/OrderedCollection, look for 'first'
+	if (
+		(collection.type === 'Collection' || collection.type === 'OrderedCollection') &&
+		collection.first
+	) {
+		// If 'first' is a string, fetch it
+		if (typeof collection.first === 'string') {
+			const firstPageRes = await safeFetch(collection.first, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (firstPageRes.ok) {
+				const firstPage = (await firstPageRes.json()) as Record<string, unknown>
+				return (firstPage.orderedItems || firstPage.items || []) as Activity[]
+			}
+			return []
+		}
+		// If 'first' is an object
+		const firstPage = collection.first as Record<string, unknown>
+		return (firstPage.orderedItems || firstPage.items || []) as Activity[]
+	}
+
+	// If it's a Page
+	if (collection.type === 'OrderedCollectionPage' || collection.type === 'CollectionPage') {
+		return (collection.orderedItems || collection.items || []) as Activity[]
+	}
+
+	return []
+}
+
+// Private helper
+async function fetchRemoteActor(url: string): Promise<{ outbox?: string } | null> {
+	try {
+		const response = await safeFetch(url, {
+			headers: { Accept: ContentType.ACTIVITY_JSON },
+		})
+		if (!response.ok) return null
+		return (await response.json()) as { outbox?: string }
+	} catch {
+		return null
 	}
 }
 

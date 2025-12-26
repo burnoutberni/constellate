@@ -616,10 +616,11 @@ model Instance {
   version  String? // Software version
 
   // Instance metadata
-  title       String? // Instance name/title
-  description String? // Instance description
-  iconUrl     String? // Instance icon/logo URL
-  contact     String? // Contact information (email or URL)
+  title           String? // Instance name/title
+  description     String? // Instance description
+  iconUrl         String? // Instance icon/logo URL
+  contact         String? // Contact information (email or URL)
+  publicEventsUrl String? // Discovered URL for public events (e.g. outbox)
 
   // Statistics (cached from remote instance)
   userCount      Int? // Total users on instance

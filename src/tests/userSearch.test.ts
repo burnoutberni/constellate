@@ -2,12 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import userSearchApp from '../userSearch.js'
 import { prisma } from '../lib/prisma.js'
-import {
-	resolveWebFinger,
-	fetchActor,
-	cacheRemoteUser,
-	getBaseUrl,
-} from '../lib/activitypubHelpers.js'
+import { fetchActor, cacheRemoteUser, getBaseUrl } from '../lib/activitypubHelpers.js'
+import { resolveWebFinger } from '../lib/webfinger.js'
 import * as eventVisibility from '../lib/eventVisibility.js'
 import * as authModule from '../auth.js'
 
@@ -35,10 +31,13 @@ vi.mock('../lib/prisma.js', () => ({
 }))
 
 vi.mock('../lib/activitypubHelpers.js', () => ({
-	resolveWebFinger: vi.fn(),
 	fetchActor: vi.fn(),
 	cacheRemoteUser: vi.fn(),
 	getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+}))
+
+vi.mock('../lib/webfinger.js', () => ({
+	resolveWebFinger: vi.fn(),
 }))
 
 vi.mock('../lib/ssrfProtection.js', () => ({

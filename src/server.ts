@@ -48,6 +48,7 @@ import {
 	stopPopularityUpdater,
 	getIsProcessing as getIsPopularityProcessing,
 } from './services/popularityUpdater.js'
+import { startInstancePoller, stopInstancePoller } from './services/instancePoller.js'
 import {
 	startDataExportProcessor,
 	stopDataExportProcessor,
@@ -342,6 +343,8 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 	// Start data export processor background job
 	startDataExportProcessor()
 
+	startInstancePoller()
+
 	// Graceful shutdown handler
 	const shutdown = async () => {
 		console.log('🛑 Shutting down gracefully...')
@@ -350,6 +353,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 		stopReminderDispatcher()
 		stopPopularityUpdater()
 		stopDataExportProcessor()
+		stopInstancePoller()
 
 		// Wait for current processing cycles to complete (with timeout)
 		const shutdownTimeout = 30000 // 30 seconds
