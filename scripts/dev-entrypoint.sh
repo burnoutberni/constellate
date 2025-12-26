@@ -1,18 +1,6 @@
 #!/bin/sh
 set -e
 
-echo "🔄 Checking dependencies..."
-
-echo "📦 Installing server dependencies..."
-npm install
-
-echo "📦 Installing client dependencies..."
-cd client && npm install && cd ..
-
-echo "🗄️  Setting up Database..."
-# Generate Prisma client first
-npx prisma generate
-
 # Run migrations
 # If no migrations exist, this will create and apply the initial one
 # If migrations exist, this will apply any pending ones
@@ -25,8 +13,17 @@ else
   npx prisma migrate deploy
 fi
 
-echo "🌱 Seeding Database..."
+echo "🚀 Starting Development Server..."
+"$@" &
+server_pid=$!
+
+echo "Waiting for API to be ready..."
+until curl -f http://localhost:3000/health > /dev/null 2>&1; do
+  sleep 1
+done
+
+echo "API ready, running seed..."
 npm run db:seed
 
-echo "🚀 Starting Development Server..."
-exec "$@"
+echo "Seed complete, server running..."
+wait $server_pid

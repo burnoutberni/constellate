@@ -1,48 +1,4 @@
 services:
-    test:
-        build:
-            context: .
-            target: development
-        container_name: constellate-test
-        environment:
-            - NODE_ENV=development
-            - PORT=3000
-            - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/constellate_test?schema=public
-            - BASE_URL=http://test.local
-            - BETTER_AUTH_SECRET=test-secret-change-in-production
-            - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
-            # Test encryption key
-            - ENCRYPTION_KEY=0bfdb305039173a7abd9d0f45a4c50f8e899a1cfeeeb381abd7a55940b81344b
-        volumes:
-            - .:/app
-            - /app/node_modules
-            - /app/client/node_modules
-            - test-keys:/app/.keys
-        networks:
-            - constellate-network
-        depends_on:
-            - db-test
-        restart: 'no'
-        entrypoint:
-            [
-                '/bin/sh',
-                '-c',
-                'npx prisma migrate deploy && npm run db:seed && npm run test:coverage',
-            ]
-
-    db-test:
-        image: postgres:15-alpine
-        container_name: constellate-db-test
-        environment:
-            - POSTGRES_USER=postgres
-            - POSTGRES_PASSWORD=postgres
-            - POSTGRES_DB=constellate_test
-        volumes:
-            - test-data:/var/lib/postgresql/data
-        networks:
-            - constellate-network
-        restart: 'no'
-
     app1:
         build:
             context: .
@@ -62,11 +18,11 @@ services:
             - SMTP_USER=${SMTP_USER}
             - SMTP_PASS=${SMTP_PASS}
             - SMTP_FROM=${SMTP_FROM}
+            - SEED_USER_PASSWORD=${SEED_USER_PASSWORD}
         volumes:
             - .:/app
             - /app/node_modules
             - /app/client/node_modules
-            - app1-keys:/app/.keys
         networks:
             - constellate-network
         extra_hosts:
@@ -97,11 +53,11 @@ services:
             - SMTP_USER=${SMTP_USER}
             - SMTP_PASS=${SMTP_PASS}
             - SMTP_FROM=${SMTP_FROM}
+            - SEED_USER_PASSWORD=${SEED_USER_PASSWORD}
         volumes:
             - .:/app
             - /app/node_modules
             - /app/client/node_modules
-            - app2-keys:/app/.keys
         networks:
             - constellate-network
         extra_hosts:
@@ -145,11 +101,7 @@ services:
             - app2
 
 volumes:
-    test-data:
     db-dev-data:
-    test-keys:
-    app1-keys:
-    app2-keys:
     caddy-data:
     caddy-config:
 
