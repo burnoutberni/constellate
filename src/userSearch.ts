@@ -12,6 +12,7 @@ import {
 	getBaseUrl,
 	cacheEventFromOutboxActivity,
 } from './lib/activitypubHelpers.js'
+import { trackInstance } from './lib/instanceHelpers.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
@@ -321,6 +322,9 @@ app.post('/resolve', async (c) => {
 		})
 
 		if (cachedUser) {
+			if (cachedUser.externalActorUrl) {
+				void trackInstance(cachedUser.externalActorUrl)
+			}
 			return c.json({ user: cachedUser })
 		}
 
@@ -738,6 +742,11 @@ app.get('/profile/:username', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Track instance if remote
+		if (user && user.isRemote && user.externalActorUrl) {
+			void trackInstance(user.externalActorUrl)
 		}
 
 		// Check if profile is private and viewer doesn't have access

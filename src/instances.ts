@@ -5,13 +5,10 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
+import { Prisma } from '@prisma/client'
+import { refreshInstance } from './services/instancePoller.js'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
-import {
-	getKnownInstances,
-	searchInstances,
-	refreshInstanceMetadata,
-	getInstanceStats,
-} from './lib/instanceHelpers.js'
+import { getKnownInstances, searchInstances, getInstanceStats } from './lib/instanceHelpers.js'
 import { prisma } from './lib/prisma.js'
 import { handleError } from './lib/errors.js'
 
@@ -22,6 +19,7 @@ const ListInstancesQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).optional().default(50),
 	offset: z.coerce.number().int().min(0).optional().default(0),
 	sortBy: z.enum(['activity', 'users', 'created']).optional().default('activity'),
+	includeBlocked: z.coerce.boolean().optional().default(false),
 })
 
 // Query schema for searching instances
@@ -39,13 +37,14 @@ app.get('/', async (c) => {
 			limit: c.req.query('limit'),
 			offset: c.req.query('offset'),
 			sortBy: c.req.query('sortBy'),
+			includeBlocked: c.req.query('includeBlocked'),
 		})
 
 		const result = await getKnownInstances({
 			limit: query.limit,
 			offset: query.offset,
 			sortBy: query.sortBy,
-			filterBlocked: true,
+			filterBlocked: !query.includeBlocked,
 		})
 
 		return c.json(result)
@@ -74,6 +73,64 @@ app.get('/search', async (c) => {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400)
 		}
+		return handleError(error, c)
+	}
+})
+
+// Get instance events
+app.get('/:domain/events', async (c) => {
+	try {
+		const userId = await requireAuth(c)
+
+		const { domain } = c.req.param()
+		const limit = Number(c.req.query('limit')) || 20
+		const offset = Number(c.req.query('offset')) || 0
+		const time = c.req.query('time') // 'upcoming' | 'past' | undefined
+
+		const now = new Date()
+
+		let whereCondition: Prisma.EventWhereInput = {
+			OR: [
+				{ externalId: { contains: `://${domain}/` } },
+				{ externalId: { contains: `://${domain}:` } },
+			],
+		}
+
+		let orderBy: Prisma.EventOrderByWithRelationInput = { startTime: 'desc' }
+
+		if (time === 'upcoming') {
+			whereCondition = {
+				...whereCondition,
+				startTime: { gte: now },
+			}
+			orderBy = { startTime: 'asc' } // Soonest first
+		} else if (time === 'past') {
+			whereCondition = {
+				...whereCondition,
+				startTime: { lt: now },
+			}
+			orderBy = { startTime: 'desc' } // Most recent past first
+		}
+
+		const events = await prisma.event.findMany({
+			where: whereCondition,
+			orderBy,
+			take: limit,
+			skip: offset,
+			include: {
+				user: true,
+				attendance: {
+					where: { userId },
+				},
+			},
+		})
+
+		const total = await prisma.event.count({
+			where: whereCondition,
+		})
+
+		return c.json({ events, total, limit, offset })
+	} catch (error) {
 		return handleError(error, c)
 	}
 })
@@ -120,7 +177,8 @@ app.post('/:domain/refresh', async (c) => {
 			return c.json({ error: 'Instance not found' }, 404)
 		}
 
-		await refreshInstanceMetadata(domain)
+		// Trigger hard refresh (metadata + timeline)
+		await refreshInstance(domain)
 
 		// Fetch updated instance
 		const updated = await prisma.instance.findUnique({

@@ -53,12 +53,21 @@ export function EventDetailPage() {
 
 	// Extract username and eventId from pathname
 	useEffect(() => {
-		// Path format: /@username/eventId or /@username@domain/eventId
+		// Path format: 
+		// 1. /@username/eventId (or /@username@domain/eventId)
+		// 2. /events/eventId
 		const pathParts = location.pathname.split('/').filter(Boolean)
+
 		if (pathParts.length >= 2 && pathParts[0].startsWith('@')) {
+			// Case 1: /@username/eventId
 			const extractedUsername = pathParts[0].slice(1) // Remove @
 			const extractedEventId = pathParts[1]
 			setUsername(extractedUsername)
+			setEventId(extractedEventId)
+		} else if (pathParts.length >= 2 && pathParts[0] === 'events') {
+			// Case 2: /events/eventId
+			const extractedEventId = pathParts[1]
+			setUsername('') // No username context
 			setEventId(extractedEventId)
 		}
 	}, [location.pathname])
@@ -128,8 +137,8 @@ export function EventDetailPage() {
 	// Accessing [0] is safe and semantically correct, but we add defensive code for robustness.
 	const activeReminderMinutes =
 		event?.viewerReminders &&
-		Array.isArray(event.viewerReminders) &&
-		event.viewerReminders.length > 0
+			Array.isArray(event.viewerReminders) &&
+			event.viewerReminders.length > 0
 			? (event.viewerReminders[0]?.minutesBeforeStart ?? null)
 			: null
 
@@ -173,6 +182,49 @@ export function EventDetailPage() {
 		() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')),
 		[user, userAttendance]
 	)
+
+	// Derive an organizer user object, falling back to parsed remote data if no local user exists
+	const derivedUser = useMemo(() => {
+		if (event?.user) { return event.user }
+
+		// Try to construct from organizers
+		if (event?.organizers && event.organizers.length > 0) {
+			const org = event.organizers[0]
+			return {
+				id: 'remote',
+				username: org.username,
+				name: org.display,
+				profileImage: null,
+				displayColor: null,
+			}
+		}
+
+		// Fallback to attributedTo
+		if (event?.attributedTo) {
+			try {
+				const u = new URL(event.attributedTo)
+				const pathParts = u.pathname.split('/').filter(Boolean)
+				const matchedUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
+				return {
+					id: 'remote',
+					username: matchedUsername,
+					name: `${matchedUsername}@${u.hostname}`,
+					profileImage: null,
+					displayColor: null,
+				}
+			} catch {
+				/* ignore */
+			}
+		}
+
+		return {
+			id: 'unknown',
+			username: 'unknown',
+			name: 'Unknown Organizer',
+			profileImage: null,
+			displayColor: null,
+		}
+	}, [event])
 
 	const handleRSVP = async (status: string) => {
 		if (!user) {
@@ -397,22 +449,7 @@ export function EventDetailPage() {
 		)
 	}
 
-	if (!event.user) {
-		return (
-			<div className="min-h-screen bg-background-secondary flex items-center justify-center">
-				<Card padding="lg" className="text-center">
-					<CardContent>
-						<h2 className="text-2xl font-bold mb-4 text-text-primary">
-							Event data incomplete
-						</h2>
-						<Link to="/feed">
-							<Button variant="primary">Back to Feed</Button>
-						</Link>
-					</CardContent>
-				</Card>
-			</div>
-		)
-	}
+
 
 	// Ensure displayedEvent exists before rendering
 	if (!displayedEvent) {
@@ -481,14 +518,14 @@ export function EventDetailPage() {
 						{/* Event Header */}
 						<EventHeader
 							organizer={{
-								id: event.user.id,
-								username: event.user.username,
-								name: event.user.name,
-								profileImage: event.user.profileImage,
-								displayColor: event.user.displayColor,
+								id: derivedUser.id,
+								username: derivedUser.username,
+								name: derivedUser.name,
+								profileImage: derivedUser.profileImage,
+								displayColor: derivedUser.displayColor,
 							}}
 							eventId={eventId}
-							isOwner={user?.id === event.user.id}
+							isOwner={user?.id === event.user?.id}
 							onDelete={handleDeleteEvent}
 							isDeleting={deleteEventMutation.isPending}
 							onDuplicate={handleDuplicateEvent}

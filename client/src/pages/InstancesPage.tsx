@@ -1,11 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 
 import { Container, Stack } from '@/components/layout'
 import { Button, Input, Card, Spinner } from '@/components/ui'
 import { useInstances, useInstanceSearch, queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
-import type { InstanceWithStats } from '@/types'
+import type { InstanceWithStats, UserProfile } from '@/types'
 
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { InstanceList } from '../components/InstanceList'
@@ -22,6 +22,21 @@ export function InstancesPage() {
 	const [limit] = useState(50)
 	const [offset, setOffset] = useState(0)
 	const [blockDomain, setBlockDomain] = useState<string | null>(null)
+	const [showBlocked, setShowBlocked] = useState(false)
+
+	// Fetch user profile to check admin status
+	const { data: userProfile } = useQuery<UserProfile | null>({
+		queryKey: queryKeys.users.currentProfile(user?.id),
+		queryFn: async () => {
+			if (!user?.id) {return null}
+			try {
+				return await api.get<UserProfile>('/users/me/profile')
+			} catch {
+				return null
+			}
+		},
+		enabled: Boolean(user?.id),
+	})
 
 	// Set SEO metadata
 	useEffect(() => {
@@ -37,6 +52,7 @@ export function InstancesPage() {
 		limit,
 		offset,
 		sortBy,
+		includeBlocked: showBlocked,
 	})
 
 	const { data: searchData, isLoading: isSearching } = useInstanceSearch(searchQuery, 50)
@@ -148,28 +164,48 @@ export function InstancesPage() {
 						</div>
 
 						{/* Sort */}
-						{!searchQuery && (
-							<div className="flex gap-2">
-								<Button
-									variant={sortBy === 'activity' ? 'primary' : 'secondary'}
-									size="sm"
-									onClick={() => setSortBy('activity')}>
-									Recent Activity
-								</Button>
-								<Button
-									variant={sortBy === 'users' ? 'primary' : 'secondary'}
-									size="sm"
-									onClick={() => setSortBy('users')}>
-									Most Users
-								</Button>
-								<Button
-									variant={sortBy === 'created' ? 'primary' : 'secondary'}
-									size="sm"
-									onClick={() => setSortBy('created')}>
-									Newest
-								</Button>
-							</div>
-						)}
+						<div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+							{!searchQuery && (
+								<div className="flex gap-2">
+									<Button
+										variant={sortBy === 'activity' ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setSortBy('activity')}>
+										Recent Activity
+									</Button>
+									<Button
+										variant={sortBy === 'users' ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setSortBy('users')}>
+										Most Users
+									</Button>
+									<Button
+										variant={sortBy === 'created' ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setSortBy('created')}>
+										Newest
+									</Button>
+								</div>
+							)}
+
+							{/* Show Blocked Toggle */}
+							{userProfile?.isAdmin && (
+								<div className="flex items-center gap-2">
+									<input
+										type="checkbox"
+										id="showBlocked"
+										className="rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500"
+										checked={showBlocked}
+										onChange={(e) => setShowBlocked(e.target.checked)}
+									/>
+									<label
+										htmlFor="showBlocked"
+										className="text-sm font-medium text-text-primary cursor-pointer select-none">
+										Show Blocked
+									</label>
+								</div>
+							)}
+						</div>
 					</Stack>
 				</Card>
 

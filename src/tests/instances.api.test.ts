@@ -21,9 +21,11 @@ vi.mock('../lib/prisma.js', () => ({
 		},
 		event: {
 			count: vi.fn(),
+			findMany: vi.fn(),
 		},
 		following: {
 			count: vi.fn(),
+			findMany: vi.fn(),
 		},
 		follower: {
 			count: vi.fn(),
@@ -32,7 +34,10 @@ vi.mock('../lib/prisma.js', () => ({
 }))
 
 vi.mock('../middleware/auth.js', () => ({
-	requireAuth: vi.fn(async () => {}),
+	requireAuth: vi.fn(async (c) => {
+		// Mock auth by returning a user ID if header present or just random
+		return 'user-1'
+	}),
 	requireAdmin: vi.fn(async () => {}),
 }))
 
@@ -41,6 +46,10 @@ vi.mock('../lib/instanceHelpers.js', () => ({
 	searchInstances: vi.fn(),
 	refreshInstanceMetadata: vi.fn(),
 	getInstanceStats: vi.fn(),
+}))
+
+vi.mock('../services/instancePoller.js', () => ({
+	refreshInstance: vi.fn(),
 }))
 
 vi.mock('../lib/errors.js', () => ({
@@ -79,6 +88,7 @@ describe('Instance Discovery API', () => {
 						lastFetchedAt: new Date(),
 						lastErrorAt: null,
 						lastError: null,
+						lastPageUrl: null,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 						stats: {
@@ -153,6 +163,7 @@ describe('Instance Discovery API', () => {
 					title: 'Mastodon Social',
 					description: 'A public Mastodon instance',
 					isBlocked: false,
+					lastPageUrl: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				} as any,
@@ -192,6 +203,7 @@ describe('Instance Discovery API', () => {
 				lastFetchedAt: new Date(),
 				lastErrorAt: null,
 				lastError: null,
+				lastPageUrl: null,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			}
@@ -236,9 +248,69 @@ describe('Instance Discovery API', () => {
 		})
 	})
 
+	describe('GET /api/instances/:domain/events', () => {
+		it('should return events with correct filtering and sorting for upcoming', async () => {
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(0)
+
+			const res = await app.request('/api/instances/mastodon.social/events?time=upcoming', {
+				headers: { 'x-user-id': 'user1' }, // Simulate auth
+			})
+
+			expect(res.status).toBe(200)
+			expect(prisma.event.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: expect.objectContaining({
+						startTime: expect.objectContaining({ gte: expect.any(Date) }),
+					}),
+					orderBy: { startTime: 'asc' },
+				})
+			)
+		})
+
+		it('should return events with correct filtering and sorting for past', async () => {
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(0)
+
+			const res = await app.request('/api/instances/mastodon.social/events?time=past', {
+				headers: { 'x-user-id': 'user1' },
+			})
+
+			expect(res.status).toBe(200)
+			expect(prisma.event.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: expect.objectContaining({
+						startTime: expect.objectContaining({ lt: expect.any(Date) }),
+					}),
+					orderBy: { startTime: 'desc' },
+				})
+			)
+		})
+
+		it('should default to all events sorted descending if no time specified', async () => {
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.event.count).mockResolvedValue(0)
+
+			const res = await app.request('/api/instances/mastodon.social/events', {
+				headers: { 'x-user-id': 'user1' },
+			})
+
+			expect(res.status).toBe(200)
+			// Verify it doesn't include startTime filter and uses desc sort
+			expect(prisma.event.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					orderBy: { startTime: 'desc' },
+				})
+			)
+			const calls = vi.mocked(prisma.event.findMany).mock.calls
+			const lastCall = calls[calls.length - 1][0]
+			expect(lastCall?.where?.startTime).toBeUndefined()
+		})
+	})
+
 	describe('POST /api/instances/:domain/refresh', () => {
 		it('should refresh instance metadata', async () => {
-			const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+			const { refreshInstance } = await import('../services/instancePoller.js')
 			const mockInstance = {
 				id: 'instance-1',
 				domain: 'mastodon.social',
@@ -246,14 +318,14 @@ describe('Instance Discovery API', () => {
 			}
 
 			vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance as any)
-			vi.mocked(refreshInstanceMetadata).mockResolvedValue(undefined)
+			vi.mocked(refreshInstance).mockResolvedValue(undefined)
 
 			const res = await app.request('/api/instances/mastodon.social/refresh', {
 				method: 'POST',
 			})
 
 			expect(res.status).toBe(200)
-			expect(refreshInstanceMetadata).toHaveBeenCalledWith('mastodon.social')
+			expect(refreshInstance).toHaveBeenCalledWith('mastodon.social')
 		})
 
 		it('should return 404 for unknown instance', async () => {

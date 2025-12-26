@@ -66,10 +66,12 @@ describe('Instance Poller Service', () => {
 	it('should process instances with publicEventsUrl', async () => {
 		// Mock instances
 		const mockInstance = {
+			id: 'instance-1',
 			domain: 'mastodon.social',
 			baseUrl: 'https://mastodon.social',
 			publicEventsUrl: 'https://mastodon.social/users/events/outbox',
 			lastFetchedAt: null,
+			lastPageUrl: null,
 		}
 		vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
 
@@ -83,7 +85,7 @@ describe('Instance Poller Service', () => {
 			},
 			actor: 'https://mastodon.social/users/alice',
 		}
-		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue([mockActivity])
+		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [mockActivity] })
 
 		// Start poller and trigger
 		startInstancePoller()
@@ -91,7 +93,8 @@ describe('Instance Poller Service', () => {
 
 		// Verification
 		expect(fetchInstancePublicTimeline).toHaveBeenCalledWith(
-			'https://mastodon.social/users/events/outbox'
+			'https://mastodon.social/users/events/outbox',
+			null
 		)
 		expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
 			mockActivity,
@@ -99,7 +102,7 @@ describe('Instance Poller Service', () => {
 		)
 		expect(prisma.instance.update).toHaveBeenCalledWith(
 			expect.objectContaining({
-				where: { domain: 'mastodon.social' },
+				where: { id: 'instance-1' },
 				data: expect.objectContaining({
 					lastFetchedAt: expect.any(Date),
 				}),
@@ -112,12 +115,13 @@ describe('Instance Poller Service', () => {
 			domain: 'discover.me',
 			baseUrl: 'https://discover.me',
 			publicEventsUrl: null,
+			lastPageUrl: null,
 		}
 		vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
 
 		// Mock discovery
 		vi.mocked(discoverPublicEndpoint).mockResolvedValue('https://discover.me/events')
-		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue([])
+		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
 
 		// Start poller and trigger
 		startInstancePoller()
@@ -130,7 +134,7 @@ describe('Instance Poller Service', () => {
 				data: { publicEventsUrl: 'https://discover.me/events' },
 			})
 		)
-		expect(fetchInstancePublicTimeline).toHaveBeenCalledWith('https://discover.me/events')
+		expect(fetchInstancePublicTimeline).toHaveBeenCalledWith('https://discover.me/events', null)
 	})
 
 	it('should fallback to polling known actors if discovery fails', async () => {
@@ -138,6 +142,7 @@ describe('Instance Poller Service', () => {
 			domain: 'fallback.net',
 			baseUrl: 'https://fallback.net',
 			publicEventsUrl: null,
+			lastPageUrl: null,
 		}
 		vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
 
@@ -146,7 +151,7 @@ describe('Instance Poller Service', () => {
 
 		// Mock known actors fallback
 		vi.mocked(pollKnownActors).mockResolvedValue(['https://fallback.net/users/bob/outbox'])
-		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue([])
+		vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
 
 		// Start poller and trigger
 		startInstancePoller()
@@ -163,6 +168,7 @@ describe('Instance Poller Service', () => {
 			domain: 'error.com',
 			baseUrl: 'https://error.com',
 			publicEventsUrl: 'https://error.com/outbox',
+			lastPageUrl: null,
 		}
 		vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
 

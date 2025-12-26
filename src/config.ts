@@ -147,6 +147,10 @@ export const config = {
 	// Reminder Dispatcher Configuration
 	enableReminderDispatcher: getEnv('ENABLE_REMINDER_DISPATCHER', 'true') === 'true',
 
+	// Instance Poller Configuration
+	instancePollIntervalMs: parseInt(process.env.INSTANCE_POLL_INTERVAL_MS || '') || 60 * 60 * 1000, // 1 hour default
+	instancePollBatchSize: 5, // Process 5 instances concurrently
+
 	// Terms of Service
 	tosVersion: parseInt(getEnv('TOS_VERSION', '1')), // Current ToS version - increment when ToS is updated
 }

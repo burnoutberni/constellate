@@ -105,6 +105,7 @@ describe('Instance Discovery', () => {
 				lastFetchedAt: null,
 				lastErrorAt: null,
 				lastError: null,
+				lastPageUrl: null,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			})
@@ -124,6 +125,7 @@ describe('Instance Discovery', () => {
 				domain: 'mastodon.social',
 				baseUrl: 'https://mastodon.social',
 				lastActivityAt: new Date('2024-01-01'),
+				lastPageUrl: null,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			}
@@ -168,6 +170,7 @@ describe('Instance Discovery', () => {
 					lastFetchedAt: new Date(),
 					lastErrorAt: null,
 					lastError: null,
+					lastPageUrl: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
@@ -243,6 +246,7 @@ describe('Instance Discovery', () => {
 					title: 'Mastodon Social',
 					description: 'A public Mastodon instance',
 					isBlocked: false,
+					lastPageUrl: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
@@ -314,6 +318,7 @@ describe('Instance Discovery', () => {
 				id: 'instance-1',
 				domain: 'mastodon.social',
 				baseUrl: 'https://mastodon.social',
+				lastPageUrl: null,
 			} as any)
 			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
 			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)

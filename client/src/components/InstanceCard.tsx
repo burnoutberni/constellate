@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
@@ -53,6 +54,9 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 			month: 'short',
 			day: 'numeric',
 			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
 		})
 	}
 
@@ -190,17 +194,43 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 										Block
 									</Button>
 								)}
-								<Button
-									size="sm"
-									variant="secondary"
-									onClick={() => onRefresh?.(instance.domain)}>
-									Refresh
-								</Button>
+								<RefresherButton instance={instance} onRefresh={onRefresh} />
 							</Stack>
 						)}
 					</div>
 				</div>
 			</CardContent>
 		</Card>
+	)
+}
+
+function RefresherButton({
+	instance,
+	onRefresh,
+}: {
+	instance: InstanceWithStats
+	onRefresh?: (domain: string) => void
+}) {
+	 
+	const [now, setNow] = useState(() => Date.now())
+
+	useEffect(() => {
+		// Update 'now' every second to keep the button state fresh without being impure in render
+		const interval = setInterval(() => setNow(Date.now()), 1000)
+		return () => clearInterval(interval)
+	}, [])
+
+	const lastFetched = instance.lastFetchedAt ? new Date(instance.lastFetchedAt).getTime() : 0
+	const isRecent = lastFetched > now - 30000
+	const justRefreshed = lastFetched > now - 5000
+
+	return (
+		<Button
+			size="sm"
+			variant="secondary"
+			onClick={() => onRefresh?.(instance.domain)}
+			disabled={isRecent}>
+			{justRefreshed ? 'Refreshed!' : 'Refresh'}
+		</Button>
 	)
 }

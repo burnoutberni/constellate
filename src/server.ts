@@ -310,8 +310,9 @@ if (process.env.NODE_ENV === 'production') {
 						'Content-Type': contentType,
 					})
 				}
-			} catch {
+			} catch (error) {
 				// File doesn't exist, fall through to SPA routing
+				console.debug('Static file not found, falling back to SPA:', error)
 			}
 
 			// SPA routing: serve index.html for any non-API route
@@ -321,7 +322,8 @@ if (process.env.NODE_ENV === 'production') {
 				return c.body(indexContent, 200, {
 					'Content-Type': 'text/html',
 				})
-			} catch {
+			} catch (error) {
+				console.error('Error serving index.html:', error)
 				return c.notFound()
 			}
 		} catch (error) {

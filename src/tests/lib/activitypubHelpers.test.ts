@@ -11,6 +11,7 @@ import {
 	cleanupProcessedActivities,
 	isUserBlocked,
 	isDomainBlocked,
+	cacheEventFromOutboxActivity,
 } from '../../lib/activitypubHelpers.js'
 import { prisma } from '../../lib/prisma.js'
 import { safeFetch } from '../../lib/ssrfProtection.js'
@@ -34,11 +35,20 @@ vi.mock('../../lib/prisma.js', () => ({
 		blockedDomain: {
 			findUnique: vi.fn(),
 		},
+		event: {
+			upsert: vi.fn(),
+		},
 	},
 }))
 
 vi.mock('../../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),
+}))
+
+vi.mock('../../lib/instanceHelpers.js', () => ({
+	trackInstance: vi.fn(),
+	discoverPublicEndpoint: vi.fn(),
+	fetchInstanceMetadata: vi.fn(),
 }))
 
 vi.mock('../../config.js', () => ({
@@ -444,6 +454,56 @@ describe('activitypubHelpers', () => {
 
 			const result = await isDomainBlocked('example.com')
 			expect(result).toBe(false)
+		})
+	})
+
+	describe('cacheEventFromOutboxActivity', () => {
+		const mockEvent = {
+			id: 'https://example.com/events/1',
+			type: 'Event',
+			name: 'Future Event',
+			startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+			url: 'https://example.com/events/1',
+			duration: 'PT1H',
+		}
+
+		const mockCreateActivity = {
+			type: 'Create',
+			object: mockEvent,
+		}
+
+		it('should cache a future event', async () => {
+			const userExternalActorUrl = 'https://example.com/users/alice'
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(mockCreateActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { externalId: 'https://example.com/events/1' },
+				})
+			)
+		})
+
+		it('should skip a past event', async () => {
+			const pastEvent = {
+				...mockEvent,
+				id: 'https://example.com/events/past',
+				startTime: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 days ago
+			}
+			const pastCreateActivity = {
+				type: 'Create',
+				object: pastEvent,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			await cacheEventFromOutboxActivity(pastCreateActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).not.toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { externalId: 'https://example.com/events/past' },
+				})
+			)
 		})
 	})
 })

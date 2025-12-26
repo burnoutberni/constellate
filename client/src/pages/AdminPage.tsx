@@ -220,6 +220,54 @@ export function AdminPage() {
 		},
 	})
 
+	// Instance management mutations
+	const blockInstanceMutation = useMutation({
+		mutationFn: async (domain: string) => {
+			return api.post(
+				`/instances/${encodeURIComponent(domain)}/block`,
+				undefined,
+				undefined,
+				'Failed to block instance'
+			)
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
+		},
+	})
+
+	const unblockInstanceMutation = useMutation({
+		mutationFn: async (domain: string) => {
+			return api.post(
+				`/instances/${encodeURIComponent(domain)}/unblock`,
+				undefined,
+				undefined,
+				'Failed to unblock instance'
+			)
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
+		},
+	})
+
+	const refreshInstanceMutation = useMutation({
+		mutationFn: async (domain: string) => {
+			return api.post(
+				`/instances/${encodeURIComponent(domain)}/refresh`,
+				undefined,
+				undefined,
+				'Failed to refresh instance'
+			)
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
+			addToast({
+				id: generateId(),
+				message: 'Instance refresh started. This may take a few minutes.',
+				variant: 'success',
+			})
+		},
+	})
+
 	// Redirect if not admin (after all hooks)
 	if (userProfile && !userProfile.isAdmin) {
 		navigate('/')
@@ -240,10 +288,9 @@ export function AdminPage() {
 	}
 
 	const getTabClassName = (tab: AdminTab) =>
-		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
-			activeTab === tab
-				? 'border-primary-500 text-primary-600 dark:text-primary-400'
-				: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
+		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${activeTab === tab
+			? 'border-primary-500 text-primary-600 dark:text-primary-400'
+			: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
 		}`
 
 	return (
@@ -533,7 +580,7 @@ export function AdminPage() {
 								</div>
 								<div className="bg-background-primary rounded-lg shadow-sm overflow-hidden border border-border-default">
 									{instancesData?.instances &&
-									instancesData.instances.length > 0 ? (
+										instancesData.instances.length > 0 ? (
 										<table className="min-w-full divide-y divide-border-default">
 											<thead className="bg-background-secondary">
 												<tr>
@@ -551,6 +598,9 @@ export function AdminPage() {
 													</th>
 													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Last Activity
+													</th>
+													<th className="px-6 py-3 text-right text-xs font-medium text-text-tertiary uppercase tracking-wider">
+														Actions
 													</th>
 												</tr>
 											</thead>
@@ -619,9 +669,58 @@ export function AdminPage() {
 														<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 															{instance.lastActivityAt
 																? new Date(
-																		instance.lastActivityAt
-																	).toLocaleDateString()
+																	instance.lastActivityAt
+																).toLocaleDateString()
 																: 'Never'}
+														</td>
+
+														<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+															<div className="flex justify-end gap-2">
+																<Button
+																	onClick={() =>
+																		refreshInstanceMutation.mutate(
+																			instance.domain
+																		)
+																	}
+																	variant="secondary"
+																	size="sm"
+																	disabled={
+																		refreshInstanceMutation.isPending
+																	}>
+																	Refresh
+																</Button>
+																{instance.isBlocked ? (
+																	<Button
+																		onClick={() =>
+																			unblockInstanceMutation.mutate(
+																				instance.domain
+																			)
+																		}
+																		variant="secondary"
+																		size="sm"
+																		className="text-success-600 hover:text-success-700"
+																		disabled={
+																			unblockInstanceMutation.isPending
+																		}>
+																		Unblock
+																	</Button>
+																) : (
+																	<Button
+																		onClick={() =>
+																			blockInstanceMutation.mutate(
+																				instance.domain
+																			)
+																		}
+																		variant="ghost"
+																		size="sm"
+																		className="text-error-600 hover:text-error-900"
+																		disabled={
+																			blockInstanceMutation.isPending
+																		}>
+																		Block
+																	</Button>
+																)}
+															</div>
 														</td>
 													</tr>
 												))}
@@ -692,8 +791,8 @@ export function AdminPage() {
 							createApiKeyMutation.error instanceof Error
 								? createApiKeyMutation.error.message
 								: typeof createApiKeyMutation.error === 'object' &&
-									  createApiKeyMutation.error !== null &&
-									  'message' in createApiKeyMutation.error
+									createApiKeyMutation.error !== null &&
+									'message' in createApiKeyMutation.error
 									? String(createApiKeyMutation.error.message)
 									: undefined
 						}
@@ -846,7 +945,7 @@ export function AdminPage() {
 					isPending={deleteApiKeyMutation.isPending}
 				/>
 			</div>
-		</div>
+		</div >
 	)
 }
 

@@ -1,7 +1,7 @@
 export const queryKeys = {
     events: {
         list: (limit: number) => ['events', 'list', limit] as const,
-        detail: (username: string, eventId: string) =>
+        detail: (username: string | undefined | null, eventId: string) =>
             ['events', 'detail', username, eventId] as const,
         lists: () => ['events', 'list'] as const,
         details: () => ['events', 'detail'] as const,
@@ -32,7 +32,7 @@ export const queryKeys = {
     },
     emailPreferences: {
         all: () => ['emailPreferences'] as const,
-        deliveries: (limit: number, offset: number) => 
+        deliveries: (limit: number, offset: number) =>
             ['emailPreferences', 'deliveries', limit, offset] as const,
     },
     reminders: {
@@ -40,10 +40,16 @@ export const queryKeys = {
     },
     instances: {
         all: () => ['instances'] as const,
-        list: (params: { limit?: number; offset?: number; sortBy?: string }) =>
-            ['instances', 'list', params] as const,
+        list: (params: {
+            limit?: number
+            offset?: number
+            sortBy?: string
+            includeBlocked?: boolean
+        }) => ['instances', 'list', params] as const,
         search: (query: string, limit?: number) => ['instances', 'search', query, limit] as const,
         detail: (domain: string) => ['instances', 'detail', domain] as const,
+        events: (domain: string, limit: number, offset: number, time?: string) =>
+            ['instances', 'events', domain, limit, offset, time ?? 'all'] as const,
     },
     admin: {
         users: () => ['admin', 'users'] as const,

@@ -6,6 +6,7 @@ import { Container } from '@/components/layout'
 import { Card, Button, Badge, Avatar, Spinner } from '@/components/ui'
 import {
 	useInstanceDetail,
+	useInstanceEvents,
 	useBlockInstance,
 	useUnblockInstance,
 	useRefreshInstance,
@@ -15,6 +16,7 @@ import { api } from '@/lib/api-client'
 import type { UserProfile } from '@/types'
 
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { EventCard } from '../components/EventCard'
 import { InstanceStats } from '../components/InstanceStats'
 import { Navbar } from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
@@ -141,9 +143,18 @@ export function InstanceDetailPage() {
 		)
 	}
 
+	const breadcrumbs = [
+		{ label: 'Home', href: '/' },
+		{ label: 'Instances', href: '/instances' },
+		{
+			label: instance ? (instance.title || instance.domain) : (domain || 'Instance'),
+			href: `/instances/${domain}`,
+		},
+	]
+
 	return (
 		<div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
-			<Navbar user={user} onLogout={logout} />
+			<Navbar user={user} onLogout={logout} breadcrumbs={breadcrumbs} />
 			<Container className="py-8">
 				{/* Back Button */}
 				<Button
@@ -201,6 +212,38 @@ export function InstanceDetailPage() {
 						Statistics
 					</h2>
 					<InstanceStats instance={instance} />
+				</Card>
+
+				{/* Upcoming & Ongoing Events */}
+				<Card className="p-6 mb-6">
+					<EventsListSection
+						domain={instance.domain}
+						time="upcoming"
+						title="Upcoming & Ongoing Events"
+						emptyMessage="No upcoming events found."
+					/>
+				</Card>
+
+				{/* Divider for Past Events */}
+				<div className="relative py-4 mb-6">
+					<div className="absolute inset-0 flex items-center" aria-hidden="true">
+						<div className="w-full border-t border-neutral-300 dark:border-neutral-700" />
+					</div>
+					<div className="relative flex justify-center">
+						<span className="bg-neutral-50 dark:bg-neutral-900 px-3 text-sm font-medium text-neutral-500 dark:text-neutral-400">
+							Past Events
+						</span>
+					</div>
+				</div>
+
+				{/* Past Events */}
+				<Card className="p-6 mb-6">
+					<EventsListSection
+						domain={instance.domain}
+						time="past"
+						title="Past Events"
+						emptyMessage="No past events found."
+					/>
 				</Card>
 
 				{/* Details */}
@@ -307,6 +350,77 @@ export function InstanceDetailPage() {
 				onCancel={() => setShowUnblockConfirm(false)}
 				isPending={unblockMutation.isPending}
 			/>
+		</div>
+	)
+}
+
+function EventsListSection({
+	domain,
+	time,
+	title,
+	emptyMessage,
+}: {
+	domain: string
+	time: 'upcoming' | 'past'
+	title: string
+	emptyMessage: string
+}) {
+	const [offset, setOffset] = useState(0)
+	const limit = 5
+	const { data, isLoading } = useInstanceEvents(domain, limit, offset, time)
+
+	if (isLoading) {
+		return (
+			<div className="flex justify-center py-8">
+				<Spinner />
+			</div>
+		)
+	}
+
+	if (!data?.events || data.events.length === 0) {
+		return (
+			<div>
+				<h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+					{title}
+				</h2>
+				<div className="text-center py-8 text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
+					{emptyMessage}
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div>
+			<h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+				{title}
+			</h2>
+			<div className="space-y-4">
+				{data.events.map((event) => (
+					<EventCard key={event.id} event={event} />
+				))}
+
+				<div className="flex justify-between items-center pt-4 border-t border-neutral-200 dark:border-neutral-800">
+					<Button
+						variant="secondary"
+						size="sm"
+						disabled={offset === 0}
+						onClick={() => setOffset(Math.max(0, offset - limit))}>
+						Previous
+					</Button>
+					<span className="text-sm text-neutral-500 dark:text-neutral-400">
+						Page {Math.floor(offset / limit) + 1} of{' '}
+						{Math.ceil((data.total || 0) / limit)}
+					</span>
+					<Button
+						variant="secondary"
+						size="sm"
+						disabled={offset + limit >= (data.total || 0)}
+						onClick={() => setOffset(offset + limit)}>
+						Next
+					</Button>
+				</div>
+			</div>
 		</div>
 	)
 }

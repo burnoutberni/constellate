@@ -300,13 +300,35 @@ export async function cacheEventFromOutboxActivity(
 		return
 	}
 
-	const eventObj = activityObject as Record<string, unknown>
+	// Handle Announce activities separately or ignore them (usually they point to an existing object)
+	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
+		// For now we ignore Announce/Boosts in this helper,
+		// as we prefer processing the original Create activity or the object directly.
+		return
+	}
+
+	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
 	const eventId = eventObj.id as string | undefined
 	const eventName = eventObj.name as string | undefined
 	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
 	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 	const eventStartTime = eventObj.startTime as string | undefined
 	const eventEndTime = eventObj.endTime as string | undefined
+
+	if (!eventId || !eventName || !eventStartTime) {
+		return
+	}
+
+	// Optimization: Skip past events
+	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
+	const now = new Date()
+	const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
+
+	// If the event ended before yesterday, skip it
+	if (end < yesterday) {
+		return
+	}
 	const eventDuration = eventObj.duration as string | undefined
 	const eventUrl = eventObj.url as string | undefined
 	const eventStatus = eventObj.eventStatus as string | undefined
@@ -314,40 +336,67 @@ export async function cacheEventFromOutboxActivity(
 	const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
 	const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
 
-	if (!eventId || !eventName || !eventStartTime) return
-
 	const locationValue = extractLocationValue(eventLocation)
+
+	// Extract organizers (attributedTo + contacts)
+	let rawAttributedTo: string[] = []
+	if (Array.isArray(eventObj.attributedTo)) {
+		rawAttributedTo = eventObj.attributedTo
+	} else if (eventObj.attributedTo) {
+		rawAttributedTo = [eventObj.attributedTo as string]
+	}
+
+	let rawContacts: string[] = []
+	if (Array.isArray(eventObj.contacts)) {
+		rawContacts = eventObj.contacts
+	} else if (eventObj.contacts) {
+		rawContacts = [eventObj.contacts as string]
+	}
+
+	// Combine and deduplicate
+	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
+
+	// Format for storage
+	const organizers = organizerUrls.map((url) => {
+		try {
+			const u = new URL(url)
+			const pathParts = u.pathname.split('/').filter(Boolean)
+			const username =
+				pathParts.find((p) => p.startsWith('@'))?.replace('@', '') ||
+				pathParts[pathParts.length - 1]
+			return {
+				url,
+				username: username || 'unknown',
+				host: u.hostname,
+				display: username ? `@${username}@${u.hostname}` : u.hostname,
+			}
+		} catch {
+			return { url, username: 'unknown', host: 'unknown', display: url }
+		}
+	})
+
+	const eventData = {
+		title: eventName,
+		summary: eventSummary || null,
+		location: locationValue,
+		startTime: new Date(eventStartTime),
+		endTime: eventEndTime ? new Date(eventEndTime) : null,
+		duration: eventDuration || null,
+		url: eventUrl || null,
+		eventStatus: eventStatus || null,
+		eventAttendanceMode: eventAttendanceMode || null,
+		maximumAttendeeCapacity: eventMaxCapacity || null,
+		headerImage: eventAttachment?.[0]?.url || null,
+		attributedTo: userExternalActorUrl,
+		organizers: organizers.length > 0 ? organizers : undefined,
+	}
 
 	await prisma.event.upsert({
 		where: { externalId: eventId },
-		update: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			duration: eventDuration || null,
-			url: eventUrl || null,
-			eventStatus: eventStatus || null,
-			eventAttendanceMode: eventAttendanceMode || null,
-			maximumAttendeeCapacity: eventMaxCapacity || null,
-			headerImage: eventAttachment?.[0]?.url || null,
-			attributedTo: userExternalActorUrl,
-		},
+		update: eventData,
 		create: {
+			...eventData,
 			externalId: eventId,
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			duration: eventDuration || null,
-			url: eventUrl || null,
-			eventStatus: eventStatus || null,
-			eventAttendanceMode: eventAttendanceMode || null,
-			maximumAttendeeCapacity: eventMaxCapacity || null,
-			headerImage: eventAttachment?.[0]?.url || null,
-			attributedTo: userExternalActorUrl,
 			userId: null,
 		},
 	})

@@ -8,7 +8,7 @@ import { getNavLinks, shouldShowBreadcrumbs } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProfile } from '@/types'
 
-import { Breadcrumbs } from './Breadcrumbs'
+import { Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs'
 import { MobileNav } from './MobileNav'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
@@ -23,14 +23,17 @@ type AuthenticatedUser = {
 	image?: string | null
 }
 
+
 export function Navbar({
 	isConnected,
 	user,
 	onLogout,
+	breadcrumbs,
 }: {
 	isConnected?: boolean
 	user?: AuthenticatedUser | null
 	onLogout?: () => void
+	breadcrumbs?: BreadcrumbItem[]
 }) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const location = useLocation()
@@ -170,7 +173,7 @@ export function Navbar({
 					{/* Breadcrumbs */}
 					{showBreadcrumbs && (
 						<div className="hidden md:block pb-3 animate-fade-in">
-							<Breadcrumbs />
+							<Breadcrumbs items={breadcrumbs} />
 						</div>
 					)}
 				</div>

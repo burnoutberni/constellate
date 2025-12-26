@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import userSearchApp from '../userSearch.js'
 import { prisma } from '../lib/prisma.js'
-import { fetchActor, cacheRemoteUser, getBaseUrl } from '../lib/activitypubHelpers.js'
+import {
+	fetchActor,
+	cacheRemoteUser,
+	getBaseUrl,
+	cacheEventFromOutboxActivity,
+} from '../lib/activitypubHelpers.js'
 import { resolveWebFinger } from '../lib/webfinger.js'
 import * as eventVisibility from '../lib/eventVisibility.js'
 import * as authModule from '../auth.js'
@@ -34,6 +39,7 @@ vi.mock('../lib/activitypubHelpers.js', () => ({
 	fetchActor: vi.fn(),
 	cacheRemoteUser: vi.fn(),
 	getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+	cacheEventFromOutboxActivity: vi.fn(),
 }))
 
 vi.mock('../lib/webfinger.js', () => ({
@@ -42,6 +48,10 @@ vi.mock('../lib/webfinger.js', () => ({
 
 vi.mock('../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),
+}))
+
+vi.mock('../lib/instanceHelpers.js', () => ({
+	trackInstance: vi.fn(),
 }))
 
 vi.mock('../lib/eventVisibility.js', () => ({
@@ -452,7 +462,7 @@ describe('UserSearch API', () => {
 					},
 				})
 			)
-			expect(prisma.event.upsert).toHaveBeenCalled()
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalled()
 		})
 
 		it('should return 404 when user not found', async () => {

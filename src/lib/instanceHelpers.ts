@@ -4,6 +4,7 @@
  */
 
 import { prisma } from './prisma.js'
+import { Prisma } from '@prisma/client'
 import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
 import { resolveWebFinger } from './webfinger.js'
@@ -133,48 +134,54 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 		return
 	}
 
-	// Check if instance already exists
-	const existingInstance = await prisma.instance.findUnique({
+	// Atomically upsert the instance
+	// We create with minimal data and fetch metadata asynchronously/lazily if needed
+	// to avoid blocking on HTTP requests for every trackInstance call on existing instances.
+	const now = new Date()
+	const instance = await prisma.instance.upsert({
 		where: { domain },
+		update: {
+			lastActivityAt: now,
+		},
+		create: {
+			domain,
+			baseUrl,
+			lastActivityAt: now,
+			// Set lastFetchedAt to 1970 to ensure the poller picks it up immediately
+			lastFetchedAt: new Date(0),
+		},
 	})
 
-	const now = new Date()
-
-	if (existingInstance) {
-		// Update last activity time
-		await prisma.instance.update({
-			where: { domain },
-			data: {
-				lastActivityAt: now,
-			},
-		})
-	} else {
-		// Create new instance record
-		const metadata = await fetchInstanceMetadata(baseUrl)
-
-		// Try to discover public endpoint
-		let publicEventsUrl: string | null = null
-		if (domain) {
-			publicEventsUrl = await discoverPublicEndpoint(domain)
+	// If this is a new instance (no software detected yet) or missing publicEventsUrl,
+	// perform the heavy lifting (metadata fetch & discovery).
+	// We check for minimal metadata availability.
+	if (!instance.software || !instance.publicEventsUrl) {
+		// If software is missing, it's likely a fresh record or one that failed metadata fetch previously.
+		if (!instance.software) {
+			await refreshInstanceMetadata(domain)
 		}
 
-		await prisma.instance.create({
-			data: {
-				domain,
-				baseUrl,
-				software: metadata?.software,
-				version: metadata?.version,
-				userCount: metadata?.userCount,
-				eventCount: metadata?.eventCount,
-				title: metadata?.title,
-				description: metadata?.description,
-				iconUrl: metadata?.iconUrl,
-				contact: metadata?.contact,
-				publicEventsUrl,
-				lastActivityAt: now,
-				lastFetchedAt: metadata ? now : null,
-			},
-		})
+		// Use the fresh instance data after metadata refresh attempt (if we want strictness),
+		// but typically we just need to know if we should try discovery.
+		// Let's re-read if we suspect updates, or just proceed with what we have if we pushed updates.
+		// Actually, refreshInstanceMetadata updates the DB.
+
+		// If publicEventsUrl is still missing (or was missing), try to discover it
+		// We only try this if we don't have it.
+		// Note: The previous implementation allowed retrying on every 'track' if missing.
+		if (!instance.publicEventsUrl) {
+			const publicEventsUrl = await discoverPublicEndpoint(domain)
+			if (publicEventsUrl) {
+				await prisma.instance.update({
+					where: { domain },
+					data: {
+						publicEventsUrl,
+						// Force poll if we just found the URL
+						lastFetchedAt: new Date(0),
+					},
+				})
+			}
+		}
 	}
 }
 
@@ -183,7 +190,16 @@ export async function trackInstance(actorUrl: string): Promise<void> {
  */
 export async function discoverPublicEndpoint(domain: string): Promise<string | null> {
 	try {
-		// 1. Try generic "events" actor via WebFinger
+		// 1. Try "relay" generic actor (common for Mobilizon/Pleroma)
+		const relayActorUrl = await resolveWebFinger(`acct:relay@${domain}`)
+		if (relayActorUrl) {
+			const actor = await fetchRemoteActor(relayActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 2. Try generic "events" actor via WebFinger
 		const eventsActorUrl = await resolveWebFinger(`acct:events@${domain}`)
 		if (eventsActorUrl) {
 			const actor = await fetchRemoteActor(eventsActorUrl)
@@ -192,7 +208,7 @@ export async function discoverPublicEndpoint(domain: string): Promise<string | n
 			}
 		}
 
-		// 2. Try "groups" actor (Gathio/Mobilizon style sometimes)
+		// 3. Try "groups" actor (Gathio/Mobilizon style sometimes)
 		const groupsActorUrl = await resolveWebFinger(`acct:groups@${domain}`)
 		if (groupsActorUrl) {
 			const actor = await fetchRemoteActor(groupsActorUrl)
@@ -201,8 +217,7 @@ export async function discoverPublicEndpoint(domain: string): Promise<string | n
 			}
 		}
 
-		// 3. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
-		// Usually accessible at https://domain/actor
+		// 4. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
 		const instanceActorUrl = `https://${domain}/actor`
 		const instanceActor = await fetchRemoteActor(instanceActorUrl)
 		if (instanceActor?.outbox) {
@@ -237,23 +252,6 @@ export async function pollKnownActors(domain: string): Promise<string[]> {
 		const outboxes: string[] = []
 		for (const user of users) {
 			if (user.externalActorUrl) {
-				// We need to fetch the actor to get the outbox, or guess it?
-				// To be safe, we should have stored the outbox URL in the User model.
-				// But we assume standard ActivityPub structure or fetch it.
-				// Since fetching every user is expensive, we rely on the fact that we might
-				// have cached the outbox in the User model... wait, User model DOES NOT have outboxUrl?
-				// Checking User model... Step 55 view_code_item:
-				// inboxUrl, sharedInboxUrl... NO outboxUrl.
-				// user.externalActorUrl is the ID. We can append /outbox and hope?
-				// Or we should fetch the actor.
-				// "cacheRemoteUser" did fetch the actor, but didn't save outbox?
-				// Let's check cacheRemoteUser again.
-				// It parses optional fields... but didn't save outboxUrl.
-				// So we must fetch the actor or guess. Guessing is risky.
-				// We'll append /outbox as a heuristic for now, or fetch if needed.
-				// Fetching all actors every poll is bad.
-				// Ideally we add `outboxUrl` to User model too, but that's another schema change.
-				// For now, let's assume `externalActorUrl + /outbox` works for Mastodon/Pleroma/Mobilizon.
 				outboxes.push(`${user.externalActorUrl}/outbox`)
 			}
 		}
@@ -267,65 +265,80 @@ export async function pollKnownActors(domain: string): Promise<string[]> {
 /**
  * Fetch public timeline (Collection)
  */
-export async function fetchInstancePublicTimeline(outboxUrl: string): Promise<Activity[]> {
+/**
+ * Fetch public timeline (Collection)
+ * Supports sequential crawling with resumption
+ */
+// eslint-disable-next-line sonarjs/cognitive-complexity
+export async function fetchInstancePublicTimeline(
+	outboxUrl: string,
+	resumeUrl?: string | null
+): Promise<{ activities: Activity[]; lastPageUrl?: string }> {
 	try {
-		const response = await safeFetch(outboxUrl, {
-			headers: { Accept: ContentType.ACTIVITY_JSON },
-		})
+		let currentUrl = resumeUrl || outboxUrl
+		let activities: Activity[] = []
+		let lastPageUrl: string | undefined = undefined
 
-		if (!response.ok) {
-			// Try adding ?page=true or ?page=1 if it's a Collection
-			const pageUrl = outboxUrl.includes('?')
-				? `${outboxUrl}&page=true`
-				: `${outboxUrl}?page=true`
-			const pageResponse = await safeFetch(pageUrl, {
+		// Safety limit: 1000 pages should be enough for any reasonable "sync"
+		// without getting stuck in infinite loops forever (e.g. circular refs)
+		const MAX_PAGES = 1000
+
+		// If starting from root (outboxUrl), handle Collection vs Page
+		if (currentUrl === outboxUrl) {
+			const response = await safeFetch(currentUrl, {
 				headers: { Accept: ContentType.ACTIVITY_JSON },
 			})
-			if (!pageResponse.ok) return []
-			return processCollectionResponse(await pageResponse.json())
+
+			if (!response.ok) {
+				// Try adding ?page=true
+				const pageUrl = outboxUrl.includes('?')
+					? `${outboxUrl}&page=true`
+					: `${outboxUrl}?page=true`
+				currentUrl = pageUrl
+			} else {
+				const data = (await response.json()) as Record<string, unknown>
+				// If it is a collection, start with 'first'
+				if (data.first) {
+					const first = data.first as string | { id: string }
+					currentUrl = typeof first === 'string' ? first : first.id
+				}
+				// If it's already a page (e.g. from resumeUrl), we just proceed
+			}
 		}
 
-		const data = await response.json()
-		return processCollectionResponse(data)
+		// Sequential Crawl Loop
+		for (let i = 0; i < MAX_PAGES; i++) {
+			const response = await safeFetch(currentUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (!response.ok) break
+
+			const data = (await response.json()) as Record<string, unknown>
+			const items = (data.orderedItems || data.items || []) as Activity[]
+			activities = [...activities, ...items]
+
+			// Update "last visited page" to the CURRENT page (so we resume here or next)
+			lastPageUrl = currentUrl
+
+			// Check for next page
+			if (data.next) {
+				const nextUrl =
+					typeof data.next === 'string' ? data.next : (data.next as { id: string }).id
+				if (nextUrl && nextUrl !== currentUrl) {
+					currentUrl = nextUrl
+					continue
+				}
+			}
+
+			// No next page, or same as current
+			break
+		}
+
+		return { activities, lastPageUrl }
 	} catch (error) {
 		console.error(`Error fetching timeline from ${outboxUrl}:`, error)
-		return []
+		return { activities: [], lastPageUrl: undefined }
 	}
-}
-
-async function processCollectionResponse(data: unknown): Promise<Activity[]> {
-	if (!data) return []
-
-	// Type guard helper could be better, but for now we cast to access properties
-	const collection = data as Record<string, unknown>
-
-	// If it's a Collection/OrderedCollection, look for 'first'
-	if (
-		(collection.type === 'Collection' || collection.type === 'OrderedCollection') &&
-		collection.first
-	) {
-		// If 'first' is a string, fetch it
-		if (typeof collection.first === 'string') {
-			const firstPageRes = await safeFetch(collection.first, {
-				headers: { Accept: ContentType.ACTIVITY_JSON },
-			})
-			if (firstPageRes.ok) {
-				const firstPage = (await firstPageRes.json()) as Record<string, unknown>
-				return (firstPage.orderedItems || firstPage.items || []) as Activity[]
-			}
-			return []
-		}
-		// If 'first' is an object
-		const firstPage = collection.first as Record<string, unknown>
-		return (firstPage.orderedItems || firstPage.items || []) as Activity[]
-	}
-
-	// If it's a Page
-	if (collection.type === 'OrderedCollectionPage' || collection.type === 'CollectionPage') {
-		return (collection.orderedItems || collection.items || []) as Activity[]
-	}
-
-	return []
 }
 
 // Private helper
@@ -336,7 +349,8 @@ async function fetchRemoteActor(url: string): Promise<{ outbox?: string } | null
 		})
 		if (!response.ok) return null
 		return (await response.json()) as { outbox?: string }
-	} catch {
+	} catch (error) {
+		console.error(`Error fetching remote actor from ${url}:`, error)
 		return null
 	}
 }
@@ -406,7 +420,7 @@ export async function getKnownInstances(options: {
 }) {
 	const { limit = 50, offset = 0, sortBy = 'activity', filterBlocked = true } = options
 
-	const where = filterBlocked ? { isBlocked: false } : {}
+	const where: Prisma.InstanceWhereInput = filterBlocked ? { isBlocked: false } : {}
 
 	let orderBy
 	if (sortBy === 'activity') {
