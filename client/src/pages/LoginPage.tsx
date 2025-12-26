@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 
 import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
-import { Input, Button, Card, CardContent } from '@/components/ui'
+import { Input, Button, Card, CardContent, EyeIcon, EyeOffIcon } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
 
@@ -19,6 +19,7 @@ export function LoginPage() {
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 	const [password, setPassword] = useState('')
+	const [showPassword, setShowPassword] = useState(false)
 	const { user, login, signup } = useAuth()
 
 	// Redirect if already logged in
@@ -113,13 +114,22 @@ export function LoginPage() {
 						/>
 
 						<Input
-							type="password"
+							type={showPassword ? 'text' : 'password'}
 							label="Password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
 							placeholder="Your password"
 							required
 							autoComplete={isLogin ? 'current-password' : 'new-password'}
+							rightIcon={
+								showPassword ? (
+									<EyeOffIcon className="w-5 h-5" />
+								) : (
+									<EyeIcon className="w-5 h-5" />
+								)
+							}
+							onRightIconClick={() => setShowPassword(!showPassword)}
+							rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
 						/>
 
 						{!isLogin && (
