@@ -19,6 +19,7 @@ vi.mock('../lib/prisma.js', () => ({
 			findUnique: vi.fn(),
 			create: vi.fn(),
 			update: vi.fn(),
+			upsert: vi.fn(),
 			findMany: vi.fn(),
 			count: vi.fn(),
 		},
@@ -83,11 +84,10 @@ describe('Instance Discovery', () => {
 	})
 
 	describe('trackInstance', () => {
-		it('should create new instance if not exists', async () => {
+		it('should create or update instance', async () => {
 			const actorUrl = 'https://mastodon.social/users/alice'
 
-			vi.mocked(prisma.instance.findUnique).mockResolvedValue(null)
-			vi.mocked(prisma.instance.create).mockResolvedValue({
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
 				id: 'instance-1',
 				domain: 'mastodon.social',
 				baseUrl: 'https://mastodon.social',
@@ -112,36 +112,21 @@ describe('Instance Discovery', () => {
 
 			await trackInstance(actorUrl)
 
-			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
-				where: { domain: 'mastodon.social' },
-			})
-			expect(prisma.instance.create).toHaveBeenCalled()
+			expect(prisma.instance.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'mastodon.social' },
+					create: expect.objectContaining({
+						domain: 'mastodon.social',
+						baseUrl: 'https://mastodon.social',
+					}),
+					update: expect.objectContaining({
+						lastActivityAt: expect.any(Date),
+					}),
+				})
+			)
 		})
 
-		it('should update existing instance activity time', async () => {
-			const actorUrl = 'https://mastodon.social/users/alice'
-			const existingInstance = {
-				id: 'instance-1',
-				domain: 'mastodon.social',
-				baseUrl: 'https://mastodon.social',
-				lastActivityAt: new Date('2024-01-01'),
-				lastPageUrl: null,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			}
 
-			vi.mocked(prisma.instance.findUnique).mockResolvedValue(existingInstance as any)
-			vi.mocked(prisma.instance.update).mockResolvedValue(existingInstance as any)
-
-			await trackInstance(actorUrl)
-
-			expect(prisma.instance.update).toHaveBeenCalledWith({
-				where: { domain: 'mastodon.social' },
-				data: expect.objectContaining({
-					lastActivityAt: expect.any(Date),
-				}),
-			})
-		})
 
 		it('should handle invalid actor URLs gracefully', async () => {
 			await trackInstance('invalid-url')
