@@ -1,7 +1,8 @@
+// Requires API server to be up and running
 import { PrismaClient } from '@prisma/client'
 
 async function makeRequest(endpoint: string, options: RequestInit = {}) {
-	const url = `${process.env.BASE_URL}${endpoint}`
+	const url = new URL(endpoint, `http://localhost:${process.env.PORT}`)
 	const response = await fetch(url, {
 		...options,
 		headers: {
@@ -96,28 +97,6 @@ async function createEvent(
 	}
 }
 
-async function createEventTemplate(
-	sessionCookie: string,
-	templateData: {
-		name: string
-		description: string
-		data: { title: string; summary: string; location: string; duration: string }
-	}
-) {
-	console.log(`Creating event template: ${templateData.name}`)
-
-	const { response } = await makeRequest('/api/event-templates', {
-		method: 'POST',
-		body: JSON.stringify(templateData),
-		headers: {
-			Cookie: sessionCookie,
-		},
-	})
-
-	const data = await response.json()
-	console.log('Event template created:', data)
-	return data
-}
 
 function generateRandomEvent(baseDate: Date, userIndex: number) {
 	const titles = [
@@ -285,23 +264,7 @@ async function main() {
 				await createEvent(sessionCookie, eventData)
 			}
 
-			// Create event template for Alice
 			if (user.username === 'alice') {
-				try {
-					await createEventTemplate(sessionCookie, {
-						name: 'Weekly Standup',
-						description: 'Template for our weekly team sync',
-						data: {
-							title: 'Weekly Standup',
-							summary: 'Share updates, blockers, and plans',
-							location: 'Conference Room A',
-							duration: 'PT30M',
-						},
-					})
-				} catch (error) {
-					console.log('Event template might already exist, skipping...')
-				}
-
 				// Make Alice an admin
 				try {
 					await prisma.user.update({
