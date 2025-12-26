@@ -1,47 +1,4 @@
 services:
-    test:
-        build:
-            context: .
-            target: development
-        container_name: constellate-test
-        environment:
-            - NODE_ENV=development
-            - PORT=3000
-            - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/constellate_test?schema=public
-            - BASE_URL=http://test.local
-            - BETTER_AUTH_SECRET=test-secret-change-in-production
-            - BETTER_AUTH_TRUSTED_ORIGINS=http://test.local
-            # Test encryption key
-            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-        volumes:
-            - .:/app
-            - /app/node_modules
-            - /app/client/node_modules
-        networks:
-            - constellate-network
-        depends_on:
-            - db-test
-        restart: 'no'
-        entrypoint:
-            [
-                '/bin/sh',
-                '-c',
-                'npx prisma migrate deploy && npm run db:seed && npm run test:coverage',
-            ]
-
-    db-test:
-        image: postgres:15-alpine
-        container_name: constellate-db-test
-        environment:
-            - POSTGRES_USER=postgres
-            - POSTGRES_PASSWORD=postgres
-            - POSTGRES_DB=constellate_test
-        volumes:
-            - test-data:/var/lib/postgresql/data
-        networks:
-            - constellate-network
-        restart: 'no'
-
     app1:
         build:
             context: .
@@ -144,7 +101,6 @@ services:
             - app2
 
 volumes:
-    test-data:
     db-dev-data:
     caddy-data:
     caddy-config:

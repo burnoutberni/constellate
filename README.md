@@ -26,14 +26,14 @@ A federated event management platform implementing the ActivityPub protocol for 
 ### Using Docker (Recommended)
 
 ```bash
-# Start development server (Terminal 1)
+# Start development server
 npm run docker:dev
 
-# Start test watcher in separate terminal (Terminal 2)
-npm run docker:test
+# When testing federation, start two dev servers
+npm run docker:dev:multi
 ```
 
-The dev environment starts two instances (app1 and app2) at `http://app1.local` and `http://app2.local`. Add these domains to your hosts file: `127.0.0.1 app1.local app2.local test.local`.
+The dev environment starts one or two instances (app1 and app2) at `http://app1.local` (and optionally `http://app2.local`). Add these domains to your hosts file: `127.0.0.1 app1.local app2.local`.
 
 ### Local Development
 
