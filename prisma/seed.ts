@@ -47,7 +47,7 @@ async function authenticateUser(
 			return sessionCookie
 		}
 	} catch (error) {
-		console.log(`Sign-in for ${email} failed, attempting sign-up.`)
+		console.log(`Sign-in for ${email} failed, attempting sign-up. Error:`, error)
 	}
 
 	// Try to sign up instead
@@ -96,7 +96,6 @@ async function createEvent(
 		throw error
 	}
 }
-
 
 function generateRandomEvent(baseDate: Date, userIndex: number) {
 	const titles = [
@@ -212,40 +211,39 @@ async function main() {
 
 	const prisma = new PrismaClient()
 
-	const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD
-	if (!SEED_USER_PASSWORD) {
-		console.error('❌ SEED_USER_PASSWORD environment variable is not set.')
-		process.exit(1)
-	}
-
-	const users = [
-		{
-			email: 'alice@example.com',
-			password: SEED_USER_PASSWORD,
-			username: 'alice',
-			name: 'Alice Wonder',
-		},
-		{
-			email: 'bob@example.com',
-			password: SEED_USER_PASSWORD,
-			username: 'bob',
-			name: 'Bob Smith',
-		},
-		{
-			email: 'charlie@example.com',
-			password: SEED_USER_PASSWORD,
-			username: 'charlie',
-			name: 'Charlie Brown',
-		},
-		{
-			email: 'diana@example.com',
-			password: SEED_USER_PASSWORD,
-			username: 'diana',
-			name: 'Diana Prince',
-		},
-	]
-
 	try {
+		const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD
+		if (!SEED_USER_PASSWORD) {
+			throw new Error('❌ SEED_USER_PASSWORD environment variable is not set.')
+		}
+
+		const users = [
+			{
+				email: 'alice@example.com',
+				password: SEED_USER_PASSWORD,
+				username: 'alice',
+				name: 'Alice Wonder',
+			},
+			{
+				email: 'bob@example.com',
+				password: SEED_USER_PASSWORD,
+				username: 'bob',
+				name: 'Bob Smith',
+			},
+			{
+				email: 'charlie@example.com',
+				password: SEED_USER_PASSWORD,
+				username: 'charlie',
+				name: 'Charlie Brown',
+			},
+			{
+				email: 'diana@example.com',
+				password: SEED_USER_PASSWORD,
+				username: 'diana',
+				name: 'Diana Prince',
+			},
+		]
+
 		const now = new Date()
 
 		for (let i = 0; i < users.length; i++) {
@@ -279,12 +277,12 @@ async function main() {
 		}
 
 		console.log('🎉 Seeding complete!')
-	} catch (error) {
-		console.error('❌ Seeding failed:', error)
-		process.exit(1)
 	} finally {
 		await prisma.$disconnect()
 	}
 }
 
-main()
+main().catch((error) => {
+	console.error('❌ Seeding failed:', error)
+	process.exit(1)
+})
