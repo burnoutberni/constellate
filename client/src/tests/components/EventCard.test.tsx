@@ -316,15 +316,16 @@ describe('EventCard Component', () => {
 		})
 
 		it('renders remote event with simplified internal link', () => {
-			// Tests that even if it's remote, we route internally to /@remote/id, not external URL
+			// Tests that even if it's remote, we route internally to /events/id, not external URL
 			const event = createMockEvent({
 				isRemote: true,
-				url: 'https://example.com/remote-event'
+				url: 'https://example.com/remote-event',
+				user: undefined // Ensure logical "remote" state
 			})
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
 
 			const link = screen.getByRole('link', { name: /Test Event/ })
-			expect(link).toHaveAttribute('href', '/@testuser/1')
+			expect(link).toHaveAttribute('href', '/events/1')
 		})
 	})
 
@@ -402,9 +403,10 @@ describe('EventCard Component', () => {
 
 		it('displays multiple organizers if present', () => {
 			const event = createMockEvent({
+				user: undefined, // Ensure fallback to organizers
 				organizers: [
-					{ username: 'user1', display: 'User One', avatar: '' },
-					{ username: 'user2', display: 'User Two', avatar: '' }
+					{ username: 'user1', display: 'User One', url: 'https://example.com/u1', host: 'example.com' },
+					{ username: 'user2', display: 'User Two', url: 'https://example.com/u2', host: 'example.com' }
 				]
 			})
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
