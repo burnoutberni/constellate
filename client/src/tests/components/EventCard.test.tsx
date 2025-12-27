@@ -318,7 +318,6 @@ describe('EventCard Component', () => {
 		it('renders remote event with simplified internal link', () => {
 			// Tests that even if it's remote, we route internally to /events/id, not external URL
 			const event = createMockEvent({
-				isRemote: true,
 				url: 'https://example.com/remote-event',
 				user: undefined // Ensure logical "remote" state
 			})

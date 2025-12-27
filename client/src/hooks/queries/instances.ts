@@ -77,12 +77,12 @@ export function useInstanceEvents(
 }
 
 // Mutations
-export function useBlockInstance(domain: string) {
+export function useBlockInstance() {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
 
 	return useMutation({
-		mutationFn: () =>
+		mutationFn: (domain: string) =>
 			api.post(
 				`/instances/${encodeURIComponent(domain)}/block`,
 				undefined,
@@ -101,12 +101,12 @@ export function useBlockInstance(domain: string) {
 	})
 }
 
-export function useUnblockInstance(domain: string) {
+export function useUnblockInstance() {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
 
 	return useMutation({
-		mutationFn: () =>
+		mutationFn: (domain: string) =>
 			api.post(
 				`/instances/${encodeURIComponent(domain)}/unblock`,
 				undefined,
@@ -125,12 +125,12 @@ export function useUnblockInstance(domain: string) {
 	})
 }
 
-export function useRefreshInstance(domain: string) {
+export function useRefreshInstance() {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
 
 	return useMutation({
-		mutationFn: () =>
+		mutationFn: (domain: string) =>
 			api.post(
 				`/instances/${encodeURIComponent(domain)}/refresh`,
 				undefined,
@@ -140,10 +140,14 @@ export function useRefreshInstance(domain: string) {
 		onError: (error) => {
 			handleMutationError(error, 'Failed to refresh instance')
 		},
-		onSuccess: () => {
+		onSuccess: (_data, domain) => {
 			// Invalidate instance detail query
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.instances.detail(domain),
+			})
+			// Also invalidate list queries to update timestamps
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.instances.list({}),
 			})
 		},
 	})

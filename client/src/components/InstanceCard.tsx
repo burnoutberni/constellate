@@ -204,6 +204,9 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 	)
 }
 
+const REFRESH_COOLDOWN_MS = 30000 // 30 seconds
+const REFRESHED_STATE_DURATION_MS = 5000 // 5 seconds
+
 function RefresherButton({
 	instance,
 	onRefresh,
@@ -211,7 +214,7 @@ function RefresherButton({
 	instance: InstanceWithStats
 	onRefresh?: (domain: string) => void
 }) {
-	 
+
 	const [now, setNow] = useState(() => Date.now())
 
 	useEffect(() => {
@@ -221,8 +224,8 @@ function RefresherButton({
 	}, [])
 
 	const lastFetched = instance.lastFetchedAt ? new Date(instance.lastFetchedAt).getTime() : 0
-	const isRecent = lastFetched > now - 30000
-	const justRefreshed = lastFetched > now - 5000
+	const isRecent = lastFetched > now - REFRESH_COOLDOWN_MS
+	const justRefreshed = lastFetched > now - REFRESHED_STATE_DURATION_MS
 
 	return (
 		<Button

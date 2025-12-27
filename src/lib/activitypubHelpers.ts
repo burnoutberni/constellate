@@ -373,7 +373,8 @@ export async function cacheEventFromOutboxActivity(
 				host: u.hostname,
 				display: username ? `@${username}@${u.hostname}` : u.hostname,
 			}
-		} catch {
+		} catch (error) {
+			console.error(`Failed to parse organizer URL: ${url}`, error)
 			return { url, username: 'unknown', host: 'unknown', display: url }
 		}
 	})

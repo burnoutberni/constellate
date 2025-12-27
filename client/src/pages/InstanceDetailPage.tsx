@@ -53,9 +53,9 @@ export function InstanceDetailPage() {
 	const isAdmin = userProfile?.isAdmin || false
 
 	const { data: instance, isLoading, error } = useInstanceDetail(domain || '')
-	const blockMutation = useBlockInstance(domain || '')
-	const unblockMutation = useUnblockInstance(domain || '')
-	const refreshMutation = useRefreshInstance(domain || '')
+	const blockMutation = useBlockInstance()
+	const unblockMutation = useUnblockInstance()
+	const refreshMutation = useRefreshInstance()
 
 	useEffect(() => {
 		if (instance) {
@@ -86,7 +86,8 @@ export function InstanceDetailPage() {
 
 	const confirmBlock = () => {
 		setShowBlockConfirm(false)
-		blockMutation.mutate(undefined, {
+		if (!domain) { return }
+		blockMutation.mutate(domain, {
 			onSuccess: () => {
 				navigate('/instances')
 			},
@@ -99,11 +100,13 @@ export function InstanceDetailPage() {
 
 	const confirmUnblock = () => {
 		setShowUnblockConfirm(false)
-		unblockMutation.mutate(undefined)
+		if (!domain) { return }
+		unblockMutation.mutate(domain)
 	}
 
 	const handleRefresh = () => {
-		refreshMutation.mutate(undefined)
+		if (!domain) { return }
+		refreshMutation.mutate(domain)
 	}
 
 	if (isLoading) {
@@ -354,6 +357,8 @@ export function InstanceDetailPage() {
 	)
 }
 
+const EVENTS_PER_PAGE = 5
+
 function EventsListSection({
 	domain,
 	time,
@@ -366,7 +371,7 @@ function EventsListSection({
 	emptyMessage: string
 }) {
 	const [offset, setOffset] = useState(0)
-	const limit = 5
+	const limit = EVENTS_PER_PAGE
 	const { data, isLoading } = useInstanceEvents(domain, limit, offset, time)
 
 	if (isLoading) {

@@ -1,9 +1,16 @@
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 
 import { Container, Stack } from '@/components/layout'
 import { Button, Input, Card, Spinner } from '@/components/ui'
-import { useInstances, useInstanceSearch, queryKeys } from '@/hooks/queries'
+import {
+	useInstances,
+	useInstanceSearch,
+	queryKeys,
+	useBlockInstance,
+	useUnblockInstance,
+	useRefreshInstance,
+} from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { InstanceWithStats, UserProfile } from '@/types'
 
@@ -28,7 +35,7 @@ export function InstancesPage() {
 	const { data: userProfile } = useQuery<UserProfile | null>({
 		queryKey: queryKeys.users.currentProfile(user?.id),
 		queryFn: async () => {
-			if (!user?.id) {return null}
+			if (!user?.id) { return null }
 			try {
 				return await api.get<UserProfile>('/users/me/profile')
 			} catch {
@@ -63,47 +70,11 @@ export function InstancesPage() {
 	const total = instancesData?.total || 0
 
 	// Mutations for admin actions
-	const queryClient = useQueryClient()
+	// const queryClient = useQueryClient() // No longer needed as hooks handle it
 
-	const blockMutation = useMutation({
-		mutationFn: (domain: string) =>
-			api.post(
-				`/instances/${encodeURIComponent(domain)}/block`,
-				undefined,
-				undefined,
-				'Failed to block instance'
-			),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
-		},
-	})
-
-	const unblockMutation = useMutation({
-		mutationFn: (domain: string) =>
-			api.post(
-				`/instances/${encodeURIComponent(domain)}/unblock`,
-				undefined,
-				undefined,
-				'Failed to unblock instance'
-			),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
-		},
-	})
-
-	const refreshMutation = useMutation({
-		mutationFn: (domain: string) =>
-			api.post(
-				`/instances/${encodeURIComponent(domain)}/refresh`,
-				undefined,
-				undefined,
-				'Failed to refresh instance'
-			),
-		onSuccess: (_data, domain) => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.instances.detail(domain) })
-			queryClient.invalidateQueries({ queryKey: queryKeys.instances.all() })
-		},
-	})
+	const blockMutation = useBlockInstance()
+	const unblockMutation = useUnblockInstance()
+	const refreshMutation = useRefreshInstance()
 
 	const handleBlock = (domain: string) => {
 		setBlockDomain(domain)

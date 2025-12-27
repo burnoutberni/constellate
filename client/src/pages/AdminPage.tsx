@@ -5,7 +5,12 @@ import { useNavigate } from 'react-router-dom'
 import { AppealQueue } from '@/components/admin/AppealQueue'
 import { ReportQueue } from '@/components/admin/ReportQueue'
 import { Input, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
-import { queryKeys } from '@/hooks/queries'
+import {
+	queryKeys,
+	useBlockInstance,
+	useUnblockInstance,
+	useRefreshInstance,
+} from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
@@ -221,52 +226,19 @@ export function AdminPage() {
 	})
 
 	// Instance management mutations
-	const blockInstanceMutation = useMutation({
-		mutationFn: async (domain: string) => {
-			return api.post(
-				`/instances/${encodeURIComponent(domain)}/block`,
-				undefined,
-				undefined,
-				'Failed to block instance'
-			)
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
-		},
-	})
+	const blockInstanceMutation = useBlockInstance()
+	const unblockInstanceMutation = useUnblockInstance()
+	const refreshInstanceMutation = useRefreshInstance()
 
-	const unblockInstanceMutation = useMutation({
-		mutationFn: async (domain: string) => {
-			return api.post(
-				`/instances/${encodeURIComponent(domain)}/unblock`,
-				undefined,
-				undefined,
-				'Failed to unblock instance'
-			)
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
-		},
-	})
+	// We can add the toast here if we want, or rely on handling it in the hook if we updated it (we only added invalidate)
+	// The previous code had a toast on success for refresh.
+	// The hook currently does not have a toast.
+	// We can add `onSuccess` callback to `mutate` for the toast.
 
-	const refreshInstanceMutation = useMutation({
-		mutationFn: async (domain: string) => {
-			return api.post(
-				`/instances/${encodeURIComponent(domain)}/refresh`,
-				undefined,
-				undefined,
-				'Failed to refresh instance'
-			)
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.admin.instances() })
-			addToast({
-				id: generateId(),
-				message: 'Instance refresh started. This may take a few minutes.',
-				variant: 'success',
-			})
-		},
-	})
+	// Actually, `useRefreshInstance` in `instances.ts` does NOT have a toast. 
+	// I should probably add the toast functionality to `AdminPage` usage of the hook.
+
+	// Let's just replace the definition first.
 
 	// Redirect if not admin (after all hooks)
 	if (userProfile && !userProfile.isAdmin) {
@@ -679,14 +651,21 @@ export function AdminPage() {
 																<Button
 																	onClick={() =>
 																		refreshInstanceMutation.mutate(
-																			instance.domain
+																			instance.domain,
+																			{
+																				onSuccess: () => {
+																					addToast({
+																						id: generateId(),
+																						message: 'Instance refresh started. This may take a few minutes.',
+																						variant: 'success',
+																					})
+																				},
+																			}
 																		)
 																	}
 																	variant="secondary"
 																	size="sm"
-																	disabled={
-																		refreshInstanceMutation.isPending
-																	}>
+																	disabled={refreshInstanceMutation.isPending}>
 																	Refresh
 																</Button>
 																{instance.isBlocked ? (
