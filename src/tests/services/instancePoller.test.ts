@@ -4,7 +4,11 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { prisma } from '../../lib/prisma.js'
-import { startInstancePoller, stopInstancePoller } from '../../services/instancePoller.js'
+import {
+	startInstancePoller,
+	stopInstancePoller,
+	refreshInstance,
+} from '../../services/instancePoller.js'
 import {
 	discoverPublicEndpoint,
 	fetchInstancePublicTimeline,
@@ -18,6 +22,7 @@ vi.mock('../../lib/prisma.js', () => ({
 		instance: {
 			findMany: vi.fn(),
 			update: vi.fn(),
+			findUnique: vi.fn(),
 		},
 	},
 }))
@@ -186,5 +191,108 @@ describe('Instance Poller Service', () => {
 				}),
 			})
 		)
+	})
+
+	describe('refreshInstance', () => {
+		it('should force refresh an instance', async () => {
+			const mockInstance = {
+				id: 'instance-refresh',
+				domain: 'refresh.me',
+				baseUrl: 'https://refresh.me',
+				publicEventsUrl: 'https://refresh.me/outbox',
+				lastPageUrl: 'https://refresh.me/outbox?page=old',
+			}
+
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance as any)
+			vi.mocked(prisma.instance.update).mockResolvedValue(mockInstance as any)
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
+
+			await refreshInstance('refresh.me')
+
+			// Should find instance
+			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
+				where: { domain: 'refresh.me' },
+			})
+
+			// Should reset pagination
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 'instance-refresh' },
+					data: { lastPageUrl: null },
+				})
+			)
+
+			// Should fetch fresh timeline (with null page url)
+			expect(fetchInstancePublicTimeline).toHaveBeenCalledWith(
+				'https://refresh.me/outbox',
+				null
+			)
+		})
+
+		it('should do nothing if instance not found', async () => {
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue(null)
+
+			await refreshInstance('unknown.me')
+
+			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
+				where: { domain: 'unknown.me' },
+			})
+			expect(prisma.instance.update).not.toHaveBeenCalled()
+			expect(fetchInstancePublicTimeline).not.toHaveBeenCalled()
+		})
+
+		it('should discover endpoint if missing during refresh', async () => {
+			const mockInstance = {
+				id: 'instance-discovery',
+				domain: 'discovery.me',
+				baseUrl: 'https://discovery.me',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance as any)
+			vi.mocked(prisma.instance.update).mockResolvedValue(mockInstance as any)
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue('https://discovery.me/events')
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
+
+			await refreshInstance('discovery.me')
+
+			expect(discoverPublicEndpoint).toHaveBeenCalledWith('discovery.me')
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'discovery.me' },
+					data: { publicEventsUrl: 'https://discovery.me/events' },
+				})
+			)
+		})
+
+		it('should process and cache activities during refresh', async () => {
+			const mockInstance = {
+				id: 'instance-caching',
+				domain: 'caching.me',
+				baseUrl: 'https://caching.me',
+				publicEventsUrl: 'https://caching.me/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://caching.me/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+				actor: 'https://caching.me/users/carl',
+			}
+
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue(mockInstance as any)
+			vi.mocked(prisma.instance.update).mockResolvedValue(mockInstance as any)
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [mockActivity] })
+
+			await refreshInstance('caching.me')
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://caching.me/users/carl'
+			)
+			// Should log success (console log not checked but execution path covered)
+		})
 	})
 })
