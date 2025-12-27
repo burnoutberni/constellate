@@ -197,35 +197,23 @@ export async function trackInstance(actorUrl: string): Promise<void> {
  */
 export async function discoverPublicEndpoint(domain: string): Promise<string | null> {
 	try {
-		// 1. Try "relay" generic actor (common for Mobilizon/Pleroma)
-		const relayActorUrl = await resolveWebFinger(`acct:relay@${domain}`)
-		if (relayActorUrl) {
-			const actor = await fetchRemoteActor(relayActorUrl)
-			if (actor?.outbox) {
-				return actor.outbox
-			}
-		}
+		// 1-3. Try generic actors via WebFinger
+		const commonAccounts = ['relay', 'events', 'groups']
 
-		// 2. Try generic "events" actor via WebFinger
-		const eventsActorUrl = await resolveWebFinger(`acct:events@${domain}`)
-		if (eventsActorUrl) {
-			const actor = await fetchRemoteActor(eventsActorUrl)
-			if (actor?.outbox) {
-				return actor.outbox
-			}
-		}
-
-		// 3. Try "groups" actor (Gathio/Mobilizon style sometimes)
-		const groupsActorUrl = await resolveWebFinger(`acct:groups@${domain}`)
-		if (groupsActorUrl) {
-			const actor = await fetchRemoteActor(groupsActorUrl)
-			if (actor?.outbox) {
-				return actor.outbox
+		for (const account of commonAccounts) {
+			const actorUrl = await resolveWebFinger(`acct:${account}@${domain}`)
+			if (actorUrl) {
+				const actor = await fetchRemoteActor(actorUrl)
+				if (actor?.outbox) {
+					return actor.outbox
+				}
 			}
 		}
 
 		// 4. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
-		const instanceActorUrl = `https://${domain}/actor`
+		// Use http for local domains to support development
+		const protocol = domain.endsWith('.local') || domain.includes('localhost') ? 'http' : 'https'
+		const instanceActorUrl = `${protocol}://${domain}/actor`
 		const instanceActor = await fetchRemoteActor(instanceActorUrl)
 		if (instanceActor?.outbox) {
 			return instanceActor.outbox
