@@ -53,12 +53,21 @@ export function EventDetailPage() {
 
 	// Extract username and eventId from pathname
 	useEffect(() => {
-		// Path format: /@username/eventId or /@username@domain/eventId
+		// Path format: 
+		// 1. /@username/eventId (or /@username@domain/eventId)
+		// 2. /events/eventId
 		const pathParts = location.pathname.split('/').filter(Boolean)
+
 		if (pathParts.length >= 2 && pathParts[0].startsWith('@')) {
+			// Case 1: /@username/eventId
 			const extractedUsername = pathParts[0].slice(1) // Remove @
 			const extractedEventId = pathParts[1]
 			setUsername(extractedUsername)
+			setEventId(extractedEventId)
+		} else if (pathParts.length >= 2 && pathParts[0] === 'events') {
+			// Case 2: /events/eventId
+			const extractedEventId = pathParts[1]
+			setUsername('') // No username context
 			setEventId(extractedEventId)
 		}
 	}, [location.pathname])
@@ -128,8 +137,8 @@ export function EventDetailPage() {
 	// Accessing [0] is safe and semantically correct, but we add defensive code for robustness.
 	const activeReminderMinutes =
 		event?.viewerReminders &&
-		Array.isArray(event.viewerReminders) &&
-		event.viewerReminders.length > 0
+			Array.isArray(event.viewerReminders) &&
+			event.viewerReminders.length > 0
 			? (event.viewerReminders[0]?.minutesBeforeStart ?? null)
 			: null
 
@@ -173,6 +182,53 @@ export function EventDetailPage() {
 		() => Boolean(user && (userAttendance === 'attending' || userAttendance === 'maybe')),
 		[user, userAttendance]
 	)
+
+	// Derive organizer user objects, falling back to parsed remote data if no local user exists
+	const derivedOrganizers = useMemo(() => {
+		if (event?.user) { return [event.user] }
+
+		// Try to construct from organizers
+		if (event?.organizers && event.organizers.length > 0) {
+			return event.organizers.map(org => ({
+				id: 'remote',
+				username: org.host && org.host !== 'unknown' ? `${org.username}@${org.host}` : org.username,
+				name: org.display,
+				profileImage: null,
+				displayColor: null,
+				isRemote: true,
+			}))
+		}
+
+		// Fallback to attributedTo
+		if (event?.attributedTo) {
+			try {
+				const u = new URL(event.attributedTo)
+				const pathParts = u.pathname.split('/').filter(Boolean)
+				const rawUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
+				const cleanUsername = rawUsername.startsWith('@') ? rawUsername.slice(1) : rawUsername
+
+				return [{
+					id: 'remote',
+					username: `${cleanUsername}@${u.hostname}`,
+					name: `@${cleanUsername}@${u.hostname}`,
+					profileImage: null,
+					displayColor: null,
+					isRemote: true,
+				}]
+			} catch (error) {
+				console.error('Error parsing attributedTo URL:', error)
+			}
+		}
+
+		return [{
+			id: 'unknown',
+			username: 'unknown',
+			name: 'Unknown Organizer',
+			profileImage: null,
+			displayColor: null,
+			isRemote: true,
+		}]
+	}, [event])
 
 	const handleRSVP = async (status: string) => {
 		if (!user) {
@@ -397,22 +453,7 @@ export function EventDetailPage() {
 		)
 	}
 
-	if (!event.user) {
-		return (
-			<div className="min-h-screen bg-background-secondary flex items-center justify-center">
-				<Card padding="lg" className="text-center">
-					<CardContent>
-						<h2 className="text-2xl font-bold mb-4 text-text-primary">
-							Event data incomplete
-						</h2>
-						<Link to="/feed">
-							<Button variant="primary">Back to Feed</Button>
-						</Link>
-					</CardContent>
-				</Card>
-			</div>
-		)
-	}
+
 
 	// Ensure displayedEvent exists before rendering
 	if (!displayedEvent) {
@@ -480,15 +521,9 @@ export function EventDetailPage() {
 					<CardContent>
 						{/* Event Header */}
 						<EventHeader
-							organizer={{
-								id: event.user.id,
-								username: event.user.username,
-								name: event.user.name,
-								profileImage: event.user.profileImage,
-								displayColor: event.user.displayColor,
-							}}
+							organizers={derivedOrganizers}
 							eventId={eventId}
-							isOwner={user?.id === event.user.id}
+							isOwner={user?.id === event.user?.id}
 							onDelete={handleDeleteEvent}
 							isDeleting={deleteEventMutation.isPending}
 							onDuplicate={handleDuplicateEvent}

@@ -8,6 +8,10 @@ import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import type { Person } from './activitypubSchemas.js'
+import { trackInstance } from './instanceHelpers.js'
+
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
+const THIRTY_DAYS_IN_MS = 30 * ONE_DAY_IN_MS
 
 /**
  * Gets the base URL for this instance
@@ -17,51 +21,7 @@ export function getBaseUrl(): string {
 	return config.baseUrl
 }
 
-/**
- * Resolves a WebFinger resource
- * @param resource - Resource identifier (e.g., acct:user@domain)
- * @returns Actor URL
- */
-export async function resolveWebFinger(resource: string): Promise<string | null> {
-	try {
-		// Parse resource (acct:username@domain)
-		const match = resource.match(/^acct:([^@]+)@(.+)$/)
-		if (!match) {
-			return null
-		}
-
-		const [, , domain] = match
-
-		// Use http:// for .local domains in development, https:// otherwise
-		const protocol =
-			process.env.NODE_ENV === 'development' && domain.endsWith('.local') ? 'http' : 'https'
-		const webfingerUrl = `${protocol}://${domain}/.well-known/webfinger?resource=${encodeURIComponent(resource)}`
-
-		const response = await safeFetch(webfingerUrl, {
-			headers: {
-				Accept: ContentType.JSON,
-			},
-		})
-
-		if (!response.ok) {
-			return null
-		}
-
-		const data = (await response.json()) as {
-			links?: Array<{ rel: string; type?: string; href?: string }>
-		}
-
-		// Find the ActivityPub link
-		const apLink = data.links?.find(
-			(link) => link.rel === 'self' && link.type === ContentType.ACTIVITY_JSON
-		)
-
-		return apLink?.href || null
-	} catch (error) {
-		console.error('WebFinger resolution error:', error)
-		return null
-	}
-}
+// resolveWebFinger moved to ./webfinger.ts
 
 /**
  * Fetches an actor from a remote instance
@@ -104,6 +64,14 @@ export async function cacheRemoteUser(actor: Person) {
 
 	// Extract public key
 	const publicKey = actor.publicKey?.publicKeyPem || null
+
+	try {
+		// Track the instance this user belongs to
+		// This runs in background to not block user interaction
+		void trackInstance(actorUrl)
+	} catch (error) {
+		console.error('Error tracking instance:', error)
+	}
 
 	// Upsert user
 	return await prisma.user.upsert({
@@ -221,7 +189,7 @@ export async function isActivityProcessed(activityId: string): Promise<boolean> 
  */
 export async function markActivityProcessed(activityId: string): Promise<void> {
 	const expiresAt = new Date()
-	expiresAt.setDate(expiresAt.getDate() + 30) // 30 days TTL
+	expiresAt.setTime(expiresAt.getTime() + THIRTY_DAYS_IN_MS) // 30 days TTL
 
 	await prisma.processedActivity.create({
 		data: {
@@ -309,4 +277,133 @@ export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number
 		console.error('Error fetching remote follower count:', error)
 		return null
 	}
+}
+
+// Helper function to extract location value from event location
+export function extractLocationValue(
+	eventLocation: string | Record<string, unknown> | undefined
+): string | null {
+	if (!eventLocation) return null
+	if (typeof eventLocation === 'string') return eventLocation
+	if (typeof eventLocation === 'object' && 'name' in eventLocation) {
+		return eventLocation.name as string
+	}
+	return null
+}
+
+// Helper function to cache event from remote outbox activity
+export async function cacheEventFromOutboxActivity(
+	activityObj: Record<string, unknown>,
+	userExternalActorUrl: string
+) {
+	const activityType = activityObj.type
+	const activityObject = activityObj.object as Record<string, unknown> | undefined
+
+	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+		return
+	}
+
+	// Handle Announce activities separately or ignore them (usually they point to an existing object)
+	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
+		// For now we ignore Announce/Boosts in this helper,
+		// as we prefer processing the original Create activity or the object directly.
+		return
+	}
+
+	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
+	const eventId = eventObj.id as string | undefined
+	const eventName = eventObj.name as string | undefined
+	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
+	const eventStartTime = eventObj.startTime as string | undefined
+	const eventEndTime = eventObj.endTime as string | undefined
+
+	if (!eventId || !eventName || !eventStartTime) {
+		return
+	}
+
+	// Optimization: Skip past events
+	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
+	const now = new Date()
+	const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
+	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
+
+	// If the event ended before yesterday, skip it
+	if (end < yesterday) {
+		return
+	}
+	const eventDuration = eventObj.duration as string | undefined
+	const eventUrl = eventObj.url as string | undefined
+	const eventStatus = eventObj.eventStatus as string | undefined
+	const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
+	const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
+	const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
+
+	const locationValue = extractLocationValue(eventLocation)
+
+	// Extract organizers (attributedTo + contacts)
+	let rawAttributedTo: string[] = []
+	if (Array.isArray(eventObj.attributedTo)) {
+		rawAttributedTo = eventObj.attributedTo.filter(
+			(item): item is string => typeof item === 'string'
+		)
+	} else if (typeof eventObj.attributedTo === 'string') {
+		rawAttributedTo = [eventObj.attributedTo]
+	}
+
+	let rawContacts: string[] = []
+	if (Array.isArray(eventObj.contacts)) {
+		rawContacts = eventObj.contacts.filter((item): item is string => typeof item === 'string')
+	} else if (typeof eventObj.contacts === 'string') {
+		rawContacts = [eventObj.contacts]
+	}
+
+	// Combine and deduplicate
+	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
+
+	// Format for storage
+	const organizers = organizerUrls.map((url) => {
+		try {
+			const u = new URL(url)
+			const pathParts = u.pathname.split('/').filter(Boolean)
+			const username =
+				pathParts.find((p) => p.startsWith('@'))?.replace('@', '') ||
+				pathParts[pathParts.length - 1]
+			return {
+				url,
+				username: username || 'unknown',
+				host: u.hostname,
+				display: username ? `@${username}@${u.hostname}` : u.hostname,
+			}
+		} catch (error) {
+			console.error(`Failed to parse organizer URL: ${url}`, error)
+			return { url, username: 'unknown', host: 'unknown', display: url }
+		}
+	})
+
+	const eventData = {
+		title: eventName,
+		summary: eventSummary || null,
+		location: locationValue,
+		startTime: new Date(eventStartTime),
+		endTime: eventEndTime ? new Date(eventEndTime) : null,
+		duration: eventDuration || null,
+		url: eventUrl || null,
+		eventStatus: eventStatus || null,
+		eventAttendanceMode: eventAttendanceMode || null,
+		maximumAttendeeCapacity: eventMaxCapacity || null,
+		headerImage: eventAttachment?.[0]?.url || null,
+		attributedTo: userExternalActorUrl,
+		organizers: organizers.length > 0 ? organizers : undefined,
+	}
+
+	await prisma.event.upsert({
+		where: { externalId: eventId },
+		update: eventData,
+		create: {
+			...eventData,
+			externalId: eventId,
+			userId: null,
+		},
+	})
 }

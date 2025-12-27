@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
 	getBaseUrl,
-	resolveWebFinger,
 	fetchActor,
 	cacheRemoteUser,
 	createOrderedCollection,
@@ -12,6 +11,7 @@ import {
 	cleanupProcessedActivities,
 	isUserBlocked,
 	isDomainBlocked,
+	cacheEventFromOutboxActivity,
 } from '../../lib/activitypubHelpers.js'
 import { prisma } from '../../lib/prisma.js'
 import { safeFetch } from '../../lib/ssrfProtection.js'
@@ -35,11 +35,20 @@ vi.mock('../../lib/prisma.js', () => ({
 		blockedDomain: {
 			findUnique: vi.fn(),
 		},
+		event: {
+			upsert: vi.fn(),
+		},
 	},
 }))
 
 vi.mock('../../lib/ssrfProtection.js', () => ({
 	safeFetch: vi.fn(),
+}))
+
+vi.mock('../../lib/instanceHelpers.js', () => ({
+	trackInstance: vi.fn(),
+	discoverPublicEndpoint: vi.fn(),
+	fetchInstanceMetadata: vi.fn(),
 }))
 
 vi.mock('../../config.js', () => ({
@@ -60,103 +69,7 @@ describe('activitypubHelpers', () => {
 		})
 	})
 
-	describe('resolveWebFinger', () => {
-		it('should resolve a valid WebFinger resource', async () => {
-			const mockResponse = {
-				ok: true,
-				json: async () => ({
-					links: [
-						{
-							rel: 'self',
-							type: ContentType.ACTIVITY_JSON,
-							href: 'https://example.com/users/alice',
-						},
-					],
-				}),
-			}
-			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
-
-			const result = await resolveWebFinger('acct:alice@example.com')
-			expect(result).toBe('https://example.com/users/alice')
-			expect(safeFetch).toHaveBeenCalledWith(
-				'https://example.com/.well-known/webfinger?resource=acct%3Aalice%40example.com',
-				{
-					headers: {
-						Accept: ContentType.JSON,
-					},
-				}
-			)
-		})
-
-		it('should return null for invalid resource format', async () => {
-			const result = await resolveWebFinger('invalid-format')
-			expect(result).toBeNull()
-			expect(safeFetch).not.toHaveBeenCalled()
-		})
-
-		it('should return null when WebFinger request fails', async () => {
-			const mockResponse = {
-				ok: false,
-			}
-			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
-
-			const result = await resolveWebFinger('acct:alice@example.com')
-			expect(result).toBeNull()
-		})
-
-		it('should return null when no ActivityPub link found', async () => {
-			const mockResponse = {
-				ok: true,
-				json: async () => ({
-					links: [
-						{
-							rel: 'alternate',
-							type: 'text/html',
-							href: 'https://example.com/users/alice',
-						},
-					],
-				}),
-			}
-			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
-
-			const result = await resolveWebFinger('acct:alice@example.com')
-			expect(result).toBeNull()
-		})
-
-		it('should use http for .local domains in development', async () => {
-			const originalEnv = process.env.NODE_ENV
-			process.env.NODE_ENV = 'development'
-
-			const mockResponse = {
-				ok: true,
-				json: async () => ({
-					links: [
-						{
-							rel: 'self',
-							type: ContentType.ACTIVITY_JSON,
-							href: 'http://app2.local/users/bob',
-						},
-					],
-				}),
-			}
-			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
-
-			await resolveWebFinger('acct:bob@app2.local')
-			expect(safeFetch).toHaveBeenCalledWith(
-				expect.stringContaining('http://app2.local'),
-				expect.any(Object)
-			)
-
-			process.env.NODE_ENV = originalEnv
-		})
-
-		it('should handle errors gracefully', async () => {
-			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
-
-			const result = await resolveWebFinger('acct:alice@example.com')
-			expect(result).toBeNull()
-		})
-	})
+	// resolveWebFinger moved to webfinger.test.ts
 
 	describe('fetchActor', () => {
 		it('should fetch an actor successfully', async () => {
@@ -541,6 +454,93 @@ describe('activitypubHelpers', () => {
 
 			const result = await isDomainBlocked('example.com')
 			expect(result).toBe(false)
+		})
+	})
+
+	describe('cacheEventFromOutboxActivity', () => {
+		const mockEvent = {
+			id: 'https://example.com/events/1',
+			type: 'Event',
+			name: 'Future Event',
+			startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+			url: 'https://example.com/events/1',
+			duration: 'PT1H',
+		}
+
+		const mockCreateActivity = {
+			type: 'Create',
+			object: mockEvent,
+		}
+
+		it('should cache a future event', async () => {
+			const userExternalActorUrl = 'https://example.com/users/alice'
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(mockCreateActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { externalId: 'https://example.com/events/1' },
+				})
+			)
+		})
+
+		it('should skip a past event', async () => {
+			const pastEvent = {
+				...mockEvent,
+				id: 'https://example.com/events/past',
+				startTime: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 days ago
+			}
+			const pastCreateActivity = {
+				type: 'Create',
+				object: pastEvent,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			await cacheEventFromOutboxActivity(pastCreateActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).not.toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { externalId: 'https://example.com/events/past' },
+				})
+			)
+		})
+
+		it('should handle malformed organizer URLs gracefully', async () => {
+			const eventWithBadUrl = {
+				...mockEvent,
+				id: 'https://example.com/events/2',
+				attributedTo: ['https://valid.com/u/alice', 'not-a-valid-url'],
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithBadUrl,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			// Mock console.error to avoid successful test output pollution
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: expect.arrayContaining([
+							expect.objectContaining({
+								url: 'not-a-valid-url',
+								username: 'unknown',
+								host: 'unknown',
+							}),
+						]),
+					}),
+				})
+			)
+
+			expect(consoleSpy).toHaveBeenCalled()
+			consoleSpy.mockRestore()
 		})
 	})
 })

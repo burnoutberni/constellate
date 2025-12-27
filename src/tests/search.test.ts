@@ -456,6 +456,33 @@ describe('Search API - Advanced Filters', () => {
 		expect(eventIds).toContain(event.id)
 	})
 
+	it('should default to upcoming events when no date filter provided', async () => {
+		const upcomingEvent = await prisma.event.create({
+			data: {
+				title: 'Future Event',
+				startTime: new Date(Date.now() + 86400000),
+				userId: testUser.id,
+				attributedTo: `${baseUrl}/users/${testUser.username}`,
+			},
+		})
+
+		const pastEvent = await prisma.event.create({
+			data: {
+				title: 'Past Event',
+				startTime: new Date(Date.now() - 86400000),
+				userId: testUser.id,
+				attributedTo: `${baseUrl}/users/${testUser.username}`,
+			},
+		})
+
+		const res = await app.request('/api/search')
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as any
+		const eventIds = body.events.map((e: { id: string }) => e.id)
+		expect(eventIds).toContain(upcomingEvent.id)
+		expect(eventIds).not.toContain(pastEvent.id)
+	})
+
 	it('should handle search when tagList becomes empty after normalization', async () => {
 		const event = await prisma.event.create({
 			data: {
@@ -1152,6 +1179,8 @@ describe('Search API - Advanced Filters', () => {
 			expect(body.totalEvents).toBeGreaterThanOrEqual(3)
 			expect(body.upcomingEvents).toBeGreaterThanOrEqual(2) // Today + Tomorrow
 			expect(body.todayEvents).toBeGreaterThanOrEqual(1)
+			expect(body.totalUsers).toBeGreaterThanOrEqual(1) // At least testUser
+			expect(typeof body.totalInstances).toBe('number')
 		})
 
 		it('should respect visibility filters for authenticated users', async () => {
@@ -1211,6 +1240,11 @@ describe('Search API - Advanced Filters', () => {
 			expect(body.totalEvents).toBe(0)
 			expect(body.upcomingEvents).toBe(0)
 			expect(body.todayEvents).toBe(0)
+			// Users count won't be zero because of testUser created in beforeEach, unless we delete it in this test block
+			// but beforeEach runs before every test.
+			// Let's verify type at least
+			expect(typeof body.totalUsers).toBe('number')
+			expect(typeof body.totalInstances).toBe('number')
 		})
 	})
 })

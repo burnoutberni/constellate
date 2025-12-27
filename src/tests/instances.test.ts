@@ -11,6 +11,12 @@ import {
 	searchInstances,
 } from '../lib/instanceHelpers.js'
 import { prisma } from '../lib/prisma.js'
+import * as webfinger from '../lib/webfinger.js'
+
+// Mock dependencies
+vi.mock('../lib/webfinger.js', () => ({
+	resolveWebFinger: vi.fn(),
+}))
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -19,6 +25,7 @@ vi.mock('../lib/prisma.js', () => ({
 			findUnique: vi.fn(),
 			create: vi.fn(),
 			update: vi.fn(),
+			upsert: vi.fn(),
 			findMany: vi.fn(),
 			count: vi.fn(),
 		},
@@ -83,15 +90,106 @@ describe('Instance Discovery', () => {
 	})
 
 	describe('trackInstance', () => {
-		it('should create new instance if not exists', async () => {
+		it('should create or update instance', async () => {
 			const actorUrl = 'https://mastodon.social/users/alice'
 
-			vi.mocked(prisma.instance.findUnique).mockResolvedValue(null)
-			vi.mocked(prisma.instance.create).mockResolvedValue({
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
 				id: 'instance-1',
 				domain: 'mastodon.social',
 				baseUrl: 'https://mastodon.social',
 				software: null,
+				version: null,
+				title: null,
+				description: null,
+				iconUrl: null,
+				contact: null,
+				publicEventsUrl: null,
+				userCount: null,
+				eventCount: null,
+				lastActivityAt: new Date(),
+				isBlocked: false,
+				lastFetchedAt: null,
+				lastErrorAt: null,
+				lastError: null,
+				lastPageUrl: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+
+			await trackInstance(actorUrl)
+
+			expect(prisma.instance.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'mastodon.social' },
+					create: expect.objectContaining({
+						domain: 'mastodon.social',
+						baseUrl: 'https://mastodon.social',
+					}),
+					update: expect.objectContaining({
+						lastActivityAt: expect.any(Date),
+					}),
+				})
+			)
+		})
+
+		it('should handle invalid actor URLs gracefully', async () => {
+			await trackInstance('invalid-url')
+			expect(prisma.instance.findUnique).not.toHaveBeenCalled()
+		})
+
+		it('should reload instance from DB after metadata refresh if software is missing', async () => {
+			const actorUrl = 'https://mastodon.social/users/alice'
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert returns instance without software
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: null,
+				publicEventsUrl: null,
+			} as any)
+
+			// 2. Mock refreshInstanceMetadata internal fetch (we mock the side effect via findUnique)
+			// The function calls refreshInstanceMetadata which presumably updates the DB.
+			// Then it calls findUnique to reload.
+
+			// Mock findUnique to return the *updated* instance with software
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: 'Mastodon', // Now present
+				publicEventsUrl: 'https://mastodon.social/inbox', // Present now
+			} as any)
+
+			// Mock WebFinger to avoid actual network calls if it falls through
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+
+			await trackInstance(actorUrl)
+
+			// Expect re-fetch
+			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
+				where: { id: 'inst-1' },
+			})
+
+			// Since software was found in re-fetch (simulated), logic should *not* try discovery if publicEventsUrl is present
+			// Actually trackInstance logic:
+			// if (refreshed) Object.assign(instance, refreshed)
+			// then if (!instance.publicEventsUrl) ...
+			// In our mock, refreshed has publicEventsUrl, so it should NOT call resolveWebFinger for discovery
+			expect(webfinger.resolveWebFinger).not.toHaveBeenCalled()
+		})
+
+		it('should attempt discovery if re-fetched instance still lacks publicEventsUrl', async () => {
+			const actorUrl = 'https://mastodon.social/users/alice'
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				baseUrl: 'https://mastodon.social',
+				software: null,
+				publicEventsUrl: null,
 				version: null,
 				title: null,
 				description: null,
@@ -104,45 +202,81 @@ describe('Instance Discovery', () => {
 				lastFetchedAt: null,
 				lastErrorAt: null,
 				lastError: null,
+				lastPageUrl: null,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			})
 
+			// 2. Re-fetch returns instance still missing publicEventsUrl
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: 'Mastodon',
+				publicEventsUrl: null, // Still missing
+			} as any)
+
+			// 3. Should proceed to discovery
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue('https://mastodon.social/actor')
+
 			await trackInstance(actorUrl)
 
-			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
-				where: { domain: 'mastodon.social' },
-			})
-			expect(prisma.instance.create).toHaveBeenCalled()
+			expect(prisma.instance.findUnique).toHaveBeenCalled()
+			expect(webfinger.resolveWebFinger).toHaveBeenCalled()
 		})
 
-		it('should update existing instance activity time', async () => {
+		it('should prevent concurrent discovery for the same domain', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
 			const actorUrl = 'https://mastodon.social/users/alice'
-			const existingInstance = {
-				id: 'instance-1',
-				domain: 'mastodon.social',
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert returns fresh instance
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: null,
+				publicEventsUrl: null,
 				baseUrl: 'https://mastodon.social',
-				lastActivityAt: new Date('2024-01-01'),
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			}
+			} as any)
 
-			vi.mocked(prisma.instance.findUnique).mockResolvedValue(existingInstance as any)
-			vi.mocked(prisma.instance.update).mockResolvedValue(existingInstance as any)
-
-			await trackInstance(actorUrl)
-
-			expect(prisma.instance.update).toHaveBeenCalledWith({
-				where: { domain: 'mastodon.social' },
-				data: expect.objectContaining({
-					lastActivityAt: expect.any(Date),
-				}),
+			// 2. Mock discovery process to take some time
+			let finishDiscovery: (value: unknown) => void = () => {}
+			const discoveryPromise = new Promise((resolve) => {
+				finishDiscovery = resolve
 			})
-		})
 
-		it('should handle invalid actor URLs gracefully', async () => {
-			await trackInstance('invalid-url')
-			expect(prisma.instance.findUnique).not.toHaveBeenCalled()
+			vi.mocked(webfinger.resolveWebFinger).mockImplementation(async () => {
+				await discoveryPromise
+				return 'https://mastodon.social/actor'
+			})
+
+			// Mock safeFetch to return success so the loop exits early (after 1st call)
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'https://mastodon.social/outbox' }),
+			} as any)
+
+			// Mock re-fetch in discovery process
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+			} as any)
+
+			// Mock update (used in refreshInstanceMetadata and trackInstance)
+			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)
+
+			// 3. Launch two concurrent tracks
+			const track1 = trackInstance(actorUrl)
+			const track2 = trackInstance(actorUrl)
+
+			// 4. Finish discovery
+			finishDiscovery(null)
+
+			await Promise.all([track1, track2])
+
+			// 5. Verification:
+			// resolveWebFinger should only be called ONCE because the second call should wait for lock
+			// AND proper safeFetch mock ensures loop exists after 1st success
+			expect(webfinger.resolveWebFinger).toHaveBeenCalledTimes(1)
 		})
 	})
 
@@ -159,6 +293,7 @@ describe('Instance Discovery', () => {
 					description: 'A public instance',
 					iconUrl: 'https://mastodon.social/icon.png',
 					contact: 'admin@mastodon.social',
+					publicEventsUrl: null,
 					userCount: 1000,
 					eventCount: 5000,
 					lastActivityAt: new Date(),
@@ -166,6 +301,7 @@ describe('Instance Discovery', () => {
 					lastFetchedAt: new Date(),
 					lastErrorAt: null,
 					lastError: null,
+					lastPageUrl: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
@@ -241,6 +377,7 @@ describe('Instance Discovery', () => {
 					title: 'Mastodon Social',
 					description: 'A public Mastodon instance',
 					isBlocked: false,
+					lastPageUrl: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},
@@ -312,6 +449,7 @@ describe('Instance Discovery', () => {
 				id: 'instance-1',
 				domain: 'mastodon.social',
 				baseUrl: 'https://mastodon.social',
+				lastPageUrl: null,
 			} as any)
 			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
 			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)

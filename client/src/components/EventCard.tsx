@@ -50,68 +50,138 @@ function EventReportButton({ event, className }: { event: Event; className?: str
 export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
 
-	const eventPath = event.user?.username
+	// Determine if event is remote and get the appropriate link
+	const isRemote = !event.user && (Boolean(event.url) || Boolean(event.externalId))
+
+	// Use local paths for all events
+	// - If we have a local user, use the vanity URL /@username/eventId
+	// - If it's a remote event (no local user), use the generic /events/eventId
+	const eventLink = event.user?.username
 		? `/@${event.user.username}/${event.id}`
 		: `/events/${event.id}`
 
-	// Compact variant
-	if (variant === 'compact') {
-		return (
-			<div className="relative group h-full">
-				<Link to={eventPath}>
-					<Card interactive padding="md" className="h-full">
-						<div className="space-y-2">
-							<div className="flex items-start justify-between gap-2">
-								<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
-									{event.title}
-								</h3>
-								{event._count && event._count.attendance > 0 && (
-									<Badge variant="primary" size="sm">
-										{event._count.attendance} attending
-									</Badge>
-								)}
-							</div>
 
-							<div className="flex items-center gap-2 text-sm text-text-secondary">
-								<CalendarIcon className="w-4 h-4" aria-label="Date" />
-								<span>{formatRelativeDate(event.startTime)}</span>
-								<span>•</span>
-								<span>{formatTime(event.startTime)}</span>
-							</div>
 
-							{event.location && (
-								<div className="flex items-center gap-2 text-sm text-text-secondary">
-									<LocationIcon className="w-4 h-4" aria-label="Location" />
-									<span className="truncate">{event.location}</span>
-								</div>
-							)}
-
-							{event.user && (
-								<div className="flex items-center gap-2 pt-2 border-t border-border-default">
-									<Avatar
-										src={event.user.profileImage || undefined}
-										fallback={event.user.name || event.user.username}
-										size="sm"
-									/>
-									<span className="text-sm text-text-secondary truncate">
-										@{event.user.username}
-									</span>
-								</div>
-							)}
-						</div>
-					</Card>
-				</Link>
-				{isAuthenticated && <EventReportButton event={event} />}
-			</div>
-		)
+	// Helper to extract a display name from attributedTo URL if user is missing
+	const getAttributedToName = (url?: string | null) => {
+		if (!url) { return 'Remote User' }
+		try {
+			const u = new URL(url)
+			// Try to get username from path (e.g. /@luca)
+			const pathParts = u.pathname.split('/').filter(Boolean)
+			const userPart = pathParts.find(p => p.startsWith('@')) || pathParts[pathParts.length - 1]
+			return userPart ? `${userPart}@${u.hostname}` : u.hostname
+		} catch {
+			return 'Remote User'
+		}
 	}
 
-	// Full variant (default)
-	return (
-		<div className="h-full relative group">
-			<Link to={eventPath} className="block h-full">
-				<Card interactive padding="none" className="h-full overflow-hidden">
-					{/* Header Image */}
+	const renderOrganizers = () => {
+		// 1. Local User
+		if (event.user) {
+			return (
+				<div className="flex items-center gap-2 pt-2 border-t border-border-default">
+					<Avatar
+						src={event.user.profileImage || undefined}
+						fallback={event.user.name || event.user.username}
+						size="sm"
+					/>
+					<div className="flex-1 min-w-0">
+						<div className="text-sm font-medium text-text-primary truncate">
+							{event.user.name || event.user.username}
+						</div>
+						<div className="text-xs text-text-secondary truncate">
+							@{event.user.username}
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		// 2. Multiple Organizers (Remote)
+		if (event.organizers && event.organizers.length > 0) {
+			return (
+				<div className="pt-2 border-t border-border-default space-y-2">
+					<div className="text-xs text-text-secondary font-medium">Organized by</div>
+					{event.organizers.map((org) => (
+						<div key={org.url || org.username} className="flex items-center gap-2">
+							<Avatar
+								fallback={org.username}
+								size="sm"
+								className="w-6 h-6 text-xs"
+							/>
+							<div className="flex-1 min-w-0">
+								<div className="text-sm text-text-primary truncate">
+									{org.display}
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			)
+		}
+
+		// 3. Fallback to attributedTo
+		if (event.attributedTo) {
+			return (
+				<div className="flex items-center gap-2 pt-2 border-t border-border-default">
+					<Avatar
+						fallback="?"
+						size="sm"
+					/>
+					<div className="flex-1 min-w-0">
+						<div className="text-sm font-medium text-text-primary truncate">
+							{getAttributedToName(event.attributedTo)}
+						</div>
+						<div className="text-xs text-text-secondary truncate opacity-70">
+							Remote Source
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		return null
+	}
+
+
+	const renderCardContent = () => (
+		<Card interactive padding={variant === 'full' ? 'none' : 'md'} className={cn("h-full", variant === 'full' && "overflow-hidden")}>
+			{/* Compact Variant Content */}
+			{variant === 'compact' && (
+				<div className="space-y-2">
+					<div className="flex items-start justify-between gap-2">
+						<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
+							{event.title}
+						</h3>
+						{event._count && event._count.attendance > 0 && (
+							<Badge variant="primary" size="sm">
+								{event._count.attendance} attending
+							</Badge>
+						)}
+					</div>
+
+					<div className="flex items-center gap-2 text-sm text-text-secondary">
+						<CalendarIcon className="w-4 h-4" aria-label="Date" />
+						<span>{formatRelativeDate(event.startTime)}</span>
+						<span>•</span>
+						<span>{formatTime(event.startTime)}</span>
+					</div>
+
+					{event.location && (
+						<div className="flex items-center gap-2 text-sm text-text-secondary">
+							<LocationIcon className="w-4 h-4" aria-label="Location" />
+							<span className="truncate">{event.location}</span>
+						</div>
+					)}
+
+					{renderOrganizers()}
+				</div>
+			)}
+
+			{/* Full Variant Content */}
+			{variant === 'full' && (
+				<>
 					{event.headerImage && (
 						<div className="relative w-full h-48 bg-background-tertiary">
 							<img
@@ -123,10 +193,10 @@ export function EventCard(props: EventCardProps) {
 					)}
 
 					<div className="p-4 space-y-3">
-						{/* Title and Tags */}
 						<div className="space-y-2">
 							<h3 className="text-xl font-bold text-text-primary line-clamp-2">
 								{event.title}
+								{isRemote && <span className="ml-2 text-xs font-normal text-text-tertiary border border-border-default rounded px-1.5 align-middle">Remote</span>}
 							</h3>
 							{event.tags && event.tags.length > 0 && (
 								<div className="flex flex-wrap gap-2">
@@ -144,14 +214,12 @@ export function EventCard(props: EventCardProps) {
 							)}
 						</div>
 
-						{/* Summary */}
 						{event.summary ? (
 							<div className="text-sm text-text-secondary line-clamp-2">
 								<SafeHTML html={event.summary} />
 							</div>
 						) : null}
 
-						{/* Date and Time */}
 						<div className="flex items-center gap-2 text-sm text-text-secondary">
 							<CalendarIcon className="w-4 h-4" aria-label="Date" />
 							<span className="font-medium">
@@ -161,7 +229,6 @@ export function EventCard(props: EventCardProps) {
 							<span>{formatTime(event.startTime)}</span>
 						</div>
 
-						{/* Location */}
 						{event.location && (
 							<div className="flex items-center gap-2 text-sm text-text-secondary">
 								<LocationIcon className="w-4 h-4" aria-label="Location" />
@@ -169,7 +236,6 @@ export function EventCard(props: EventCardProps) {
 							</div>
 						)}
 
-						{/* Stats */}
 						{event._count && (
 							<div className="flex items-center gap-4 pt-2 border-t border-border-default text-sm text-text-secondary">
 								{event._count.attendance > 0 && (
@@ -193,30 +259,22 @@ export function EventCard(props: EventCardProps) {
 							</div>
 						)}
 
-						{/* Organizer */}
-						{event.user && (
-							<div className="flex items-center gap-2 pt-2 border-t border-border-default">
-								<Avatar
-									src={event.user.profileImage || undefined}
-									fallback={event.user.name || event.user.username}
-									size="sm"
-								/>
-								<div className="flex-1 min-w-0">
-									<div className="text-sm font-medium text-text-primary truncate">
-										{event.user.name || event.user.username}
-									</div>
-									<div className="text-xs text-text-secondary truncate">
-										@{event.user.username}
-									</div>
-								</div>
-							</div>
-						)}
+						{renderOrganizers()}
 					</div>
-				</Card>
+				</>
+			)}
+		</Card>
+	)
+
+	return (
+		<div className="h-full relative group">
+			<Link to={eventLink} className="block h-full">
+				{renderCardContent()}
 			</Link>
+
 			{isAuthenticated && <EventReportButton event={event} className="z-10" />}
-			{/* Sign Up CTA for unauthenticated users - outside the Link to avoid nesting */}
-			{!isAuthenticated && (
+
+			{!isAuthenticated && !isRemote && (
 				<div className="pt-2 px-4 pb-4">
 					<div className="text-xs text-text-secondary text-center">
 						<Link

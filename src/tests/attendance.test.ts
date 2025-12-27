@@ -14,6 +14,7 @@ vi.mock('../lib/prisma.js', () => ({
 	prisma: {
 		event: {
 			findUnique: vi.fn(),
+			update: vi.fn(),
 		},
 		user: {
 			findUnique: vi.fn(),
@@ -23,6 +24,10 @@ vi.mock('../lib/prisma.js', () => ({
 			findUnique: vi.fn(),
 			delete: vi.fn(),
 			findMany: vi.fn(),
+			count: vi.fn(),
+		},
+		eventLike: {
+			count: vi.fn(),
 		},
 		following: {
 			findFirst: vi.fn(),

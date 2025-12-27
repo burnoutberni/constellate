@@ -151,7 +151,8 @@ model Event {
   maximumAttendeeCapacity Int?
 
   // Federation
-  attributedTo String? // ActivityPub actor URL of event creator
+  attributedTo String? // ActivityPub actor URL of event creator (primary)
+  organizers   Json? // JSON array of all organizers (attributedTo + contacts)
   externalId   String? @unique // For remote events
 
   // Denormalized popularity score (attendance * 2 + likes)
@@ -616,10 +617,12 @@ model Instance {
   version  String? // Software version
 
   // Instance metadata
-  title       String? // Instance name/title
-  description String? // Instance description
-  iconUrl     String? // Instance icon/logo URL
-  contact     String? // Contact information (email or URL)
+  title           String? // Instance name/title
+  description     String? // Instance description
+  iconUrl         String? // Instance icon/logo URL
+  contact         String? // Contact information (email or URL)
+  publicEventsUrl String? // Discovered URL for public events (e.g. outbox)
+  lastPageUrl     String? // For chronological collections: the URL of the last processed page
 
   // Statistics (cached from remote instance)
   userCount      Int? // Total users on instance

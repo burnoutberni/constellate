@@ -15,9 +15,16 @@ interface InstanceCardProps {
 	onBlock?: (domain: string) => void
 	onUnblock?: (domain: string) => void
 	onRefresh?: (domain: string) => void
+	isRefreshing?: boolean
 }
 
-export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: InstanceCardProps) {
+export function InstanceCard({
+	instance,
+	onBlock,
+	onUnblock,
+	onRefresh,
+	isRefreshing,
+}: InstanceCardProps) {
 	const navigate = useNavigate()
 	const { user } = useAuth()
 
@@ -53,6 +60,9 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 			month: 'short',
 			day: 'numeric',
 			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
 		})
 	}
 
@@ -190,17 +200,38 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 										Block
 									</Button>
 								)}
-								<Button
-									size="sm"
-									variant="secondary"
-									onClick={() => onRefresh?.(instance.domain)}>
-									Refresh
-								</Button>
+								<RefresherButton
+									instance={instance}
+									onRefresh={onRefresh}
+									isRefreshing={isRefreshing}
+								/>
 							</Stack>
 						)}
 					</div>
 				</div>
 			</CardContent>
 		</Card>
+	)
+}
+
+
+
+function RefresherButton({
+	instance,
+	onRefresh,
+	isRefreshing,
+}: {
+	instance: InstanceWithStats
+	onRefresh?: (domain: string) => void
+	isRefreshing?: boolean
+}) {
+	return (
+		<Button
+			size="sm"
+			variant="secondary"
+			onClick={() => onRefresh?.(instance.domain)}
+			disabled={isRefreshing}>
+			{isRefreshing ? 'Refreshing...' : 'Refresh'}
+		</Button>
 	)
 }

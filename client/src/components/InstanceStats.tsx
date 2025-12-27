@@ -7,19 +7,19 @@ interface InstanceStatsProps {
 export function InstanceStats({ instance }: InstanceStatsProps) {
 	const stats = [
 		{
-			label: 'Total Users',
+			label: 'Total Users (Reported)',
 			value: instance.userCount?.toLocaleString() ?? 'N/A',
 		},
 		{
-			label: 'Total Events',
+			label: 'Total Events (Reported)',
 			value: instance.eventCount?.toLocaleString() ?? 'N/A',
 		},
 		{
-			label: 'Remote Users',
+			label: 'Indexed Users',
 			value: instance.stats.remoteUsers.toLocaleString(),
 		},
 		{
-			label: 'Remote Events',
+			label: 'Indexed Events',
 			value: instance.stats.remoteEvents.toLocaleString(),
 		},
 		{

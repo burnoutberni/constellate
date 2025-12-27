@@ -18,7 +18,7 @@ describe('EventHeader', () => {
 	}
 
 	it('renders organizer information', () => {
-		renderWithRouter(<EventHeader organizer={mockOrganizer} />)
+		renderWithRouter(<EventHeader organizers={[mockOrganizer]} />)
 
 		expect(screen.getByText('Test User')).toBeInTheDocument()
 		expect(screen.getByText('@testuser')).toBeInTheDocument()
@@ -28,7 +28,7 @@ describe('EventHeader', () => {
 		const onDelete = vi.fn()
 		renderWithRouter(
 			<EventHeader
-				organizer={mockOrganizer}
+				organizers={[mockOrganizer]}
 				eventId="event123"
 				isOwner={true}
 				onDelete={onDelete}
@@ -40,7 +40,7 @@ describe('EventHeader', () => {
 
 	it('does not render event actions when user is not owner', () => {
 		renderWithRouter(
-			<EventHeader organizer={mockOrganizer} eventId="event123" isOwner={false} />
+			<EventHeader organizers={[mockOrganizer]} eventId="event123" isOwner={false} />
 		)
 
 		expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
@@ -48,7 +48,7 @@ describe('EventHeader', () => {
 
 	it('does not render event actions when eventId is not provided', () => {
 		renderWithRouter(
-			<EventHeader organizer={mockOrganizer} isOwner={true} onDelete={vi.fn()} />
+			<EventHeader organizers={[mockOrganizer]} isOwner={true} onDelete={vi.fn()} />
 		)
 
 		expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
@@ -59,13 +59,13 @@ describe('EventHeader', () => {
 			...mockOrganizer,
 			name: null,
 		}
-		renderWithRouter(<EventHeader organizer={organizerWithoutName} />)
+		renderWithRouter(<EventHeader organizers={[organizerWithoutName]} />)
 
 		expect(screen.getByText('testuser')).toBeInTheDocument()
 	})
 
 	it('links to organizer profile', () => {
-		renderWithRouter(<EventHeader organizer={mockOrganizer} />)
+		renderWithRouter(<EventHeader organizers={[mockOrganizer]} />)
 
 		const link = screen.getByRole('link')
 		expect(link).toHaveAttribute('href', '/@testuser')

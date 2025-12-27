@@ -10,6 +10,7 @@ import {
 } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
 import { getBaseUrl } from './lib/activitypubHelpers.js'
+import { trackInstance } from './lib/instanceHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
@@ -349,6 +350,10 @@ app.get('/users/:username/profile', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		if (user.isRemote && user.externalActorUrl) {
+			void trackInstance(user.externalActorUrl)
 		}
 
 		// Check if profile is private and viewer doesn't have access
