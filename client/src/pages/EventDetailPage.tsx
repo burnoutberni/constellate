@@ -196,6 +196,7 @@ export function EventDetailPage() {
 				name: org.display,
 				profileImage: null,
 				displayColor: null,
+				isRemote: true,
 			}
 		}
 
@@ -213,6 +214,7 @@ export function EventDetailPage() {
 					name: `@${cleanUsername}@${u.hostname}`,
 					profileImage: null,
 					displayColor: null,
+					isRemote: true,
 				}
 			} catch (error) {
 				console.error('Error parsing attributedTo URL:', error)
@@ -225,6 +227,7 @@ export function EventDetailPage() {
 			name: 'Unknown Organizer',
 			profileImage: null,
 			displayColor: null,
+			isRemote: true,
 		}
 	}, [event])
 
