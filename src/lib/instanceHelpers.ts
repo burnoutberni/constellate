@@ -143,7 +143,7 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 	// We create with minimal data and fetch metadata asynchronously/lazily if needed
 	// to avoid blocking on HTTP requests for every trackInstance call on existing instances.
 	const now = new Date()
-	const instance = await prisma.instance.upsert({
+	let instance = await prisma.instance.upsert({
 		where: { domain },
 		update: {
 			lastActivityAt: now,
@@ -179,7 +179,7 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 						where: { id: instance.id },
 					})
 					if (refreshed) {
-						Object.assign(instance, refreshed)
+						instance = refreshed
 					}
 				}
 
