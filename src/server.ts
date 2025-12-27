@@ -48,6 +48,7 @@ import {
 	stopPopularityUpdater,
 	getIsProcessing as getIsPopularityProcessing,
 } from './services/popularityUpdater.js'
+import { startInstancePoller, stopInstancePoller } from './services/instancePoller.js'
 import {
 	startDataExportProcessor,
 	stopDataExportProcessor,
@@ -309,8 +310,9 @@ if (process.env.NODE_ENV === 'production') {
 						'Content-Type': contentType,
 					})
 				}
-			} catch {
+			} catch (error) {
 				// File doesn't exist, fall through to SPA routing
+				console.debug('Static file not found, falling back to SPA:', error)
 			}
 
 			// SPA routing: serve index.html for any non-API route
@@ -320,7 +322,8 @@ if (process.env.NODE_ENV === 'production') {
 				return c.body(indexContent, 200, {
 					'Content-Type': 'text/html',
 				})
-			} catch {
+			} catch (error) {
+				console.error('Error serving index.html:', error)
 				return c.notFound()
 			}
 		} catch (error) {
@@ -342,6 +345,8 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 	// Start data export processor background job
 	startDataExportProcessor()
 
+	startInstancePoller()
+
 	// Graceful shutdown handler
 	const shutdown = async () => {
 		console.log('🛑 Shutting down gracefully...')
@@ -350,6 +355,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 		stopReminderDispatcher()
 		stopPopularityUpdater()
 		stopDataExportProcessor()
+		stopInstancePoller()
 
 		// Wait for current processing cycles to complete (with timeout)
 		const shutdownTimeout = 30000 // 30 seconds

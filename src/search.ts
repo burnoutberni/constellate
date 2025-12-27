@@ -199,7 +199,11 @@ function applyDateFilters(where: Record<string, unknown>, params: z.infer<typeof
 	const startBound = explicitStart ?? presetBounds?.start
 	const endBound = explicitEnd ?? presetBounds?.end
 
-	if (!startBound && !endBound) return
+	if (!startBound && !endBound) {
+		// Default to upcoming events if no date filter is specified
+		where.startTime = { gte: new Date() }
+		return
+	}
 
 	const range: { gte?: Date; lte?: Date } = {}
 	if (startBound) range.gte = startBound
@@ -786,10 +790,20 @@ app.get('/stats', async (c) => {
 			},
 		})
 
+		// Get total users count
+		const totalUsers = await prisma.user.count()
+
+		// Get total instances count
+		const totalInstances = await prisma.instance.count({
+			where: { isBlocked: false },
+		})
+
 		return c.json({
 			totalEvents,
 			upcomingEvents,
 			todayEvents,
+			totalUsers,
+			totalInstances,
 		})
 	} catch (error) {
 		console.error('Error getting platform statistics:', error)

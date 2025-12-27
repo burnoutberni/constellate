@@ -55,6 +55,14 @@ export interface Event {
 	timezone: string
 	user?: EventUser
 	userId?: string
+	attributedTo?: string | null
+	organizers?: Array<{
+		url: string
+		username: string
+		host: string
+		display: string
+	}> | null
+	externalId?: string | null
 	visibility?: EventVisibility
 	eventStatus?: string | null
 	eventAttendanceMode?: string | null

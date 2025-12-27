@@ -70,9 +70,9 @@ interface UpdateEventInput {
 	duration?: string
 	eventStatus?: 'EventScheduled' | 'EventCancelled' | 'EventPostponed'
 	eventAttendanceMode?:
-		| 'OfflineEventAttendanceMode'
-		| 'OnlineEventAttendanceMode'
-		| 'MixedEventAttendanceMode'
+	| 'OfflineEventAttendanceMode'
+	| 'OnlineEventAttendanceMode'
+	| 'MixedEventAttendanceMode'
 	maximumAttendeeCapacity?: number
 	visibility?: string
 	recurrencePattern?: string | null
@@ -90,17 +90,26 @@ export function useEvents(limit: number = 50) {
 	})
 }
 
-export function useEventDetail(username: string, eventId: string) {
+export function useEventDetail(username: string | undefined | null, eventId: string) {
 	return useQuery<EventDetail>({
 		queryKey: queryKeys.events.detail(username, eventId),
-		queryFn: () =>
-			api.get<EventDetail>(
-				`/events/by-user/${encodeURIComponent(username)}/${encodeURIComponent(eventId)}`,
+		queryFn: () => {
+			if (username) {
+				return api.get<EventDetail>(
+					`/events/by-user/${encodeURIComponent(username)}/${encodeURIComponent(eventId)}`,
+					undefined,
+					undefined,
+					'Failed to fetch event'
+				)
+			}
+			return api.get<EventDetail>(
+				`/events/${encodeURIComponent(eventId)}`,
 				undefined,
 				undefined,
 				'Failed to fetch event'
-			),
-		enabled: Boolean(username) && Boolean(eventId),
+			)
+		},
+		enabled: Boolean(eventId),
 	})
 }
 
@@ -247,8 +256,8 @@ export function useRSVP(eventId: string, userId?: string) {
 						// Add or update attendance
 						const existingIndex = userId
 							? eventDetail.attendance.findIndex(
-									(a: { user?: { id?: string } }) => a.user?.id === userId
-								)
+								(a: { user?: { id?: string } }) => a.user?.id === userId
+							)
 							: -1
 
 						// We'll wait for SSE to add the actual attendance with full user data

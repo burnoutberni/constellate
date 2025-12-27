@@ -5,7 +5,12 @@ import { useNavigate } from 'react-router-dom'
 import { AppealQueue } from '@/components/admin/AppealQueue'
 import { ReportQueue } from '@/components/admin/ReportQueue'
 import { Input, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
-import { queryKeys } from '@/hooks/queries'
+import {
+	queryKeys,
+	useBlockInstance,
+	useUnblockInstance,
+	useRefreshInstance,
+} from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
@@ -220,6 +225,21 @@ export function AdminPage() {
 		},
 	})
 
+	// Instance management mutations
+	const blockInstanceMutation = useBlockInstance()
+	const unblockInstanceMutation = useUnblockInstance()
+	const refreshInstanceMutation = useRefreshInstance()
+
+	// We can add the toast here if we want, or rely on handling it in the hook if we updated it (we only added invalidate)
+	// The previous code had a toast on success for refresh.
+	// The hook currently does not have a toast.
+	// We can add `onSuccess` callback to `mutate` for the toast.
+
+	// Actually, `useRefreshInstance` in `instances.ts` does NOT have a toast. 
+	// I should probably add the toast functionality to `AdminPage` usage of the hook.
+
+	// Let's just replace the definition first.
+
 	// Redirect if not admin (after all hooks)
 	if (userProfile && !userProfile.isAdmin) {
 		navigate('/')
@@ -240,10 +260,9 @@ export function AdminPage() {
 	}
 
 	const getTabClassName = (tab: AdminTab) =>
-		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${
-			activeTab === tab
-				? 'border-primary-500 text-primary-600 dark:text-primary-400'
-				: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
+		`py-4 px-1 border-b-2 font-medium text-sm h-auto ${activeTab === tab
+			? 'border-primary-500 text-primary-600 dark:text-primary-400'
+			: 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-default'
 		}`
 
 	return (
@@ -533,7 +552,7 @@ export function AdminPage() {
 								</div>
 								<div className="bg-background-primary rounded-lg shadow-sm overflow-hidden border border-border-default">
 									{instancesData?.instances &&
-									instancesData.instances.length > 0 ? (
+										instancesData.instances.length > 0 ? (
 										<table className="min-w-full divide-y divide-border-default">
 											<thead className="bg-background-secondary">
 												<tr>
@@ -551,6 +570,9 @@ export function AdminPage() {
 													</th>
 													<th className="px-6 py-3 text-left text-xs font-medium text-text-tertiary uppercase tracking-wider">
 														Last Activity
+													</th>
+													<th className="px-6 py-3 text-right text-xs font-medium text-text-tertiary uppercase tracking-wider">
+														Actions
 													</th>
 												</tr>
 											</thead>
@@ -619,9 +641,65 @@ export function AdminPage() {
 														<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 															{instance.lastActivityAt
 																? new Date(
-																		instance.lastActivityAt
-																	).toLocaleDateString()
+																	instance.lastActivityAt
+																).toLocaleDateString()
 																: 'Never'}
+														</td>
+
+														<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+															<div className="flex justify-end gap-2">
+																<Button
+																	onClick={() =>
+																		refreshInstanceMutation.mutate(
+																			instance.domain,
+																			{
+																				onSuccess: () => {
+																					addToast({
+																						id: generateId(),
+																						message: 'Instance refresh started. This may take a few minutes.',
+																						variant: 'success',
+																					})
+																				},
+																			}
+																		)
+																	}
+																	variant="secondary"
+																	size="sm"
+																	disabled={refreshInstanceMutation.isPending}>
+																	Refresh
+																</Button>
+																{instance.isBlocked ? (
+																	<Button
+																		onClick={() =>
+																			unblockInstanceMutation.mutate(
+																				instance.domain
+																			)
+																		}
+																		variant="secondary"
+																		size="sm"
+																		className="text-success-600 hover:text-success-700"
+																		disabled={
+																			unblockInstanceMutation.isPending
+																		}>
+																		Unblock
+																	</Button>
+																) : (
+																	<Button
+																		onClick={() =>
+																			blockInstanceMutation.mutate(
+																				instance.domain
+																			)
+																		}
+																		variant="ghost"
+																		size="sm"
+																		className="text-error-600 hover:text-error-900"
+																		disabled={
+																			blockInstanceMutation.isPending
+																		}>
+																		Block
+																	</Button>
+																)}
+															</div>
 														</td>
 													</tr>
 												))}
@@ -692,8 +770,8 @@ export function AdminPage() {
 							createApiKeyMutation.error instanceof Error
 								? createApiKeyMutation.error.message
 								: typeof createApiKeyMutation.error === 'object' &&
-									  createApiKeyMutation.error !== null &&
-									  'message' in createApiKeyMutation.error
+									createApiKeyMutation.error !== null &&
+									'message' in createApiKeyMutation.error
 									? String(createApiKeyMutation.error.message)
 									: undefined
 						}
@@ -846,7 +924,7 @@ export function AdminPage() {
 					isPending={deleteApiKeyMutation.isPending}
 				/>
 			</div>
-		</div>
+		</div >
 	)
 }
 

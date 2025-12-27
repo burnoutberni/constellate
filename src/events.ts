@@ -573,6 +573,19 @@ app.get('/', async (c) => {
 		const filters: Prisma.EventWhereInput[] = [visibilityWhere, { sharedEventId: null }]
 		if (rangeFilter) {
 			filters.push(rangeFilter)
+		} else if (!rangeStartDate && !rangeEndDate) {
+			// Default to upcoming events if no range is specified
+			filters.push({
+				OR: [
+					{ startTime: { gte: new Date() } },
+					{
+						AND: [
+							{ recurrencePattern: { not: null } },
+							{ recurrenceEndDate: { gte: new Date() } },
+						],
+					},
+				],
+			})
 		}
 		const where = filters.length === 1 ? filters[0] : { AND: filters }
 

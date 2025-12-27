@@ -254,6 +254,7 @@ function AppContent() {
 					<Route path="/admin" element={<AdminPage />} />
 					<Route path="/edit/*" element={<EditEventPage />} />
 					<Route path="/404" element={<NotFoundPage />} />
+					<Route path="/events/:eventId" element={<EventDetailPage />} />
 					<Route path="/*" element={<ProfileOrEventRouter />} />
 				</Routes>
 			</Suspense>

@@ -4,8 +4,11 @@
  */
 
 import { prisma } from './prisma.js'
+import { Prisma } from '@prisma/client'
 import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
+import { resolveWebFinger } from './webfinger.js'
+import type { Activity } from './activitypubSchemas.js'
 
 /**
  * Extract domain from actor URL
@@ -131,41 +134,231 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 		return
 	}
 
-	// Check if instance already exists
-	const existingInstance = await prisma.instance.findUnique({
+	// Atomically upsert the instance
+	// We create with minimal data and fetch metadata asynchronously/lazily if needed
+	// to avoid blocking on HTTP requests for every trackInstance call on existing instances.
+	const now = new Date()
+	const instance = await prisma.instance.upsert({
 		where: { domain },
+		update: {
+			lastActivityAt: now,
+		},
+		create: {
+			domain,
+			baseUrl,
+			lastActivityAt: now,
+			// Set lastFetchedAt to 1970 to ensure the poller picks it up immediately
+			lastFetchedAt: new Date(0),
+		},
 	})
 
-	const now = new Date()
+	// If this is a new instance (no software detected yet) or missing publicEventsUrl,
+	// perform the heavy lifting (metadata fetch & discovery).
+	// We check for minimal metadata availability.
+	if (!instance.software || !instance.publicEventsUrl) {
+		// If software is missing, it's likely a fresh record or one that failed metadata fetch previously.
+		if (!instance.software) {
+			await refreshInstanceMetadata(domain)
+			// Refresh local instance data from DB
+			const refreshed = await prisma.instance.findUnique({
+				where: { id: instance.id },
+			})
+			if (refreshed) {
+				Object.assign(instance, refreshed)
+			}
+		}
 
-	if (existingInstance) {
-		// Update last activity time
-		await prisma.instance.update({
-			where: { domain },
-			data: {
-				lastActivityAt: now,
+		// Use the fresh instance data after metadata refresh attempt (if we want strictness),
+		// but typically we just need to know if we should try discovery.
+		// Let's re-read if we suspect updates, or just proceed with what we have if we pushed updates.
+		// Actually, refreshInstanceMetadata updates the DB.
+
+		// If publicEventsUrl is still missing (or was missing), try to discover it
+		// We only try this if we don't have it.
+		// Note: The previous implementation allowed retrying on every 'track' if missing.
+		if (!instance.publicEventsUrl) {
+			const publicEventsUrl = await discoverPublicEndpoint(domain)
+			if (publicEventsUrl) {
+				await prisma.instance.update({
+					where: { domain },
+					data: {
+						publicEventsUrl,
+						// Force poll if we just found the URL
+						lastFetchedAt: new Date(0),
+					},
+				})
+			}
+		}
+	}
+}
+
+/**
+ * Discover a public endpoint (outbox) for an instance
+ */
+export async function discoverPublicEndpoint(domain: string): Promise<string | null> {
+	try {
+		// 1. Try "relay" generic actor (common for Mobilizon/Pleroma)
+		const relayActorUrl = await resolveWebFinger(`acct:relay@${domain}`)
+		if (relayActorUrl) {
+			const actor = await fetchRemoteActor(relayActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 2. Try generic "events" actor via WebFinger
+		const eventsActorUrl = await resolveWebFinger(`acct:events@${domain}`)
+		if (eventsActorUrl) {
+			const actor = await fetchRemoteActor(eventsActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 3. Try "groups" actor (Gathio/Mobilizon style sometimes)
+		const groupsActorUrl = await resolveWebFinger(`acct:groups@${domain}`)
+		if (groupsActorUrl) {
+			const actor = await fetchRemoteActor(groupsActorUrl)
+			if (actor?.outbox) {
+				return actor.outbox
+			}
+		}
+
+		// 4. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
+		const instanceActorUrl = `https://${domain}/actor`
+		const instanceActor = await fetchRemoteActor(instanceActorUrl)
+		if (instanceActor?.outbox) {
+			return instanceActor.outbox
+		}
+
+		return null
+	} catch (error) {
+		console.error(`Error discovering endpoint for ${domain}:`, error)
+		return null
+	}
+}
+
+/**
+ * Poll known actors from this instance (Fallback strategy)
+ * Returns a list of outbox URLs to poll
+ */
+export async function pollKnownActors(domain: string): Promise<string[]> {
+	try {
+		const users = await prisma.user.findMany({
+			where: {
+				isRemote: true,
+				externalActorUrl: {
+					contains: `://${domain}/`,
+				},
+			},
+			select: {
+				externalActorUrl: true,
 			},
 		})
-	} else {
-		// Create new instance record
-		const metadata = await fetchInstanceMetadata(baseUrl)
 
-		await prisma.instance.create({
-			data: {
-				domain,
-				baseUrl,
-				software: metadata?.software,
-				version: metadata?.version,
-				userCount: metadata?.userCount,
-				eventCount: metadata?.eventCount,
-				title: metadata?.title,
-				description: metadata?.description,
-				iconUrl: metadata?.iconUrl,
-				contact: metadata?.contact,
-				lastActivityAt: now,
-				lastFetchedAt: metadata ? now : null,
-			},
+		const outboxes: string[] = []
+		for (const user of users) {
+			if (user.externalActorUrl) {
+				outboxes.push(`${user.externalActorUrl}/outbox`)
+			}
+		}
+		return outboxes
+	} catch (error) {
+		console.error(`Error polling known actors for ${domain}:`, error)
+		return []
+	}
+}
+
+/**
+ * Fetch public timeline (Collection)
+ */
+/**
+ * Fetch public timeline (Collection)
+ * Supports sequential crawling with resumption
+ */
+// eslint-disable-next-line sonarjs/cognitive-complexity
+export async function fetchInstancePublicTimeline(
+	outboxUrl: string,
+	resumeUrl?: string | null
+): Promise<{ activities: Activity[]; lastPageUrl?: string }> {
+	try {
+		let currentUrl = resumeUrl || outboxUrl
+		let activities: Activity[] = []
+		let lastPageUrl: string | undefined = undefined
+
+		// Safety limit: 1000 pages should be enough for any reasonable "sync"
+		// without getting stuck in infinite loops forever (e.g. circular refs)
+		const MAX_PAGES = 1000
+
+		// If starting from root (outboxUrl), handle Collection vs Page
+		if (currentUrl === outboxUrl) {
+			const response = await safeFetch(currentUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+
+			if (!response.ok) {
+				// Try adding ?page=true
+				const pageUrl = outboxUrl.includes('?')
+					? `${outboxUrl}&page=true`
+					: `${outboxUrl}?page=true`
+				currentUrl = pageUrl
+			} else {
+				const data = (await response.json()) as Record<string, unknown>
+				// If it is a collection, start with 'first'
+				if (data.first) {
+					const first = data.first as string | { id: string }
+					currentUrl = typeof first === 'string' ? first : first.id
+				}
+				// If it's already a page (e.g. from resumeUrl), we just proceed
+			}
+		}
+
+		// Sequential Crawl Loop
+		for (let i = 0; i < MAX_PAGES; i++) {
+			const response = await safeFetch(currentUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (!response.ok) break
+
+			const data = (await response.json()) as Record<string, unknown>
+			const items = (data.orderedItems || data.items || []) as Activity[]
+			activities = [...activities, ...items]
+
+			// Update "last visited page" to the CURRENT page (so we resume here or next)
+			lastPageUrl = currentUrl
+
+			// Check for next page
+			if (data.next) {
+				const nextUrl =
+					typeof data.next === 'string' ? data.next : (data.next as { id: string }).id
+				if (nextUrl && nextUrl !== currentUrl) {
+					currentUrl = nextUrl
+					continue
+				}
+			}
+
+			// No next page, or same as current
+			break
+		}
+
+		return { activities, lastPageUrl }
+	} catch (error) {
+		console.error(`Error fetching timeline from ${outboxUrl}:`, error)
+		return { activities: [], lastPageUrl: undefined }
+	}
+}
+
+// Private helper
+async function fetchRemoteActor(url: string): Promise<{ outbox?: string } | null> {
+	try {
+		const response = await safeFetch(url, {
+			headers: { Accept: ContentType.ACTIVITY_JSON },
 		})
+		if (!response.ok) return null
+		return (await response.json()) as { outbox?: string }
+	} catch (error) {
+		console.error(`Error fetching remote actor from ${url}:`, error)
+		return null
 	}
 }
 
@@ -234,7 +427,7 @@ export async function getKnownInstances(options: {
 }) {
 	const { limit = 50, offset = 0, sortBy = 'activity', filterBlocked = true } = options
 
-	const where = filterBlocked ? { isBlocked: false } : {}
+	const where: Prisma.InstanceWhereInput = filterBlocked ? { isBlocked: false } : {}
 
 	let orderBy
 	if (sortBy === 'activity') {

@@ -5,12 +5,14 @@
 
 import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
+import { resolveWebFinger } from './lib/webfinger.js'
 import {
-	resolveWebFinger,
 	fetchActor,
 	cacheRemoteUser,
 	getBaseUrl,
+	cacheEventFromOutboxActivity,
 } from './lib/activitypubHelpers.js'
+import { trackInstance } from './lib/instanceHelpers.js'
 import type { Person } from './lib/activitypubSchemas.js'
 import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
@@ -320,6 +322,9 @@ app.post('/resolve', async (c) => {
 		})
 
 		if (cachedUser) {
+			if (cachedUser.externalActorUrl) {
+				void trackInstance(cachedUser.externalActorUrl)
+			}
 			return c.json({ user: cachedUser })
 		}
 
@@ -648,81 +653,7 @@ async function resolveAndCacheRemoteUser(username: string) {
 }
 
 // Helper function to extract location value from event location
-function extractLocationValue(
-	eventLocation: string | Record<string, unknown> | undefined
-): string | null {
-	if (!eventLocation) return null
-	if (typeof eventLocation === 'string') return eventLocation
-	if (typeof eventLocation === 'object' && 'name' in eventLocation) {
-		return eventLocation.name as string
-	}
-	return null
-}
-
-// Helper function to cache event from remote outbox activity
-async function cacheEventFromOutboxActivity(
-	activityObj: Record<string, unknown>,
-	userExternalActorUrl: string
-) {
-	const activityType = activityObj.type
-	const activityObject = activityObj.object as Record<string, unknown> | undefined
-
-	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
-		return
-	}
-
-	const eventObj = activityObject as Record<string, unknown>
-	const eventId = eventObj.id as string | undefined
-	const eventName = eventObj.name as string | undefined
-	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
-	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
-	const eventStartTime = eventObj.startTime as string | undefined
-	const eventEndTime = eventObj.endTime as string | undefined
-	const eventDuration = eventObj.duration as string | undefined
-	const eventUrl = eventObj.url as string | undefined
-	const eventStatus = eventObj.eventStatus as string | undefined
-	const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
-	const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
-	const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
-
-	if (!eventId || !eventName || !eventStartTime) return
-
-	const locationValue = extractLocationValue(eventLocation)
-
-	await prisma.event.upsert({
-		where: { externalId: eventId },
-		update: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			duration: eventDuration || null,
-			url: eventUrl || null,
-			eventStatus: eventStatus || null,
-			eventAttendanceMode: eventAttendanceMode || null,
-			maximumAttendeeCapacity: eventMaxCapacity || null,
-			headerImage: eventAttachment?.[0]?.url || null,
-			attributedTo: userExternalActorUrl,
-		},
-		create: {
-			externalId: eventId,
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			duration: eventDuration || null,
-			url: eventUrl || null,
-			eventStatus: eventStatus || null,
-			eventAttendanceMode: eventAttendanceMode || null,
-			maximumAttendeeCapacity: eventMaxCapacity || null,
-			headerImage: eventAttachment?.[0]?.url || null,
-			attributedTo: userExternalActorUrl,
-			userId: null,
-		},
-	})
-}
+// extractLocationValue and cacheEventFromOutboxActivity moved to lib/activitypubHelpers.ts
 
 // Helper function to fetch and cache events from remote user outbox
 async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
@@ -811,6 +742,11 @@ app.get('/profile/:username', async (c) => {
 
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
+		}
+
+		// Track instance if remote
+		if (user && user.isRemote && user.externalActorUrl) {
+			void trackInstance(user.externalActorUrl)
 		}
 
 		// Check if profile is private and viewer doesn't have access
