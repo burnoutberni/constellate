@@ -183,21 +183,20 @@ export function EventDetailPage() {
 		[user, userAttendance]
 	)
 
-	// Derive an organizer user object, falling back to parsed remote data if no local user exists
-	const derivedUser = useMemo(() => {
-		if (event?.user) { return event.user }
+	// Derive organizer user objects, falling back to parsed remote data if no local user exists
+	const derivedOrganizers = useMemo(() => {
+		if (event?.user) { return [event.user] }
 
 		// Try to construct from organizers
 		if (event?.organizers && event.organizers.length > 0) {
-			const org = event.organizers[0]
-			return {
+			return event.organizers.map(org => ({
 				id: 'remote',
 				username: org.username,
 				name: org.display,
 				profileImage: null,
 				displayColor: null,
 				isRemote: true,
-			}
+			}))
 		}
 
 		// Fallback to attributedTo
@@ -208,27 +207,27 @@ export function EventDetailPage() {
 				const rawUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
 				const cleanUsername = rawUsername.startsWith('@') ? rawUsername.slice(1) : rawUsername
 
-				return {
+				return [{
 					id: 'remote',
 					username: cleanUsername,
 					name: `@${cleanUsername}@${u.hostname}`,
 					profileImage: null,
 					displayColor: null,
 					isRemote: true,
-				}
+				}]
 			} catch (error) {
 				console.error('Error parsing attributedTo URL:', error)
 			}
 		}
 
-		return {
+		return [{
 			id: 'unknown',
 			username: 'unknown',
 			name: 'Unknown Organizer',
 			profileImage: null,
 			displayColor: null,
 			isRemote: true,
-		}
+		}]
 	}, [event])
 
 	const handleRSVP = async (status: string) => {
@@ -522,13 +521,7 @@ export function EventDetailPage() {
 					<CardContent>
 						{/* Event Header */}
 						<EventHeader
-							organizer={{
-								id: derivedUser.id,
-								username: derivedUser.username,
-								name: derivedUser.name,
-								profileImage: derivedUser.profileImage,
-								displayColor: derivedUser.displayColor,
-							}}
+							organizers={derivedOrganizers}
 							eventId={eventId}
 							isOwner={user?.id === event.user?.id}
 							onDelete={handleDeleteEvent}

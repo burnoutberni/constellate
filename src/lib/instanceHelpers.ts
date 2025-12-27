@@ -4,7 +4,7 @@
  */
 
 import { prisma } from './prisma.js'
-import { Prisma } from '@prisma/client'
+import { Prisma, Instance } from '@prisma/client'
 import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
 import { resolveWebFinger } from './webfinger.js'
@@ -143,7 +143,7 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 	// We create with minimal data and fetch metadata asynchronously/lazily if needed
 	// to avoid blocking on HTTP requests for every trackInstance call on existing instances.
 	const now = new Date()
-	let instance = await prisma.instance.upsert({
+	let instance: Instance = await prisma.instance.upsert({
 		where: { domain },
 		update: {
 			lastActivityAt: now,

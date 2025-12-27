@@ -7,13 +7,14 @@ interface EventHeaderProps {
 	/**
 	 * Event organizer/owner information
 	 */
-	organizer: {
+	organizers: Array<{
 		id: string
 		username: string
 		name?: string | null
 		profileImage?: string | null
 		displayColor?: string | null
-	}
+		isRemote?: boolean
+	}>
 	/**
 	 * Event ID
 	 */
@@ -47,7 +48,7 @@ interface EventHeaderProps {
  * Used on the event detail page to show who created the event.
  */
 export function EventHeader({
-	organizer,
+	organizers,
 	eventId,
 	isOwner = false,
 	onDelete,
@@ -55,27 +56,39 @@ export function EventHeader({
 	onDuplicate,
 	isDuplicating = false,
 }: EventHeaderProps) {
+	// Use the first organizer for actions/links if multiple
+	const primaryOrganizer = organizers[0]
+
+	if (!primaryOrganizer) {
+		return null
+	}
+
 	return (
 		<div className="flex items-start justify-between">
-			<Link
-				to={`/@${organizer.username}`}
-				className="flex items-start gap-4 hover:opacity-80 transition-opacity">
-				<Avatar
-					src={organizer.profileImage || undefined}
-					alt={organizer.name || organizer.username}
-					fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
-					size="lg"
-				/>
-				<div>
-					<div className="font-semibold text-lg text-text-primary">
-						{organizer.name || organizer.username}
-					</div>
-					<div className="text-text-secondary">@{organizer.username}</div>
-				</div>
-			</Link>
+			<div className="space-y-4">
+				{organizers.map((organizer) => (
+					<Link
+						key={organizer.id || organizer.username}
+						to={`/@${organizer.username}`}
+						className="flex items-start gap-4 hover:opacity-80 transition-opacity">
+						<Avatar
+							src={organizer.profileImage || undefined}
+							alt={organizer.name || organizer.username}
+							fallback={(organizer.name || organizer.username).charAt(0).toUpperCase()}
+							size="lg"
+						/>
+						<div>
+							<div className="font-semibold text-lg text-text-primary">
+								{organizer.name || organizer.username}
+							</div>
+							<div className="text-text-secondary">@{organizer.username}</div>
+						</div>
+					</Link>
+				))}
+			</div>
 			{eventId && (
 				<EventActions
-					username={organizer.username}
+					username={primaryOrganizer.username}
 					eventId={eventId}
 					isOwner={isOwner}
 					onDelete={onDelete}

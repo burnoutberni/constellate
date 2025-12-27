@@ -32,14 +32,14 @@ const mockOrganizer = {
 
 export const Default: Story = {
 	args: {
-		organizer: mockOrganizer,
+		organizers: [mockOrganizer],
 		eventId: 'event1',
 	},
 }
 
 export const AsOwner: Story = {
 	args: {
-		organizer: mockOrganizer,
+		organizers: [mockOrganizer],
 		eventId: 'event1',
 		isOwner: true,
 		onDelete: () => {
@@ -53,7 +53,7 @@ export const AsOwner: Story = {
 
 export const WithDelete: Story = {
 	args: {
-		organizer: mockOrganizer,
+		organizers: [mockOrganizer],
 		eventId: 'event1',
 		isOwner: true,
 		isDeleting: true,
@@ -65,7 +65,7 @@ export const WithDelete: Story = {
 
 export const WithDuplicate: Story = {
 	args: {
-		organizer: mockOrganizer,
+		organizers: [mockOrganizer],
 		eventId: 'event1',
 		isOwner: true,
 		isDuplicating: true,
@@ -77,10 +77,12 @@ export const WithDuplicate: Story = {
 
 export const WithoutImage: Story = {
 	args: {
-		organizer: {
-			...mockOrganizer,
-			profileImage: null,
-		},
+		organizers: [
+			{
+				...mockOrganizer,
+				profileImage: null,
+			},
+		],
 		eventId: 'event1',
 	},
 }

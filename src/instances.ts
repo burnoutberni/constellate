@@ -99,11 +99,23 @@ app.get('/:domain/events', async (c) => {
 
 		const now = new Date()
 
+		// Handle www. and non-www. variants to be more flexible
+		const domainVariants = [domain]
+		if (domain.startsWith('www.')) {
+			domainVariants.push(domain.slice(4))
+		} else {
+			domainVariants.push(`www.${domain}`)
+		}
+
+		// Construct OR clauses for all variants
+		const orConditions: Prisma.EventWhereInput[] = []
+		for (const v of domainVariants) {
+			orConditions.push({ externalId: { contains: `://${v}/` } })
+			orConditions.push({ externalId: { contains: `://${v}:` } })
+		}
+
 		let whereCondition: Prisma.EventWhereInput = {
-			OR: [
-				{ externalId: { contains: `://${domain}/` } },
-				{ externalId: { contains: `://${domain}:` } },
-			],
+			OR: orConditions,
 		}
 
 		let orderBy: Prisma.EventOrderByWithRelationInput = { startTime: 'desc' }
