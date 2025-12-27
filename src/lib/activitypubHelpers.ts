@@ -10,6 +10,9 @@ import { prisma } from './prisma.js'
 import type { Person } from './activitypubSchemas.js'
 import { trackInstance } from './instanceHelpers.js'
 
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
+const THIRTY_DAYS_IN_MS = 30 * ONE_DAY_IN_MS
+
 /**
  * Gets the base URL for this instance
  * @returns Base URL (e.g., http://localhost:3000)
@@ -186,7 +189,7 @@ export async function isActivityProcessed(activityId: string): Promise<boolean> 
  */
 export async function markActivityProcessed(activityId: string): Promise<void> {
 	const expiresAt = new Date()
-	expiresAt.setDate(expiresAt.getDate() + 30) // 30 days TTL
+	expiresAt.setTime(expiresAt.getTime() + THIRTY_DAYS_IN_MS) // 30 days TTL
 
 	await prisma.processedActivity.create({
 		data: {
@@ -322,7 +325,7 @@ export async function cacheEventFromOutboxActivity(
 	// Optimization: Skip past events
 	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
 	const now = new Date()
-	const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+	const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
 	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
 
 	// If the event ended before yesterday, skip it

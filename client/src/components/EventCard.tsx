@@ -60,8 +60,7 @@ export function EventCard(props: EventCardProps) {
 		? `/@${event.user.username}/${event.id}`
 		: `/events/${event.id}`
 
-	// Always use client-side routing
-	const isExternalLink = false
+
 
 	// Helper to extract a display name from attributedTo URL if user is missing
 	const getAttributedToName = (url?: string | null) => {
@@ -269,15 +268,9 @@ export function EventCard(props: EventCardProps) {
 
 	return (
 		<div className="h-full relative group">
-			{isExternalLink ? (
-				<a href={eventLink} target="_blank" rel="noopener noreferrer" className="block h-full">
-					{renderCardContent()}
-				</a>
-			) : (
-				<Link to={eventLink} className="block h-full">
-					{renderCardContent()}
-				</Link>
-			)}
+			<Link to={eventLink} className="block h-full">
+				{renderCardContent()}
+			</Link>
 
 			{isAuthenticated && <EventReportButton event={event} className="z-10" />}
 

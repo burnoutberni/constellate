@@ -28,6 +28,13 @@ const SearchInstancesQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 })
 
+// Query schema for instance events
+const InstanceEventsQuerySchema = z.object({
+	limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+	offset: z.coerce.number().int().min(0).optional().default(0),
+	time: z.enum(['upcoming', 'past']).optional(),
+})
+
 // Get list of known instances
 app.get('/', async (c) => {
 	try {
@@ -83,9 +90,12 @@ app.get('/:domain/events', async (c) => {
 		const userId = await requireAuth(c)
 
 		const { domain } = c.req.param()
-		const limit = Number(c.req.query('limit')) || 20
-		const offset = Number(c.req.query('offset')) || 0
-		const time = c.req.query('time') // 'upcoming' | 'past' | undefined
+		const query = InstanceEventsQuerySchema.parse({
+			limit: c.req.query('limit'),
+			offset: c.req.query('offset'),
+			time: c.req.query('time'),
+		})
+		const { limit, offset, time } = query
 
 		const now = new Date()
 

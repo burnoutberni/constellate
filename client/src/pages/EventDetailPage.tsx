@@ -212,8 +212,8 @@ export function EventDetailPage() {
 					profileImage: null,
 					displayColor: null,
 				}
-			} catch {
-				/* ignore */
+			} catch (error) {
+				console.error('Error parsing attributedTo URL:', error)
 			}
 		}
 

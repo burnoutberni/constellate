@@ -159,6 +159,13 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 		// If software is missing, it's likely a fresh record or one that failed metadata fetch previously.
 		if (!instance.software) {
 			await refreshInstanceMetadata(domain)
+			// Refresh local instance data from DB
+			const refreshed = await prisma.instance.findUnique({
+				where: { id: instance.id },
+			})
+			if (refreshed) {
+				Object.assign(instance, refreshed)
+			}
 		}
 
 		// Use the fresh instance data after metadata refresh attempt (if we want strictness),
