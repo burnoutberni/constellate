@@ -11,6 +11,12 @@ import {
 	searchInstances,
 } from '../lib/instanceHelpers.js'
 import { prisma } from '../lib/prisma.js'
+import * as webfinger from '../lib/webfinger.js'
+
+// Mock dependencies
+vi.mock('../lib/webfinger.js', () => ({
+	resolveWebFinger: vi.fn(),
+}))
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -126,11 +132,96 @@ describe('Instance Discovery', () => {
 			)
 		})
 
-
-
 		it('should handle invalid actor URLs gracefully', async () => {
 			await trackInstance('invalid-url')
 			expect(prisma.instance.findUnique).not.toHaveBeenCalled()
+		})
+
+		it('should reload instance from DB after metadata refresh if software is missing', async () => {
+			const actorUrl = 'https://mastodon.social/users/alice'
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert returns instance without software
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: null,
+				publicEventsUrl: null,
+			} as any)
+
+			// 2. Mock refreshInstanceMetadata internal fetch (we mock the side effect via findUnique)
+			// The function calls refreshInstanceMetadata which presumably updates the DB.
+			// Then it calls findUnique to reload.
+
+			// Mock findUnique to return the *updated* instance with software
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: 'Mastodon', // Now present
+				publicEventsUrl: 'https://mastodon.social/inbox', // Present now
+			} as any)
+
+			// Mock WebFinger to avoid actual network calls if it falls through
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+
+			await trackInstance(actorUrl)
+
+			// Expect re-fetch
+			expect(prisma.instance.findUnique).toHaveBeenCalledWith({
+				where: { id: 'inst-1' },
+			})
+
+			// Since software was found in re-fetch (simulated), logic should *not* try discovery if publicEventsUrl is present
+			// Actually trackInstance logic:
+			// if (refreshed) Object.assign(instance, refreshed)
+			// then if (!instance.publicEventsUrl) ...
+			// In our mock, refreshed has publicEventsUrl, so it should NOT call resolveWebFinger for discovery
+			expect(webfinger.resolveWebFinger).not.toHaveBeenCalled()
+		})
+
+		it('should attempt discovery if re-fetched instance still lacks publicEventsUrl', async () => {
+			const actorUrl = 'https://mastodon.social/users/alice'
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				baseUrl: 'https://mastodon.social',
+				software: null,
+				publicEventsUrl: null,
+				version: null,
+				title: null,
+				description: null,
+				iconUrl: null,
+				contact: null,
+				userCount: null,
+				eventCount: null,
+				lastActivityAt: new Date(),
+				isBlocked: false,
+				lastFetchedAt: null,
+				lastErrorAt: null,
+				lastError: null,
+				lastPageUrl: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+
+			// 2. Re-fetch returns instance still missing publicEventsUrl
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: 'Mastodon',
+				publicEventsUrl: null, // Still missing
+			} as any)
+
+			// 3. Should proceed to discovery
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue('https://mastodon.social/actor')
+
+			await trackInstance(actorUrl)
+
+			expect(prisma.instance.findUnique).toHaveBeenCalled()
+			expect(webfinger.resolveWebFinger).toHaveBeenCalled()
 		})
 	})
 
