@@ -505,5 +505,42 @@ describe('activitypubHelpers', () => {
 				})
 			)
 		})
+
+		it('should handle malformed organizer URLs gracefully', async () => {
+			const eventWithBadUrl = {
+				...mockEvent,
+				id: 'https://example.com/events/2',
+				attributedTo: ['https://valid.com/u/alice', 'not-a-valid-url'],
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithBadUrl,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			// Mock console.error to avoid successful test output pollution
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: expect.arrayContaining([
+							expect.objectContaining({
+								url: 'not-a-valid-url',
+								username: 'unknown',
+								host: 'unknown',
+							}),
+						]),
+					}),
+				})
+			)
+
+			expect(consoleSpy).toHaveBeenCalled()
+			consoleSpy.mockRestore()
+		})
 	})
 })

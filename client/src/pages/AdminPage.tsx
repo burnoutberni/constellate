@@ -230,15 +230,6 @@ export function AdminPage() {
 	const unblockInstanceMutation = useUnblockInstance()
 	const refreshInstanceMutation = useRefreshInstance()
 
-	// We can add the toast here if we want, or rely on handling it in the hook if we updated it (we only added invalidate)
-	// The previous code had a toast on success for refresh.
-	// The hook currently does not have a toast.
-	// We can add `onSuccess` callback to `mutate` for the toast.
-
-	// Actually, `useRefreshInstance` in `instances.ts` does NOT have a toast. 
-	// I should probably add the toast functionality to `AdminPage` usage of the hook.
-
-	// Let's just replace the definition first.
 
 	// Redirect if not admin (after all hooks)
 	if (userProfile && !userProfile.isAdmin) {

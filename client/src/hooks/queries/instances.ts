@@ -147,7 +147,7 @@ export function useRefreshInstance() {
 			})
 			// Also invalidate list queries to update timestamps
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.instances.list({}),
+				queryKey: ['instances', 'list'],
 			})
 		},
 	})
