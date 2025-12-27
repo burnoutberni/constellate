@@ -204,11 +204,13 @@ export function EventDetailPage() {
 			try {
 				const u = new URL(event.attributedTo)
 				const pathParts = u.pathname.split('/').filter(Boolean)
-				const matchedUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
+				const rawUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
+				const cleanUsername = rawUsername.startsWith('@') ? rawUsername.slice(1) : rawUsername
+
 				return {
 					id: 'remote',
-					username: matchedUsername,
-					name: `${matchedUsername}@${u.hostname}`,
+					username: cleanUsername,
+					name: `@${cleanUsername}@${u.hostname}`,
 					profileImage: null,
 					displayColor: null,
 				}
