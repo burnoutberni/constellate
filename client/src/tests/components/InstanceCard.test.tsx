@@ -1,161 +1,215 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter } from 'react-router-dom'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+import '@testing-library/jest-dom'
+
 import { InstanceCard } from '../../components/InstanceCard'
-import type { InstanceWithStats } from '../../types'
+import { api } from '../../lib/api-client'
+import { createTestWrapper } from '../testUtils'
+import { useAuth } from '../../hooks/useAuth'
 
-const mockNavigate = vi.fn()
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual('react-router-dom')
-    return {
-        ...actual,
-        useNavigate: () => mockNavigate,
-    }
-})
-
-// Mock api client
-const mockGet = vi.fn()
+// Mock API
 vi.mock('../../lib/api-client', () => ({
     api: {
-        get: (...args: unknown[]) => mockGet(...args)
+        get: vi.fn(),
     },
 }))
 
-const mockUseAuth = vi.fn()
+// Mock useAuth
 vi.mock('../../hooks/useAuth', () => ({
-    useAuth: () => mockUseAuth(),
+    useAuth: vi.fn(),
 }))
-
-const createMockInstance = (overrides?: Partial<InstanceWithStats>): InstanceWithStats => ({
-    id: '1',
-    domain: 'instance.social',
-    baseUrl: 'https://instance.social',
-    title: 'Instance Social',
-    description: 'A social instance',
-    version: '1.0.0',
-    software: 'Mastodon',
-    iconUrl: 'https://instance.social/icon.png',
-    userCount: 100,
-    eventCount: 50,
-    isBlocked: false,
-    lastActivityAt: new Date().toISOString(),
-    lastFetchedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    stats: {
-        remoteUsers: 10,
-        remoteEvents: 5,
-        localFollowing: 2,
-    },
-    ...overrides,
-})
-
-const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: { retry: false },
-    },
-})
 
 describe('InstanceCard', () => {
-    beforeEach(() => {
-        mockUseAuth.mockReturnValue({ user: { id: 'admin', isAdmin: true }, loading: false })
-        mockGet.mockResolvedValue({ isAdmin: true }) // Default to admin
-        queryClient.clear()
-    })
+    const mockInstance = {
+        id: '1',
+        domain: 'example.com',
+        baseUrl: 'https://example.com',
+        title: 'Example Instance',
+        software: 'Mastodon',
+        version: '4.2.0',
+        userCount: 1000,
+        eventCount: 500,
+        isBlocked: false,
+        lastActivityAt: new Date().toISOString(),
+        stats: {
+            remoteUsers: 10,
+            remoteEvents: 20,
+            localFollowing: 5,
+        },
+    }
 
-    afterEach(() => {
-        vi.useRealTimers()
+    const mockAdminUser = {
+        id: 'user-1',
+        username: 'admin',
+        isAdmin: true,
+    }
+
+    const mockRegularUser = {
+        id: 'user-2',
+        username: 'user',
+        isAdmin: false,
+    }
+
+    beforeEach(() => {
         vi.clearAllMocks()
     })
 
-    it('renders instance information correctly', () => {
-        const instance = createMockInstance()
+    it('renders basic instance information', () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockRegularUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockRegularUser)
+
+        const { wrapper } = createTestWrapper()
         render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard instance={instance} />
-                </BrowserRouter>
-            </QueryClientProvider>
+            <InstanceCard
+                instance={mockInstance}
+            />,
+            { wrapper }
         )
 
-        expect(screen.getByText('Instance Social')).toBeInTheDocument()
-        expect(screen.getByText('instance.social')).toBeInTheDocument()
-        expect(screen.getByText('100')).toBeInTheDocument() // Users
-        expect(screen.getByText('50')).toBeInTheDocument() // Events
+        expect(screen.getByText('Example Instance')).toBeInTheDocument()
+        expect(screen.getByText('example.com')).toBeInTheDocument()
+        expect(screen.getByText(/Mastodon/)).toBeInTheDocument()
+        expect(screen.getByText(/4.2.0/)).toBeInTheDocument()
+        expect(screen.getByText('1,000')).toBeInTheDocument() // Users
+        expect(screen.getByText('500')).toBeInTheDocument() // Events
     })
 
-    it('shows block and refresh buttons for admin', async () => {
-        const instance = createMockInstance()
+    it('shows blocked badge when instance is blocked', () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockRegularUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockRegularUser)
+
+        const blockedInstance = { ...mockInstance, isBlocked: true }
+
+        const { wrapper } = createTestWrapper()
         render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard instance={instance} />
-                </BrowserRouter>
-            </QueryClientProvider>
+            <InstanceCard
+                instance={blockedInstance}
+            />,
+            { wrapper }
         )
 
-        expect(await screen.findByRole('button', { name: /Block/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument()
+        expect(screen.getByText('Blocked')).toBeInTheDocument()
     })
 
-    it('does not show admin buttons for non-admin', () => {
-        mockUseAuth.mockReturnValue({ user: { id: 'user', isAdmin: false }, loading: false })
-        const instance = createMockInstance()
+    it('shows admin actions for admin user', async () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockAdminUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockAdminUser)
+
+        const { wrapper } = createTestWrapper()
         render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard instance={instance} />
-                </BrowserRouter>
-            </QueryClientProvider>
+            <InstanceCard
+                instance={mockInstance}
+                onBlock={vi.fn()}
+                onRefresh={vi.fn()}
+            />,
+            { wrapper }
         )
 
-        expect(screen.queryByText('Block')).not.toBeInTheDocument()
-        expect(screen.queryByText('Refresh')).not.toBeInTheDocument()
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Block' })).toBeInTheDocument()
+            expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+        })
     })
 
-    it('shows refreshing state when isRefreshing prop is true', async () => {
-        const instance = createMockInstance()
+    it('hides admin actions for regular user', async () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockRegularUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockRegularUser)
+
+        const { wrapper } = createTestWrapper()
+        render(
+            <InstanceCard
+                instance={mockInstance}
+                onBlock={vi.fn()}
+            />,
+            { wrapper }
+        )
+
+        await waitFor(() => {
+            expect(screen.queryByRole('button', { name: 'Block' })).not.toBeInTheDocument()
+        })
+    })
+
+    it('calls callbacks when actions clicked', async () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockAdminUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockAdminUser)
+
+        const onBlock = vi.fn()
         const onRefresh = vi.fn()
 
+        const { wrapper } = createTestWrapper()
         render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard
-                        instance={instance}
-                        onRefresh={onRefresh}
-                        isRefreshing={true}
-                    />
-                </BrowserRouter>
-            </QueryClientProvider>
+            <InstanceCard
+                instance={mockInstance}
+                onBlock={onBlock}
+                onRefresh={onRefresh}
+            />,
+            { wrapper }
         )
 
-        const refreshBtn = await screen.findByRole('button', { name: /Refreshing.../i })
-        expect(refreshBtn).toBeInTheDocument()
-        expect(refreshBtn).toBeDisabled()
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Block' })).toBeInTheDocument()
+        })
+
+        fireEvent.click(screen.getByRole('button', { name: 'Block' }))
+        expect(onBlock).toHaveBeenCalledWith('example.com')
+
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+        expect(onRefresh).toHaveBeenCalledWith('example.com')
     })
 
-    it('shows normal refresh button when isRefreshing is false', async () => {
-        const instance = createMockInstance()
-        const onRefresh = vi.fn()
+    it('shows unblock button for blocked instance (admin)', async () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockAdminUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockAdminUser)
 
+        const blockedInstance = { ...mockInstance, isBlocked: true }
+        const onUnblock = vi.fn()
+
+        const { wrapper } = createTestWrapper()
         render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard
-                        instance={instance}
-                        onRefresh={onRefresh}
-                        isRefreshing={false}
-                    />
-                </BrowserRouter>
-            </QueryClientProvider>
+            <InstanceCard
+                instance={blockedInstance}
+                onUnblock={onUnblock}
+            />,
+            { wrapper }
         )
 
-        const refreshBtn = await screen.findByRole('button', { name: /Refresh/i })
-        expect(refreshBtn).toBeInTheDocument()
-        expect(refreshBtn).not.toBeDisabled()
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Unblock' })).toBeInTheDocument()
+        })
 
-        fireEvent.click(refreshBtn)
-        expect(onRefresh).toHaveBeenCalledWith('instance.social')
+        fireEvent.click(screen.getByRole('button', { name: 'Unblock' }))
+        expect(onUnblock).toHaveBeenCalledWith('example.com')
+    })
+
+    it('shows refreshing state', async () => {
+        vi.mocked(useAuth).mockReturnValue({
+            user: mockAdminUser,
+        } as unknown as ReturnType<typeof useAuth>)
+        vi.mocked(api.get).mockResolvedValue(mockAdminUser)
+
+        const { wrapper } = createTestWrapper()
+        render(
+            <InstanceCard
+                instance={mockInstance}
+                isRefreshing={true}
+            />,
+            { wrapper }
+        )
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Refreshing...' })).toBeDisabled()
+        })
     })
 })

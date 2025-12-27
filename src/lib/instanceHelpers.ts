@@ -124,6 +124,11 @@ export async function fetchInstanceMetadata(baseUrl: string): Promise<{
 }
 
 /**
+ * In-memory lock to prevent race conditions during instance discovery
+ */
+const instanceDiscoveryLocks = new Map<string, Promise<void>>()
+
+/**
  * Record or update instance information based on actor URL
  */
 export async function trackInstance(actorUrl: string): Promise<void> {
@@ -156,39 +161,51 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 	// perform the heavy lifting (metadata fetch & discovery).
 	// We check for minimal metadata availability.
 	if (!instance.software || !instance.publicEventsUrl) {
-		// If software is missing, it's likely a fresh record or one that failed metadata fetch previously.
-		if (!instance.software) {
-			await refreshInstanceMetadata(domain)
-			// Refresh local instance data from DB
-			const refreshed = await prisma.instance.findUnique({
-				where: { id: instance.id },
-			})
-			if (refreshed) {
-				Object.assign(instance, refreshed)
-			}
+		// In-memory lock to prevent race conditions from concurrent activities
+		// If discovery is already in progress for this domain, wait for it to complete
+		if (instanceDiscoveryLocks.has(domain)) {
+			await instanceDiscoveryLocks.get(domain)
+			return
 		}
 
-		// Use the fresh instance data after metadata refresh attempt (if we want strictness),
-		// but typically we just need to know if we should try discovery.
-		// Let's re-read if we suspect updates, or just proceed with what we have if we pushed updates.
-		// Actually, refreshInstanceMetadata updates the DB.
+		// Create a new discovery process
+		const discoveryProcess = (async () => {
+			try {
+				// If software is missing, it's likely a fresh record or one that failed metadata fetch previously.
+				if (!instance.software) {
+					await refreshInstanceMetadata(domain)
+					// Refresh local instance data from DB
+					const refreshed = await prisma.instance.findUnique({
+						where: { id: instance.id },
+					})
+					if (refreshed) {
+						Object.assign(instance, refreshed)
+					}
+				}
 
-		// If publicEventsUrl is still missing (or was missing), try to discover it
-		// We only try this if we don't have it.
-		// Note: The previous implementation allowed retrying on every 'track' if missing.
-		if (!instance.publicEventsUrl) {
-			const publicEventsUrl = await discoverPublicEndpoint(domain)
-			if (publicEventsUrl) {
-				await prisma.instance.update({
-					where: { domain },
-					data: {
-						publicEventsUrl,
-						// Force poll if we just found the URL
-						lastFetchedAt: new Date(0),
-					},
-				})
+				// If publicEventsUrl is still missing (or was missing), try to discover it
+				if (!instance.publicEventsUrl) {
+					const publicEventsUrl = await discoverPublicEndpoint(domain)
+					if (publicEventsUrl) {
+						await prisma.instance.update({
+							where: { domain },
+							data: {
+								publicEventsUrl,
+								// Force poll if we just found the URL
+								lastFetchedAt: new Date(0),
+							},
+						})
+					}
+				}
+			} catch (error) {
+				console.error(`Error during instance discovery for ${domain}:`, error)
+			} finally {
+				instanceDiscoveryLocks.delete(domain)
 			}
-		}
+		})()
+
+		instanceDiscoveryLocks.set(domain, discoveryProcess)
+		await discoveryProcess
 	}
 }
 
@@ -212,7 +229,8 @@ export async function discoverPublicEndpoint(domain: string): Promise<string | n
 
 		// 4. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
 		// Use http for local domains to support development
-		const protocol = domain.endsWith('.local') || domain.includes('localhost') ? 'http' : 'https'
+		const protocol =
+			domain.endsWith('.local') || domain.includes('localhost') ? 'http' : 'https'
 		const instanceActorUrl = `${protocol}://${domain}/actor`
 		const instanceActor = await fetchRemoteActor(instanceActorUrl)
 		if (instanceActor?.outbox) {

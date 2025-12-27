@@ -45,7 +45,7 @@ describe('AdminPage', () => {
 	})
 
 	it('renders loading state initially for profile', () => {
-		vi.mocked(api.get).mockImplementation(() => new Promise(() => {}))
+		vi.mocked(api.get).mockImplementation(() => new Promise(() => { }))
 		const { wrapper } = createTestWrapper()
 		render(<AdminPage />, { wrapper })
 		expect(document.querySelector('.animate-spin')).toBeInTheDocument()
@@ -116,4 +116,6 @@ describe('AdminPage', () => {
 			expect(screen.getByTestId('appeal-queue')).toBeInTheDocument()
 		})
 	})
+
+
 })

@@ -344,7 +344,9 @@ export async function cacheEventFromOutboxActivity(
 	// Extract organizers (attributedTo + contacts)
 	let rawAttributedTo: string[] = []
 	if (Array.isArray(eventObj.attributedTo)) {
-		rawAttributedTo = eventObj.attributedTo.filter((item): item is string => typeof item === 'string')
+		rawAttributedTo = eventObj.attributedTo.filter(
+			(item): item is string => typeof item === 'string'
+		)
 	} else if (typeof eventObj.attributedTo === 'string') {
 		rawAttributedTo = [eventObj.attributedTo]
 	}

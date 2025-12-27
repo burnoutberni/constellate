@@ -677,9 +677,15 @@ export function AdminPage() {
 																		size="sm"
 																		className="text-success-600 hover:text-success-700"
 																		disabled={
-																			unblockInstanceMutation.isPending
+																			unblockInstanceMutation.isPending &&
+																			unblockInstanceMutation.variables ===
+																			instance.domain
 																		}>
-																		Unblock
+																		{unblockInstanceMutation.isPending &&
+																			unblockInstanceMutation.variables ===
+																			instance.domain
+																			? 'Unblocking...'
+																			: 'Unblock'}
 																	</Button>
 																) : (
 																	<Button
@@ -692,9 +698,15 @@ export function AdminPage() {
 																		size="sm"
 																		className="text-error-600 hover:text-error-900"
 																		disabled={
-																			blockInstanceMutation.isPending
+																			blockInstanceMutation.isPending &&
+																			blockInstanceMutation.variables ===
+																			instance.domain
 																		}>
-																		Block
+																		{blockInstanceMutation.isPending &&
+																			blockInstanceMutation.variables ===
+																			instance.domain
+																			? 'Blocking...'
+																			: 'Block'}
 																	</Button>
 																)}
 															</div>

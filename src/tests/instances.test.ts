@@ -223,6 +223,61 @@ describe('Instance Discovery', () => {
 			expect(prisma.instance.findUnique).toHaveBeenCalled()
 			expect(webfinger.resolveWebFinger).toHaveBeenCalled()
 		})
+
+		it('should prevent concurrent discovery for the same domain', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+			const actorUrl = 'https://mastodon.social/users/alice'
+			const domain = 'mastodon.social'
+
+			// 1. Initial upsert returns fresh instance
+			vi.mocked(prisma.instance.upsert).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				software: null,
+				publicEventsUrl: null,
+				baseUrl: 'https://mastodon.social',
+			} as any)
+
+			// 2. Mock discovery process to take some time
+			let finishDiscovery: (value: unknown) => void = () => {}
+			const discoveryPromise = new Promise((resolve) => {
+				finishDiscovery = resolve
+			})
+
+			vi.mocked(webfinger.resolveWebFinger).mockImplementation(async () => {
+				await discoveryPromise
+				return 'https://mastodon.social/actor'
+			})
+
+			// Mock safeFetch to return success so the loop exits early (after 1st call)
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'https://mastodon.social/outbox' }),
+			} as any)
+
+			// Mock re-fetch in discovery process
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+			} as any)
+
+			// Mock update (used in refreshInstanceMetadata and trackInstance)
+			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)
+
+			// 3. Launch two concurrent tracks
+			const track1 = trackInstance(actorUrl)
+			const track2 = trackInstance(actorUrl)
+
+			// 4. Finish discovery
+			finishDiscovery(null)
+
+			await Promise.all([track1, track2])
+
+			// 5. Verification:
+			// resolveWebFinger should only be called ONCE because the second call should wait for lock
+			// AND proper safeFetch mock ensures loop exists after 1st success
+			expect(webfinger.resolveWebFinger).toHaveBeenCalledTimes(1)
+		})
 	})
 
 	describe('getKnownInstances', () => {
