@@ -226,6 +226,9 @@ export function InstancesPage() {
 						onBlock={handleBlock}
 						onUnblock={handleUnblock}
 						onRefresh={handleRefresh}
+						refreshingDomain={
+							refreshMutation.isPending ? (refreshMutation.variables as string) : null
+						}
 					/>
 				)}
 

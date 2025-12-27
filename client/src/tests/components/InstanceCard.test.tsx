@@ -114,59 +114,48 @@ describe('InstanceCard', () => {
         expect(screen.queryByText('Refresh')).not.toBeInTheDocument()
     })
 
-    it('handles refresh cooldown logic', async () => {
-        vi.useFakeTimers({ toFake: ['Date'] })
+    it('shows refreshing state when isRefreshing prop is true', async () => {
+        const instance = createMockInstance()
         const onRefresh = vi.fn()
-        const now = Date.now()
-        vi.setSystemTime(now)
 
-        // Case 1: Never fetched (should be enabled)
-        const neverFetched = createMockInstance({ lastFetchedAt: undefined })
-        const { unmount } = render(
-            <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <InstanceCard instance={neverFetched} onRefresh={onRefresh} />
-                </BrowserRouter>
-            </QueryClientProvider>
-        )
-
-        const refreshBtn = await screen.findByRole('button', { name: 'Refresh' })
-        expect(refreshBtn).not.toBeDisabled()
-        fireEvent.click(refreshBtn)
-        expect(onRefresh).toHaveBeenCalledWith('instance.social')
-        unmount()
-
-        // Case 2: Recently fetched (within 30s) -> Disabled
-        const recentFetched = createMockInstance({ lastFetchedAt: new Date(now - 10000).toISOString() })
         render(
             <QueryClientProvider client={queryClient}>
                 <BrowserRouter>
-                    <InstanceCard instance={recentFetched} onRefresh={onRefresh} />
+                    <InstanceCard
+                        instance={instance}
+                        onRefresh={onRefresh}
+                        isRefreshing={true}
+                    />
                 </BrowserRouter>
             </QueryClientProvider>
         )
-        const refreshBtnDisabled = await screen.findByRole('button', { name: /Refresh/i })
-        expect(refreshBtnDisabled).toBeDisabled()
 
-        // cleanup for next test part
+        const refreshBtn = await screen.findByRole('button', { name: /Refreshing.../i })
+        expect(refreshBtn).toBeInTheDocument()
+        expect(refreshBtn).toBeDisabled()
     })
 
-    it('shows "Refreshed!" state immediately after fetch', async () => {
-        vi.useFakeTimers({ toFake: ['Date'] })
-        const now = Date.now()
-        vi.setSystemTime(now)
-        // Within 5 seconds
-        const justFetched = createMockInstance({ lastFetchedAt: new Date(now - 2000).toISOString() })
+    it('shows normal refresh button when isRefreshing is false', async () => {
+        const instance = createMockInstance()
+        const onRefresh = vi.fn()
 
         render(
             <QueryClientProvider client={queryClient}>
                 <BrowserRouter>
-                    <InstanceCard instance={justFetched} />
+                    <InstanceCard
+                        instance={instance}
+                        onRefresh={onRefresh}
+                        isRefreshing={false}
+                    />
                 </BrowserRouter>
             </QueryClientProvider>
         )
 
-        expect(await screen.findByRole('button', { name: /Refreshed!/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /Refreshed!/i })).toBeDisabled()
+        const refreshBtn = await screen.findByRole('button', { name: /Refresh/i })
+        expect(refreshBtn).toBeInTheDocument()
+        expect(refreshBtn).not.toBeDisabled()
+
+        fireEvent.click(refreshBtn)
+        expect(onRefresh).toHaveBeenCalledWith('instance.social')
     })
 })

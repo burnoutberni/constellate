@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
@@ -16,9 +15,16 @@ interface InstanceCardProps {
 	onBlock?: (domain: string) => void
 	onUnblock?: (domain: string) => void
 	onRefresh?: (domain: string) => void
+	isRefreshing?: boolean
 }
 
-export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: InstanceCardProps) {
+export function InstanceCard({
+	instance,
+	onBlock,
+	onUnblock,
+	onRefresh,
+	isRefreshing,
+}: InstanceCardProps) {
 	const navigate = useNavigate()
 	const { user } = useAuth()
 
@@ -194,7 +200,11 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 										Block
 									</Button>
 								)}
-								<RefresherButton instance={instance} onRefresh={onRefresh} />
+								<RefresherButton
+									instance={instance}
+									onRefresh={onRefresh}
+									isRefreshing={isRefreshing}
+								/>
 							</Stack>
 						)}
 					</div>
@@ -204,36 +214,24 @@ export function InstanceCard({ instance, onBlock, onUnblock, onRefresh }: Instan
 	)
 }
 
-const REFRESH_COOLDOWN_MS = 30000 // 30 seconds
-const REFRESHED_STATE_DURATION_MS = 5000 // 5 seconds
+
 
 function RefresherButton({
 	instance,
 	onRefresh,
+	isRefreshing,
 }: {
 	instance: InstanceWithStats
 	onRefresh?: (domain: string) => void
+	isRefreshing?: boolean
 }) {
-
-	const [now, setNow] = useState(() => Date.now())
-
-	useEffect(() => {
-		// Update 'now' every second to keep the button state fresh without being impure in render
-		const interval = setInterval(() => setNow(Date.now()), 1000)
-		return () => clearInterval(interval)
-	}, [])
-
-	const lastFetched = instance.lastFetchedAt ? new Date(instance.lastFetchedAt).getTime() : 0
-	const isRecent = lastFetched > now - REFRESH_COOLDOWN_MS
-	const justRefreshed = lastFetched > now - REFRESHED_STATE_DURATION_MS
-
 	return (
 		<Button
 			size="sm"
 			variant="secondary"
 			onClick={() => onRefresh?.(instance.domain)}
-			disabled={isRecent}>
-			{justRefreshed ? 'Refreshed!' : 'Refresh'}
+			disabled={isRefreshing}>
+			{isRefreshing ? 'Refreshing...' : 'Refresh'}
 		</Button>
 	)
 }

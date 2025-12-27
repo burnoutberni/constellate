@@ -656,8 +656,15 @@ export function AdminPage() {
 																	}
 																	variant="secondary"
 																	size="sm"
-																	disabled={refreshInstanceMutation.isPending}>
-																	Refresh
+																	disabled={
+																		refreshInstanceMutation.isPending &&
+																		refreshInstanceMutation.variables ===
+																		instance.domain
+																	}>
+																	{refreshInstanceMutation.isPending &&
+																		refreshInstanceMutation.variables === instance.domain
+																		? 'Refreshing...'
+																		: 'Refresh'}
 																</Button>
 																{instance.isBlocked ? (
 																	<Button

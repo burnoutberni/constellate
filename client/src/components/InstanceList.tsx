@@ -9,9 +9,16 @@ interface InstanceListProps {
 	onBlock?: (domain: string) => void
 	onUnblock?: (domain: string) => void
 	onRefresh?: (domain: string) => void
+	refreshingDomain?: string | null
 }
 
-export function InstanceList({ instances, onBlock, onUnblock, onRefresh }: InstanceListProps) {
+export function InstanceList({
+	instances,
+	onBlock,
+	onUnblock,
+	onRefresh,
+	refreshingDomain,
+}: InstanceListProps) {
 	if (instances.length === 0) {
 		return (
 			<Card padding="xl" className="text-center bg-background-secondary border-dashed">
@@ -29,6 +36,7 @@ export function InstanceList({ instances, onBlock, onUnblock, onRefresh }: Insta
 					onBlock={onBlock}
 					onUnblock={onUnblock}
 					onRefresh={onRefresh}
+					isRefreshing={refreshingDomain === instance.domain}
 				/>
 			))}
 		</Stack>
