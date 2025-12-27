@@ -13,6 +13,7 @@ import {
 } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { formatDate } from '@/lib/formatUtils'
 import { logger } from '@/lib/logger'
 import { generateId } from '@/lib/utils'
 import { useUIStore } from '@/stores'
@@ -631,9 +632,13 @@ export function AdminPage() {
 														</td>
 														<td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
 															{instance.lastActivityAt
-																? new Date(
-																	instance.lastActivityAt
-																).toLocaleDateString()
+																? formatDate(instance.lastActivityAt, {
+																	year: 'numeric',
+																	month: 'short',
+																	day: 'numeric',
+																	hour: 'numeric',
+																	minute: '2-digit',
+																})
 																: 'Never'}
 														</td>
 

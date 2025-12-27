@@ -191,7 +191,7 @@ export function EventDetailPage() {
 		if (event?.organizers && event.organizers.length > 0) {
 			return event.organizers.map(org => ({
 				id: 'remote',
-				username: org.username,
+				username: org.host && org.host !== 'unknown' ? `${org.username}@${org.host}` : org.username,
 				name: org.display,
 				profileImage: null,
 				displayColor: null,
@@ -209,7 +209,7 @@ export function EventDetailPage() {
 
 				return [{
 					id: 'remote',
-					username: cleanUsername,
+					username: `${cleanUsername}@${u.hostname}`,
 					name: `@${cleanUsername}@${u.hostname}`,
 					profileImage: null,
 					displayColor: null,
