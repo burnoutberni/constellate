@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 
 import { TermsOfServiceAgreement } from './TermsOfServiceAgreement'
 import { Modal, Button, Input } from './ui'
+import { EyeIcon, EyeOffIcon } from './ui/icons'
 
 const log = createLogger('[SignupModal]')
 
@@ -21,6 +22,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 	const [isLogin, setIsLogin] = useState(false)
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
+	const [showPassword, setShowPassword] = useState(false)
 	const [name, setName] = useState('')
 	const [username, setUsername] = useState('')
 	const [tosAccepted, setTosAccepted] = useState(false)
@@ -132,7 +134,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 					/>
 
 					<Input
-						type="password"
+						type={showPassword ? 'text' : 'password'}
 						label="Password"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
@@ -140,6 +142,9 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 						required
 						minLength={8}
 						helperText={!isLogin ? 'Must be at least 8 characters' : undefined}
+						rightIcon={showPassword ? <EyeOffIcon /> : <EyeIcon />}
+						onRightIconClick={() => setShowPassword(!showPassword)}
+						rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
 					/>
 
 					{!isLogin && (
