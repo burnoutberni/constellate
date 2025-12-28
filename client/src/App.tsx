@@ -20,7 +20,30 @@ import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
-import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
+import { useUIStore } from './stores'
+const TOAST_MAX_LENGTH = 500
+
+// Type guard for toast data
+interface ToastData {
+	message: string
+	variant: 'error' | 'success'
+}
+
+function isToastData(data: unknown): data is ToastData {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		!Array.isArray(data) &&
+		'message' in data &&
+		typeof (data as { message: unknown }).message === 'string' &&
+		(data as { message: string }).message.length > 0 &&
+		(data as { message: string }).message.length <= TOAST_MAX_LENGTH &&
+		'variant' in data &&
+		typeof (data as { variant: unknown }).variant === 'string' &&
+		((data as { variant: string }).variant === 'error' ||
+			(data as { variant: string }).variant === 'success')
+	)
+}
 
 // Lazy load pages
 const AboutPage = lazy(() =>
@@ -190,30 +213,18 @@ function AppContent() {
 
 				// Validate the structure and types of the parsed data
 				// Also validate message length to prevent UI issues and potential abuse
-				if (
-					typeof parsed === 'object' &&
-					parsed !== null &&
-					!Array.isArray(parsed) &&
-					'message' in parsed &&
-					'variant' in parsed &&
-					typeof (parsed as { message: unknown }).message === 'string' &&
-					(parsed as { message: string }).message.length > 0 &&
-					(parsed as { message: string }).message.length <= MAX_MESSAGE_LENGTH &&
-					typeof (parsed as { variant: unknown }).variant === 'string' &&
-					((parsed as { variant: string }).variant === 'error' ||
-						(parsed as { variant: string }).variant === 'success')
-				) {
-					const validToast = parsed as {
-						message: string
-						variant: 'error' | 'success'
-					}
+				if (isToastData(parsed)) {
 					addToast({
 						id: generateId(),
-						message: validToast.message,
-						variant: validToast.variant,
+						message: parsed.message,
+						variant: parsed.variant,
 					})
 				} else {
-					logger.error('Invalid toast data structure in sessionStorage')
+					logger.error('Invalid toast data structure in sessionStorage', {
+						parsed,
+						type: typeof parsed,
+						keys: typeof parsed === 'object' && parsed !== null ? Object.keys(parsed) : [],
+					})
 				}
 			} catch (e) {
 				logger.error('Failed to parse toast data from sessionStorage', e)

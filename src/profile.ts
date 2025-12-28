@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { Hono } from 'hono'
+import { prisma } from './lib/prisma.js'
 import { z, ZodError } from 'zod'
 import {
 	buildUpdateProfileActivity,
@@ -14,7 +15,6 @@ import { trackInstance } from './lib/instanceHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
-import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -491,7 +491,7 @@ app.put('/', moderateRateLimit, async (c) => {
 		const userId = requireAuth(c)
 
 		const body: unknown = await c.req.json()
-		const updates = ProfileUpdateSchema.parse(body)
+		const updates = await ProfileUpdateSchema.parseAsync(body)
 
 		const updatedUser = await prisma.user.update({
 			where: { id: userId },

@@ -54,13 +54,11 @@ export const EventInputSchema = z
 		locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
 		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
 		headerImage: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://example.com/event.jpg' }),
 		url: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://meet.example.com/abc123' }),
 		startTime: z
@@ -190,13 +188,11 @@ export const EventTemplateDataSchema = z
 		locationLatitude: z.number().min(-90).max(90).optional().openapi({ example: 40.7128 }),
 		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
 		headerImage: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://example.com/event.jpg' }),
 		url: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://meet.example.com/abc123' }),
 		startTime: z
@@ -347,15 +343,13 @@ export const ProfileUpdateSchema = z
 		name: z.string().min(1).max(100).optional(),
 		bio: z.string().max(500).optional(),
 		profileImage: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 				message: 'Profile image URL is not safe (SSRF protection)',
 			}),
 		headerImage: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.url({ message: 'Invalid URL' })
 			.optional()
 			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 				message: 'Header image URL is not safe (SSRF protection)',

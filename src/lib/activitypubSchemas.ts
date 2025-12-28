@@ -8,14 +8,14 @@ import { ActivityType, ObjectType, CollectionType } from '../constants/activityp
 
 // Base schemas
 const urlOrArray = z.union([
-	z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	z.array(z.string().regex(/^https?:\/\//, { message: 'Invalid URL' })),
+	z.url({ message: 'Invalid URL' }),
+	z.array(z.url({ message: 'Invalid URL' })),
 ])
 
 // Image schema
 export const ImageSchema = z.object({
 	type: z.literal(ObjectType.IMAGE),
-	url: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	url: z.url({ message: 'Invalid URL' }),
 	mediaType: z.string().optional(),
 	name: z.string().optional(),
 })
@@ -31,8 +31,8 @@ export const PlaceSchema = z.object({
 
 // Public Key schema
 export const PublicKeySchema = z.object({
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	owner: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
+	owner: z.url({ message: 'Invalid URL' }),
 	publicKeyPem: z.string(),
 })
 
@@ -40,29 +40,20 @@ export const PublicKeySchema = z.object({
 export const PersonSchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
 	type: z.literal(ObjectType.PERSON),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	preferredUsername: z.string(),
 	name: z.string().optional(),
 	summary: z.string().optional(),
-	inbox: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	outbox: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	followers: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
-	following: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	inbox: z.url({ message: 'Invalid URL' }),
+	outbox: z.url({ message: 'Invalid URL' }),
+	followers: z.url({ message: 'Invalid URL' }).optional(),
+	following: z.url({ message: 'Invalid URL' }).optional(),
 	publicKey: PublicKeySchema.optional(),
 	icon: ImageSchema.optional(),
 	image: ImageSchema.optional(),
 	endpoints: z
 		.object({
-			sharedInbox: z
-				.string()
-				.regex(/^https?:\/\//, { message: 'Invalid URL' })
-				.optional(),
+			sharedInbox: z.url({ message: 'Invalid URL' }).optional(),
 		})
 		.optional(),
 	displayColor: z.string().optional(),
@@ -72,7 +63,7 @@ export const PersonSchema = z.object({
 export const EventSchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
 	type: z.literal(ObjectType.EVENT),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	name: z.string(),
 	summary: z.string().optional(),
 	content: z.string().optional(),
@@ -90,7 +81,7 @@ export const EventSchema = z.object({
 	duration: z.string().optional(),
 	location: z.union([z.string(), PlaceSchema]).optional(),
 	attachment: z.array(ImageSchema).optional(),
-	attributedTo: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	attributedTo: z.url({ message: 'Invalid URL' }),
 	published: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
@@ -103,10 +94,7 @@ export const EventSchema = z.object({
 			message: 'Invalid datetime string',
 		})
 		.optional(),
-	url: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	url: z.url({ message: 'Invalid URL' }).optional(),
 	eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
 	eventAttendanceMode: z
 		.enum([
@@ -125,13 +113,10 @@ export const EventSchema = z.object({
 export const NoteSchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
 	type: z.literal(ObjectType.NOTE),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	content: z.string(),
-	attributedTo: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	inReplyTo: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	attributedTo: z.url({ message: 'Invalid URL' }),
+	inReplyTo: z.url({ message: 'Invalid URL' }).optional(),
 	published: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
@@ -145,7 +130,7 @@ export const NoteSchema = z.object({
 // Tombstone schema (for deletions)
 export const TombstoneSchema = z.object({
 	type: z.literal(ObjectType.TOMBSTONE),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	formerType: z.string().optional(),
 	deleted: z
 		.string()
@@ -160,9 +145,9 @@ export const TombstoneSchema = z.object({
 // Activity base schema
 const BaseActivitySchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	type: z.string(),
-	actor: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	actor: z.url({ message: 'Invalid URL' }),
 	published: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
@@ -190,7 +175,7 @@ export const UpdateActivitySchema = BaseActivitySchema.extend({
 export const DeleteActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.DELETE),
 	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+		z.url({ message: 'Invalid URL' }),
 		TombstoneSchema,
 		z.record(z.string(), z.unknown()),
 	]),
@@ -199,14 +184,14 @@ export const DeleteActivitySchema = BaseActivitySchema.extend({
 // Follow Activity
 export const FollowActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.FOLLOW),
-	object: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	object: z.url({ message: 'Invalid URL' }),
 })
 
 // Accept Activity
 export const AcceptActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.ACCEPT),
 	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+		z.url({ message: 'Invalid URL' }),
 		FollowActivitySchema,
 		z.record(z.string(), z.unknown()),
 	]),
@@ -215,25 +200,22 @@ export const AcceptActivitySchema = BaseActivitySchema.extend({
 // Reject Activity
 export const RejectActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.REJECT),
-	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-		z.record(z.string(), z.unknown()),
-	]),
+	object: z.union([z.url({ message: 'Invalid URL' }), z.record(z.string(), z.unknown())]),
 })
 
 // Like Activity
 export const LikeActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.LIKE),
-	object: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	object: z.url({ message: 'Invalid URL' }),
 })
 
 // Undo Activity
 export const UndoActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.UNDO),
 	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+		z.url({ message: 'Invalid URL' }),
 		z.object({
-			id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+			id: z.url({ message: 'Invalid URL' }),
 			type: z.string(),
 		}),
 		z.record(z.string(), z.unknown()),
@@ -243,30 +225,27 @@ export const UndoActivitySchema = BaseActivitySchema.extend({
 // Announce Activity
 export const AnnounceActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.ANNOUNCE),
-	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-		z.record(z.string(), z.unknown()),
-	]),
+	object: z.union([z.url({ message: 'Invalid URL' }), z.record(z.string(), z.unknown())]),
 })
 
 // TentativeAccept Activity (for attendance)
 export const TentativeAcceptActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.TENTATIVE_ACCEPT),
-	object: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	object: z.url({ message: 'Invalid URL' }),
 })
 
 // Block Activity
 export const BlockActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.BLOCK),
-	object: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	object: z.url({ message: 'Invalid URL' }),
 })
 
 // Flag Activity (for reports)
 export const FlagActivitySchema = BaseActivitySchema.extend({
 	type: z.literal(ActivityType.FLAG),
 	object: z.union([
-		z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-		z.array(z.string().regex(/^https?:\/\//, { message: 'Invalid URL' })),
+		z.url({ message: 'Invalid URL' }),
+		z.array(z.url({ message: 'Invalid URL' })),
 	]),
 	content: z.string().optional(),
 })
@@ -292,34 +271,22 @@ export const ActivitySchema = z.union([
 export const OrderedCollectionSchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
 	type: z.literal(CollectionType.ORDERED_COLLECTION),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
 	totalItems: z.number(),
 	orderedItems: z.array(z.unknown()).optional(),
-	first: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
-	last: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	first: z.url({ message: 'Invalid URL' }).optional(),
+	last: z.url({ message: 'Invalid URL' }).optional(),
 })
 
 // OrderedCollectionPage schema
 export const OrderedCollectionPageSchema = z.object({
 	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
 	type: z.literal(CollectionType.ORDERED_COLLECTION_PAGE),
-	id: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
-	partOf: z.string().regex(/^https?:\/\//, { message: 'Invalid URL' }),
+	id: z.url({ message: 'Invalid URL' }),
+	partOf: z.url({ message: 'Invalid URL' }),
 	orderedItems: z.array(z.unknown()),
-	next: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
-	prev: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	next: z.url({ message: 'Invalid URL' }).optional(),
+	prev: z.url({ message: 'Invalid URL' }).optional(),
 })
 
 // WebFinger schema
@@ -330,10 +297,7 @@ export const WebFingerSchema = z.object({
 		z.object({
 			rel: z.string(),
 			type: z.string().optional(),
-			href: z
-				.string()
-				.regex(/^https?:\/\//, { message: 'Invalid URL' })
-				.optional(),
+			href: z.url({ message: 'Invalid URL' }).optional(),
 		})
 	),
 })

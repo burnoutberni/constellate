@@ -204,14 +204,8 @@ const BaseEventSchema = z.object({
 	location: z.string().optional(),
 	locationLatitude: z.number().min(-90).max(90).nullish(),
 	locationLongitude: z.number().min(-180).max(180).nullish(),
-	headerImage: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
-	url: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	headerImage: z.url({ message: 'Invalid URL' }).optional(),
+	url: z.url({ message: 'Invalid URL' }).optional(),
 	startTime: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
@@ -393,14 +387,8 @@ const UpdateEventSchema = z
 		location: z.string().optional(),
 		locationLatitude: z.number().min(-90).max(90).nullish(),
 		locationLongitude: z.number().min(-180).max(180).nullish(),
-		headerImage: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
-			.optional(),
-		url: z
-			.string()
-			.regex(/^https?:\/\//, { message: 'Invalid URL' })
-			.optional(),
+		headerImage: z.url({ message: 'Invalid URL' }).optional(),
+		url: z.url({ message: 'Invalid URL' }).optional(),
 		startTime: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {

@@ -1283,13 +1283,8 @@ async function handleUndoAttendance(
 	attendanceActivity: AcceptActivity | Record<string, unknown>
 ): Promise<void> {
 	let actorUrl: string
-	if (
-		activity &&
-		typeof activity === 'object' &&
-		'actor' in activity &&
-		typeof (activity as { actor?: unknown }).actor === 'string'
-	) {
-		actorUrl = (activity as { actor: string }).actor
+	if (typeof activity === 'object' && 'actor' in activity) {
+		actorUrl = typeof activity.actor === 'string' ? activity.actor : ''
 	} else {
 		actorUrl = ''
 	}

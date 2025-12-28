@@ -22,6 +22,24 @@ function isSuggestedUsersData(data: unknown): data is { suggestions: SuggestedUs
 	)
 }
 
+function isTrendingEventData(data: unknown): data is TrendingEvent {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'title' in data &&
+		'startTime' in data
+	)
+}
+
+function isActivityData(data: unknown): data is Activity {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'type' in data &&
+		'createdAt' in data
+	)
+}
+
 export function FeedPage() {
 	const { user, logout } = useAuth()
 	const { sseConnected } = useUIStore()
@@ -142,35 +160,29 @@ export function FeedPage() {
 
 						switch (item.type) {
 							case 'onboarding': {
-								const itemData = item.data as Record<string, unknown>
-								if (isSuggestedUsersData(itemData)) {
-									return <OnboardingHero key={key} suggestions={itemData.suggestions} />
+								if (isSuggestedUsersData(item.data)) {
+									return <OnboardingHero key={key} suggestions={item.data.suggestions} />
 								}
 								return null
 							}
 
 							case 'suggested_users': {
-								const itemData = item.data as Record<string, unknown>
-								if (isSuggestedUsersData(itemData)) {
-									return <SuggestedUsersCard key={key} users={itemData.suggestions} />
+								if (isSuggestedUsersData(item.data)) {
+									return <SuggestedUsersCard key={key} users={item.data.suggestions} />
 								}
 								return null
 							}
 
 							case 'trending_event': {
-								const itemData = item.data as Record<string, unknown>
-								// Basic shape check for event
-								if (itemData && 'title' in itemData && 'startTime' in itemData) {
-									return <TrendingEventCard key={key} event={itemData as unknown as TrendingEvent} />
+								if (isTrendingEventData(item.data)) {
+									return <TrendingEventCard key={key} event={item.data} />
 								}
 								return null
 							}
 
 							case 'activity': {
-								const itemData = item.data as Record<string, unknown>
-								// Activity has type/user/event/createdAt
-								if (itemData && 'type' in itemData && 'createdAt' in itemData) {
-									return <ActivityFeedItem key={key} activity={itemData as unknown as Activity} />
+								if (isActivityData(item.data)) {
+									return <ActivityFeedItem key={key} activity={item.data} />
 								}
 								return null
 							}
