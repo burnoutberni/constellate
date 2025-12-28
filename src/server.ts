@@ -70,7 +70,7 @@ app.get('/doc', async (c) => {
 
 	try {
 		const spec = await fs.readFile(openapiPath, 'utf-8')
-		const openapi = JSON.parse(spec)
+		const openapi = JSON.parse(spec) as { servers: { url: string; description: string }[] }
 
 		// Dynamically set server URL based on environment
 		const serverUrl = process.env.BASE_URL || 'http://localhost:3000'

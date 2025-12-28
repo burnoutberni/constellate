@@ -258,7 +258,7 @@ async function handleAcceptEvent(
 	let objectUrl: string
 	if (typeof object === 'string') {
 		objectUrl = object
-	} else if (typeof object === 'object' && object !== null && 'id' in object) {
+	} else if (typeof object === 'object' && 'id' in object) {
 		objectUrl = object.id as string
 	} else {
 		objectUrl = ''
@@ -324,7 +324,7 @@ async function handleAcceptFollow(
 	const actorUrl = activity.actor
 
 	const followerUrl =
-		typeof followActivity === 'object' && followActivity !== null && 'actor' in followActivity
+		typeof followActivity === 'object' && 'actor' in followActivity
 			? (followActivity.actor as string)
 			: ''
 	const baseUrl = getBaseUrl()
@@ -953,12 +953,7 @@ function getObjectId(object: DeleteActivity['object']): string {
 	if (typeof object === 'string') {
 		return object
 	}
-	if (
-		typeof object === 'object' &&
-		object !== null &&
-		'id' in object &&
-		typeof object.id === 'string'
-	) {
+	if (typeof object === 'object' && 'id' in object && typeof object.id === 'string') {
 		return object.id
 	}
 	return ''
@@ -973,7 +968,6 @@ function getObjectId(object: DeleteActivity['object']): string {
 function getFormerType(object: DeleteActivity['object']): string | null {
 	if (
 		typeof object === 'object' &&
-		object !== null &&
 		'formerType' in object &&
 		typeof object.formerType === 'string'
 	) {
@@ -1121,7 +1115,7 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
 		return
 	}
 
-	if (typeof object !== 'object' || object === null || !('type' in object)) {
+	if (typeof object !== 'object' || !('type' in object)) {
 		return
 	}
 
@@ -1164,7 +1158,7 @@ async function handleUndoLike(
 ): Promise<void> {
 	const actorUrl = activity.actor
 	let objectUrl: string
-	if (typeof likeActivity === 'object' && likeActivity !== null && 'object' in likeActivity) {
+	if (typeof likeActivity === 'object' && 'object' in likeActivity) {
 		objectUrl = typeof likeActivity.object === 'string' ? likeActivity.object : ''
 	} else {
 		objectUrl = ''
@@ -1222,11 +1216,7 @@ async function handleUndoFollow(
 ): Promise<void> {
 	const actorUrl = activity.actor
 	let objectUrl: string
-	if (
-		typeof followActivity === 'object' &&
-		followActivity !== null &&
-		'object' in followActivity
-	) {
+	if (typeof followActivity === 'object' && 'object' in followActivity) {
 		objectUrl = typeof followActivity.object === 'string' ? followActivity.object : ''
 	} else {
 		objectUrl = ''
@@ -1294,21 +1284,17 @@ async function handleUndoAttendance(
 ): Promise<void> {
 	let actorUrl: string
 	if (
+		activity &&
 		typeof activity === 'object' &&
-		activity !== null &&
 		'actor' in activity &&
-		typeof activity.actor === 'string'
+		typeof (activity as { actor?: unknown }).actor === 'string'
 	) {
-		actorUrl = activity.actor
+		actorUrl = (activity as { actor: string }).actor
 	} else {
 		actorUrl = ''
 	}
 	let objectUrl: string
-	if (
-		typeof attendanceActivity === 'object' &&
-		attendanceActivity !== null &&
-		'object' in attendanceActivity
-	) {
+	if (typeof attendanceActivity === 'object' && 'object' in attendanceActivity) {
 		objectUrl = typeof attendanceActivity.object === 'string' ? attendanceActivity.object : ''
 	} else {
 		objectUrl = ''
@@ -1442,27 +1428,19 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
  */
 async function handleTentativeAccept(activity: Activity | Record<string, unknown>): Promise<void> {
 	let actorUrl: string
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'actor' in activity &&
-		typeof activity.actor === 'string'
-	) {
+	if (typeof activity === 'object' && 'actor' in activity && typeof activity.actor === 'string') {
 		actorUrl = activity.actor
 	} else {
 		actorUrl = ''
 	}
 	let objectUrl: string
-	if (typeof activity === 'object' && activity !== null && 'object' in activity) {
+	if (typeof activity === 'object' && 'object' in activity) {
 		objectUrl = typeof activity.object === 'string' ? activity.object : ''
 	} else {
 		objectUrl = ''
 	}
 	const activityId =
-		typeof activity === 'object' &&
-		activity !== null &&
-		'id' in activity &&
-		typeof activity.id === 'string'
+		typeof activity === 'object' && 'id' in activity && typeof activity.id === 'string'
 			? activity.id
 			: null
 
@@ -1638,12 +1616,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
  * @returns The actor URL string, or an empty string if not found
  */
 function extractActorUrl(activity: Activity | Record<string, unknown>) {
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'actor' in activity &&
-		typeof activity.actor === 'string'
-	) {
+	if (typeof activity === 'object' && 'actor' in activity && typeof activity.actor === 'string') {
 		return activity.actor
 	}
 	return ''
@@ -1656,9 +1629,7 @@ function extractActorUrl(activity: Activity | Record<string, unknown>) {
  * @returns The object value, or null if not present
  */
 function extractObject(activity: Activity | Record<string, unknown>) {
-	return typeof activity === 'object' && activity !== null && 'object' in activity
-		? activity.object
-		: null
+	return typeof activity === 'object' && 'object' in activity ? activity.object : null
 }
 
 /**
@@ -1716,12 +1687,7 @@ async function findEventByObjectUrl(objectUrl: string) {
  * @returns The activity ID string if present, or null if not found
  */
 function getActivityId(activity: Activity | Record<string, unknown>) {
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'id' in activity &&
-		typeof activity.id === 'string'
-	) {
+	if (typeof activity === 'object' && 'id' in activity && typeof activity.id === 'string') {
 		return activity.id
 	}
 	return null

@@ -29,10 +29,7 @@ const SearchQuerySchema = z.object({
 	limit: z.string().optional(),
 })
 
-// Resolve account schema
-const ResolveAccountSchema = z.object({
-	handle: z.string().min(1).max(300), // Add length limit for full handles
-})
+// Resolve account schema - removed as unused
 
 /**
  * Parse a handle into username and domain
@@ -273,10 +270,17 @@ app.get('/', async (c) => {
  */
 app.post('/resolve', async (c) => {
 	try {
-		const body = await c.req.json()
-		const params = ResolveAccountSchema.parse(body)
+		const body: unknown = await c.req.json()
+		if (!body || typeof body !== 'object') {
+			return c.json({ error: 'Invalid request body' }, 400)
+		}
+		const { handle } = body as { handle?: string }
 
-		const parsedHandle = parseHandle(params.handle)
+		if (!handle || typeof handle !== 'string' || handle.trim().length === 0) {
+			return c.json({ error: 'Invalid handle format' }, 400)
+		}
+
+		const parsedHandle = parseHandle(handle)
 
 		if (!parsedHandle) {
 			return c.json({ error: 'Invalid handle format' }, 400)

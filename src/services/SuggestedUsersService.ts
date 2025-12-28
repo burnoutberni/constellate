@@ -7,9 +7,7 @@ export class SuggestedUsersService {
 			where: { userId },
 			select: { actorUrl: true },
 		})
-		const followingActorUrls = following
-			.map((f) => f.actorUrl)
-			.filter((url): url is string => url !== null)
+		const followingActorUrls = following.map((f) => f.actorUrl)
 
 		// 2. Find active users (who have posted events in the last 30 days)
 		// We can't easily join on "last post date" efficiently in one go without raw SQL or heavy operations,

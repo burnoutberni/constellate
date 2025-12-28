@@ -100,8 +100,8 @@ class ApiClient {
 	): Promise<never> {
 		const errorMessage = await buildErrorMessage(baseMessage, response)
 		const error = new Error(errorMessage)
-		// Attach response for potential error handling
-		;(error as Error & { response?: Response }).response = response
+			// Attach response for potential error handling
+			; (error as Error & { response?: Response }).response = response
 		throw error
 	}
 
@@ -145,7 +145,7 @@ class ApiClient {
 
 		// Parse JSON response
 		try {
-			return await interceptedResponse.json()
+			return (await interceptedResponse.json()) as T
 		} catch (_error) {
 			// If response is empty or not JSON, return empty object
 			if (

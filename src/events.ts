@@ -204,10 +204,25 @@ const BaseEventSchema = z.object({
 	location: z.string().optional(),
 	locationLatitude: z.number().min(-90).max(90).nullish(),
 	locationLongitude: z.number().min(-180).max(180).nullish(),
-	headerImage: z.string().url().optional(),
-	url: z.string().url().optional(),
-	startTime: z.string().datetime(),
-	endTime: z.string().datetime().optional(),
+	headerImage: z
+		.string()
+		.regex(/^https?:\/\//, { message: 'Invalid URL' })
+		.optional(),
+	url: z
+		.string()
+		.regex(/^https?:\/\//, { message: 'Invalid URL' })
+		.optional(),
+	startTime: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		}),
+	endTime: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(),
 	duration: z.string().optional(),
 	eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
 	eventAttendanceMode: z
@@ -218,9 +233,21 @@ const BaseEventSchema = z.object({
 		])
 		.optional(),
 	maximumAttendeeCapacity: z.number().int().positive().optional(),
+	remainingAttendeeCapacity: z.number().int().nonnegative().optional(),
+	updatedAt: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(),
 	visibility: VisibilitySchema.optional(),
 	recurrencePattern: RecurrencePatternEnum.optional().nullable(),
-	recurrenceEndDate: z.string().datetime().optional().nullable(),
+	recurrenceEndDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.nullish(),
 	tags: z.array(z.string().min(1).max(50)).optional(), // Array of tag strings
 	timezone: TimezoneSchema.optional(),
 })
@@ -362,13 +389,30 @@ const UpdateEventSchema = z
 	.object({
 		title: z.string().min(1).max(200).optional(),
 		summary: z.string().optional(),
+		description: z.string().optional(),
 		location: z.string().optional(),
 		locationLatitude: z.number().min(-90).max(90).nullish(),
 		locationLongitude: z.number().min(-180).max(180).nullish(),
-		headerImage: z.string().url().optional(),
-		url: z.string().url().optional(),
-		startTime: z.string().datetime().optional(),
-		endTime: z.string().datetime().optional(),
+		headerImage: z
+			.string()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.optional(),
+		url: z
+			.string()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.optional(),
+		startTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional(),
+		endTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional(),
 		duration: z.string().optional(),
 		eventStatus: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
 		eventAttendanceMode: z
@@ -379,9 +423,21 @@ const UpdateEventSchema = z
 			])
 			.optional(),
 		maximumAttendeeCapacity: z.number().int().positive().optional(),
+		remainingAttendeeCapacity: z.number().int().nonnegative().optional(),
+		updatedAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional(),
 		visibility: VisibilitySchema.optional(),
 		recurrencePattern: RecurrencePatternEnum.nullish(),
-		recurrenceEndDate: z.string().datetime().nullish(),
+		recurrenceEndDate: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.nullish(),
 		tags: z.array(z.string().min(1).max(50)).optional(),
 		timezone: TimezoneSchema.optional(),
 	})
@@ -1364,6 +1420,7 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
 const eventFieldTransformers: Record<string, (val: unknown) => unknown> = {
 	title: (val) => sanitizeText(val as string),
 	summary: (val) => (val ? sanitizeText(val as string) : null),
+	description: (val) => (val ? sanitizeText(val as string) : null),
 	location: (val) => (val ? sanitizeText(val as string) : null),
 	locationLatitude: (val) => (val === null || val === undefined ? null : val),
 	locationLongitude: (val) => (val === null || val === undefined ? null : val),
@@ -1375,6 +1432,8 @@ const eventFieldTransformers: Record<string, (val: unknown) => unknown> = {
 	eventStatus: (val) => (val ? val : null),
 	eventAttendanceMode: (val) => (val ? val : null),
 	maximumAttendeeCapacity: (val) => (val === null || val === undefined ? null : val),
+	remainingAttendeeCapacity: (val) => (val === null || val === undefined ? null : val),
+	updatedAt: (val) => (val === null || val === undefined ? null : new Date(val as string)),
 	timezone: (val) => normalizeTimeZone(val as string),
 	recurrencePattern: (val) => (val === null || val === undefined ? null : val),
 	recurrenceEndDate: (val) =>

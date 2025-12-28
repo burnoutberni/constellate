@@ -57,9 +57,6 @@ export function serializeNotification(notification: NotificationWithActor) {
 	) {
 		data = null
 	}
-	if (data === undefined) {
-		data = null
-	}
 
 	return {
 		id: notification.id,

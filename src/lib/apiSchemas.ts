@@ -55,12 +55,27 @@ export const EventInputSchema = z
 		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
 		headerImage: z
 			.string()
-			.url()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://example.com/event.jpg' }),
-		url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
-		startTime: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
-		endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
+		url: z
+			.string()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.optional()
+			.openapi({ example: 'https://meet.example.com/abc123' }),
+		startTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.openapi({ example: '2024-12-01T10:00:00Z' }),
+		endTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional()
+			.openapi({ example: '2024-12-01T11:00:00Z' }),
 		duration: z.string().optional().openapi({ example: 'PT1H' }),
 		timezone: z
 			.string()
@@ -87,7 +102,9 @@ export const EventInputSchema = z
 			.openapi({ example: 'WEEKLY' }),
 		recurrenceEndDate: z
 			.string()
-			.datetime()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
 			.optional()
 			.openapi({ example: '2025-03-01T09:00:00Z' }),
 	})
@@ -103,20 +120,43 @@ export const EventSchema = z
 		locationLongitude: z.number().nullable().optional(),
 		headerImage: z.string().nullable(),
 		url: z.string().nullable(),
-		startTime: z.string().datetime(),
-		endTime: z.string().datetime().nullable(),
+		startTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
+		endTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.nullable(),
 		duration: z.string().nullable(),
 		timezone: z.string().openapi({ example: 'America/New_York' }),
 		eventStatus: z.string().nullable(),
 		eventAttendanceMode: z.string().nullable(),
 		maximumAttendeeCapacity: z.number().nullable(),
 		recurrencePattern: z.string().nullable().optional(),
-		recurrenceEndDate: z.string().datetime().nullable().optional(),
+		recurrenceEndDate: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.nullable()
+			.optional(),
 		userId: z.string().nullable(),
 		attributedTo: z.string(),
 		externalId: z.string().nullable(),
-		createdAt: z.string().datetime(),
-		updatedAt: z.string().datetime(),
+		createdAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
+		updatedAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
 		visibility: EventVisibilitySchema.default('PUBLIC'),
 		user: UserSchema.nullable(),
 		_count: z
@@ -151,12 +191,28 @@ export const EventTemplateDataSchema = z
 		locationLongitude: z.number().min(-180).max(180).optional().openapi({ example: -74.006 }),
 		headerImage: z
 			.string()
-			.url()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
 			.optional()
 			.openapi({ example: 'https://example.com/event.jpg' }),
-		url: z.string().url().optional().openapi({ example: 'https://meet.example.com/abc123' }),
-		startTime: z.string().datetime().optional().openapi({ example: '2024-12-01T10:00:00Z' }),
-		endTime: z.string().datetime().optional().openapi({ example: '2024-12-01T11:00:00Z' }),
+		url: z
+			.string()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
+			.optional()
+			.openapi({ example: 'https://meet.example.com/abc123' }),
+		startTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional()
+			.openapi({ example: '2024-12-01T10:00:00Z' }),
+		endTime: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			})
+			.optional()
+			.openapi({ example: '2024-12-01T11:00:00Z' }),
 		duration: z.string().optional().openapi({ example: 'PT1H' }),
 		eventStatus: z
 			.enum(['EventScheduled', 'EventCancelled', 'EventPostponed'])
@@ -204,8 +260,16 @@ export const EventTemplateSchema = z
 		name: z.string().openapi({ example: 'Weekly Standup' }),
 		description: z.string().nullable().openapi({ example: 'Use for recurring standups' }),
 		data: EventTemplateDataSchema,
-		createdAt: z.string().datetime(),
-		updatedAt: z.string().datetime(),
+		createdAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
+		updatedAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
 	})
 	.openapi('EventTemplate')
 
@@ -228,7 +292,11 @@ export const AttendanceSchema = z
 		status: z.string(),
 		userId: z.string(),
 		eventId: z.string(),
-		createdAt: z.string().datetime(),
+		createdAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
 		user: UserSchema.nullable(),
 	})
 	.openapi('Attendance')
@@ -257,8 +325,16 @@ export const CommentSchema = z
 		eventId: z.string(),
 		inReplyToId: z.string().nullable(),
 		externalId: z.string().nullable(),
-		createdAt: z.string().datetime(),
-		updatedAt: z.string().datetime(),
+		createdAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
+		updatedAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
 		author: UserSchema,
 		replies: z.array(z.any()).optional(),
 		mentions: z.array(CommentMentionSchema).optional(),
@@ -272,14 +348,14 @@ export const ProfileUpdateSchema = z
 		bio: z.string().max(500).optional(),
 		profileImage: z
 			.string()
-			.url()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
 			.optional()
 			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 				message: 'Profile image URL is not safe (SSRF protection)',
 			}),
 		headerImage: z
 			.string()
-			.url()
+			.regex(/^https?:\/\//, { message: 'Invalid URL' })
 			.optional()
 			.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 				message: 'Header image URL is not safe (SSRF protection)',
@@ -312,7 +388,11 @@ export const ProfileSchema = z
 			description:
 				'Profile visibility: true = public (visible to everyone), false = private (only visible to followers).',
 		}),
-		createdAt: z.string().datetime(),
+		createdAt: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+				message: 'Invalid datetime string',
+			}),
 		_count: z
 			.object({
 				followers: z.number(),

@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { AppealStatus, AppealType, ReportCategory } from '@prisma/client'
+import { AppealStatus, ReportCategory } from '@prisma/client'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 
@@ -468,7 +468,7 @@ app.get('/block/check/:username', async (c) => {
 
 // Appeal schema
 const AppealSchema = z.object({
-	type: z.nativeEnum(AppealType),
+	type: z.enum(['ACCOUNT_SUSPENSION', 'CONTENT_REMOVAL']),
 	reason: z.string().min(1).max(2000),
 	referenceId: z.string().optional(),
 	referenceType: z.string().optional(),

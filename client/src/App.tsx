@@ -194,25 +194,26 @@ function AppContent() {
 					typeof parsed === 'object' &&
 					parsed !== null &&
 					!Array.isArray(parsed) &&
-					typeof parsed.message === 'string' &&
-					parsed.message.length > 0 &&
-					parsed.message.length <= MAX_MESSAGE_LENGTH &&
-					typeof parsed.variant === 'string' &&
-					(parsed.variant === 'error' || parsed.variant === 'success')
+					'message' in parsed &&
+					'variant' in parsed &&
+					typeof (parsed as { message: unknown }).message === 'string' &&
+					(parsed as { message: string }).message.length > 0 &&
+					(parsed as { message: string }).message.length <= MAX_MESSAGE_LENGTH &&
+					typeof (parsed as { variant: unknown }).variant === 'string' &&
+					((parsed as { variant: string }).variant === 'error' ||
+						(parsed as { variant: string }).variant === 'success')
 				) {
+					const validToast = parsed as {
+						message: string
+						variant: 'error' | 'success'
+					}
 					addToast({
 						id: generateId(),
-						message: parsed.message,
-						variant: parsed.variant,
+						message: validToast.message,
+						variant: validToast.variant,
 					})
 				} else {
-					logger.error('Invalid toast data structure in sessionStorage', {
-						hasMessage: typeof parsed?.message === 'string',
-						messageLength:
-							typeof parsed?.message === 'string' ? parsed.message.length : undefined,
-						hasVariant: typeof parsed?.variant === 'string',
-						variantValue: parsed?.variant,
-					})
+					logger.error('Invalid toast data structure in sessionStorage')
 				}
 			} catch (e) {
 				logger.error('Failed to parse toast data from sessionStorage', e)

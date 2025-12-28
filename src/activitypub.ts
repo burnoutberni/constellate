@@ -39,7 +39,7 @@ app.get('/.well-known/webfinger', async (c) => {
 		}
 
 		// Parse resource (acct:username@domain)
-		const match = resource.match(/^acct:([^@]+)@(.+)$/)
+		const match = /^acct:([^@]+)@(.+)$/.exec(resource)
 		if (!match) {
 			return c.json({ error: 'Invalid resource format' }, 400)
 		}
@@ -573,15 +573,16 @@ app.post(
 			}
 
 			// Validate activity
+			let validatedActivity
 			try {
-				ActivitySchema.parse(activity)
+				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
 				console.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
-			handleActivity(activity).catch((error) => {
+			handleActivity(validatedActivity).catch((error) => {
 				console.error('Error handling activity:', error)
 			})
 
@@ -659,15 +660,16 @@ app.post(
 			}
 
 			// Validate activity
+			let validatedActivity
 			try {
-				ActivitySchema.parse(activity)
+				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
 				console.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
-			handleActivity(activity).catch((error) => {
+			handleActivity(validatedActivity).catch((error) => {
 				console.error('Error handling activity:', error)
 			})
 

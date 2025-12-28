@@ -213,7 +213,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('event:updated', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { event: { id: string; user?: { username: string } } } }
 		const updatedEvent = event.data.event
 
 		if (updatedEvent?.user?.username && updatedEvent?.id) {
@@ -227,7 +227,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('event:deleted', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId?: string; externalId?: string; username?: string } }
 		const eventId = event.data.eventId || event.data.externalId
 
 		if (event.data.username && eventId) {
@@ -240,7 +240,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('attendance:added', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string } }
 		if (event.data?.eventId) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeysParam.events.details(),
@@ -249,7 +249,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('attendance:updated', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string } }
 		if (event.data?.eventId) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeysParam.events.details(),
@@ -258,7 +258,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('attendance:removed', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string } }
 		if (!event.data?.eventId) {
 			return
 		}
@@ -292,7 +292,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('like:removed', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string; userId: string } }
 		if (!event.data?.eventId || !event.data?.userId) {
 			return
 		}
@@ -318,7 +318,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('comment:deleted', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string; commentId: string } }
 		if (!event.data?.eventId || !event.data?.commentId) {
 			return
 		}
@@ -337,7 +337,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('profile:updated', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string } }
 		if (event.data?.username) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeysParam.users.profile(event.data.username),
@@ -346,7 +346,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follow:added', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string } }
 		if (event.data?.username) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeysParam.users.profile(event.data.username),
@@ -358,7 +358,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follower:added', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string; followerCount?: number } }
 		if (event.data?.username) {
 			if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
 				const profileData = queryClient.getQueryData(
@@ -391,7 +391,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follower:removed', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string; followerCount?: number } }
 		if (event.data?.username) {
 			if (event.data.followerCount !== null && event.data.followerCount !== undefined) {
 				const profileData = queryClient.getQueryData(
@@ -424,7 +424,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follow:removed', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string } }
 		if (event.data?.username) {
 			queryClient.setQueryData(queryKeysParam.users.followStatus(event.data.username), {
 				isFollowing: false,
@@ -437,7 +437,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follow:pending', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string } }
 		if (event.data?.username) {
 			queryClient.setQueryData(queryKeysParam.users.followStatus(event.data.username), {
 				isFollowing: true,
@@ -447,7 +447,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follow:accepted', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string; followerCount?: number } }
 		if (event.data?.username) {
 			queryClient.setQueryData(queryKeysParam.users.followStatus(event.data.username), {
 				isFollowing: true,
@@ -484,7 +484,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('follow:rejected', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { username: string } }
 		if (event.data?.username) {
 			queryClient.setQueryData(queryKeysParam.users.followStatus(event.data.username), {
 				isFollowing: false,
@@ -498,17 +498,20 @@ const setupEventListeners = (
 
 	if (addMentionNotification) {
 		eventSource.addEventListener('mention:received', (e) => {
-			const event = JSON.parse(e.data)
-			const data = event.data as {
-				commentId?: string
-				commentContent?: string
-				eventId?: string
-				eventTitle?: string
-				eventOwnerHandle?: string
-				handle?: string
-				author?: { id?: string; username?: string; name?: string }
-				createdAt?: string
+			const event = JSON.parse(e.data) as {
+				data: {
+					commentId?: string
+					commentContent?: string
+					eventId?: string
+					eventTitle?: string
+					eventOwnerHandle?: string
+					handle?: string
+					author?: { id?: string; username?: string; name?: string }
+					createdAt?: string
+				}
+				timestamp?: string
 			}
+			const {data} = event
 
 			if (data?.commentId && data?.eventId) {
 				const createdAt = data.createdAt || event.timestamp || new Date().toISOString()
@@ -528,7 +531,7 @@ const setupEventListeners = (
 	}
 
 	eventSource.addEventListener('notification:created', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { notification: Notification } }
 		const notification = event.data?.notification as Notification | undefined
 		if (!notification) {
 			return
@@ -567,7 +570,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('notification:read', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { allRead?: boolean; notification?: Notification } }
 		const payload = event.data
 
 		if (payload?.allRead) {
