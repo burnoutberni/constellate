@@ -1236,6 +1236,87 @@
 		}
 	],
 	"paths": {
+		"/activity/feed": {
+			"get": {
+				"tags": ["Activity"],
+				"summary": "Get activity feed",
+				"description": "Returns a paginated unified feed of activities, trending events, and suggestions",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Cursor for pagination (timestamp of last item)"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 20
+						},
+						"description": "Number of items to return"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Feed items",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"type": {
+														"type": "string",
+														"enum": [
+															"activity",
+															"trending_event",
+															"suggested_users",
+															"onboarding"
+														]
+													},
+													"id": {
+														"type": "string"
+													},
+													"timestamp": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"data": {
+														"type": "object"
+													}
+												}
+											}
+										},
+										"nextCursor": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/schemas/Error"
+					},
+					"500": {
+						"$ref": "#/components/schemas/Error"
+					}
+				}
+			}
+		},
 		"/api/notifications": {
 			"get": {
 				"tags": ["Notifications"],
@@ -4606,9 +4687,15 @@
 											"items": {
 												"type": "object",
 												"properties": {
-													"id": { "type": "string" },
-													"domain": { "type": "string" },
-													"baseUrl": { "type": "string" },
+													"id": {
+														"type": "string"
+													},
+													"domain": {
+														"type": "string"
+													},
+													"baseUrl": {
+														"type": "string"
+													},
 													"software": {
 														"type": "string",
 														"nullable": true
@@ -4617,7 +4704,10 @@
 														"type": "string",
 														"nullable": true
 													},
-													"title": { "type": "string", "nullable": true },
+													"title": {
+														"type": "string",
+														"nullable": true
+													},
 													"description": {
 														"type": "string",
 														"nullable": true
@@ -4639,21 +4729,35 @@
 														"format": "date-time",
 														"nullable": true
 													},
-													"isBlocked": { "type": "boolean" },
+													"isBlocked": {
+														"type": "boolean"
+													},
 													"stats": {
 														"type": "object",
 														"properties": {
-															"remoteUsers": { "type": "integer" },
-															"remoteEvents": { "type": "integer" },
-															"localFollowing": { "type": "integer" }
+															"remoteUsers": {
+																"type": "integer"
+															},
+															"remoteEvents": {
+																"type": "integer"
+															},
+															"localFollowing": {
+																"type": "integer"
+															}
 														}
 													}
 												}
 											}
 										},
-										"total": { "type": "integer" },
-										"limit": { "type": "integer" },
-										"offset": { "type": "integer" }
+										"total": {
+											"type": "integer"
+										},
+										"limit": {
+											"type": "integer"
+										},
+										"offset": {
+											"type": "integer"
+										}
 									}
 								}
 							}
@@ -4713,10 +4817,19 @@
 											"items": {
 												"type": "object",
 												"properties": {
-													"id": { "type": "string" },
-													"domain": { "type": "string" },
-													"baseUrl": { "type": "string" },
-													"title": { "type": "string", "nullable": true },
+													"id": {
+														"type": "string"
+													},
+													"domain": {
+														"type": "string"
+													},
+													"baseUrl": {
+														"type": "string"
+													},
+													"title": {
+														"type": "string",
+														"nullable": true
+													},
 													"description": {
 														"type": "string",
 														"nullable": true
@@ -4729,7 +4842,9 @@
 														"type": "string",
 														"nullable": true
 													},
-													"isBlocked": { "type": "boolean" }
+													"isBlocked": {
+														"type": "boolean"
+													}
 												}
 											}
 										}
@@ -4776,23 +4891,55 @@
 								"schema": {
 									"type": "object",
 									"properties": {
-										"id": { "type": "string" },
-										"domain": { "type": "string" },
-										"baseUrl": { "type": "string" },
-										"software": { "type": "string", "nullable": true },
-										"version": { "type": "string", "nullable": true },
-										"title": { "type": "string", "nullable": true },
-										"description": { "type": "string", "nullable": true },
-										"iconUrl": { "type": "string", "nullable": true },
-										"contact": { "type": "string", "nullable": true },
-										"userCount": { "type": "integer", "nullable": true },
-										"eventCount": { "type": "integer", "nullable": true },
+										"id": {
+											"type": "string"
+										},
+										"domain": {
+											"type": "string"
+										},
+										"baseUrl": {
+											"type": "string"
+										},
+										"software": {
+											"type": "string",
+											"nullable": true
+										},
+										"version": {
+											"type": "string",
+											"nullable": true
+										},
+										"title": {
+											"type": "string",
+											"nullable": true
+										},
+										"description": {
+											"type": "string",
+											"nullable": true
+										},
+										"iconUrl": {
+											"type": "string",
+											"nullable": true
+										},
+										"contact": {
+											"type": "string",
+											"nullable": true
+										},
+										"userCount": {
+											"type": "integer",
+											"nullable": true
+										},
+										"eventCount": {
+											"type": "integer",
+											"nullable": true
+										},
 										"lastActivityAt": {
 											"type": "string",
 											"format": "date-time",
 											"nullable": true
 										},
-										"isBlocked": { "type": "boolean" },
+										"isBlocked": {
+											"type": "boolean"
+										},
 										"lastFetchedAt": {
 											"type": "string",
 											"format": "date-time",
@@ -4803,14 +4950,25 @@
 											"format": "date-time",
 											"nullable": true
 										},
-										"lastError": { "type": "string", "nullable": true },
+										"lastError": {
+											"type": "string",
+											"nullable": true
+										},
 										"stats": {
 											"type": "object",
 											"properties": {
-												"remoteUsers": { "type": "integer" },
-												"remoteEvents": { "type": "integer" },
-												"localFollowing": { "type": "integer" },
-												"localFollowers": { "type": "integer" }
+												"remoteUsers": {
+													"type": "integer"
+												},
+												"remoteEvents": {
+													"type": "integer"
+												},
+												"localFollowing": {
+													"type": "integer"
+												},
+												"localFollowers": {
+													"type": "integer"
+												}
 											}
 										}
 									}

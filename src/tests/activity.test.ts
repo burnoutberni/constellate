@@ -96,7 +96,9 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities).toEqual([])
+			// Filter for actual activity items, ignoring onboarding/trending
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities).toEqual([])
 		})
 
 		it('should include tags in like activities', async () => {
@@ -130,8 +132,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const likeActivity = body.activities.find((a: any) => a.type === 'like')
-			expect(likeActivity).toBeDefined()
+			// Find like activity within items
+			const likeItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'like'
+			)
+			expect(likeItem).toBeDefined()
+			const likeActivity = likeItem.data
 			expect(likeActivity.event.tags).toBeDefined()
 			expect(Array.isArray(likeActivity.event.tags)).toBe(true)
 			expect(likeActivity.event.tags).toHaveLength(2)
@@ -171,8 +177,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const rsvpActivity = body.activities.find((a: any) => a.type === 'rsvp')
-			expect(rsvpActivity).toBeDefined()
+			const rsvpItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'rsvp'
+			)
+			expect(rsvpItem).toBeDefined()
+			const rsvpActivity = rsvpItem.data
 			expect(rsvpActivity.event.tags).toBeDefined()
 			expect(rsvpActivity.event.tags).toHaveLength(2)
 			expect(rsvpActivity.event.tags[0].tag).toBe('networking')
@@ -211,8 +220,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const commentActivity = body.activities.find((a: any) => a.type === 'comment')
-			expect(commentActivity).toBeDefined()
+			const commentItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'comment'
+			)
+			expect(commentItem).toBeDefined()
+			const commentActivity = commentItem.data
 			expect(commentActivity.event.tags).toBeDefined()
 			expect(commentActivity.event.tags).toHaveLength(1)
 			expect(commentActivity.event.tags[0].tag).toBe('discussion')
@@ -241,11 +253,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities).toHaveLength(1)
-			expect(body.activities[0].type).toBe('event_created')
-			expect(body.activities[0].event.tags).toBeDefined()
-			expect(body.activities[0].event.tags).toHaveLength(3)
-			expect(body.activities[0].event.tags.map((t: { tag: string }) => t.tag)).toEqual([
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities).toHaveLength(1)
+			expect(activities[0].data.type).toBe('event_created')
+			expect(activities[0].data.event.tags).toBeDefined()
+			expect(activities[0].data.event.tags).toHaveLength(3)
+			expect(activities[0].data.event.tags.map((t: { tag: string }) => t.tag)).toEqual([
 				'launch',
 				'product',
 				'announcement',
@@ -280,8 +293,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const likeActivity = body.activities.find((a: any) => a.type === 'like')
-			expect(likeActivity).toBeDefined()
+			const likeItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'like'
+			)
+			expect(likeItem).toBeDefined()
+			const likeActivity = likeItem.data
 			expect(likeActivity.event.tags).toBeDefined()
 			expect(Array.isArray(likeActivity.event.tags)).toBe(true)
 			expect(likeActivity.event.tags).toHaveLength(0)
@@ -343,10 +359,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities.length).toBeGreaterThanOrEqual(3)
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities.length).toBeGreaterThanOrEqual(3)
 
 			// Verify all activities have tags
-			body.activities.forEach((activity: any) => {
+			activities.forEach((item: any) => {
+				const activity = item.data
 				expect(activity.event.tags).toBeDefined()
 				expect(Array.isArray(activity.event.tags)).toBe(true)
 			})
