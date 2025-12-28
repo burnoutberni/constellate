@@ -742,6 +742,64 @@
 					}
 				}
 			},
+			"Report": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"reporterId": {
+						"type": "string"
+					},
+					"reportedUserId": {
+						"type": "string",
+						"nullable": true
+					},
+					"contentUrl": {
+						"type": "string",
+						"nullable": true
+					},
+					"contentPath": {
+						"type": "string",
+						"nullable": true,
+						"description": "Enriched content path (if available)"
+					},
+					"reason": {
+						"type": "string"
+					},
+					"category": {
+						"type": "string",
+						"enum": ["spam", "harassment", "inappropriate", "other"]
+					},
+					"status": {
+						"type": "string",
+						"enum": ["pending", "resolved", "dismissed"]
+					},
+					"reporter": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"username": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string",
+								"nullable": true
+							}
+						}
+					}
+				}
+			},
 			"AppealInput": {
 				"type": "object",
 				"required": ["type", "reason"],
@@ -2697,6 +2755,32 @@
 				}
 			}
 		},
+		"/api/tos/version": {
+			"get": {
+				"tags": ["Profile"],
+				"summary": "Get current ToS version",
+				"description": "Returns the current version number of the Terms of Service.",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Current ToS version",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"version": {
+											"type": "integer",
+											"description": "Current ToS version number"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/tos/status": {
 			"get": {
 				"tags": ["Profile"],
@@ -3689,6 +3773,41 @@
 			}
 		},
 		"/api/moderation/reports/{id}": {
+			"get": {
+				"tags": ["Moderation"],
+				"summary": "Get single report (admin only)",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Report details",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Report"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Report not found"
+					},
+					"401": {
+						"description": "Unauthorized"
+					},
+					"403": {
+						"description": "Forbidden (admin only)"
+					}
+				}
+			},
 			"put": {
 				"tags": ["Moderation"],
 				"summary": "Update report status (admin only)",
