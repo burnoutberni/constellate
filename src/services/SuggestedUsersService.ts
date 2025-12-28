@@ -26,10 +26,7 @@ export class SuggestedUsersService {
 			by: ['userId'],
 			where: {
 				createdAt: { gte: thirtyDaysAgo },
-				user: {
-					isRemote: false, // prioritizing local users for now? or maybe not? let's stick to local for speed/relevance first or all?
-					// Let's include all, but we need to join with User table which groupBy doesn't fully support for fetching user details.
-				},
+				user: {},
 			},
 			_count: {
 				id: true,

@@ -3,6 +3,7 @@ import { SuggestedUsersService } from './SuggestedUsersService.js'
 import { SocialGraphService } from './SocialGraphService.js'
 import { type TrendingEvent, DEFAULT_TRENDING_WINDOW_DAYS, DAY_IN_MS } from '../lib/trending.js'
 import { type FeedActivity } from '../activity.js'
+import { canUserViewEvent } from '../lib/eventVisibility.js'
 
 export type FeedItemType = 'activity' | 'trending_event' | 'suggested_users' | 'onboarding'
 
@@ -92,7 +93,10 @@ export class FeedService {
 			limit
 		)
 
-		activities.forEach((a) => {
+		// Filter activities for visibility
+		const visibleActivities = await this.filterVisibleActivities(activities, userId)
+
+		visibleActivities.forEach((a) => {
 			items.push({
 				type: 'activity',
 				id: a.id,
@@ -101,6 +105,7 @@ export class FeedService {
 			})
 		})
 
+		// Fill remaining slots with trending if needed
 		if (items.length < limit) {
 			const trending = await this.fetchTrendingEvents(userId, limit - items.length)
 			const existingIds = new Set(
@@ -114,10 +119,12 @@ export class FeedService {
 
 			trending.forEach((t) => {
 				if (!existingIds.has(t.id)) {
+					// Use updated or start time for trending items
+					const ts = t.updatedAt ? t.updatedAt.toISOString() : t.startTime.toISOString()
 					items.push({
 						type: 'trending_event',
 						id: t.id,
-						timestamp: new Date().toISOString(),
+						timestamp: ts,
 						data: t,
 					})
 				}
@@ -212,6 +219,9 @@ export class FeedService {
 	) {
 		const dateFilter = cursorDate ? { lt: cursorDate } : undefined
 
+		// Fetch more than limit to account for filtering
+		const fetchLimit = limit * 2
+
 		const [likes, rsvps, comments, newEvents, shares] = await Promise.all([
 			prisma.eventLike.findMany({
 				where: {
@@ -243,7 +253,7 @@ export class FeedService {
 					},
 				},
 				orderBy: { createdAt: 'desc' },
-				take: limit,
+				take: fetchLimit,
 			}),
 			prisma.eventAttendance.findMany({
 				where: {
@@ -276,7 +286,7 @@ export class FeedService {
 					},
 				},
 				orderBy: { createdAt: 'desc' },
-				take: limit,
+				take: fetchLimit,
 			}),
 			prisma.comment.findMany({
 				where: {
@@ -308,7 +318,7 @@ export class FeedService {
 					},
 				},
 				orderBy: { createdAt: 'desc' },
-				take: limit,
+				take: fetchLimit,
 			}),
 			prisma.event.findMany({
 				where: {
@@ -329,7 +339,7 @@ export class FeedService {
 					tags: true,
 				},
 				orderBy: { createdAt: 'desc' },
-				take: limit,
+				take: fetchLimit,
 			}),
 			prisma.event.findMany({
 				where: {
@@ -362,7 +372,7 @@ export class FeedService {
 					},
 				},
 				orderBy: { createdAt: 'desc' },
-				take: limit,
+				take: fetchLimit,
 			}),
 		])
 
@@ -426,6 +436,49 @@ export class FeedService {
 		results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
 		return results.slice(0, limit)
+	}
+
+	private static async filterVisibleActivities(
+		activities: FeedActivity[],
+		userId: string
+	): Promise<FeedActivity[]> {
+		const visibleActivities: FeedActivity[] = []
+
+		for (const activity of activities) {
+			if (await this.isActivityVisible(activity, userId)) {
+				visibleActivities.push(activity)
+			}
+		}
+
+		return visibleActivities
+	}
+
+	private static async isActivityVisible(
+		activity: FeedActivity,
+		userId: string
+	): Promise<boolean> {
+		// Check visibility of the primary event
+		if ('event' in activity && activity.event) {
+			// We need to cast because FeedEventSummary has strict visibility type (string | null | undefined)
+			// while canUserViewEvent expects EventLike which allows EventVisibility enum
+			// The cast to unknown then EventLike is safer than 'any'
+			const primaryEvent = activity.event as unknown as Parameters<typeof canUserViewEvent>[0]
+			const canView = await canUserViewEvent(primaryEvent, userId)
+
+			if (canView) {
+				// For shared events, check the shared event visibility too
+				if (activity.type === 'event_shared' && activity.sharedEvent) {
+					const sharedEvent = activity.sharedEvent as unknown as Parameters<
+						typeof canUserViewEvent
+					>[0]
+					if (!(await canUserViewEvent(sharedEvent, userId))) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+		return false
 	}
 
 	private static mapEvent(e: {

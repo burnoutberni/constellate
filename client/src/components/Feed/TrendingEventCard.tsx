@@ -10,7 +10,7 @@ export interface TrendingEvent {
     id: string
     title: string
     startTime: string
-    visibility: string
+    visibility: EventVisibility
     trendingRank?: number
     trendingScore?: number
     user?: {
@@ -35,9 +35,7 @@ interface TrendingEventProps {
 }
 
 export function TrendingEventCard({ event, showRank = false }: TrendingEventProps) {
-    const visibilityMeta = getVisibilityMeta(
-        event.visibility as EventVisibility | undefined
-    )
+    const visibilityMeta = getVisibilityMeta(event.visibility)
 
     // Helper to handle click - wrapping in Link is better than onClick handler for accessibility/SEO
     // but the original code used onClick. Link is better.

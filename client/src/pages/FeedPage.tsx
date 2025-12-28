@@ -10,16 +10,7 @@ import { Button, Card, Spinner, AddIcon } from '@/components/ui'
 import { useActivityFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useUIStore } from '@/stores'
-import { Activity } from '@/types'
-
-// Define local type for suggestions until moved to shared types
-interface SuggestedUser {
-	id: string
-	username: string
-	name: string | null
-	profileImage: string | null
-	displayColor: string
-}
+import { Activity, SuggestedUser } from '@/types'
 
 export function FeedPage() {
 	const { user, logout } = useAuth()
@@ -31,6 +22,7 @@ export function FeedPage() {
 		fetchNextPage,
 		hasNextPage,
 		isFetchingNextPage,
+		refetch,
 		status,
 		error
 	} = useActivityFeed()
@@ -79,7 +71,7 @@ export function FeedPage() {
 					<Card variant="default" padding="lg" className="text-center text-error-600">
 						<p>Failed to load feed.</p>
 						<p className="text-sm mt-2">{(error as Error).message}</p>
-						<Button variant="primary" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+						<Button variant="primary" size="sm" className="mt-4" onClick={() => refetch()}>
 							Retry
 						</Button>
 					</Card>

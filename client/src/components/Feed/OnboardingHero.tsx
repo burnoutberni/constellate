@@ -1,16 +1,11 @@
 
 import { Card } from '@/components/ui'
+import type { SuggestedUser } from '@/types'
 
 import { SuggestedUsersCard } from './SuggestedUsersCard'
 
 interface OnboardingHeroProps {
-    suggestions: Array<{
-        id: string
-        username: string
-        name: string | null
-        profileImage: string | null
-        displayColor: string
-    }>
+    suggestions: SuggestedUser[]
 }
 
 export function OnboardingHero({ suggestions }: OnboardingHeroProps) {

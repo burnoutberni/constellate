@@ -7,15 +7,7 @@ import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
 import { FeedService } from './services/FeedService.js'
 
-// Re-export type for compatibility if needed, or moved to FeedService entirely.
-// FeedService defines its own FeedActivity or imports it.
-// To avoid breaking imports elsewhere (if any), we define it here or import from FeedService?
-// Actually FeedService imports FeedActivity FROM here (in my previous thought).
-// But FeedService defines `FeedItem`.
-// `FeedActivity` interface was defined here.
-// Provide it here so FeedService (which I just wrote and imports it from here) still works.
-// Wait! `FeedService.ts` imports `FeedActivity` from `../activity.js`.
-// I MUST keep `FeedActivity` interface exported here!
+// Re-export type for FeedService usage if needed
 
 export interface FeedEventSummary {
 	id: string
