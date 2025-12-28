@@ -130,17 +130,39 @@ export function FeedPage() {
 						const key = `${item.type}-${item.id}`
 
 						switch (item.type) {
-							case 'onboarding':
-								return <OnboardingHero key={key} suggestions={(item.data as { suggestions: SuggestedUser[] }).suggestions} />
+							case 'onboarding': {
+								const itemData = item.data as Record<string, unknown>
+								if (itemData && 'suggestions' in itemData && Array.isArray(itemData.suggestions)) {
+									return <OnboardingHero key={key} suggestions={itemData.suggestions as SuggestedUser[]} />
+								}
+								return null
+							}
 
-							case 'suggested_users':
-								return <SuggestedUsersCard key={key} users={(item.data as { suggestions: SuggestedUser[] }).suggestions} />
+							case 'suggested_users': {
+								const itemData = item.data as Record<string, unknown>
+								if (itemData && 'suggestions' in itemData && Array.isArray(itemData.suggestions)) {
+									return <SuggestedUsersCard key={key} users={itemData.suggestions as SuggestedUser[]} />
+								}
+								return null
+							}
 
-							case 'trending_event':
-								return <TrendingEventCard key={key} event={item.data as TrendingEvent} />
+							case 'trending_event': {
+								const itemData = item.data as Record<string, unknown>
+								// Basic shape check for event
+								if (itemData && 'title' in itemData && 'startTime' in itemData) {
+									return <TrendingEventCard key={key} event={itemData as unknown as TrendingEvent} />
+								}
+								return null
+							}
 
-							case 'activity':
-								return <ActivityFeedItem key={key} activity={item.data as Activity} />
+							case 'activity': {
+								const itemData = item.data as Record<string, unknown>
+								// Activity has type/user/event/createdAt
+								if (itemData && 'type' in itemData && 'createdAt' in itemData) {
+									return <ActivityFeedItem key={key} activity={itemData as unknown as Activity} />
+								}
+								return null
+							}
 
 							default:
 								return null

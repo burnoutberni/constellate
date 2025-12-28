@@ -53,15 +53,21 @@ export class FeedService {
 				data: { suggestions },
 			})
 
-			const trending = await this.fetchTrendingEvents(userId, 20)
-			items.push(
-				...trending.map((t) => ({
-					type: 'trending_event' as const,
-					id: t.id,
-					timestamp: t.updatedAt ? t.updatedAt.toISOString() : t.startTime.toISOString(),
-					data: t,
-				}))
-			)
+			const trending = await this.fetchTrendingEvents(userId, limit)
+			// Only take enough to satisfy the limit
+			const remaining = limit - items.length
+			if (remaining > 0) {
+				items.push(
+					...trending.slice(0, remaining).map((t) => ({
+						type: 'trending_event' as const,
+						id: t.id,
+						timestamp: t.updatedAt
+							? t.updatedAt.toISOString()
+							: t.startTime.toISOString(),
+						data: t,
+					}))
+				)
+			}
 		} else {
 			const publicEvents = await this.fetchRecentPublicEvents(userId, cursor, limit)
 			items.push(
@@ -106,30 +112,7 @@ export class FeedService {
 		})
 
 		// Fill remaining slots with trending if needed
-		if (items.length < limit) {
-			const trending = await this.fetchTrendingEvents(userId, limit - items.length)
-			const existingIds = new Set(
-				items.map((i) => {
-					if (i.type === 'activity' && 'event' in i.data) {
-						return (i.data as FeedActivity).event.id
-					}
-					return i.type === 'trending_event' ? (i.data as TrendingEvent).id : i.id
-				})
-			)
-
-			trending.forEach((t) => {
-				if (!existingIds.has(t.id)) {
-					// Use updated or start time for trending items
-					const ts = t.updatedAt ? t.updatedAt.toISOString() : t.startTime.toISOString()
-					items.push({
-						type: 'trending_event',
-						id: t.id,
-						timestamp: ts,
-						data: t,
-					})
-				}
-			})
-		}
+		await this.fillTrendingEvents(items, userId, limit)
 
 		if (!cursor && items.length >= 5) {
 			const suggestions = await SuggestedUsersService.getSuggestions(userId, 3)
@@ -144,6 +127,36 @@ export class FeedService {
 		}
 
 		return this.prepareResult(items)
+	}
+
+	private static async fillTrendingEvents(items: FeedItem[], userId: string, limit: number) {
+		if (items.length < limit) {
+			const spacesNeeded = limit - items.length
+			const trending = await this.fetchTrendingEvents(userId, spacesNeeded)
+			const existingIds = new Set(
+				items.map((i) => {
+					if (i.type === 'activity' && 'event' in i.data) {
+						return (i.data as FeedActivity).event.id
+					}
+					return i.type === 'trending_event' ? (i.data as TrendingEvent).id : i.id
+				})
+			)
+
+			for (const t of trending) {
+				if (items.length >= limit) break
+
+				if (!existingIds.has(t.id)) {
+					// Use updated or start time for trending items
+					const ts = t.updatedAt ? t.updatedAt.toISOString() : t.startTime.toISOString()
+					items.push({
+						type: 'trending_event',
+						id: t.id,
+						timestamp: ts,
+						data: t,
+					})
+				}
+			}
+		}
 	}
 
 	private static prepareResult(items: FeedItem[]) {

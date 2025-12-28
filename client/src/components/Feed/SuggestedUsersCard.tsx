@@ -19,7 +19,7 @@ export function SuggestedUsersCard({ users }: SuggestedUsersCardProps) {
                 {users.map(user => (
                     <div key={user.id} className="flex items-center gap-3 justify-between">
                         <div className="flex items-center gap-3 min-w-0">
-                            <Link to={`/ @${user.username} `}>
+                            <Link to={`/@${user.username}`}>
                                 <Avatar
                                     src={user.profileImage || undefined}
                                     fallback={(user.name?.[0] || user.username[0]).toUpperCase()}
@@ -27,8 +27,8 @@ export function SuggestedUsersCard({ users }: SuggestedUsersCardProps) {
                                 />
                             </Link>
                             <div className="min-w-0">
-                                <Link to={`/ @${user.username} `} className="block truncate font-medium text-text-primary hover:underline">
-                                    {user.name || `@${user.username} `}
+                                <Link to={`/@${user.username}`} className="block truncate font-medium text-text-primary hover:underline">
+                                    {user.name || `@${user.username}`}
                                 </Link>
                                 <div className="text-xs text-text-secondary truncate">
                                     @{user.username}
