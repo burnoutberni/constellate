@@ -193,6 +193,18 @@ const ReportSchema = z.object({
 	category: z.enum(ReportCategoryValues).optional(),
 })
 
+// Get my reports
+app.get('/reports/me', async (c) => {
+	const userId = requireAuth(c)
+
+	const reports = await prisma.report.findMany({
+		where: { reporterId: userId },
+		orderBy: { createdAt: 'desc' },
+	})
+
+	return c.json({ reports })
+})
+
 // Get a single report by ID (admin only)
 app.get('/reports/:id', async (c) => {
 	await requireAdmin(c)
@@ -386,18 +398,6 @@ app.post('/report', async (c) => {
 	})
 
 	return c.json(report, 201)
-})
-
-// Get my reports
-app.get('/reports/me', async (c) => {
-	const userId = requireAuth(c)
-
-	const reports = await prisma.report.findMany({
-		where: { reporterId: userId },
-		orderBy: { createdAt: 'desc' },
-	})
-
-	return c.json({ reports })
 })
 
 // Get reports (admin only)

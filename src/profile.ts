@@ -1,5 +1,5 @@
-import { randomUUID } from 'crypto'
 import { Hono } from 'hono'
+import { randomUUID } from 'crypto'
 import { prisma } from './lib/prisma.js'
 import { z, ZodError } from 'zod'
 import {
@@ -20,7 +20,7 @@ import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
 import { AppError } from './lib/errors.js'
-import { normalizeTimeZone } from './lib/timezone.js'
+import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { isUrlSafe } from './lib/ssrfProtection.js'
 
 const app = new Hono()
@@ -34,27 +34,22 @@ const ProfileUpdateSchema = z.object({
 		.regex(/^#[0-9a-fA-F]{6}$/, { message: 'Invalid hex color' })
 		.optional(),
 	profileImage: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
+		.url()
 		.optional()
 		.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 			message: 'Profile image URL is not safe (SSRF protection)',
 		}),
 	headerImage: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
+		.url()
 		.optional()
 		.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 			message: 'Header image URL is not safe (SSRF protection)',
 		}),
 	autoAcceptFollowers: z.boolean().optional(),
 	isPublicProfile: z.boolean().optional(),
-	timezone: z.string().optional(),
+	timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
 	// Add other profile fields as needed
-	url: z
-		.string()
-		.regex(/^https?:\/\//, { message: 'Invalid URL' })
-		.optional(),
+	url: z.url().optional(),
 	theme: z.enum(['LIGHT', 'DARK']).nullable().optional(),
 })
 
@@ -486,7 +481,7 @@ app.get('/users/:username/profile', async (c) => {
 })
 
 // Update profile
-app.put('/', moderateRateLimit, async (c) => {
+app.put('/profile', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 

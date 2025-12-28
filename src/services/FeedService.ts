@@ -69,7 +69,7 @@ export class FeedService {
 						timestamp: t.updatedAt
 							? t.updatedAt.toISOString()
 							: t.startTime.toISOString(),
-						data: t,
+						data: this.mapToTrendingEvent(t),
 					}))
 				)
 			}
@@ -80,7 +80,7 @@ export class FeedService {
 					type: 'trending_event' as const,
 					id: e.id,
 					timestamp: e.createdAt.toISOString(),
-					data: e,
+					data: this.mapToTrendingEvent(e),
 				}))
 			)
 		}
@@ -160,7 +160,7 @@ export class FeedService {
 						type: 'trending_event',
 						id: t.id,
 						timestamp: ts,
-						data: t,
+						data: this.mapToTrendingEvent(t),
 					})
 				}
 			}
@@ -495,6 +495,38 @@ export class FeedService {
 			}
 		}
 		return false
+	}
+
+	private static mapToTrendingEvent(e: {
+		id: string
+		title: string
+		startTime: Date
+		updatedAt: Date
+		user: {
+			id: string
+			username: string
+			name: string | null
+			displayColor: string
+			profileImage: string | null
+		} | null
+		tags: Array<{ id: string; tag: string }>
+	}): TrendingEvent {
+		return {
+			id: e.id,
+			title: e.title,
+			startTime: e.startTime,
+			updatedAt: e.updatedAt,
+			user: e.user
+				? {
+						id: e.user.id,
+						username: e.user.username,
+						name: e.user.name,
+						displayColor: e.user.displayColor,
+						profileImage: e.user.profileImage,
+					}
+				: null,
+			tags: e.tags.map((t) => ({ id: t.id, tag: t.tag })),
+		}
 	}
 
 	private static mapEvent(e: {

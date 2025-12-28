@@ -5,7 +5,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
-import { ZodError } from 'zod'
 import { AppealStatus } from '@prisma/client'
 import moderationApp from '../moderation.js'
 import { prisma } from '../lib/prisma.js'
