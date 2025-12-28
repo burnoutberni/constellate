@@ -34,6 +34,7 @@ vi.mock('../lib/prisma.js', () => ({
 			findMany: vi.fn(),
 			count: vi.fn(),
 			update: vi.fn(),
+			findUnique: vi.fn(),
 		},
 		event: {
 			findUnique: vi.fn(),
@@ -69,6 +70,61 @@ app.route('/api/moderation', moderationApp)
 // Add global error handler like in server.ts
 app.onError((err, c) => {
 	return handleError(err, c)
+})
+
+describe('GET /reports/:id', () => {
+	it('should return a single report by ID (admin only)', async () => {
+		vi.mocked(requireAuth).mockReturnValue('admin_123')
+		const mockReport = {
+			id: 'report_123',
+			reporterId: 'user_123',
+			reportedUserId: 'user_456',
+			contentUrl: 'event:event_123',
+			reason: 'Inappropriate content',
+			category: 'inappropriate',
+			status: 'pending',
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			reporter: {
+				id: 'user_123',
+				username: 'reporter',
+				name: 'Reporter',
+			},
+		}
+
+		vi.mocked(prisma.report.findUnique).mockResolvedValue(mockReport as any)
+		vi.mocked(prisma.event.findMany).mockResolvedValue([])
+		vi.mocked(prisma.user.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
+
+		const res = await app.request('/api/moderation/reports/report_123')
+
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as typeof mockReport
+		expect(body.id).toBe('report_123')
+		expect(body.reporter.username).toBe('reporter')
+		expect(prisma.report.findUnique).toHaveBeenCalledWith({
+			where: { id: 'report_123' },
+			include: {
+				reporter: {
+					select: {
+						id: true,
+						username: true,
+						name: true,
+					},
+				},
+			},
+		})
+	})
+
+	it('should return 404 when report not found', async () => {
+		vi.mocked(requireAuth).mockReturnValue('admin_123')
+		vi.mocked(prisma.report.findUnique).mockResolvedValue(null)
+
+		const res = await app.request('/api/moderation/reports/nonexistent')
+
+		expect(res.status).toBe(404)
+	})
 })
 
 describe('Moderation API', () => {
