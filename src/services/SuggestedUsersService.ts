@@ -24,7 +24,7 @@ export class SuggestedUsersService {
 			by: ['userId'],
 			where: {
 				createdAt: { gte: thirtyDaysAgo },
-				user: {},
+				user: {}, // Ensure the user relation is valid/exists
 			},
 			_count: {
 				id: true,

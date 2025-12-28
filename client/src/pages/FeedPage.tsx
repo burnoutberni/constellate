@@ -12,6 +12,16 @@ import { useAuth } from '@/hooks/useAuth'
 import { useUIStore } from '@/stores'
 import { Activity, SuggestedUser } from '@/types'
 
+// Type guards
+function isSuggestedUsersData(data: unknown): data is { suggestions: SuggestedUser[] } {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'suggestions' in data &&
+		Array.isArray((data as Record<string, unknown>).suggestions)
+	)
+}
+
 export function FeedPage() {
 	const { user, logout } = useAuth()
 	const { sseConnected } = useUIStore()
@@ -64,13 +74,14 @@ export function FeedPage() {
 	}
 
 	if (status === 'error') {
+		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
 		return (
 			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
 				<div className="max-w-2xl mx-auto py-8 px-4">
 					<Card variant="default" padding="lg" className="text-center text-error-600">
 						<p>Failed to load feed.</p>
-						<p className="text-sm mt-2">{(error as Error).message}</p>
+						<p className="text-sm mt-2">{errorMessage}</p>
 						<Button variant="primary" size="sm" className="mt-4" onClick={() => refetch()}>
 							Retry
 						</Button>
@@ -132,16 +143,16 @@ export function FeedPage() {
 						switch (item.type) {
 							case 'onboarding': {
 								const itemData = item.data as Record<string, unknown>
-								if (itemData && 'suggestions' in itemData && Array.isArray(itemData.suggestions)) {
-									return <OnboardingHero key={key} suggestions={itemData.suggestions as SuggestedUser[]} />
+								if (isSuggestedUsersData(itemData)) {
+									return <OnboardingHero key={key} suggestions={itemData.suggestions} />
 								}
 								return null
 							}
 
 							case 'suggested_users': {
 								const itemData = item.data as Record<string, unknown>
-								if (itemData && 'suggestions' in itemData && Array.isArray(itemData.suggestions)) {
-									return <SuggestedUsersCard key={key} users={itemData.suggestions as SuggestedUser[]} />
+								if (isSuggestedUsersData(itemData)) {
+									return <SuggestedUsersCard key={key} users={itemData.suggestions} />
 								}
 								return null
 							}

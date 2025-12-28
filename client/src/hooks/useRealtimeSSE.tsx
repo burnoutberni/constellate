@@ -152,7 +152,7 @@ const addCommentToCache = (
 
 const getNotificationLimitFromQueryKey = (queryKey: unknown): number | null => {
 	if (Array.isArray(queryKey) && queryKey.length >= 3) {
-		const value = queryKey[2]
+		const value: unknown = queryKey[2]
 		if (typeof value === 'number' && Number.isFinite(value)) {
 			return value
 		}
@@ -278,7 +278,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('like:added', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string; like: unknown } }
 		if (!event.data?.eventId || !event.data?.like) {
 			return
 		}
@@ -305,7 +305,7 @@ const setupEventListeners = (
 	})
 
 	eventSource.addEventListener('comment:added', (e) => {
-		const event = JSON.parse(e.data)
+		const event = JSON.parse(e.data) as { data: { eventId: string; comment: unknown } }
 		if (!event.data?.eventId || !event.data?.comment) {
 			return
 		}

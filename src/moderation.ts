@@ -193,11 +193,39 @@ const ReportSchema = z.object({
 	category: z.enum(ReportCategoryValues).optional(),
 })
 
+// Get a single report by ID (admin only)
+app.get('/reports/:id', async (c) => {
+	await requireAdmin(c)
+
+	const { id } = c.req.param()
+
+	const report = await prisma.report.findUnique({
+		where: { id },
+		include: {
+			reporter: {
+				select: {
+					id: true,
+					username: true,
+					name: true,
+				},
+			},
+		},
+	})
+
+	if (!report) {
+		return c.json({ error: 'Report not found' }, 404)
+	}
+
+	const [enrichedReport] = await enrichReportsWithContentPaths([report])
+
+	return c.json(enrichedReport)
+})
+
 // Block a user
 app.post('/block/user', async (c) => {
 	const userId = requireAuth(c)
 
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { username } = BlockUserSchema.parse(body)
 
 	// Find target user
@@ -275,7 +303,7 @@ app.get('/block/users', async (c) => {
 app.post('/block/domain', async (c) => {
 	await requireAdmin(c)
 
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { domain, reason } = BlockDomainSchema.parse(body)
 
 	// Create domain block
@@ -321,7 +349,7 @@ app.get('/block/domains', async (c) => {
 app.post('/report', async (c) => {
 	const userId = requireAuth(c)
 
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { targetType, targetId, reason, category } = ReportSchema.parse(body)
 
 	// Verify target exists
@@ -420,7 +448,7 @@ app.put('/reports/:id', async (c) => {
 	await requireAdmin(c)
 
 	const { id } = c.req.param()
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { status } = z
 		.object({
 			status: z.enum(['pending', 'resolved', 'dismissed']),
@@ -477,7 +505,7 @@ const AppealSchema = z.object({
 // Create an appeal
 app.post('/appeals', async (c) => {
 	const userId = requireAuth(c)
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { type, reason, referenceId, referenceType } = AppealSchema.parse(body)
 
 	const appeal = await prisma.appeal.create({
@@ -560,7 +588,7 @@ app.put('/admin/appeals/:id', async (c) => {
 	const userId = requireAuth(c)
 	await requireAdmin(c)
 	const { id } = c.req.param()
-	const body = await c.req.json()
+	const body: unknown = await c.req.json()
 	const { status, adminNotes } = z
 		.object({
 			status: z

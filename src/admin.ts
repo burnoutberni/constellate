@@ -222,7 +222,7 @@ app.post('/users', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateUserSchema.parse(body)
 
 		// For non-bot users, password is required
@@ -333,7 +333,7 @@ app.put('/users/:id', async (c) => {
 		await requireAdmin(c)
 
 		const { id } = c.req.param()
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = UpdateUserSchema.parse(body)
 		const existingUser = await findUserById(id)
 		if (!existingUser) {
@@ -538,7 +538,7 @@ app.post('/api-keys', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateApiKeySchema.parse(body)
 
 		// Check if user exists

@@ -186,7 +186,7 @@ function AppContent() {
 		const toastData = sessionStorage.getItem(TOAST_ON_LOAD_KEY)
 		if (toastData) {
 			try {
-				const parsed = JSON.parse(toastData)
+				const parsed: unknown = JSON.parse(toastData)
 
 				// Validate the structure and types of the parsed data
 				// Also validate message length to prevent UI issues and potential abuse

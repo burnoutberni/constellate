@@ -4,6 +4,7 @@ import { SocialGraphService } from './SocialGraphService.js'
 import { type TrendingEvent, DEFAULT_TRENDING_WINDOW_DAYS, DAY_IN_MS } from '../lib/trending.js'
 import { type FeedActivity } from '../activity.js'
 import { canUserViewEvent } from '../lib/eventVisibility.js'
+import { EventVisibility } from '@prisma/client'
 
 export type FeedItemType = 'activity' | 'trending_event' | 'suggested_users' | 'onboarding'
 
@@ -21,6 +22,10 @@ export interface FeedItem {
 	timestamp: string // ISO string for sorting
 	data: FeedActivity | TrendingEvent | { suggestions: Array<SuggestedUser> }
 }
+
+const USER_SUGGESTION_INJECTION_INDEX = 4
+const MIN_ITEMS_FOR_SUGGESTION_INJECTION = USER_SUGGESTION_INJECTION_INDEX + 1
+const USER_SUGGESTION_COUNT = 3
 
 export class FeedService {
 	static async getFeed(userId: string, cursor?: string, limit: number = 20) {
@@ -114,13 +119,16 @@ export class FeedService {
 		// Fill remaining slots with trending if needed
 		await this.fillTrendingEvents(items, userId, limit)
 
-		if (!cursor && items.length >= 5) {
-			const suggestions = await SuggestedUsersService.getSuggestions(userId, 3)
+		if (!cursor && items.length >= MIN_ITEMS_FOR_SUGGESTION_INJECTION) {
+			const suggestions = await SuggestedUsersService.getSuggestions(
+				userId,
+				USER_SUGGESTION_COUNT
+			)
 			if (suggestions.length > 0) {
-				items.splice(4, 0, {
+				items.splice(USER_SUGGESTION_INJECTION_INDEX, 0, {
 					type: 'suggested_users',
 					id: 'suggestions-block',
-					timestamp: items[4].timestamp,
+					timestamp: items[USER_SUGGESTION_INJECTION_INDEX].timestamp,
 					data: { suggestions },
 				})
 			}
@@ -472,18 +480,13 @@ export class FeedService {
 	): Promise<boolean> {
 		// Check visibility of the primary event
 		if ('event' in activity && activity.event) {
-			// We need to cast because FeedEventSummary has strict visibility type (string | null | undefined)
-			// while canUserViewEvent expects EventLike which allows EventVisibility enum
-			// The cast to unknown then EventLike is safer than 'any'
-			const primaryEvent = activity.event as unknown as Parameters<typeof canUserViewEvent>[0]
+			const primaryEvent = activity.event
 			const canView = await canUserViewEvent(primaryEvent, userId)
 
 			if (canView) {
 				// For shared events, check the shared event visibility too
 				if (activity.type === 'event_shared' && activity.sharedEvent) {
-					const sharedEvent = activity.sharedEvent as unknown as Parameters<
-						typeof canUserViewEvent
-					>[0]
+					const sharedEvent = activity.sharedEvent
 					if (!(await canUserViewEvent(sharedEvent, userId))) {
 						return false
 					}
@@ -499,7 +502,7 @@ export class FeedService {
 		title: string
 		startTime: Date | string
 		location: string | null
-		visibility?: string | null
+		visibility?: EventVisibility | null
 		tags?: Array<{ id: string; tag: string }>
 		user: {
 			id: string

@@ -469,7 +469,7 @@ app.post('/', moderateRateLimit, async (c) => {
 			return c.json({ error: 'Unauthorized' }, 401)
 		}
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const validatedData = EventSchema.parse(body)
 		const { visibility: requestedVisibility } = validatedData
 		const visibility: EventVisibility = (requestedVisibility ?? 'PUBLIC') as EventVisibility
@@ -993,11 +993,11 @@ async function cacheLikesFromRemoteEvent(
 	if (!likes?.items) return
 
 	for (const like of likes.items) {
-		const likeObj = like as Record<string, unknown> | string
+		const likeObj: unknown = like
 		let actorUrl: string | undefined
 
 		if (typeof likeObj === 'object' && likeObj !== null && 'actor' in likeObj) {
-			actorUrl = likeObj.actor as string
+			actorUrl = (likeObj as { actor: unknown }).actor as string
 		} else if (typeof likeObj === 'string') {
 			actorUrl = likeObj
 		}
@@ -1608,7 +1608,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const validatedData = UpdateEventSchema.parse(body)
 
 		const existingEvent = await prisma.event.findUnique({

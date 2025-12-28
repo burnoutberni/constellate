@@ -41,7 +41,7 @@ function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonObje
 			sanitized[key] = value
 		}
 	}
-	return sanitized as Prisma.InputJsonValue
+	return sanitized as unknown as Prisma.InputJsonObject
 }
 
 function serializeTemplate(template: {
@@ -233,7 +233,7 @@ function mergeTemplateData(
 		...currentData,
 		...(sanitizedData as Record<string, unknown>),
 	}
-	return mergedData as Prisma.InputJsonValue
+	return mergedData as unknown as Prisma.InputJsonObject
 }
 
 app.delete('/event-templates/:id', async (c) => {

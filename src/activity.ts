@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
 import { FeedService } from './services/FeedService.js'
+import { EventVisibility } from '@prisma/client'
 
 // Re-export type for FeedService usage if needed
 
@@ -14,7 +15,7 @@ export interface FeedEventSummary {
 	title: string
 	startTime: string
 	location: string | null
-	visibility?: string | null
+	visibility?: EventVisibility | null
 	tags: Array<{
 		id: string
 		tag: string

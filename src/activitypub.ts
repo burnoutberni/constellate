@@ -561,7 +561,7 @@ app.post(
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = await c.req.json()
+				activity = (await c.req.json()) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
@@ -648,7 +648,7 @@ app.post(
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = await c.req.json()
+				activity = (await c.req.json()) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {

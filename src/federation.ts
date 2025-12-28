@@ -456,7 +456,7 @@ function getAttachmentUrl(attachment: unknown): string | null {
 		attachment[0] !== null &&
 		'url' in attachment[0]
 	) {
-		return attachment[0].url as string
+		return (attachment[0] as Record<string, unknown>).url as string
 	}
 	return null
 }
