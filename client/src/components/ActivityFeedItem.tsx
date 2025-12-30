@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { Activity, EventVisibility } from '@/types'
@@ -11,7 +12,10 @@ interface ActivityFeedItemProps {
 	activity: Activity
 }
 
-export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
+// Memoized to prevent unnecessary re-renders in the feed list
+export const ActivityFeedItem = memo(({
+	activity,
+}: ActivityFeedItemProps) => {
 	const visibilityMeta = getVisibilityMeta(
 		activity.event.visibility as EventVisibility | undefined
 	)
@@ -197,4 +201,6 @@ export function ActivityFeedItem({ activity }: ActivityFeedItemProps) {
 			</div>
 		</Card>
 	)
-}
+})
+
+ActivityFeedItem.displayName = 'ActivityFeedItem'
