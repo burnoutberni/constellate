@@ -10,6 +10,7 @@ import {
 	getBaseUrl,
 	fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
+import { sanitizeText, sanitizeRichText } from './lib/sanitization.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
@@ -467,12 +468,18 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	const eventName = getString(eventObj.name)
+	const eventSummary = getString(eventObj.summary)
+	const eventContent = getString(eventObj.content)
+	const locationValue = getLocationValue(eventObj.location)
+	const attributedTo = getString(eventObj.attributedTo)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: eventName ? sanitizeText(eventName) : '',
+		eventSummary: eventSummary ? sanitizeRichText(eventSummary) : null,
+		eventContent: eventContent ? sanitizeRichText(eventContent) : null,
+		locationValue: locationValue ? sanitizeText(locationValue) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -481,7 +488,7 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 		eventAttendanceMode: eventObj.eventAttendanceMode,
 		eventMaxCapacity: getNumber(eventObj.maximumAttendeeCapacity),
 		attachmentUrl: getAttachmentUrl(eventObj.attachment),
-		attributedTo: getString(eventObj.attributedTo),
+		attributedTo: attributedTo ? sanitizeText(attributedTo) : null,
 	}
 }
 
@@ -764,7 +771,7 @@ async function handleCreateNote(
 	const comment = await prisma.comment.create({
 		data: {
 			externalId: noteId,
-			content: noteContent,
+			content: sanitizeRichText(noteContent),
 			eventId: event.id,
 			authorId: remoteUser.id,
 		},
@@ -905,8 +912,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeRichText(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined

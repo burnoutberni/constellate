@@ -7,6 +7,7 @@ import { safeFetch } from './ssrfProtection.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
+import { sanitizeText, sanitizeRichText } from './sanitization.js'
 import type { Person } from './activitypubSchemas.js'
 import { trackInstance } from './instanceHelpers.js'
 
@@ -77,18 +78,18 @@ export async function cacheRemoteUser(actor: Person) {
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
 		update: {
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			publicKey,
 			inboxUrl,
 			sharedInboxUrl,
 			profileImage: actor.icon?.url || null,
 			headerImage: actor.image?.url || null,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeRichText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},
 		create: {
 			username: `${username}@${new URL(actorUrl).hostname}`,
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			externalActorUrl: actorUrl,
 			isRemote: true,
 			publicKey,
@@ -96,7 +97,7 @@ export async function cacheRemoteUser(actor: Person) {
 			sharedInboxUrl,
 			profileImage: actor.icon?.url || null,
 			headerImage: actor.image?.url || null,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeRichText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},
 	})
@@ -382,9 +383,9 @@ export async function cacheEventFromOutboxActivity(
 	})
 
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: eventSummary ? sanitizeRichText(eventSummary) : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
