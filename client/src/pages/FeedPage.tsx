@@ -1,16 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
-import { ActivityFeedItem } from '@/components/ActivityFeedItem'
+import { EventCard } from '@/components/EventCard'
 import { OnboardingHero } from '@/components/Feed/OnboardingHero'
+import { Sidebar } from '@/components/Feed/Sidebar'
 import { SuggestedUsersCard } from '@/components/Feed/SuggestedUsersCard'
-import { TrendingEventCard, TrendingEvent } from '@/components/Feed/TrendingEventCard'
 import { Navbar } from '@/components/Navbar'
 import { Button, Card, Spinner, AddIcon } from '@/components/ui'
-import { useActivityFeed, type FeedItem } from '@/hooks/queries'
+import { useHomeFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useUIStore } from '@/stores'
-import { Activity, SuggestedUser } from '@/types'
+import { Activity, SuggestedUser, Event } from '@/types'
 
 // Type guards
 function isSuggestedUsersData(data: unknown): data is { suggestions: SuggestedUser[] } {
@@ -22,7 +22,7 @@ function isSuggestedUsersData(data: unknown): data is { suggestions: SuggestedUs
 	)
 }
 
-function isTrendingEventData(data: unknown): data is TrendingEvent {
+function isTrendingEventData(data: unknown): data is Event {
 	return (
 		typeof data === 'object' &&
 		data !== null &&
@@ -36,27 +36,31 @@ function isActivityData(data: unknown): data is Activity {
 		typeof data === 'object' &&
 		data !== null &&
 		'type' in data &&
-		'createdAt' in data
+		'createdAt' in data &&
+		'event' in data
 	)
 }
 
 export function FeedPage() {
 	const { user, logout } = useAuth()
-	const { sseConnected } = useUIStore()
+	const { sseConnected, isFeedRefreshing } = useUIStore()
 
-	// Unified Feed Query
+	// Unified Feed Query (Smart Agenda)
 	const {
 		data,
 		fetchNextPage,
 		hasNextPage,
 		isFetchingNextPage,
+		isFetching,
 		refetch,
 		status,
 		error
-	} = useActivityFeed()
+	} = useHomeFeed()
 
 	// Infinite Scroll Intersection Observer
 	const loadMoreRef = useRef<HTMLDivElement>(null)
+
+	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
 
 	useEffect(() => {
 		if (!hasNextPage || isFetchingNextPage) { return }
@@ -82,10 +86,13 @@ export function FeedPage() {
 		return (
 			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-				<div className="max-w-2xl mx-auto py-8 px-4">
-					<Card variant="default" padding="lg" className="text-center">
-						<Spinner size="md" />
-					</Card>
+				<div className="max-w-6xl mx-auto py-8 px-4 flex gap-6">
+					<div className="flex-1">
+						<Card variant="default" padding="lg" className="text-center">
+							<Spinner size="md" />
+						</Card>
+					</div>
+					<Sidebar />
 				</div>
 			</div>
 		)
@@ -96,113 +103,134 @@ export function FeedPage() {
 		return (
 			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-				<div className="max-w-2xl mx-auto py-8 px-4">
-					<Card variant="default" padding="lg" className="text-center text-error-600">
-						<p>Failed to load feed.</p>
-						<p className="text-sm mt-2">{errorMessage}</p>
-						<Button variant="primary" size="sm" className="mt-4" onClick={() => refetch()}>
-							Retry
-						</Button>
-					</Card>
-				</div>
-			</div>
-		)
-	}
-
-	const allItems = data?.pages?.flatMap((page) => page.items) || []
-
-	// Empty State (Should be rare due to onboarding hero, but good fallback)
-	if (allItems.length === 0) {
-		return (
-			<div className="min-h-screen bg-background-secondary">
-				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-				<div className="max-w-2xl mx-auto py-8 px-4">
-					<div className="flex justify-between items-center mb-6">
-						<h1 className="text-2xl font-bold text-text-primary">Home</h1>
-						<Link to="/events/new">
-							<Button variant="primary" size="sm">
-								<AddIcon className="w-4 h-4 mr-2" />
-								New Event
+				<div className="max-w-6xl mx-auto py-8 px-4 flex gap-6">
+					<div className="flex-1">
+						<Card variant="default" padding="lg" className="text-center text-error-600">
+							<p>Failed to load feed.</p>
+							<p className="text-sm mt-2">{errorMessage}</p>
+							<Button variant="primary" size="sm" className="mt-4" onClick={() => refetch()}>
+								Retry
 							</Button>
-						</Link>
+						</Card>
 					</div>
-					<Card variant="default" padding="lg" className="text-center">
-						<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
-						<p className="text-text-secondary">Follow people to see their activity here.</p>
-					</Card>
+					<Sidebar />
 				</div>
 			</div>
 		)
 	}
+
+	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
 
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
-			<div className="max-w-2xl mx-auto py-8 px-4">
-				{/* page header */}
-				<div className="flex justify-between items-center mb-6">
-					<h1 className="text-2xl font-bold text-text-primary">Home</h1>
-					{user && (
-						<Link to="/events/new">
-							<Button variant="primary" size="sm">
-								<AddIcon className="w-4 h-4 mr-2" />
-								New Event
-							</Button>
-						</Link>
+			<div className="max-w-6xl mx-auto py-8 px-4 flex gap-6">
+				{/* Main Content */}
+				<div className="flex-1 min-w-0 relative">
+					{/* page header */}
+					<div className="flex justify-between items-center mb-6">
+						<h1 className="text-2xl font-bold text-text-primary">Home</h1>
+						{user && (
+							<Link to="/events/new">
+								<Button variant="primary" size="sm">
+									<AddIcon className="w-4 h-4 mr-2" />
+									New Event
+								</Button>
+							</Link>
+						)}
+					</div>
+
+					<div className="space-y-6" style={{ overflowAnchor: 'none' }}>
+						{/* Refetching Indicator */}
+						{isRefetching && (
+							<div className="absolute left-0 right-0 z-20 flex justify-center py-4 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none">
+								<div className="bg-background-primary rounded-full p-2 shadow-lg border border-border-default">
+									<Spinner size="sm" className="text-primary-600" />
+								</div>
+							</div>
+						)}
+
+						{allItems.length === 0 ? (
+							<Card variant="default" padding="lg" className="text-center">
+								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
+								<p className="text-text-secondary">Follow people to see their activity here.</p>
+							</Card>
+						) : (
+							allItems.map((item: FeedItem) => {
+								const key = `${item.type}-${item.id}`
+
+								switch (item.type) {
+									case 'header': {
+										const {title} = (item.data as { title: string })
+										return (
+											<div key={key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{title}
+												</h2>
+											</div>
+										)
+									}
+
+									case 'onboarding': {
+										if (isSuggestedUsersData(item.data)) {
+											return <OnboardingHero key={key} suggestions={item.data.suggestions} />
+										}
+										return null
+									}
+
+									case 'suggested_users': {
+										if (isSuggestedUsersData(item.data)) {
+											return <SuggestedUsersCard key={key} users={item.data.suggestions} />
+										}
+										return null
+									}
+
+									case 'trending_event': {
+										if (isTrendingEventData(item.data)) {
+											return (
+												<div key={key} className="h-full">
+													<EventCard event={item.data} isAuthenticated={Boolean(user)} />
+												</div>
+											)
+										}
+										return null
+									}
+
+									case 'activity': {
+										if (isActivityData(item.data)) {
+											// For "Smart Agenda", we show the Event itself
+											return (
+												<div key={key} className="h-full">
+													<EventCard event={item.data.event} isAuthenticated={Boolean(user)} />
+												</div>
+											)
+										}
+										return null
+									}
+
+									default:
+										return null
+								}
+							})
+						)}
+					</div>
+
+					{/* Load More Trigger */}
+					{hasNextPage && (
+						<div ref={loadMoreRef} className="h-10 mt-6 flex justify-center">
+							{isFetchingNextPage && <Spinner size="sm" />}
+						</div>
+					)}
+
+					{!hasNextPage && allItems.length > 0 && (
+						<p className="text-center text-sm text-text-tertiary mt-8 mb-8">
+							You&apos;ve reached the end of your agenda.
+						</p>
 					)}
 				</div>
 
-				<div className="space-y-6">
-					{allItems.map((item: FeedItem) => {
-						// Use a composite key or item.id if unique 
-						// (backend guarantees item.id uniqueness mostly, but good to be safe)
-						const key = `${item.type}-${item.id}`
-
-						switch (item.type) {
-							case 'onboarding': {
-								if (isSuggestedUsersData(item.data)) {
-									return <OnboardingHero key={key} suggestions={item.data.suggestions} />
-								}
-								return null
-							}
-
-							case 'suggested_users': {
-								if (isSuggestedUsersData(item.data)) {
-									return <SuggestedUsersCard key={key} users={item.data.suggestions} />
-								}
-								return null
-							}
-
-							case 'trending_event': {
-								if (isTrendingEventData(item.data)) {
-									return <TrendingEventCard key={key} event={item.data} />
-								}
-								return null
-							}
-
-							case 'activity': {
-								if (isActivityData(item.data)) {
-									return <ActivityFeedItem key={key} activity={item.data} />
-								}
-								return null
-							}
-
-							default:
-								return null
-						}
-					})}
-				</div>
-
-				{/* Load More Trigger */}
-				<div ref={loadMoreRef} className="h-10 mt-6 flex justify-center">
-					{isFetchingNextPage && <Spinner size="sm" />}
-				</div>
-
-				{!hasNextPage && allItems.length > 0 && (
-					<p className="text-center text-sm text-text-tertiary mt-8">
-						You&apos;ve reached the end of the feed.
-					</p>
-				)}
+				{/* Sidebar (Desktop only) */}
+				<Sidebar />
 			</div>
 		</div>
 	)

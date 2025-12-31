@@ -64,6 +64,12 @@ describe('FeedService', () => {
 			},
 			tags: [{ id: 't1', tag: 'cool' }],
 			_count: { attendance: 10, comments: 5, likes: 20 },
+			attendance: [
+				{
+					status: 'attending',
+					user: { id: 'u2', username: 'attendee', profileImage: null },
+				},
+			],
 		}
 
 		// Mock findMany to return our event (both for trending and public events calls)
@@ -81,6 +87,8 @@ describe('FeedService', () => {
 				username: 'creator',
 			},
 			tags: [{ tag: 'cool' }],
+			_count: { attendance: 10, comments: 5, likes: 20 },
+			attendance: [{ status: 'attending', user: { username: 'attendee' } }],
 		})
 	})
 

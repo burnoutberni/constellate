@@ -62,7 +62,6 @@ describe('Navbar Component', () => {
 		render(<Navbar />, { wrapper })
 
 		// Desktop nav links are present (may also appear in mobile nav)
-		expect(screen.getAllByText('Feed').length).toBeGreaterThan(0)
 		expect(screen.getAllByText('Calendar').length).toBeGreaterThan(0)
 		expect(screen.getAllByText('Discover').length).toBeGreaterThan(0)
 		expect(screen.getAllByText('About').length).toBeGreaterThan(0)
@@ -115,12 +114,12 @@ describe('Navbar Component', () => {
 	})
 
 	it('should highlight active navigation link', () => {
-		const { wrapper: testWrapper } = createTestWrapper(['/feed'])
+		const { wrapper: testWrapper } = createTestWrapper(['/discover'])
 		render(<Navbar />, { wrapper: testWrapper })
 
-		// Find the Feed link in desktop nav (not mobile)
-		const feedLinks = screen.getAllByText('Feed')
-		const desktopNavLink = feedLinks.find((link) => {
+		// Find the Discover link in desktop nav (not mobile)
+		const discoverLinks = screen.getAllByText('Discover')
+		const desktopNavLink = discoverLinks.find((link) => {
 			const parent = link.closest('nav[aria-label="Desktop navigation"]')
 			return parent !== null
 		})
@@ -137,13 +136,13 @@ describe('Navbar Component', () => {
 	})
 
 	it('should not show breadcrumbs on main pages', () => {
-		const { wrapper: testWrapper } = createTestWrapper(['/feed'])
+		const { wrapper: testWrapper } = createTestWrapper(['/discover'])
 		render(<Navbar />, { wrapper: testWrapper })
 
-		// Breadcrumbs should not be visible on main pages like /feed
-		// The breadcrumbs component may still render but should only show Home/Feed
+		// Breadcrumbs should not be visible on main pages like /discover
+		// The breadcrumbs component may still render but should only show Home/Discover
 		// We check that the navbar still renders correctly
-		expect(screen.getAllByText('Feed').length).toBeGreaterThan(0)
+		expect(screen.getAllByText('Discover').length).toBeGreaterThan(0)
 	})
 
 	it('should show admin link in user menu when user is admin', async () => {

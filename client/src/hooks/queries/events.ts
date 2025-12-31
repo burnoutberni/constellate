@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { useAuth } from '@/hooks/useAuth'
 import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { getErrorStatus } from '@/lib/errorHandling'
@@ -82,9 +83,10 @@ interface UpdateEventInput {
 }
 
 // Queries
-export function useEvents(limit: number = 50) {
+export function useEvents(limit: number = 50, options?: { enabled?: boolean }) {
 	return useQuery<EventsResponse>({
 		queryKey: queryKeys.events.list(limit),
+		enabled: options?.enabled ?? true,
 		queryFn: () =>
 			api.get<EventsResponse>('/events', { limit }, undefined, 'Failed to fetch events'),
 	})
@@ -194,9 +196,11 @@ export function useDeleteEvent(eventId: string) {
 	})
 }
 
-export function useRSVP(eventId: string, userId?: string) {
+export function useRSVP(eventId: string) {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
+	const { user } = useAuth()
+	const userId = user?.id
 
 	return useMutation({
 		mutationFn: async (input: RSVPInput | null) => {
@@ -222,57 +226,125 @@ export function useRSVP(eventId: string, userId?: string) {
 		},
 		onMutate: async (input) => {
 			// Cancel outgoing queries
-			await queryClient.cancelQueries({
-				queryKey: queryKeys.events.details(),
-			})
+			await queryClient.cancelQueries({ queryKey: queryKeys.events.details() })
+			await queryClient.cancelQueries({ queryKey: queryKeys.activity.feed() })
+			await queryClient.cancelQueries({ queryKey: queryKeys.activity.home() })
 
-			// Get all event detail queries to update
+			const previousData = new Map()
+
+			// Helper to calculate the new event state
+			const getUpdatedEvent = (event: Event) => {
+				const currentAttendance = event.attendance || []
+
+				if (input === null) {
+					// Remove attendance
+					const updatedAttendance = currentAttendance.filter(
+						(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
+					)
+
+					// Only decrement if we actually removed someone
+					const didRemove = updatedAttendance.length < currentAttendance.length
+					const newCount = didRemove
+						? Math.max((event._count?.attendance || 0) - 1, 0)
+						: (event._count?.attendance || 0)
+
+					return {
+						...event,
+						viewerStatus: null,
+						attendance: updatedAttendance,
+						_count: {
+							...event._count,
+							attendance: newCount,
+						},
+					}
+				}
+				// Add or update attendance
+				const existingIndex = userId
+					? currentAttendance.findIndex(
+						(a: { user?: { id?: string } }) => a.user?.id === userId
+					)
+					: -1
+
+				const updatedAttendance = [...currentAttendance]
+				let newCount = event._count?.attendance || 0
+
+				if (existingIndex >= 0) {
+					// Update existing
+					updatedAttendance[existingIndex] = {
+						...updatedAttendance[existingIndex],
+						status: input.status
+					}
+				} else if (user) {
+					// Add new (only possible if we have user data)
+					updatedAttendance.push({
+						status: input.status,
+						user: {
+							...user,
+							username: user.username || '',
+							isRemote: false
+						}
+					})
+					newCount += 1
+				}
+
+				return {
+					...event,
+					viewerStatus: input.status,
+					attendance: updatedAttendance,
+					_count: {
+						...event._count,
+						attendance: newCount,
+					},
+				}
+
+			}
+
+			// 1. Update Event Details
 			const eventQueries = queryClient.getQueriesData({
 				queryKey: queryKeys.events.details(),
 			})
 
-			const previousData = new Map()
-
-			// Optimistically update all matching event queries
 			eventQueries.forEach(([queryKey, data]) => {
-				if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
+				if (data && typeof data === 'object' && 'id' in data && (data as EventDetail).id === eventId) {
 					previousData.set(queryKey, data)
-					const eventDetail = data as unknown as EventDetail
-
-					if (input === null) {
-						// Remove attendance
-						const updatedAttendance = eventDetail.attendance.filter(
-							(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
-						)
-						queryClient.setQueryData(queryKey, {
-							...eventDetail,
-							attendance: updatedAttendance,
-							_count: {
-								...eventDetail._count,
-								attendance: Math.max((eventDetail._count?.attendance || 0) - 1, 0),
-							},
-						})
-					} else {
-						// Add or update attendance
-						const existingIndex = userId
-							? eventDetail.attendance.findIndex(
-								(a: { user?: { id?: string } }) => a.user?.id === userId
-							)
-							: -1
-
-						// We'll wait for SSE to add the actual attendance with full user data
-						// For now, just update the count optimistically if adding
-						if (existingIndex < 0) {
-							queryClient.setQueryData(queryKey, {
-								...eventDetail,
-								_count: {
-									...eventDetail._count,
-									attendance: (eventDetail._count?.attendance || 0) + 1,
-								},
-							})
-						}
-					}
+					queryClient.setQueryData(queryKey, getUpdatedEvent(data as Event))
 				}
+			})
+
+			// 2. Update Feed and Home
+			const feedQueries = [
+				...queryClient.getQueriesData({ queryKey: queryKeys.activity.feed() }),
+				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),
+			]
+
+			feedQueries.forEach(([queryKey, data]) => {
+				const feedData = data as { pages?: Array<{ items: Array<{ type: string; data: unknown }> }> }
+				if (!feedData || !feedData.pages) { return }
+				previousData.set(queryKey, feedData)
+
+				const newPages = feedData.pages.map((page) => ({
+					...page,
+					items: page.items.map((item) => {
+						// Trending Event
+						if (item.type === 'trending_event' && (item.data as Event).id === eventId) {
+							return { ...item, data: getUpdatedEvent(item.data as Event) }
+						}
+						// Activity (e.g. Create)
+						if (item.type === 'activity' && (item.data as { object?: Event })?.object?.id === eventId) {
+							const activityData = item.data as { object: Event }
+							return {
+								...item,
+								data: {
+									...activityData,
+									object: getUpdatedEvent(activityData.object)
+								}
+							}
+						}
+						return item
+					})
+				}))
+
+				queryClient.setQueryData(queryKey, { ...feedData, pages: newPages })
 			})
 
 			return { previousData }
@@ -290,8 +362,10 @@ export function useRSVP(eventId: string, userId?: string) {
 			handleMutationError(error, message)
 		},
 		onSuccess: () => {
-			// Don't invalidate immediately - wait for SSE event
-			// SSE will update the cache with accurate data
+			// Invalidate queries to ensure UI reflects change immediately
+			// While SSE handles real-time updates, invalidating ensures the user sees their own action
+			// Removed global feed invalidation to prevent full feed reload spinner on RSVP
+			queryClient.invalidateQueries({ queryKey: queryKeys.events.details() })
 		},
 	})
 }
@@ -496,9 +570,10 @@ export function useEventReminder(eventId: string, username: string) {
 	})
 }
 
-export function usePlatformStats() {
+export function usePlatformStats(options?: { enabled?: boolean }) {
 	return useQuery<PlatformStatsResponse>({
 		queryKey: queryKeys.platform.stats(),
+		enabled: options?.enabled ?? true,
 		queryFn: () =>
 			api.get<PlatformStatsResponse>(
 				'/search/stats',

@@ -1,9 +1,8 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
 import { EventCard } from '../../components/EventCard'
 import type { Event } from '../../types'
+import { createTestWrapper } from '../testUtils'
 
 // Mock useAuth hook
 const mockUseAuth = vi.fn()
@@ -81,11 +80,8 @@ const createMockEvent = (overrides?: Partial<Event>): Event => ({
 })
 
 const renderEventCard = (props: Parameters<typeof EventCard>[0]) => {
-	return render(
-		<BrowserRouter>
-			<EventCard {...props} />
-		</BrowserRouter>
-	)
+	const { wrapper } = createTestWrapper()
+	return render(<EventCard {...props} />, { wrapper })
 }
 
 describe('EventCard Component', () => {
@@ -151,8 +147,9 @@ describe('EventCard Component', () => {
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
 
-			expect(screen.getByText('10')).toBeInTheDocument() // attendance
-			expect(screen.getByText('5')).toBeInTheDocument() // likes
+			expect(screen.getByText(/10\s*going/i)).toBeInTheDocument() // attendance
+			// Likes are no longer displayed in the footer
+			expect(screen.queryByText('5')).not.toBeInTheDocument()
 			expect(screen.getByText('3')).toBeInTheDocument() // comments
 		})
 
@@ -176,6 +173,11 @@ describe('EventCard Component', () => {
 		})
 
 		it('user does not see sign up link when authenticated', () => {
+			// Mock authenticated user to match isAuthenticated prop
+			mockUseAuth.mockReturnValue({
+				user: { id: 'user2' },
+				loading: false,
+			})
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'full', isAuthenticated: true })
 

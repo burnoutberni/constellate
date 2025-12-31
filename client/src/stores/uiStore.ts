@@ -56,6 +56,9 @@ interface UIState {
 	mentionNotifications: MentionNotification[]
 	toasts: StoredToast[]
 
+	// Feed
+	isFeedRefreshing: boolean
+
 	// Actions
 	openCreateEventModal: () => void
 	closeCreateEventModal: () => void
@@ -65,6 +68,7 @@ interface UIState {
 	setSearchIsOpen: (isOpen: boolean) => void
 	setSearchSelectedIndex: (index: number) => void
 	setSSEConnected: (connected: boolean) => void
+	setIsFeedRefreshing: (isRefreshing: boolean) => void
 	openFollowersModal: (username: string, type: 'followers' | 'following') => void
 	closeFollowersModal: () => void
 	addMentionNotification: (notification: MentionNotification) => void
@@ -83,6 +87,7 @@ export const useUIStore = create<UIState>((set) => ({
 	searchIsOpen: false,
 	searchSelectedIndex: -1,
 	sseConnected: false,
+	isFeedRefreshing: false,
 	followersModalOpen: false,
 	followersModalUsername: null,
 	followersModalType: null,
@@ -98,6 +103,7 @@ export const useUIStore = create<UIState>((set) => ({
 	setSearchIsOpen: (isOpen) => set({ searchIsOpen: isOpen }),
 	setSearchSelectedIndex: (index) => set({ searchSelectedIndex: index }),
 	setSSEConnected: (connected) => set({ sseConnected: connected }),
+	setIsFeedRefreshing: (isRefreshing) => set({ isFeedRefreshing: isRefreshing }),
 	openFollowersModal: (username, type) =>
 		set({
 			followersModalOpen: true,

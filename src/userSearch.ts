@@ -17,6 +17,8 @@ import type { Person } from './lib/activitypubSchemas.js'
 import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
+import { requireAuth } from './middleware/auth.js'
+import { SuggestedUsersService } from './services/SuggestedUsersService.js'
 
 const app = new Hono()
 
@@ -231,6 +233,21 @@ async function findCachedRemoteUser(parsedHandle: { username: string; domain: st
 		},
 	})
 }
+
+app.get('/suggestions', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const limitParam = c.req.query('limit')
+		const limit = limitParam ? parseInt(limitParam) : 5
+
+		const suggestions = await SuggestedUsersService.getSuggestions(userId, limit)
+
+		return c.json(suggestions)
+	} catch (error) {
+		console.error('Error getting user suggestions:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
 
 /**
  * Search for users and events

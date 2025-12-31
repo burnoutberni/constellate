@@ -7,7 +7,7 @@ import { useAuth } from '../useAuth'
 import { queryKeys } from './keys'
 
 // Define the unified FeedItem type ( mirroring backend FeedItem )
-export type FeedItemType = 'activity' | 'trending_event' | 'suggested_users' | 'onboarding'
+export type FeedItemType = 'activity' | 'trending_event' | 'suggested_users' | 'onboarding' | 'header'
 
 export interface FeedItem {
 	type: FeedItemType
@@ -40,5 +40,26 @@ export function useActivityFeed() {
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
 		enabled: Boolean(user),
 		staleTime: 1000 * 60, // 1 minute
+	})
+}
+
+export function useHomeFeed() {
+	const { user } = useAuth()
+
+	return useInfiniteQuery<FeedResponse>({
+		queryKey: ['activity', 'home'], // TODO: Add to queryKeys
+		queryFn: ({ pageParam }) =>
+			api.get<FeedResponse>(
+				'/activity/home',
+				{
+					cursor: pageParam as string | undefined,
+				},
+				undefined,
+				'Failed to fetch home feed'
+			),
+		initialPageParam: undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
+		enabled: Boolean(user),
+		staleTime: 1000 * 60 * 5, // 5 minutes (smart agenda changes less often)
 	})
 }

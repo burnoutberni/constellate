@@ -26,6 +26,17 @@ export interface TrendingEvent {
 		profileImage: string | null
 	} | null
 	tags: Array<{ id: string; tag: string }>
+	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
+	attendance?: Array<{
+		status: string
+		user: {
+			id: string
+			username: string
+			profileImage?: string | null
+		}
+	}>
+	_count?: Partial<EngagementCounts>
+	headerImage?: string | null
 }
 
 const MIN_SCORE_MULTIPLIER = 0.35

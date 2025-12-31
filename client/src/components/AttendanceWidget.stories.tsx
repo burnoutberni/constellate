@@ -1,7 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
 import { AttendanceWidget } from './AttendanceWidget'
+
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			retry: false,
+		},
+	},
+})
 
 const meta = {
 	title: 'Components/AttendanceWidget',
@@ -12,9 +21,11 @@ const meta = {
 	tags: ['autodocs'],
 	decorators: [
 		(Story) => (
-			<MemoryRouter>
-				<Story />
-			</MemoryRouter>
+			<QueryClientProvider client={queryClient}>
+				<MemoryRouter>
+					<Story />
+				</MemoryRouter>
+			</QueryClientProvider>
 		),
 	],
 } satisfies Meta<typeof AttendanceWidget>
@@ -31,12 +42,9 @@ export const Default: Story = {
 		userLiked: false,
 		userHasShared: false,
 		isAuthenticated: true,
-		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},
@@ -55,12 +63,9 @@ export const Attending: Story = {
 		userLiked: false,
 		userHasShared: false,
 		isAuthenticated: true,
-		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},
@@ -79,12 +84,9 @@ export const Maybe: Story = {
 		userLiked: false,
 		userHasShared: false,
 		isAuthenticated: true,
-		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},
@@ -103,12 +105,9 @@ export const Liked: Story = {
 		userLiked: true,
 		userHasShared: false,
 		isAuthenticated: true,
-		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},
@@ -127,12 +126,9 @@ export const NotAuthenticated: Story = {
 		userLiked: false,
 		userHasShared: false,
 		isAuthenticated: false,
-		isRSVPPending: false,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},
@@ -151,12 +147,9 @@ export const Pending: Story = {
 		userLiked: false,
 		userHasShared: false,
 		isAuthenticated: true,
-		isRSVPPending: true,
 		isLikePending: false,
 		isSharePending: false,
-		onRSVP: (_status) => {
-			// RSVP handler
-		},
+
 		onLike: () => {
 			// Like handler
 		},

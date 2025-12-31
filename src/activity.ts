@@ -26,6 +26,15 @@ export interface FeedEventSummary {
 		name: string | null
 		displayColor: string
 	} | null
+	attendance?: Array<{
+		status: string
+		user: {
+			id: string
+			username: string
+			profileImage?: string | null
+		}
+	}>
+	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
 }
 
 export interface FeedActivity {
@@ -45,6 +54,25 @@ export interface FeedActivity {
 }
 
 const app = new Hono()
+
+// Get home feed (smart agenda)
+app.get('/activity/home', async (c) => {
+	try {
+		const userId = c.get('userId')
+		const cursor = c.req.query('cursor')
+
+		if (!userId) {
+			return c.json({ items: [] })
+		}
+
+		console.log(`Fetching home feed for ${userId}, cursor: ${cursor}`)
+		const result = await FeedService.getHomeFeed(userId, cursor)
+		return c.json(result)
+	} catch (error) {
+		console.error('Error getting home feed:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
 
 // Get activity feed for authenticated user
 app.get('/activity/feed', async (c) => {

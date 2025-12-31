@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 
 import { CommunityStats } from '@/components/CommunityStats'
 import { EventCard } from '@/components/EventCard'
@@ -23,15 +23,17 @@ export function HomePage() {
 	// const navigate = useNavigate()
 
 	// Queries
-	const { data: eventsData, isLoading: eventsLoading } = useEvents(10)
-	const { data: trendingData, isLoading: trendingLoading } = useTrendingEvents(6, 7)
+	const { data: eventsData, isLoading: eventsLoading } = useEvents(10, { enabled: !user })
+	const { data: trendingData, isLoading: trendingLoading } = useTrendingEvents(6, 7, {
+		enabled: !user,
+	})
 	const { data: recommendationsData, isLoading: recommendationsLoading } = useRecommendedEvents(
 		6,
 		{
 			enabled: Boolean(user),
 		}
 	)
-	const { data: statsData, isLoading: statsLoading } = usePlatformStats()
+	const { data: statsData, isLoading: statsLoading } = usePlatformStats({ enabled: !user })
 
 	// Derived data
 	const upcomingEvents =
@@ -56,6 +58,10 @@ export function HomePage() {
 		() => Array.from({ length: 4 }, (_, i) => `events-skeleton-${i}`),
 		[]
 	)
+
+	if (user) {
+		return <Navigate to="/feed" replace />
+	}
 
 	return (
 		<div className="min-h-screen bg-background-secondary">
@@ -101,19 +107,19 @@ export function HomePage() {
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 						{trendingLoading
 							? trendingSkeletonKeys.map((key) => (
-									<div key={key} className="h-full">
-										<Skeleton className="h-64 w-full rounded-xl" />
-									</div>
-								))
+								<div key={key} className="h-full">
+									<Skeleton className="h-64 w-full rounded-xl" />
+								</div>
+							))
 							: trendingEvents.slice(0, 3).map((event) => (
-									<div key={event.id} className="h-full">
-										<EventCard
-											event={event}
-											isAuthenticated={Boolean(user)}
-											variant="full"
-										/>
-									</div>
-								))}
+								<div key={event.id} className="h-full">
+									<EventCard
+										event={event}
+										isAuthenticated={Boolean(user)}
+										variant="full"
+									/>
+								</div>
+							))}
 						{!trendingLoading && trendingEvents.length === 0 && (
 							<div className="col-span-full py-8 text-center text-text-secondary bg-background-primary rounded-xl border border-border-default border-dashed">
 								No trending events right now. Be the first to create a buzz!
@@ -139,19 +145,19 @@ export function HomePage() {
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 							{recommendationsLoading
 								? recSkeletonKeys.map((key) => (
-										<div key={key} className="h-full">
-											<Skeleton className="h-64 w-full rounded-xl" />
-										</div>
-									))
+									<div key={key} className="h-full">
+										<Skeleton className="h-64 w-full rounded-xl" />
+									</div>
+								))
 								: recommendedEvents.slice(0, 3).map((event) => (
-										<div key={event.id} className="h-full">
-											<EventCard
-												event={event}
-												isAuthenticated={Boolean(user)}
-												variant="full"
-											/>
-										</div>
-									))}
+									<div key={event.id} className="h-full">
+										<EventCard
+											event={event}
+											isAuthenticated={Boolean(user)}
+											variant="full"
+										/>
+									</div>
+								))}
 							{!recommendationsLoading && recommendedEvents.length === 0 && (
 								<div className="col-span-full py-8 text-center text-text-secondary bg-background-secondary rounded-xl border border-border-default border-dashed">
 									Interact with more events to get personalized recommendations.
@@ -180,19 +186,19 @@ export function HomePage() {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 						{eventsLoading
 							? eventsSkeletonKeys.map((key) => (
-									<div key={key} className="h-full">
-										<Skeleton className="h-48 w-full rounded-xl" />
-									</div>
-								))
+								<div key={key} className="h-full">
+									<Skeleton className="h-48 w-full rounded-xl" />
+								</div>
+							))
 							: upcomingEvents.slice(0, 4).map((event) => (
-									<div key={event.id} className="h-full">
-										<EventCard
-											event={event}
-											isAuthenticated={Boolean(user)}
-											variant="compact"
-										/>
-									</div>
-								))}
+								<div key={event.id} className="h-full">
+									<EventCard
+										event={event}
+										isAuthenticated={Boolean(user)}
+										variant="compact"
+									/>
+								</div>
+							))}
 						{!eventsLoading && upcomingEvents.length === 0 && (
 							<div className="col-span-full py-12 text-center text-text-secondary">
 								No upcoming events found.

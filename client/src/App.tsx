@@ -7,6 +7,7 @@ import { useCurrentUserProfile } from '@/hooks/queries'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Footer } from './components/Footer'
 import { MentionNotifications } from './components/MentionNotifications'
+import { ScrollToTop } from './components/ScrollToTop'
 import { SkipLink } from './components/SkipLink'
 import { Toasts } from './components/Toast'
 import { TosAcceptanceModal } from './components/TosAcceptanceModal'
@@ -241,6 +242,7 @@ function AppContent() {
 
 	return (
 		<ErrorBoundary resetKeys={[location.pathname]}>
+			<ScrollToTop />
 			<SkipLink />
 			<Suspense fallback={<PageLoader />}>
 				<Routes>

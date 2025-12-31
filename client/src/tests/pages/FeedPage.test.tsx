@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { FeedPage } from '../../pages/FeedPage'
-import type { Activity } from '../../types'
 import type { Event } from '../../types'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
 
@@ -30,26 +29,16 @@ const mockEvent: Event = {
 	timezone: 'UTC'
 }
 
-const mockActivity: Activity = {
-	id: 'activity1',
-	type: 'event_created',
-	createdAt: '2024-01-15T10:00:00Z',
-	user: {
-		id: 'user1',
-		username: 'testuser',
-		name: 'Test User',
-		isRemote: false,
-	},
-	event: mockEvent,
-}
+
 
 const mockUseEvents = vi.fn()
-const mockUseActivityFeed = vi.fn()
+const mockUseHomeFeed = vi.fn()
 const mockUseRecommendedEvents = vi.fn()
 const mockUseTrendingEvents = vi.fn()
 const mockOpenCreateEventModal = vi.fn()
 const mockCloseCreateEventModal = vi.fn()
 const mockUseAuth = vi.fn()
+const mockUseSuggestedUsers = vi.fn()
 
 vi.mock('../../hooks/useAuth', () => ({
 	useAuth: () => mockUseAuth(),
@@ -62,10 +51,11 @@ vi.mock('../../hooks/queries', async () => {
 	return {
 		...actual,
 		useEvents: () => mockUseEvents(),
-		useActivityFeed: () => mockUseActivityFeed(),
+		useHomeFeed: () => mockUseHomeFeed(), // Updated hook
 		useRecommendedEvents: () => mockUseRecommendedEvents(),
 		useTrendingEvents: () => mockUseTrendingEvents(),
 		useNearbyEvents: () => mockUseNearbyEvents(),
+		useSuggestedUsers: () => mockUseSuggestedUsers(),
 	}
 })
 
@@ -92,6 +82,18 @@ vi.mock('../../components/FollowButton', () => ({
 	FollowButton: () => null,
 }))
 
+// Mock Sidebar to avoid complex children rendering if needed, 
+// or let it render if we want to test its presence
+vi.mock('../../components/Feed/Sidebar', () => ({
+	Sidebar: () => <div data-testid="feed-sidebar">Sidebar</div>,
+}))
+
+vi.mock('../../components/EventCard', () => ({
+	EventCard: ({ event }: { event: { title: string } }) => (
+		<div data-testid="event-card">{event.title}</div>
+	),
+}))
+
 vi.mock('../../hooks/useLocationSuggestions', () => ({
 	useLocationSuggestions: () => ({
 		suggestions: [],
@@ -114,6 +116,10 @@ vi.mock('../../hooks/queries/users', () => ({
 		mutate: vi.fn(),
 		isPending: false,
 	}),
+	useSuggestedUsers: () => ({ // Mock explicitly here too if needed, but handled in queries mock
+		data: [],
+		isLoading: false
+	})
 }))
 
 const { wrapper, queryClient } = createTestWrapper(['/feed'])
@@ -130,9 +136,12 @@ describe('FeedPage', () => {
 			data: { events: [] },
 			isLoading: false,
 		})
-		mockUseActivityFeed.mockReturnValue({
-			data: { activities: [] },
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [] },
 			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
 		})
 		mockUseRecommendedEvents.mockReturnValue({
 			data: { recommendations: [] },
@@ -149,19 +158,24 @@ describe('FeedPage', () => {
 			data: { events: [] },
 			isLoading: false,
 		})
+		mockUseSuggestedUsers.mockReturnValue({
+			data: [],
+			isLoading: false
+		})
 	})
 
 	afterEach(() => {
 		clearQueryClient(queryClient)
 	})
 
-	it('should render feed page', () => {
+	it('should render feed page with sidebar', () => {
 		render(<FeedPage />, { wrapper })
 		expect(screen.getByRole('button', { name: /New Event/i })).toBeInTheDocument()
+		expect(screen.getByTestId('feed-sidebar')).toBeInTheDocument()
 	})
 
-	it('should show loading state for activity feed', async () => {
-		mockUseActivityFeed.mockReturnValue({
+	it('should show loading state for home feed', async () => {
+		mockUseHomeFeed.mockReturnValue({
 			data: undefined,
 			isLoading: true,
 			hasNextPage: false,
@@ -175,15 +189,23 @@ describe('FeedPage', () => {
 		expect(document.querySelector('.animate-spin')).toBeInTheDocument()
 	})
 
-	it('should display activity feed items', async () => {
-		const feedItems = [{
-			type: 'activity',
-			id: 'activity1',
-			timestamp: '2024-01-15T10:00:00Z',
-			data: mockActivity
-		}]
+	it('should display feed items and headers', async () => {
+		const feedItems = [
+			{
+				type: 'header',
+				id: 'header-today',
+				timestamp: '2024-01-15T08:00:00Z',
+				data: { title: 'Today' }
+			},
+			{
+				type: 'trending_event', // or 'activity' depending on what we test
+				id: 'activity1',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: mockEvent // simplified, mocked as trending_event data
+			}
+		]
 
-		mockUseActivityFeed.mockReturnValue({
+		mockUseHomeFeed.mockReturnValue({
 			data: { pages: [{ items: feedItems }] },
 			isLoading: false,
 			hasNextPage: false,
@@ -195,6 +217,7 @@ describe('FeedPage', () => {
 
 		await waitFor(
 			() => {
+				expect(screen.getByText('Today')).toBeInTheDocument()
 				expect(screen.getByText('Test Event')).toBeInTheDocument()
 			},
 			{ timeout: 2000 }
@@ -209,7 +232,7 @@ describe('FeedPage', () => {
 			data: { suggestions: [{ id: 'u1', username: 'suggested1', name: 'Suggested User', displayColor: '#000' }] }
 		}]
 
-		mockUseActivityFeed.mockReturnValue({
+		mockUseHomeFeed.mockReturnValue({
 			data: { pages: [{ items: feedItems }] },
 			isLoading: false,
 			hasNextPage: false,
@@ -222,35 +245,8 @@ describe('FeedPage', () => {
 		expect(screen.getByText(/Follow people to see their events and activities here/i)).toBeInTheDocument()
 	})
 
-	it('should display trending events in feed', async () => {
-		const trendingEvent = {
-			...mockEvent,
-			trendingRank: 1,
-			trendingScore: 100
-		}
-
-		const feedItems = [{
-			type: 'trending_event',
-			id: 'trending1',
-			timestamp: new Date().toISOString(),
-			data: trendingEvent
-		}]
-
-		mockUseActivityFeed.mockReturnValue({
-			data: { pages: [{ items: feedItems }] },
-			isLoading: false,
-			hasNextPage: false,
-			isFetchingNextPage: false,
-			status: 'success'
-		})
-
-		render(<FeedPage />, { wrapper })
-
-		expect(screen.getByText('Test Event')).toBeInTheDocument()
-	})
-
 	it('should show error state', async () => {
-		mockUseActivityFeed.mockReturnValue({
+		mockUseHomeFeed.mockReturnValue({
 			data: undefined,
 			isLoading: false,
 			status: 'error',

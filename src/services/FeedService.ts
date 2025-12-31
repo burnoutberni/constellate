@@ -6,7 +6,12 @@ import { type FeedActivity } from '../activity.js'
 import { canUserViewEvent } from '../lib/eventVisibility.js'
 import { EventVisibility } from '@prisma/client'
 
-export type FeedItemType = 'activity' | 'trending_event' | 'suggested_users' | 'onboarding'
+export type FeedItemType =
+	| 'activity'
+	| 'trending_event'
+	| 'suggested_users'
+	| 'onboarding'
+	| 'header'
 
 export interface SuggestedUser {
 	id: string
@@ -20,8 +25,10 @@ export interface FeedItem {
 	type: FeedItemType
 	id: string
 	timestamp: string // ISO string for sorting
-	data: FeedActivity | TrendingEvent | { suggestions: Array<SuggestedUser> }
+	data: FeedActivity | TrendingEvent | { suggestions: Array<SuggestedUser> } | { title: string }
 }
+
+type ViewerStatus = 'attending' | 'maybe' | 'not_attending' | null
 
 const USER_SUGGESTION_INJECTION_INDEX = 4
 const MIN_ITEMS_FOR_SUGGESTION_INJECTION = USER_SUGGESTION_INJECTION_INDEX + 1
@@ -176,6 +183,411 @@ export class FeedService {
 		return { items, nextCursor }
 	}
 
+	// --- Home Feed (Smart Agenda) ---
+
+	static async getHomeFeed(userId: string, cursor?: string) {
+		// If cursor is present, we only fetch the "Future" section or continue pagination
+		if (cursor) {
+			return this.getFutureFeed(userId, cursor)
+		}
+
+		// Otherwise, build the initial view:
+		// 1. Today
+		// 2. Rest of Week (if applicable)
+		// 3. Weekend (if applicable)
+		// 4. Initial chunk of Future
+
+		const now = new Date()
+		const items: FeedItem[] = []
+
+		// Helper to define time windows
+		const todayStart = new Date(now)
+		const todayEnd = new Date(now)
+		todayEnd.setHours(23, 59, 59, 999)
+
+		// Get user's followed IDs for suggestions context
+		const following = await SocialGraphService.getFollowing(userId)
+		const followedUserIds = await SocialGraphService.resolveFollowedUserIds(following)
+
+		// --- TODAY ---
+		await this.addTodayItems(items, userId, followedUserIds, todayStart, todayEnd)
+
+		// --- REST OF WEEK (Work week) ---
+		const { restOfWeekStart, restOfWeekEnd } = this.calculateRestOfWeek(now, todayEnd)
+		if (restOfWeekStart && restOfWeekEnd) {
+			await this.addRestOfWeekItems(
+				items,
+				userId,
+				followedUserIds,
+				restOfWeekStart,
+				restOfWeekEnd
+			)
+		}
+
+		// --- WEEKEND ---
+		const { weekendStart, weekendEnd } = this.calculateWeekend(now, todayEnd)
+		const timelineMark = restOfWeekEnd || todayEnd
+
+		if (weekendStart && weekendEnd && weekendStart > timelineMark) {
+			await this.addWeekendItems(items, userId, followedUserIds, weekendStart, weekendEnd)
+		}
+
+		// --- FUTURE ---
+		await this.addFutureItems(items, userId, weekendEnd, timelineMark)
+
+		return this.prepareResult(items)
+	}
+
+	private static async addTodayItems(
+		items: FeedItem[],
+		userId: string,
+		followedUserIds: string[],
+		todayStart: Date,
+		todayEnd: Date
+	) {
+		const todayItems = await this.getTimelineItems(
+			userId,
+			followedUserIds,
+			todayStart,
+			todayEnd
+		)
+		if (todayItems.length > 0) {
+			items.push({
+				type: 'header',
+				id: 'header-today',
+				timestamp: todayStart.toISOString(),
+				data: { title: 'Today' },
+			})
+			items.push(...todayItems)
+		} else {
+			// If no events today, maybe show some suggestions "for tonight"
+			const suggestions = await SuggestedUsersService.getSuggestions(userId, 3)
+			if (suggestions.length > 0) {
+				items.push({
+					type: 'header',
+					id: 'header-today-suggestions',
+					timestamp: todayStart.toISOString(),
+					data: { title: 'Today' },
+				})
+				items.push({
+					type: 'suggested_users',
+					id: 'today-suggestions',
+					timestamp: new Date().toISOString(),
+					data: { suggestions },
+				})
+			}
+		}
+	}
+
+	private static calculateRestOfWeek(now: Date, todayEnd: Date) {
+		const currentDay = now.getDay() // 0 = Sun, 1 = Mon ...
+		let restOfWeekStart: Date | null = null
+		let restOfWeekEnd: Date | null = null
+
+		if (currentDay >= 1 && currentDay < 5) {
+			// It's Mon-Thu
+			restOfWeekStart = new Date(todayEnd)
+			restOfWeekStart.setMilliseconds(restOfWeekStart.getMilliseconds() + 1) // Start of tomorrow
+
+			// Find coming Friday
+			const daysUntilFriday = 5 - currentDay
+			restOfWeekEnd = new Date(now)
+			restOfWeekEnd.setDate(now.getDate() + daysUntilFriday)
+			restOfWeekEnd.setHours(23, 59, 59, 999)
+		}
+		return { restOfWeekStart, restOfWeekEnd }
+	}
+
+	private static async addRestOfWeekItems(
+		items: FeedItem[],
+		userId: string,
+		followedUserIds: string[],
+		restOfWeekStart: Date,
+		restOfWeekEnd: Date
+	) {
+		const weekItems = await this.getTimelineItems(
+			userId,
+			followedUserIds,
+			restOfWeekStart,
+			restOfWeekEnd
+		)
+		if (weekItems.length > 0) {
+			items.push({
+				type: 'header',
+				id: 'header-week',
+				timestamp: restOfWeekStart.toISOString(),
+				data: { title: 'Rest of Week' },
+			})
+			items.push(...weekItems)
+		}
+	}
+
+	private static calculateWeekend(now: Date, todayEnd: Date) {
+		const currentDay = now.getDay()
+		let weekendStart: Date | null = null
+		let weekendEnd: Date | null = null
+
+		const daysUntilSaturday = (6 - currentDay + 7) % 7
+		const nextSaturday = new Date(now)
+		nextSaturday.setDate(now.getDate() + (daysUntilSaturday === 0 ? 0 : daysUntilSaturday))
+
+		if (currentDay === 6) {
+			// Today is Sat. Weekend is Sat+Sun. Today covers Sat.
+			// Maybe "Rest of Weekend" (Sunday)?
+			weekendStart = new Date(todayEnd)
+			weekendStart.setMilliseconds(1)
+			weekendEnd = new Date(now)
+			weekendEnd.setDate(now.getDate() + 1) // Sunday
+			weekendEnd.setHours(23, 59, 59, 999)
+		} else if (currentDay === 0) {
+			// Today is Sun. Weekend is over.
+		} else {
+			// Mon-Fri. Weekend is coming Sat-Sun.
+			weekendStart = new Date(nextSaturday)
+			weekendStart.setHours(0, 0, 0, 0)
+			weekendEnd = new Date(weekendStart)
+			weekendEnd.setDate(weekendStart.getDate() + 1) // Sunday
+			weekendEnd.setHours(23, 59, 59, 999)
+		}
+		return { weekendStart, weekendEnd }
+	}
+
+	private static async addWeekendItems(
+		items: FeedItem[],
+		userId: string,
+		followedUserIds: string[],
+		weekendStart: Date,
+		weekendEnd: Date
+	) {
+		const weekendItems = await this.getTimelineItems(
+			userId,
+			followedUserIds,
+			weekendStart,
+			weekendEnd
+		)
+		if (weekendItems.length > 0) {
+			items.push({
+				type: 'header',
+				id: 'header-weekend',
+				timestamp: weekendStart.toISOString(),
+				data: { title: 'This Weekend' },
+			})
+			items.push(...weekendItems)
+		}
+	}
+
+	private static async addFutureItems(
+		items: FeedItem[],
+		userId: string,
+		weekendEnd: Date | null,
+		timelineMark: Date
+	) {
+		const futureStart = weekendEnd && weekendEnd > timelineMark ? weekendEnd : timelineMark
+		const futureQueryStart = new Date(futureStart.getTime() + 1)
+
+		const { items: futureItems } = await this.getFutureFeed(
+			userId,
+			futureQueryStart.toISOString(),
+			10
+		)
+
+		if (futureItems.length > 0) {
+			items.push({
+				type: 'header',
+				id: 'header-future',
+				timestamp: futureQueryStart.toISOString(),
+				data: { title: 'Coming Up' },
+			})
+			items.push(...futureItems)
+		}
+	}
+
+	private static async getFutureFeed(userId: string, cursor: string, limit: number = 20) {
+		const cursorDate = new Date(cursor)
+
+		// Fetch public/followed events after this date
+		// Simple fetch for now, can be complex logic later
+		const events = await prisma.event.findMany({
+			where: {
+				startTime: { gt: cursorDate },
+				OR: [
+					{ visibility: 'PUBLIC' },
+					{
+						// simplistic visibility for now - optimize later
+						user: { followers: { some: { userId } } },
+					},
+				],
+			},
+			orderBy: { startTime: 'asc' },
+			take: limit,
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						name: true,
+						displayColor: true,
+						profileImage: true,
+						isRemote: true,
+					},
+				},
+				tags: true,
+				attendance: {
+					where: { userId },
+					select: {
+						status: true,
+						user: {
+							select: {
+								id: true,
+								username: true,
+								profileImage: true,
+							},
+						},
+					},
+				},
+			},
+		})
+
+		const items: FeedItem[] = events.map((e) => ({
+			type: 'trending_event', // Reusing this type for generic event cards for now
+			id: e.id,
+			timestamp: e.startTime.toISOString(),
+			data: this.mapToTrendingEvent({ ...e, updatedAt: e.updatedAt }),
+		}))
+
+		return this.prepareResult(items)
+	}
+
+	private static async getTimelineItems(
+		userId: string,
+		followedUserIds: string[],
+		start: Date,
+		end: Date
+	): Promise<FeedItem[]> {
+		// 1. Get Events user is Going/Maybe to
+		const rsvps = await prisma.eventAttendance.findMany({
+			where: {
+				userId,
+				status: { in: ['attending', 'maybe'] },
+				event: {
+					startTime: { gte: start, lte: end },
+				},
+			},
+			include: {
+				event: {
+					include: {
+						user: {
+							select: {
+								id: true,
+								username: true,
+								name: true,
+								displayColor: true,
+								profileImage: true,
+								isRemote: true,
+							},
+						},
+						tags: true,
+						_count: {
+							select: { attendance: true },
+						},
+						attendance: {
+							take: 5,
+							select: {
+								status: true,
+								user: {
+									select: {
+										id: true,
+										username: true,
+										profileImage: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			orderBy: { event: { startTime: 'asc' } },
+		})
+
+		// 2. Get Suggested Events (Friends going, or Trending public)
+		// For simplicity, let's grab top trending in this window that aren't RSVPd
+		const rsvpEventIds = rsvps.map((r) => r.eventId)
+
+		const suggestions = await prisma.event.findMany({
+			where: {
+				startTime: { gte: start, lte: end },
+				id: { notIn: rsvpEventIds },
+				visibility: 'PUBLIC',
+			},
+			orderBy: [
+				// rudimentary "trending" sort by checking if friends are going?
+				// For now just recent or soonest?
+				// Let's rely on creation/updates or just proximity
+				{ startTime: 'asc' },
+			],
+			take: 5,
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						name: true,
+						displayColor: true,
+						profileImage: true,
+						isRemote: true,
+					},
+				},
+				tags: true,
+				_count: {
+					select: { attendance: true },
+				},
+				attendance: {
+					take: 5,
+					select: {
+						status: true,
+						user: {
+							select: {
+								id: true,
+								username: true,
+								profileImage: true,
+							},
+						},
+					},
+				},
+			},
+		})
+
+		const items: FeedItem[] = []
+
+		// RSVPS first
+		rsvps.forEach((r) => {
+			items.push({
+				// Using trending_event to show "Event Card" context.
+				// We inject the status via a custom id or data if needed, but for now standar card.
+				type: 'trending_event',
+				id: `my-rsvp-${r.eventId}`,
+				timestamp: r.event.startTime.toISOString(),
+				data: this.mapToTrendingEvent({
+					...r.event,
+					updatedAt: r.createdAt,
+					viewerStatus: r.status as 'attending' | 'maybe',
+				}),
+			})
+		})
+
+		// Suggestions next
+		suggestions.forEach((s) => {
+			items.push({
+				type: 'trending_event',
+				id: s.id,
+				timestamp: s.startTime.toISOString(),
+				data: this.mapToTrendingEvent({ ...s, updatedAt: s.updatedAt }),
+			})
+		})
+
+		return items
+	}
+
 	// --- Helpers ---
 
 	private static async fetchTrendingEvents(userId: string, limit: number) {
@@ -200,6 +612,19 @@ export class FeedService {
 					},
 				},
 				tags: true,
+				attendance: {
+					where: { userId },
+					select: {
+						status: true,
+						user: {
+							select: {
+								id: true,
+								username: true,
+								profileImage: true,
+							},
+						},
+					},
+				},
 			},
 			orderBy: [{ updatedAt: 'desc' }],
 			take: limit * 2,
@@ -226,6 +651,19 @@ export class FeedService {
 					},
 				},
 				tags: true,
+				attendance: {
+					where: { userId },
+					select: {
+						status: true,
+						user: {
+							select: {
+								id: true,
+								username: true,
+								profileImage: true,
+							},
+						},
+					},
+				},
 			},
 			orderBy: { createdAt: 'desc' },
 			take: limit,
@@ -270,6 +708,19 @@ export class FeedService {
 								},
 							},
 							tags: true,
+							attendance: {
+								where: { userId: viewerId },
+								select: {
+									status: true,
+									user: {
+										select: {
+											id: true,
+											username: true,
+											profileImage: true,
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -303,6 +754,19 @@ export class FeedService {
 								},
 							},
 							tags: true,
+							attendance: {
+								where: { userId: viewerId },
+								select: {
+									status: true,
+									user: {
+										select: {
+											id: true,
+											username: true,
+											profileImage: true,
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -335,6 +799,19 @@ export class FeedService {
 								},
 							},
 							tags: true,
+							attendance: {
+								where: { userId: viewerId },
+								select: {
+									status: true,
+									user: {
+										select: {
+											id: true,
+											username: true,
+											profileImage: true,
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -358,6 +835,19 @@ export class FeedService {
 						},
 					},
 					tags: true,
+					attendance: {
+						where: { userId: viewerId },
+						select: {
+							status: true,
+							user: {
+								select: {
+									id: true,
+									username: true,
+									profileImage: true,
+								},
+							},
+						},
+					},
 				},
 				orderBy: { createdAt: 'desc' },
 				take: fetchLimit,
@@ -389,6 +879,19 @@ export class FeedService {
 								},
 							},
 							tags: true,
+							attendance: {
+								where: { userId: viewerId },
+								select: {
+									status: true,
+									user: {
+										select: {
+											id: true,
+											username: true,
+											profileImage: true,
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -510,12 +1013,28 @@ export class FeedService {
 			profileImage: string | null
 		} | null
 		tags: Array<{ id: string; tag: string }>
+		viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
+		attendance?: Array<{
+			status: string
+			user: {
+				id: string
+				username: string
+				profileImage?: string | null
+			}
+		}>
+		_count?: { attendance?: number; comments?: number; likes?: number }
+		headerImage?: string | null
 	}): TrendingEvent {
+		const computedStatus =
+			(e.viewerStatus as ViewerStatus) ?? (e.attendance?.[0]?.status as ViewerStatus) ?? null
+
 		return {
 			id: e.id,
 			title: e.title,
 			startTime: e.startTime,
 			updatedAt: e.updatedAt,
+			_count: e._count,
+			headerImage: e.headerImage,
 			user: e.user
 				? {
 						id: e.user.id,
@@ -526,6 +1045,8 @@ export class FeedService {
 					}
 				: null,
 			tags: e.tags.map((t) => ({ id: t.id, tag: t.tag })),
+			viewerStatus: computedStatus,
+			attendance: e.attendance,
 		}
 	}
 
@@ -536,6 +1057,14 @@ export class FeedService {
 		location: string | null
 		visibility?: EventVisibility | null
 		tags?: Array<{ id: string; tag: string }>
+		attendance?: Array<{
+			status: string
+			user: {
+				id: string
+				username: string
+				profileImage?: string | null
+			}
+		}>
 		user: {
 			id: string
 			username: string
@@ -544,6 +1073,8 @@ export class FeedService {
 			profileImage?: string | null
 		} | null
 	}): FeedActivity['event'] {
+		const computedStatus = (e.attendance?.[0]?.status as ViewerStatus) ?? null
+
 		return {
 			id: e.id,
 			title: e.title,
@@ -559,6 +1090,15 @@ export class FeedService {
 						displayColor: e.user.displayColor,
 					}
 				: null,
+			viewerStatus: computedStatus,
+			attendance: e.attendance?.map((a) => ({
+				status: a.status,
+				user: {
+					id: a.user.id,
+					username: a.user.username,
+					profileImage: a.user.profileImage,
+				},
+			})),
 		}
 	}
 }

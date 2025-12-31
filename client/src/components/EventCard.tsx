@@ -1,22 +1,27 @@
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-	AttendeesIcon,
-	LikeIcon,
-	CommentIcon,
+	/* Icons */
 	LocationIcon,
 	CalendarIcon,
+	CommentIcon,
+	/* Components */
 	Card,
 	Badge,
 	Avatar,
 	SafeHTML,
+	Button,
 } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import type { Event } from '@/types'
 
 import { formatTime, formatRelativeDate } from '../lib/formatUtils'
 
-import { ReportButton } from './ReportButton'
+import { AttendeeFacepile } from './AttendeeFacepile'
+import { ReportContentModal } from './ReportContentModal'
+import { RSVPButton } from './RSVPButton'
 
 interface EventCardProps {
 	event: Event
@@ -24,24 +29,58 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
-function EventReportButton({ event, className }: { event: Event; className?: string }) {
-	if (!event.id || !event.title) {
-		return null
+function CardOptionsMenu({ event }: { event: Event }) {
+	const [isOpen, setIsOpen] = useState(false)
+	const [isReportOpen, setIsReportOpen] = useState(false)
+
+	const toggleMenu = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+		setIsOpen(!isOpen)
 	}
 
 	return (
-		<div
-			className={cn(
-				'absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity',
-				className
-			)}>
-			<ReportButton
+		<div className="relative inline-block text-left z-30">
+			<Button
+				variant="ghost"
+				size="sm"
+				className="h-8 w-8 p-0 rounded-full hover:bg-background-tertiary text-text-secondary"
+				onClick={toggleMenu}
+			>
+				<span className="sr-only">Open options</span>
+				<span className="text-lg leading-none">⋮</span>
+			</Button>
+
+			{isOpen && (
+				<div
+					className="absolute right-0 mt-2 w-48 origin-top-right rounded-lg bg-background-primary shadow-xl ring-1 ring-border-default focus:outline-none border border-border-default overflow-hidden"
+					role="menu"
+					onMouseLeave={() => setIsOpen(false)}
+					onClick={(e) => e.stopPropagation()}
+					onMouseDown={(e) => e.stopPropagation()}
+				>
+					<div className="p-1">
+						<button
+							className="text-text-primary group flex w-full items-center px-4 py-2 text-sm hover:bg-background-secondary text-left transition-colors"
+							onClick={(e) => {
+								e.preventDefault()
+								e.stopPropagation()
+								setIsReportOpen(true)
+								setIsOpen(false)
+							}}
+						>
+							<span className="mr-3">🚩</span> Report Event
+						</button>
+					</div>
+				</div>
+			)}
+
+			<ReportContentModal
+				isOpen={isReportOpen}
+				onClose={() => setIsReportOpen(false)}
 				targetType="event"
 				targetId={event.id}
 				contentTitle={event.title}
-				variant="ghost"
-				size="sm"
-				className="bg-background-primary/80 backdrop-blur-sm shadow-sm hover:bg-background-primary p-1.5 h-auto rounded-full"
 			/>
 		</div>
 	)
@@ -49,6 +88,19 @@ function EventReportButton({ event, className }: { event: Event; className?: str
 
 export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
+	const { user } = useAuth()
+	const isOwner = user?.id === event.user?.id
+
+	// Determine visual status style
+	// Owner > Attending > Maybe > None
+	let statusStripColor = ''
+	if (isOwner) {
+		statusStripColor = 'bg-primary-500'
+	} else if (event.viewerStatus === 'attending') {
+		statusStripColor = 'bg-success-500'
+	} else if (event.viewerStatus === 'maybe') {
+		statusStripColor = 'bg-warning-500'
+	}
 
 	// Determine if event is remote and get the appropriate link
 	const isRemote = !event.user && (Boolean(event.url) || Boolean(event.externalId))
@@ -59,8 +111,6 @@ export function EventCard(props: EventCardProps) {
 	const eventLink = event.user?.username
 		? `/@${event.user.username}/${event.id}`
 		: `/events/${event.id}`
-
-
 
 	// Helper to extract a display name from attributedTo URL if user is missing
 	const getAttributedToName = (url?: string | null) => {
@@ -146,7 +196,10 @@ export function EventCard(props: EventCardProps) {
 
 
 	const renderCardContent = () => (
-		<Card interactive padding={variant === 'full' ? 'none' : 'md'} className={cn("h-full", variant === 'full' && "overflow-hidden")}>
+		<Card interactive padding={variant === 'full' ? 'none' : 'md'} className="h-full relative overflow-visible">
+			{statusStripColor && (
+				<div className={cn("absolute left-0 top-0 bottom-0 w-1 z-10 rounded-l-lg", statusStripColor)} />
+			)}
 			{/* Compact Variant Content */}
 			{variant === 'compact' && (
 				<div className="space-y-2">
@@ -154,12 +207,16 @@ export function EventCard(props: EventCardProps) {
 						<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
 							{event.title}
 						</h3>
-						{event._count && event._count.attendance > 0 && (
-							<Badge variant="primary" size="sm">
-								{event._count.attendance} attending
-							</Badge>
+						{isAuthenticated && !isOwner && (
+							<CardOptionsMenu event={event} />
 						)}
 					</div>
+
+					{event._count && event._count.attendance > 0 && (
+						<Badge variant="primary" size="sm">
+							{event._count.attendance} attending
+						</Badge>
+					)}
 
 					<div className="flex items-center gap-2 text-sm text-text-secondary">
 						<CalendarIcon className="w-4 h-4" aria-label="Date" />
@@ -171,7 +228,7 @@ export function EventCard(props: EventCardProps) {
 					{event.location && (
 						<div className="flex items-center gap-2 text-sm text-text-secondary">
 							<LocationIcon className="w-4 h-4" aria-label="Location" />
-							<span className="truncate">{event.location}</span>
+							<span>{event.location}</span>
 						</div>
 					)}
 
@@ -181,7 +238,7 @@ export function EventCard(props: EventCardProps) {
 
 			{/* Full Variant Content */}
 			{variant === 'full' && (
-				<>
+				<div className="flex flex-col h-full">
 					{event.headerImage && (
 						<div className="relative w-full h-48 bg-background-tertiary">
 							<img
@@ -189,15 +246,40 @@ export function EventCard(props: EventCardProps) {
 								alt={event.title}
 								className="w-full h-full object-cover"
 							/>
+							{/* Overlay badges optional */}
 						</div>
 					)}
 
-					<div className="p-4 space-y-3">
+					<div className="p-4 space-y-3 flex-1 flex flex-col">
 						<div className="space-y-2">
-							<h3 className="text-xl font-bold text-text-primary line-clamp-2">
-								{event.title}
-								{isRemote && <span className="ml-2 text-xs font-normal text-text-tertiary border border-border-default rounded px-1.5 align-middle">Remote</span>}
-							</h3>
+							<div className="flex justify-between items-start gap-2">
+								<h3 className="text-xl font-bold text-text-primary line-clamp-2 flex-1">
+									{event.title}
+									{isRemote && <span className="ml-2 text-xs font-normal text-text-tertiary border border-border-default rounded px-1.5 align-middle">Remote</span>}
+								</h3>
+
+								<div className="flex items-center gap-2 flex-shrink-0 z-20">
+									{/* RSVP Button - Available at all times if authenticated and not owner */}
+									{isAuthenticated && !isOwner && (
+										<div onClick={(e) => e.stopPropagation()}>
+											<RSVPButton
+												eventId={event.id}
+												currentStatus={event.viewerStatus}
+												size="sm"
+											/>
+										</div>
+									)}
+									{isOwner && (
+										<Badge variant="primary" size="sm">You are Host</Badge>
+									)}
+
+									{/* Hamburger Menu (Report, etc) */}
+									{isAuthenticated && !isOwner && (
+										<CardOptionsMenu event={event} />
+									)}
+								</div>
+							</div>
+
 							{event.tags && event.tags.length > 0 && (
 								<div className="flex flex-wrap gap-2">
 									{event.tags.slice(0, 3).map((tag) => (
@@ -220,7 +302,7 @@ export function EventCard(props: EventCardProps) {
 							</div>
 						) : null}
 
-						<div className="flex items-center gap-2 text-sm text-text-secondary">
+						<div className="flex items-center gap-2 text-sm text-text-secondary mt-auto">
 							<CalendarIcon className="w-4 h-4" aria-label="Date" />
 							<span className="font-medium">
 								{formatRelativeDate(event.startTime)}
@@ -230,27 +312,19 @@ export function EventCard(props: EventCardProps) {
 						</div>
 
 						{event.location && (
-							<div className="flex items-center gap-2 text-sm text-text-secondary">
+							<div className="flex items-center gap-1">
 								<LocationIcon className="w-4 h-4" aria-label="Location" />
-								<span className="truncate">{event.location}</span>
+								<span className="truncate max-w-[150px]">{event.location}</span>
 							</div>
 						)}
 
-						{event._count && (
+						{(event._count || (event.attendance && event.attendance.length > 0)) && (
 							<div className="flex items-center gap-4 pt-2 border-t border-border-default text-sm text-text-secondary">
-								{event._count.attendance > 0 && (
-									<div className="flex items-center gap-1">
-										<AttendeesIcon className="w-4 h-4" aria-label="Attendees" />
-										<span>{event._count.attendance}</span>
-									</div>
-								)}
-								{event._count.likes > 0 && (
-									<div className="flex items-center gap-1">
-										<LikeIcon className="w-4 h-4" aria-label="Likes" />
-										<span>{event._count.likes}</span>
-									</div>
-								)}
-								{event._count.comments > 0 && (
+								{/* Facepile for Attendance */}
+								<div className="mr-auto">
+									<AttendeeFacepile attendance={event.attendance} counts={event._count} />
+								</div>
+								{event._count && event._count.comments > 0 && (
 									<div className="flex items-center gap-1">
 										<CommentIcon className="w-4 h-4" aria-label="Comments" />
 										<span>{event._count.comments}</span>
@@ -261,18 +335,16 @@ export function EventCard(props: EventCardProps) {
 
 						{renderOrganizers()}
 					</div>
-				</>
+				</div>
 			)}
 		</Card>
 	)
 
 	return (
-		<div className="h-full relative group">
+		<div className="h-full relative group hover:z-10 focus-within:z-20 has-[.rsvp-open]:z-30">
 			<Link to={eventLink} className="block h-full">
 				{renderCardContent()}
 			</Link>
-
-			{isAuthenticated && <EventReportButton event={event} className="z-10" />}
 
 			{!isAuthenticated && !isRemote && (
 				<div className="pt-2 px-4 pb-4">

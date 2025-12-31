@@ -235,6 +235,39 @@
 						"format": "double",
 						"nullable": true,
 						"description": "Optional distance in kilometers relative to the provided origin (nearby search)"
+					},
+					"viewerStatus": {
+						"type": "string",
+						"enum": ["attending", "maybe", "not_attending"],
+						"nullable": true
+					},
+					"attendance": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"status": {
+									"type": "string"
+								},
+								"user": {
+									"$ref": "#/components/schemas/User"
+								}
+							}
+						}
+					},
+					"_count": {
+						"type": "object",
+						"properties": {
+							"attendance": {
+								"type": "integer"
+							},
+							"comments": {
+								"type": "integer"
+							},
+							"likes": {
+								"type": "integer"
+							}
+						}
 					}
 				}
 			},
