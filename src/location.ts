@@ -16,6 +16,7 @@ app.use(
 	rateLimit({
 		windowMs: 15 * 60 * 1000, // 15 minutes
 		maxRequests: 30, // 30 requests per 15 minutes (more restrictive than lenient 200)
+		scope: 'location-search',
 	})
 )
 
