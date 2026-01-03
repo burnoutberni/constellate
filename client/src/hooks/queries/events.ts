@@ -270,9 +270,17 @@ export function useRSVP(eventId: string) {
 
 				if (existingIndex >= 0) {
 					// Update existing
+					const oldStatus = updatedAttendance[existingIndex].status
 					updatedAttendance[existingIndex] = {
 						...updatedAttendance[existingIndex],
 						status: input.status
+					}
+
+					// Update count if status changed to/from 'attending'
+					if (input.status === 'attending' && oldStatus !== 'attending') {
+						newCount += 1
+					} else if (input.status !== 'attending' && oldStatus === 'attending') {
+						newCount = Math.max(0, newCount - 1)
 					}
 				} else if (user) {
 					// Add new (only possible if we have user data)
@@ -285,7 +293,10 @@ export function useRSVP(eventId: string) {
 							isRemote: false
 						}
 					})
-					newCount += 1
+					// Only increment if status is 'attending'
+					if (input.status === 'attending') {
+						newCount += 1
+					}
 				}
 
 				return {

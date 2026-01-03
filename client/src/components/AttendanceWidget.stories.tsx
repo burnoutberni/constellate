@@ -35,6 +35,7 @@ type Story = StoryObj<typeof AttendanceWidget>
 
 export const Default: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: null,
 		attendingCount: 42,
 		maybeCount: 5,
@@ -56,6 +57,7 @@ export const Default: Story = {
 
 export const Attending: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: 'attending',
 		attendingCount: 43,
 		maybeCount: 5,
@@ -77,6 +79,7 @@ export const Attending: Story = {
 
 export const Maybe: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: 'maybe',
 		attendingCount: 42,
 		maybeCount: 6,
@@ -98,6 +101,7 @@ export const Maybe: Story = {
 
 export const Liked: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: null,
 		attendingCount: 42,
 		maybeCount: 5,
@@ -119,6 +123,7 @@ export const Liked: Story = {
 
 export const NotAuthenticated: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: null,
 		attendingCount: 42,
 		maybeCount: 5,
@@ -140,6 +145,7 @@ export const NotAuthenticated: Story = {
 
 export const Pending: Story = {
 	args: {
+		eventId: 'test-event-id',
 		userAttendance: null,
 		attendingCount: 42,
 		maybeCount: 5,

@@ -11,9 +11,11 @@ interface RSVPButtonProps {
     currentStatus?: 'attending' | 'maybe' | 'not_attending' | null
     className?: string
     size?: 'sm' | 'md' | 'lg'
+    onSignUp?: () => void
+    isAuthenticated?: boolean
 }
 
-export function RSVPButton({ eventId, currentStatus, className, size = 'sm' }: RSVPButtonProps) {
+export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onSignUp, isAuthenticated = true }: RSVPButtonProps) {
     const [isOpen, setIsOpen] = useState(false)
     const { mutate: rsvp, isPending } = useRSVP(eventId)
     const [isAnimating, setIsAnimating] = useState(false)
@@ -51,6 +53,11 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm' }: R
     }, [isOpen])
 
     const handleRSVP = (status: 'attending' | 'maybe' | 'not_attending' | null) => {
+        if (!isAuthenticated && onSignUp) {
+            onSignUp()
+            return
+        }
+
         setIsAnimating(true)
         setTimeout(() => setIsAnimating(false), 300) // Reset animation state after duration
 
@@ -104,6 +111,10 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm' }: R
     // If no status, clicking sets to 'attending'
     const handleMainClick = (e: React.MouseEvent) => {
         stopPropagation(e)
+        if (!isAuthenticated && onSignUp) {
+            onSignUp()
+            return
+        }
         if (currentStatus) {
             handleRSVP(null)
         } else {

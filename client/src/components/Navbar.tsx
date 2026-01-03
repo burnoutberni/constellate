@@ -60,6 +60,7 @@ export function Navbar({
 				console.error('Failed to refresh feed:', error)
 			} finally {
 				setIsFeedRefreshing(false)
+				navigate('/feed')
 			}
 		}
 	}

@@ -412,6 +412,11 @@ export class FeedService {
 				startTime: { gt: cursorDate },
 				OR: [
 					{ visibility: 'PUBLIC' },
+					{ visibility: 'UNLISTED' },
+					{
+						visibility: 'PRIVATE',
+						userId,
+					},
 					{
 						// simplistic visibility for now - optimize later
 						user: { followers: { some: { userId } } },

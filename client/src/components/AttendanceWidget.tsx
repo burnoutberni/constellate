@@ -59,6 +59,8 @@ export function AttendanceWidget({
 						currentStatus={isRsvpStatus(userAttendance) ? userAttendance : null}
 						size="md"
 						className="min-w-[140px]"
+						onSignUp={onSignUp}
+						isAuthenticated={isAuthenticated}
 					/>
 					<div className="text-xs text-text-secondary px-1">
 						{attendingCount} going • {maybeCount} maybe

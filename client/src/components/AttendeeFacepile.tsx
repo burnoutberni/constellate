@@ -10,11 +10,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
     const going = attendance.filter(a => a.status === 'attending' && hasUser(a))
     const maybe = attendance.filter(a => a.status === 'maybe' && hasUser(a))
 
-    // If we have strict counts from backend, use them for the "Total". 
-    // Otherwise derive from list (which might be partial).
-    // `counts.attendance` is likely reliable for "Going".
-    // "Maybe" count might not be available in `_count`. 
-    // I'll show what I have.
+
 
     const goingCount = counts?.attendance ?? going.length
     const maybeCount = maybe.length // Might be partial if not fully loaded, but best effort.
@@ -72,10 +68,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
                     </div>
                 ))}
 
-                {/* Overflow Counter (if any) */}
-                {/* If actual total > displayed */}
-                {/* Actually, the user asked for text explanation on hover. 
-				    The faces are just a visual pile. */}
+
             </div>
 
             {/* Text Summary - Fades in/slides on hover */}

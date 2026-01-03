@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { z } from 'zod'
 
 import { EventCard } from '@/components/EventCard'
 import { OnboardingHero } from '@/components/Feed/OnboardingHero'
@@ -13,41 +14,54 @@ import { useUIStore } from '@/stores'
 import { Activity, SuggestedUser, Event } from '@/types'
 
 // Type guards
-function isSuggestedUsersData(data: unknown): data is { suggestions: SuggestedUser[] } {
-	return (
-		typeof data === 'object' &&
-		data !== null &&
-		'suggestions' in data &&
-		Array.isArray((data as Record<string, unknown>).suggestions)
-	)
+
+// Validated data types
+type ValidatedSuggestedUsers = { suggestions: SuggestedUser[] }
+type ValidatedEvent = Event
+type ValidatedActivity = Activity
+type ValidatedHeader = { title: string }
+
+// Schemas
+const SuggestedUsersSchema = z.object({
+	suggestions: z.array(z.any()) // Using z.any() for complex nested types to avoid deep schema duplication, relying on run-time check for structure
+})
+
+const EventSchema = z.object({
+	title: z.string().optional(),
+	startTime: z.string().optional(),
+	id: z.string().optional(),
+}).passthrough()
+
+const ActivitySchema = z.object({
+	type: z.string(),
+	createdAt: z.string(),
+	event: EventSchema,
+}).passthrough()
+
+const HeaderSchema = z.object({
+	title: z.string(),
+})
+
+
+// Validation helpers
+function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
+	const result = SuggestedUsersSchema.safeParse(data)
+	return result.success ? (result.data as unknown as ValidatedSuggestedUsers) : null
 }
 
-function isTrendingEventData(data: unknown): data is Event {
-	return (
-		typeof data === 'object' &&
-		data !== null &&
-		'title' in data &&
-		'startTime' in data
-	)
+function getTrendingEventData(data: unknown): ValidatedEvent | null {
+	const result = EventSchema.safeParse(data)
+	return result.success ? (result.data as unknown as ValidatedEvent) : null
 }
 
-function isActivityData(data: unknown): data is Activity {
-	return (
-		typeof data === 'object' &&
-		data !== null &&
-		'type' in data &&
-		'createdAt' in data &&
-		'event' in data
-	)
+function getActivityData(data: unknown): ValidatedActivity | null {
+	const result = ActivitySchema.safeParse(data)
+	return result.success ? (result.data as unknown as ValidatedActivity) : null
 }
 
-function isHeaderData(data: unknown): data is { title: string } {
-	return (
-		typeof data === 'object' &&
-		data !== null &&
-		'title' in data &&
-		typeof (data as { title: unknown }).title === 'string'
-	)
+function getHeaderData(data: unknown): ValidatedHeader | null {
+	const result = HeaderSchema.safeParse(data)
+	return result.success ? result.data : null
 }
 
 export function FeedPage() {
@@ -170,8 +184,9 @@ export function FeedPage() {
 
 								switch (item.type) {
 									case 'header': {
-										if (isHeaderData(item.data)) {
-											const { title } = item.data
+										const validated = getHeaderData(item.data)
+										if (validated) {
+											const { title } = validated
 											return (
 												<div key={key} className="pt-4 pb-2">
 													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
@@ -184,24 +199,27 @@ export function FeedPage() {
 									}
 
 									case 'onboarding': {
-										if (isSuggestedUsersData(item.data)) {
-											return <OnboardingHero key={key} suggestions={item.data.suggestions} />
+										const validated = getSuggestedUsersData(item.data)
+										if (validated) {
+											return <OnboardingHero key={key} suggestions={validated.suggestions} />
 										}
 										return null
 									}
 
 									case 'suggested_users': {
-										if (isSuggestedUsersData(item.data)) {
-											return <SuggestedUsersCard key={key} users={item.data.suggestions} />
+										const validated = getSuggestedUsersData(item.data)
+										if (validated) {
+											return <SuggestedUsersCard key={key} users={validated.suggestions} />
 										}
 										return null
 									}
 
 									case 'trending_event': {
-										if (isTrendingEventData(item.data)) {
+										const validated = getTrendingEventData(item.data)
+										if (validated) {
 											return (
 												<div key={key} className="h-full">
-													<EventCard event={item.data} isAuthenticated={Boolean(user)} />
+													<EventCard event={validated} isAuthenticated={Boolean(user)} />
 												</div>
 											)
 										}
@@ -209,11 +227,12 @@ export function FeedPage() {
 									}
 
 									case 'activity': {
-										if (isActivityData(item.data)) {
+										const validated = getActivityData(item.data)
+										if (validated) {
 											// For "Smart Agenda", we show the Event itself
 											return (
 												<div key={key} className="h-full">
-													<EventCard event={item.data.event} isAuthenticated={Boolean(user)} />
+													<EventCard event={validated.event} isAuthenticated={Boolean(user)} />
 												</div>
 											)
 										}
