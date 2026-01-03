@@ -25,13 +25,13 @@ const TemplateUpdate = EventTemplateUpdateSchema
 
 type TemplateData = z.infer<typeof EventTemplateDataSchema>
 
-function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonValue {
+function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonObject {
 	const sanitized: Record<string, unknown> = {}
 	for (const [key, value] of Object.entries(data) as [
 		keyof TemplateData,
 		TemplateData[keyof TemplateData],
 	][]) {
-		if (value === undefined || value === null) {
+		if (value === undefined) {
 			continue
 		}
 
@@ -41,7 +41,7 @@ function sanitizeTemplateData(data: Partial<TemplateData>): Prisma.InputJsonValu
 			sanitized[key] = value
 		}
 	}
-	return sanitized as Prisma.InputJsonValue
+	return sanitized as unknown as Prisma.InputJsonObject
 }
 
 function serializeTemplate(template: {
@@ -220,7 +220,10 @@ function buildTemplateUpdateData(
 	return updateData
 }
 
-function mergeTemplateData(newData: Partial<TemplateData>, existingData: Prisma.JsonValue | null) {
+function mergeTemplateData(
+	newData: Partial<TemplateData>,
+	existingData: Prisma.JsonValue | null
+): Prisma.InputJsonObject {
 	const currentData =
 		existingData && typeof existingData === 'object' && !Array.isArray(existingData)
 			? (existingData as Record<string, unknown>)
@@ -230,7 +233,7 @@ function mergeTemplateData(newData: Partial<TemplateData>, existingData: Prisma.
 		...currentData,
 		...(sanitizedData as Record<string, unknown>),
 	}
-	return mergedData as Prisma.InputJsonValue
+	return mergedData as unknown as Prisma.InputJsonObject
 }
 
 app.delete('/event-templates/:id', async (c) => {

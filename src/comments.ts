@@ -281,7 +281,7 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const { content, inReplyToId } = CommentSchema.parse(body)
 
 		const { event } = await validateCommentCreation(id, userId, inReplyToId)

@@ -15,8 +15,23 @@ app.get('/status', async (c) => {
 
 // Create first admin user
 app.post('/', async (c) => {
-	const body = await c.req.json()
-	const { email, password, name, username, tosAccepted } = body
+	const body: unknown = await c.req.json()
+	if (!body || typeof body !== 'object') {
+		return c.json({ error: 'Invalid request body' }, 400)
+	}
+	const {
+		email: emailRaw,
+		password: passwordRaw,
+		name: nameRaw,
+		username: usernameRaw,
+		tosAccepted: tosAcceptedRaw,
+	} = body as Record<string, unknown>
+
+	const email = typeof emailRaw === 'string' ? emailRaw : ''
+	const password = typeof passwordRaw === 'string' ? passwordRaw : ''
+	const name = typeof nameRaw === 'string' ? nameRaw : ''
+	const username = typeof usernameRaw === 'string' ? usernameRaw : ''
+	const tosAccepted = tosAcceptedRaw === true
 
 	const requiredFields = { email, password, name, username }
 	const missingFields = Object.entries(requiredFields)

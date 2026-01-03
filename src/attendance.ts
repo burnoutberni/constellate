@@ -182,7 +182,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const { status, reminderMinutesBeforeStart } = AttendanceSchema.parse(body)
 
 		const event = requireResource(

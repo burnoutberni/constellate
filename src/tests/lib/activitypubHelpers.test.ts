@@ -46,7 +46,7 @@ vi.mock('../../lib/ssrfProtection.js', () => ({
 }))
 
 vi.mock('../../lib/instanceHelpers.js', () => ({
-	trackInstance: vi.fn(),
+	trackInstance: vi.fn().mockResolvedValue(undefined),
 	discoverPublicEndpoint: vi.fn(),
 	fetchInstanceMetadata: vi.fn(),
 }))

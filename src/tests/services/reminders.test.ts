@@ -29,7 +29,7 @@ describe('Reminder service', () => {
 	const mockEvent = {
 		id: 'event_1',
 		title: 'Test Event',
-		startTime: new Date('2025-12-31T12:00:00Z'),
+		startTime: new Date('2026-12-31T12:00:00Z'),
 	}
 
 	beforeEach(() => {
@@ -101,7 +101,7 @@ describe('Reminder service', () => {
 				eventId: 'event_1',
 				userId: 'user_1',
 				minutesBeforeStart: 30,
-				remindAt: new Date('2025-12-31T11:30:00Z'),
+				remindAt: new Date('2026-12-31T11:30:00Z'),
 				status: 'PENDING',
 				createdAt: new Date(),
 				updatedAt: new Date(),

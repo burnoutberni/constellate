@@ -79,21 +79,21 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	> = {
 		error: {
 			container:
-				'rounded-lg border border-error-200 bg-error-50 dark:bg-error-950 dark:border-error-800 p-4 shadow-lg',
-			message: 'text-sm font-normal text-error-900 dark:text-error-100',
-			icon: 'text-error-600 dark:text-error-400',
+				'rounded-r-lg border-l-4 border-error-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10',
+			message: 'text-sm font-medium text-text-primary',
+			icon: 'text-error-600',
 			ariaLive: 'assertive',
 			ariaLabel: 'Error notification',
-			buttonClasses: 'hover:bg-error-100 dark:hover:bg-error-900 focus:ring-error-500',
+			buttonClasses: 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-text-secondary',
 		},
 		success: {
 			container:
-				'rounded-lg border border-success-200 bg-success-50 dark:bg-success-950 dark:border-success-800 p-4 shadow-lg',
-			message: 'text-sm font-normal text-success-900 dark:text-success-100',
-			icon: 'text-success-600 dark:text-success-400',
+				'rounded-r-lg border-l-4 border-success-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10',
+			message: 'text-sm font-medium text-text-primary',
+			icon: 'text-success-600',
 			ariaLive: 'polite',
 			ariaLabel: 'Success notification',
-			buttonClasses: 'hover:bg-success-100 dark:hover:bg-success-900 focus:ring-success-500',
+			buttonClasses: 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-text-secondary',
 		},
 	}
 

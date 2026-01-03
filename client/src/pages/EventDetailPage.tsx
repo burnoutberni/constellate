@@ -6,7 +6,6 @@ import { Container } from '@/components/layout'
 import { Button, Card, CardContent, Spinner } from '@/components/ui'
 import {
 	useEventDetail,
-	useRSVP,
 	useLikeEvent,
 	useAddComment,
 	useDeleteEvent,
@@ -97,7 +96,6 @@ export function EventDetailPage() {
 
 	// Mutations
 	const queryClient = useQueryClient()
-	const rsvpMutation = useRSVP(eventId, user?.id)
 	const likeMutation = useLikeEvent(eventId, user?.id)
 	const shareMutation = useShareEvent(eventId)
 	const addCommentMutation = useAddComment(eventId)
@@ -230,26 +228,6 @@ export function EventDetailPage() {
 		}]
 	}, [event])
 
-	const handleRSVP = async (status: string) => {
-		if (!user) {
-			setPendingAction('rsvp')
-			setSignupModalOpen(true)
-			return
-		}
-		try {
-			if (userAttendance === status) {
-				await rsvpMutation.mutateAsync(null)
-				setSelectedReminder(null)
-			} else {
-				await rsvpMutation.mutateAsync({
-					status,
-					reminderMinutesBeforeStart: selectedReminder,
-				})
-			}
-		} catch (error) {
-			log.error('RSVP failed:', error)
-		}
-	}
 
 	const handleReminderChange = async (nextValue: number | null) => {
 		if (!user) {
@@ -555,6 +533,7 @@ export function EventDetailPage() {
 						{/* Attendance Widget */}
 						<div className="mt-6">
 							<AttendanceWidget
+								eventId={eventId}
 								userAttendance={userAttendance}
 								attendingCount={attending}
 								maybeCount={maybe}
@@ -562,10 +541,8 @@ export function EventDetailPage() {
 								userLiked={userLiked}
 								userHasShared={hasShared || userHasShared}
 								isAuthenticated={Boolean(user)}
-								isRSVPPending={rsvpMutation.isPending}
 								isLikePending={likeMutation.isPending}
 								isSharePending={shareMutation.isPending}
-								onRSVP={handleRSVP}
 								onLike={handleLike}
 								onShare={handleShare}
 								onSignUp={() => setSignupModalOpen(true)}

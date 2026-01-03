@@ -25,6 +25,7 @@ export const queryKeys = {
     },
     activity: {
         feed: () => ['activity', 'feed'] as const,
+        home: () => ['activity', 'home'] as const,
     },
     notifications: {
         all: () => ['notifications'] as const,

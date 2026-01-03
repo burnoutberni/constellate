@@ -6,3 +6,5 @@ export * from './notification'
 export * from './instance'
 export * from './appeal'
 export * from './report'
+export * from './SuggestedUser'
+

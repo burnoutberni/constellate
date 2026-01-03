@@ -57,7 +57,7 @@ app.put('/', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
-		let body
+		let body: unknown
 		try {
 			body = await c.req.json()
 		} catch {
@@ -73,7 +73,7 @@ app.put('/', moderateRateLimit, async (c) => {
 		const validatedPreferences: Record<string, boolean> = {}
 		const validKeys = Object.keys(DEFAULT_EMAIL_PREFERENCES)
 
-		for (const [key, value] of Object.entries(body)) {
+		for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
 			if (!validKeys.includes(key)) {
 				return c.json({ error: `Invalid preference key: ${key}` }, 400)
 			}

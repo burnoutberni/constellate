@@ -122,8 +122,18 @@ app.use('*', lenientRateLimit)
 const SearchSchema = z.object({
 	q: z.string().max(200).optional(), // Search query with length limit
 	location: z.string().max(200).optional(), // Location filter
-	startDate: z.string().datetime().optional(), // Start date filter
-	endDate: z.string().datetime().optional(), // End date filter
+	startDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(), // Start date filter
+	endDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(), // End date filter
 	dateRange: z.enum(DATE_RANGE_PRESETS).optional(), // Date range presets
 	status: z.enum(['EventScheduled', 'EventCancelled', 'EventPostponed']).optional(),
 	mode: z

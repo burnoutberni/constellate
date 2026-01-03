@@ -7,7 +7,7 @@ const MAX_RECENT_SEARCHES = 5
 function getRecentSearches(): string[] {
 	try {
 		const stored = localStorage.getItem(RECENT_SEARCHES_KEY)
-		return stored ? JSON.parse(stored) : []
+		return stored ? (JSON.parse(stored) as string[]) : []
 	} catch {
 		return []
 	}

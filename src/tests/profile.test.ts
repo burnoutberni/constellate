@@ -1002,6 +1002,16 @@ describe('Profile API', () => {
 			})
 			expect(response.status).toBe(401)
 		})
+		it('should handle errors gracefully', async () => {
+			mockAuth(testUser)
+			vi.spyOn(prisma.user, 'findUnique').mockRejectedValue(new Error('DB Error'))
+
+			const response = await app.request('/api/tos/status', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(500)
+		})
 	})
 
 	describe('POST /tos/accept', () => {
@@ -1071,6 +1081,17 @@ describe('Profile API', () => {
 				headers: { 'Content-Type': 'application/json' },
 			})
 			expect(response.status).toBe(401)
+		})
+
+		it('should handle errors gracefully', async () => {
+			mockAuth(testUser)
+			vi.spyOn(prisma.user, 'update').mockRejectedValue(new Error('DB Error'))
+
+			const response = await app.request('/api/tos/accept', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			expect(response.status).toBe(500)
 		})
 	})
 })

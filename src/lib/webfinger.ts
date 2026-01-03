@@ -9,7 +9,7 @@ import { ContentType } from '../constants/activitypub.js'
 export async function resolveWebFinger(resource: string): Promise<string | null> {
 	try {
 		// Parse resource (acct:username@domain)
-		const match = resource.match(/^acct:([^@]+)@(.+)$/)
+		const match = /^acct:([^@]+)@(.+)$/.exec(resource)
 		if (!match) {
 			return null
 		}

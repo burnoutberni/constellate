@@ -88,6 +88,11 @@ export interface Event {
 	}
 	sharedEvent?: SharedEventSummary | null
 	distanceKm?: number
+	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
+	attendance?: Array<{
+		status: string
+		user: EventUser
+	}>
 }
 
 export interface EventRecommendationPayload {

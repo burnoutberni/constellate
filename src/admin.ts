@@ -40,7 +40,10 @@ const UserListQuerySchema = z.object({
 // Create user schema
 const CreateUserSchema = z.object({
 	username: z.string().min(1).max(50),
-	email: z.string().email().optional(),
+	email: z
+		.string()
+		.regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, { message: 'Invalid email' })
+		.optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional().default(false),
 	isBot: z.boolean().optional().default(false),
@@ -52,7 +55,10 @@ const CreateUserSchema = z.object({
 // Update user schema
 const UpdateUserSchema = z.object({
 	username: z.string().min(1).max(50).optional(),
-	email: z.string().email().optional(),
+	email: z
+		.string()
+		.regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, { message: 'Invalid email' })
+		.optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional(),
 	isBot: z.boolean().optional(),
@@ -101,7 +107,7 @@ app.get('/users', async (c) => {
 		}
 		// Only filter by isBot if explicitly provided (true or false)
 		// If undefined, don't filter (show all users)
-		if (query.isBot !== undefined && query.isBot !== null) {
+		if (query.isBot !== undefined) {
 			where.isBot = query.isBot
 		}
 
@@ -216,7 +222,7 @@ app.post('/users', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateUserSchema.parse(body)
 
 		// For non-bot users, password is required
@@ -327,7 +333,7 @@ app.put('/users/:id', async (c) => {
 		await requireAdmin(c)
 
 		const { id } = c.req.param()
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = UpdateUserSchema.parse(body)
 		const existingUser = await findUserById(id)
 		if (!existingUser) {
@@ -382,7 +388,7 @@ async function validateUniqueUserFields(
 			if (conflictingUser.username === data.username) {
 				return { error: 'Username already exists' }
 			}
-			if (conflictingUser.email === data.email) {
+			if (data.email && conflictingUser.email === data.email) {
 				return { error: 'Email already exists' }
 			}
 		}
@@ -532,7 +538,7 @@ app.post('/api-keys', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateApiKeySchema.parse(body)
 
 		// Check if user exists

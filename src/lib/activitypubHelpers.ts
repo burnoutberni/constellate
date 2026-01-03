@@ -65,13 +65,11 @@ export async function cacheRemoteUser(actor: Person) {
 	// Extract public key
 	const publicKey = actor.publicKey?.publicKeyPem || null
 
-	try {
-		// Track the instance this user belongs to
-		// This runs in background to not block user interaction
-		void trackInstance(actorUrl)
-	} catch (error) {
+	// Track the instance this user belongs to
+	// This runs in background to not block user interaction
+	trackInstance(actorUrl).catch((error) => {
 		console.error('Error tracking instance:', error)
-	}
+	})
 
 	// Upsert user
 	return await prisma.user.upsert({
