@@ -32,7 +32,78 @@ interface MentionReceived extends BaseEvent {
 	data: Record<string, unknown>
 }
 
-export type RealtimeEvent = EventCreated | EventUpdated | EventDeleted | MentionReceived
+
+interface AttendanceAdded extends BaseEvent {
+	type: 'attendance:added'
+	data: { eventId: string; userId: string; status: string; user?: unknown }
+}
+
+interface AttendanceUpdated extends BaseEvent {
+	type: 'attendance:updated'
+	data: { eventId: string; userId: string; status: string; user?: unknown }
+}
+
+interface AttendanceRemoved extends BaseEvent {
+	type: 'attendance:removed'
+	data: { eventId: string; userId: string }
+}
+
+interface LikeAdded extends BaseEvent {
+	type: 'like:added'
+	data: { eventId: string; userId: string; count: number }
+}
+
+interface LikeRemoved extends BaseEvent {
+	type: 'like:removed'
+	data: { eventId: string; userId: string; count: number }
+}
+
+interface CommentAdded extends BaseEvent {
+	type: 'comment:added'
+	data: { eventId: string; comment: unknown }
+}
+
+interface CommentDeleted extends BaseEvent {
+	type: 'comment:deleted'
+	data: { eventId: string; commentId: string }
+}
+
+interface ProfileUpdated extends BaseEvent {
+	type: 'profile:updated'
+	data: { user: unknown }
+}
+
+interface FollowAdded extends BaseEvent {
+	type: 'follow:added'
+	data: { follower: unknown }
+}
+
+interface FollowerAdded extends BaseEvent {
+	type: 'follower:added'
+	data: { follower: unknown; followerCount: number }
+}
+
+interface FollowAccepted extends BaseEvent {
+	type: 'follow:accepted'
+	data: { isAccepted: boolean; followerCount?: number; username: string; actorUrl: string }
+}
+
+export type RealtimeEvent =
+	| EventCreated
+	| EventUpdated
+	| EventDeleted
+	| MentionReceived
+	| AttendanceAdded
+	| AttendanceUpdated
+	| AttendanceRemoved
+	| LikeAdded
+	| LikeRemoved
+	| CommentAdded
+	| CommentDeleted
+	| ProfileUpdated
+	| FollowAdded
+	| FollowerAdded
+	| FollowAccepted
 
 interface UseRealtimeOptions {
 	userId?: string
@@ -156,8 +227,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 			onEventRef.current?.(event)
 		})
 
-		// Follow updates
-		eventSource.addEventListener('follow:added', (e) => {
+		eventSource.addEventListener('follow:accepted', (e) => {
 			const event = JSON.parse(e.data) as RealtimeEvent
 			setLastEvent(event)
 			onEventRef.current?.(event)

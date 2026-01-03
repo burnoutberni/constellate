@@ -226,7 +226,12 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 
 	// Handle Follow Accept FIRST - object must be an object with type FOLLOW
 	// This must be checked before Event Accept because Follow activities also have an 'id' field
-	if (typeof object === 'object' && object.type === ActivityType.FOLLOW) {
+	if (
+		typeof object === 'object' &&
+		object &&
+		'type' in object &&
+		object.type === ActivityType.FOLLOW
+	) {
 		console.log(
 			`[handleAccept] Processing Follow Accept: actor=${actorUrl}, object.type=${object.type}`
 		)
@@ -237,7 +242,10 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 	// Handle Event Accept (Attendance) - object can be a string (event URL) or object
 	if (
 		typeof object === 'string' ||
-		(typeof object === 'object' && (object.type === ObjectType.EVENT || object.id))
+		(typeof object === 'object' &&
+			object &&
+			'type' in object &&
+			(object.type === ObjectType.EVENT || 'id' in object))
 	) {
 		console.log(`[handleAccept] Routing to handleAcceptEvent`)
 		await handleAcceptEvent(activity, object)
@@ -258,7 +266,7 @@ async function handleAcceptEvent(
 	let objectUrl: string
 	if (typeof object === 'string') {
 		objectUrl = object
-	} else if (typeof object === 'object' && 'id' in object) {
+	} else if (typeof object === 'object' && object && 'id' in object) {
 		objectUrl = object.id as string
 	} else {
 		objectUrl = ''
@@ -324,7 +332,7 @@ async function handleAcceptFollow(
 	const actorUrl = activity.actor
 
 	const followerUrl =
-		typeof followActivity === 'object' && 'actor' in followActivity
+		typeof followActivity === 'object' && followActivity && 'actor' in followActivity
 			? (followActivity.actor as string)
 			: ''
 	const baseUrl = getBaseUrl()
@@ -440,6 +448,7 @@ function getLocationValue(eventLocation: unknown): string | null {
 	if (
 		eventLocation &&
 		typeof eventLocation === 'object' &&
+		eventLocation &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
@@ -615,7 +624,7 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
 		return resolveEventFromString(object)
 	}
 
-	if (typeof object === 'object') {
+	if (typeof object === 'object' && object) {
 		return upsertRemoteEventFromObject(object)
 	}
 
@@ -865,6 +874,7 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 	} else if (
 		eventLocation &&
 		typeof eventLocation === 'object' &&
+		eventLocation &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
