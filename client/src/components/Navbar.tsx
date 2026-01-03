@@ -60,13 +60,7 @@ export function Navbar({
 		}
 	}
 
-	// ... inside return ...
-	<Link
-		to={user ? '/feed' : '/'}
-		onClick={handleLogoClick}
-		className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600 hover:opacity-80 transition-opacity">
-		Constellate
-	</Link>
+
 
 	// Check if current user is admin
 	const { data: currentUserProfile } = useQuery<UserProfile | null>({

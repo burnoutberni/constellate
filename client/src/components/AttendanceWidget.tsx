@@ -50,7 +50,11 @@ export function AttendanceWidget({
 				<div className="flex flex-col gap-1">
 					<RSVPButton
 						eventId={eventId}
-						currentStatus={userAttendance as 'attending' | 'maybe' | 'not_attending' | null}
+						currentStatus={
+							['attending', 'maybe', 'not_attending'].includes(userAttendance as string)
+								? (userAttendance as 'attending' | 'maybe' | 'not_attending')
+								: null
+						}
 						size="md"
 						className="min-w-[140px]"
 					/>

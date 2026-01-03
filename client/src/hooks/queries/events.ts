@@ -330,13 +330,13 @@ export function useRSVP(eventId: string) {
 							return { ...item, data: getUpdatedEvent(item.data as Event) }
 						}
 						// Activity (e.g. Create)
-						if (item.type === 'activity' && (item.data as { object?: Event })?.object?.id === eventId) {
-							const activityData = item.data as { object: Event }
+						if (item.type === 'activity' && (item.data as { event?: Event })?.event?.id === eventId) {
+							const activityData = item.data as { event: Event }
 							return {
 								...item,
 								data: {
 									...activityData,
-									object: getUpdatedEvent(activityData.object)
+									event: getUpdatedEvent(activityData.event)
 								}
 							}
 						}

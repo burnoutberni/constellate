@@ -493,6 +493,7 @@ app.put('/profile', moderateRateLimit, async (c) => {
 			data: {
 				...updates,
 				name: updates.name ? sanitizeText(updates.name) : undefined,
+				bio: updates.bio ? sanitizeText(updates.bio) : undefined,
 				timezone:
 					updates.timezone !== undefined
 						? normalizeTimeZone(updates.timezone)

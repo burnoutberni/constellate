@@ -41,6 +41,15 @@ function isActivityData(data: unknown): data is Activity {
 	)
 }
 
+function isHeaderData(data: unknown): data is { title: string } {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'title' in data &&
+		typeof (data as { title: unknown }).title === 'string'
+	)
+}
+
 export function FeedPage() {
 	const { user, logout } = useAuth()
 	const { sseConnected, isFeedRefreshing } = useUIStore()
@@ -161,14 +170,17 @@ export function FeedPage() {
 
 								switch (item.type) {
 									case 'header': {
-										const {title} = (item.data as { title: string })
-										return (
-											<div key={key} className="pt-4 pb-2">
-												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-													{title}
-												</h2>
-											</div>
-										)
+										if (isHeaderData(item.data)) {
+											const { title } = item.data
+											return (
+												<div key={key} className="pt-4 pb-2">
+													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+														{title}
+													</h2>
+												</div>
+											)
+										}
+										return null
 									}
 
 									case 'onboarding': {

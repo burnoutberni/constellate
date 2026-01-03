@@ -40,8 +40,12 @@ export function TrendingEventCard({ event, showRank = false }: TrendingEventProp
     // Helper to handle click - wrapping in Link is better than onClick handler for accessibility/SEO
     // but the original code used onClick. Link is better.
 
+    const eventLink = event.user?.username
+        ? `/@${event.user.username}/${event.id}`
+        : `/events/${event.id}`
+
     return (
-        <Link to={`/@${event.user?.username}/${event.id}`} className="block mb-4">
+        <Link to={eventLink} className="block mb-4">
             <Card
                 variant="default"
                 padding="md"

@@ -228,7 +228,7 @@ export function EventCard(props: EventCardProps) {
 					{event.location && (
 						<div className="flex items-center gap-2 text-sm text-text-secondary">
 							<LocationIcon className="w-4 h-4" aria-label="Location" />
-							<span>{event.location}</span>
+							<span className="truncate">{event.location}</span>
 						</div>
 					)}
 
