@@ -1622,7 +1622,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
  * @returns The actor URL string, or an empty string if not found
  */
 function extractActorUrl(activity: Activity | Record<string, unknown>) {
-	if (typeof activity === 'object' && 'actor' in activity && typeof activity.actor === 'string') {
+	if (isNonNullObject(activity) && 'actor' in activity && typeof activity.actor === 'string') {
 		return activity.actor
 	}
 	return ''
@@ -1635,7 +1635,7 @@ function extractActorUrl(activity: Activity | Record<string, unknown>) {
  * @returns The object value, or null if not present
  */
 function extractObject(activity: Activity | Record<string, unknown>) {
-	return typeof activity === 'object' && 'object' in activity ? activity.object : null
+	return isNonNullObject(activity) && 'object' in activity ? activity.object : null
 }
 
 /**
@@ -1693,7 +1693,7 @@ async function findEventByObjectUrl(objectUrl: string) {
  * @returns The activity ID string if present, or null if not found
  */
 function getActivityId(activity: Activity | Record<string, unknown>) {
-	if (typeof activity === 'object' && 'id' in activity && typeof activity.id === 'string') {
+	if (isNonNullObject(activity) && 'id' in activity && typeof activity.id === 'string') {
 		return activity.id
 	}
 	return null

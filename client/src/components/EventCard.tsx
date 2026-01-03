@@ -261,13 +261,11 @@ export function EventCard(props: EventCardProps) {
 								<div className="flex items-center gap-2 flex-shrink-0 z-20">
 									{/* RSVP Button - Available at all times if authenticated and not owner */}
 									{isAuthenticated && !isOwner && (
-										<div onClick={(e) => e.stopPropagation()}>
-											<RSVPButton
-												eventId={event.id}
-												currentStatus={event.viewerStatus}
-												size="sm"
-											/>
-										</div>
+										<RSVPButton
+											eventId={event.id}
+											currentStatus={event.viewerStatus}
+											size="sm"
+										/>
 									)}
 									{isOwner && (
 										<Badge variant="primary" size="sm">You are Host</Badge>
