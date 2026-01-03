@@ -281,6 +281,7 @@ export function useRSVP(eventId: string) {
 						user: {
 							...user,
 							username: user.username || '',
+							profileImage: user.image,
 							isRemote: false
 						}
 					})

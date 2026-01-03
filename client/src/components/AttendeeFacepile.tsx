@@ -5,8 +5,8 @@ import type { Event } from '@/types'
 
 export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Event['attendance'], counts?: { attendance?: number } }) {
     // Filter logic
-    const going = attendance.filter(a => a.status === 'attending')
-    const maybe = attendance.filter(a => a.status === 'maybe')
+    const going = attendance.filter(a => a.status === 'attending' && a.user?.id)
+    const maybe = attendance.filter(a => a.status === 'maybe' && a.user?.id)
 
     // If we have strict counts from backend, use them for the "Total". 
     // Otherwise derive from list (which might be partial).
@@ -39,7 +39,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
                 {/* Going Group */}
                 {displayedGoing.map((a, i) => (
                     <div
-                        key={a.user?.id || i}
+                        key={(a.user?.id as string)}
                         className="relative transition-transform duration-300 group-hover:scale-110 z-20"
                         style={{ zIndex: 30 - i }} // Stack: First on top
                     >
@@ -56,7 +56,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
                 {/* Maybe Group */}
                 {displayedMaybe.map((a, i) => (
                     <div
-                        key={a.user?.id || i}
+                        key={(a.user?.id as string)}
                         className="relative transition-all duration-300 group-hover:scale-105 z-10"
                         style={{ zIndex: 10 - i }}
                     >

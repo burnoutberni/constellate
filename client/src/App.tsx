@@ -22,7 +22,7 @@ import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
 import { useUIStore } from './stores'
-const TOAST_MAX_LENGTH = 500
+const TOAST_MAX_LENGTH = 1000
 
 // Type guard for toast data
 interface ToastData {

@@ -47,16 +47,20 @@ export function Navbar({
 			e.preventDefault()
 			setIsFeedRefreshing(true)
 
-			// Invalidate queries to trigger background refetch
-			// Wait for minimum animation time (1.2s) even if fetch is faster
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() }),
-				queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() }),
-				new Promise((resolve) => setTimeout(resolve, 1200)),
-			])
-
-			setIsFeedRefreshing(false)
-			navigate('/feed')
+			try {
+				// Invalidate queries to trigger background refetch
+				// Wait for minimum animation time (1.2s) even if fetch is faster
+				await Promise.all([
+					queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() }),
+					queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() }),
+					new Promise((resolve) => setTimeout(resolve, 1200)),
+				])
+				navigate('/feed')
+			} catch (error) {
+				console.error('Failed to refresh feed:', error)
+			} finally {
+				setIsFeedRefreshing(false)
+			}
 		}
 	}
 
