@@ -1,12 +1,14 @@
 
-
 import { Avatar } from '@/components/ui'
 import type { Event } from '@/types'
 
 export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Event['attendance'], counts?: { attendance?: number } }) {
-    // Filter logic
-    const going = attendance.filter(a => a.status === 'attending' && a.user?.id)
-    const maybe = attendance.filter(a => a.status === 'maybe' && a.user?.id)
+    // Filter logic to ensure user and id exist at runtime
+    type AttendanceItem = NonNullable<Event['attendance']>[number]
+    const hasUser = (a: AttendanceItem) => Boolean(a.user?.id)
+
+    const going = attendance.filter(a => a.status === 'attending' && hasUser(a))
+    const maybe = attendance.filter(a => a.status === 'maybe' && hasUser(a))
 
     // If we have strict counts from backend, use them for the "Total". 
     // Otherwise derive from list (which might be partial).
@@ -39,7 +41,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
                 {/* Going Group */}
                 {displayedGoing.map((a, i) => (
                     <div
-                        key={(a.user?.id as string)}
+                        key={a.user.id}
                         className="relative transition-transform duration-300 group-hover:scale-110 z-20"
                         style={{ zIndex: 30 - i }} // Stack: First on top
                     >
@@ -56,7 +58,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
                 {/* Maybe Group */}
                 {displayedMaybe.map((a, i) => (
                     <div
-                        key={(a.user?.id as string)}
+                        key={a.user.id}
                         className="relative transition-all duration-300 group-hover:scale-105 z-10"
                         style={{ zIndex: 10 - i }}
                     >

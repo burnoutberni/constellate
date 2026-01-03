@@ -89,7 +89,7 @@ function CardOptionsMenu({ event }: { event: Event }) {
 export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
 	const { user } = useAuth()
-	const isOwner = user?.id === event.user?.id
+	const isOwner = Boolean(user?.id) && user?.id === event.user?.id
 
 	// Determine visual status style
 	// Owner > Attending > Maybe > None

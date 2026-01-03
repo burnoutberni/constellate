@@ -31,19 +31,21 @@ interface ToastData {
 }
 
 function isToastData(data: unknown): data is ToastData {
-	return (
-		typeof data === 'object' &&
-		data !== null &&
-		!Array.isArray(data) &&
-		'message' in data &&
-		typeof (data as { message: unknown }).message === 'string' &&
-		(data as { message: string }).message.length > 0 &&
-		(data as { message: string }).message.length <= TOAST_MAX_LENGTH &&
-		'variant' in data &&
-		typeof (data as { variant: unknown }).variant === 'string' &&
-		((data as { variant: string }).variant === 'error' ||
-			(data as { variant: string }).variant === 'success')
-	)
+	if (!data || typeof data !== 'object' || Array.isArray(data)) {
+		return false
+	}
+
+	const { message, variant } = data as Partial<ToastData>
+
+	if (typeof message !== 'string' || message.length === 0 || message.length > TOAST_MAX_LENGTH) {
+		return false
+	}
+
+	if (variant !== 'error' && variant !== 'success') {
+		return false
+	}
+
+	return true
 }
 
 // Lazy load pages

@@ -51,7 +51,8 @@ export function AttendanceWidget({
 					<RSVPButton
 						eventId={eventId}
 						currentStatus={
-							['attending', 'maybe', 'not_attending'].includes(userAttendance as string)
+							userAttendance &&
+								['attending', 'maybe', 'not_attending'].includes(userAttendance)
 								? (userAttendance as 'attending' | 'maybe' | 'not_attending')
 								: null
 						}

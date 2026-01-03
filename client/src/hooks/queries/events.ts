@@ -239,7 +239,7 @@ export function useRSVP(eventId: string) {
 				if (input === null) {
 					// Remove attendance
 					const updatedAttendance = currentAttendance.filter(
-						(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
+						(a: { user?: { id?: string } }) => a.user?.id !== userId
 					)
 
 					// Only decrement if we actually removed someone
