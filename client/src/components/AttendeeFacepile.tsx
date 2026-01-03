@@ -16,7 +16,7 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
     // "Maybe" count might not be available in `_count`. 
     // I'll show what I have.
 
-    const goingCount = counts?.attendance || going.length
+    const goingCount = counts?.attendance ?? going.length
     const maybeCount = maybe.length // Might be partial if not fully loaded, but best effort.
 
     // Limit faces

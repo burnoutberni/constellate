@@ -2,6 +2,12 @@ import { RSVPButton } from './RSVPButton'
 import { SignUpPrompt } from './SignUpPrompt'
 import { Button } from './ui'
 
+type RsvpStatus = 'attending' | 'maybe' | 'not_attending'
+
+function isRsvpStatus(status: string | null): status is RsvpStatus {
+	return typeof status === 'string' && ['attending', 'maybe', 'not_attending'].includes(status)
+}
+
 interface AttendanceWidgetProps {
 	eventId: string
 	userAttendance: string | null
@@ -50,12 +56,7 @@ export function AttendanceWidget({
 				<div className="flex flex-col gap-1">
 					<RSVPButton
 						eventId={eventId}
-						currentStatus={
-							userAttendance &&
-								['attending', 'maybe', 'not_attending'].includes(userAttendance)
-								? (userAttendance as 'attending' | 'maybe' | 'not_attending')
-								: null
-						}
+						currentStatus={isRsvpStatus(userAttendance) ? userAttendance : null}
 						size="md"
 						className="min-w-[140px]"
 					/>
