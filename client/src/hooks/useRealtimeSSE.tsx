@@ -213,6 +213,7 @@ const SetupEventListenersSchema = {
 					name: z.string().optional().nullable(),
 					profileImage: z.string().nullable().optional(),
 					displayColor: z.string().optional(),
+					isRemote: z.boolean().optional(),
 				})
 			}),
 		}),

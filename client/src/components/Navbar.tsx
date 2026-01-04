@@ -55,7 +55,6 @@ export function Navbar({
 					queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() }),
 					new Promise((resolve) => setTimeout(resolve, 1200)),
 				])
-				navigate('/feed')
 			} catch (error) {
 				console.error('Failed to refresh feed:', error)
 			} finally {

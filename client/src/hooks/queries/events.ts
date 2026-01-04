@@ -242,9 +242,11 @@ export function useRSVP(eventId: string) {
 						(a: { user?: { id?: string } }) => a.user?.id !== userId
 					)
 
-					// Only decrement if we actually removed someone
-					const didRemove = updatedAttendance.length < currentAttendance.length
-					const newCount = didRemove
+					// Only decrement if we actually removed someone AND they were confirmed attending
+					const removedUser = currentAttendance.find((a: { user?: { id?: string } }) => a.user?.id === userId)
+					const wasAttending = removedUser?.status === 'attending'
+
+					const newCount = wasAttending
 						? Math.max((event._count?.attendance || 0) - 1, 0)
 						: (event._count?.attendance || 0)
 
