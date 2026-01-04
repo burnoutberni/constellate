@@ -446,6 +446,7 @@ export class FeedService {
 								id: true,
 								username: true,
 								profileImage: true,
+								isRemote: true,
 							},
 						},
 					},
@@ -504,6 +505,7 @@ export class FeedService {
 										id: true,
 										username: true,
 										profileImage: true,
+										isRemote: true,
 									},
 								},
 							},
@@ -555,6 +557,7 @@ export class FeedService {
 								id: true,
 								username: true,
 								profileImage: true,
+								isRemote: true,
 							},
 						},
 					},
@@ -626,6 +629,7 @@ export class FeedService {
 								id: true,
 								username: true,
 								profileImage: true,
+								isRemote: true,
 							},
 						},
 					},
@@ -639,10 +643,11 @@ export class FeedService {
 	}
 
 	private static async fetchRecentPublicEvents(userId: string, cursor: string, limit: number) {
+		const cursorDate = new Date(cursor)
 		return prisma.event.findMany({
 			where: {
 				visibility: 'PUBLIC',
-				createdAt: { lt: cursor },
+				createdAt: { lt: cursorDate },
 			},
 			include: {
 				user: {
@@ -665,6 +670,7 @@ export class FeedService {
 								id: true,
 								username: true,
 								profileImage: true,
+								isRemote: true,
 							},
 						},
 					},
@@ -700,6 +706,7 @@ export class FeedService {
 							name: true,
 							displayColor: true,
 							profileImage: true,
+							isRemote: true,
 						},
 					},
 					event: {
@@ -710,6 +717,8 @@ export class FeedService {
 									username: true,
 									name: true,
 									displayColor: true,
+									profileImage: true,
+									isRemote: true,
 								},
 							},
 							tags: true,
@@ -722,6 +731,7 @@ export class FeedService {
 											id: true,
 											username: true,
 											profileImage: true,
+											isRemote: true,
 										},
 									},
 								},
@@ -746,6 +756,7 @@ export class FeedService {
 							name: true,
 							displayColor: true,
 							profileImage: true,
+							isRemote: true,
 						},
 					},
 					event: {
@@ -756,6 +767,8 @@ export class FeedService {
 									username: true,
 									name: true,
 									displayColor: true,
+									profileImage: true,
+									isRemote: true,
 								},
 							},
 							tags: true,
@@ -768,6 +781,7 @@ export class FeedService {
 											id: true,
 											username: true,
 											profileImage: true,
+											isRemote: true,
 										},
 									},
 								},
@@ -791,6 +805,7 @@ export class FeedService {
 							name: true,
 							displayColor: true,
 							profileImage: true,
+							isRemote: true,
 						},
 					},
 					event: {
@@ -801,6 +816,8 @@ export class FeedService {
 									username: true,
 									name: true,
 									displayColor: true,
+									profileImage: true,
+									isRemote: true,
 								},
 							},
 							tags: true,
@@ -813,6 +830,7 @@ export class FeedService {
 											id: true,
 											username: true,
 											profileImage: true,
+											isRemote: true,
 										},
 									},
 								},
@@ -837,6 +855,7 @@ export class FeedService {
 							name: true,
 							displayColor: true,
 							profileImage: true,
+							isRemote: true,
 						},
 					},
 					tags: true,
@@ -849,6 +868,7 @@ export class FeedService {
 									id: true,
 									username: true,
 									profileImage: true,
+									isRemote: true,
 								},
 							},
 						},
@@ -871,6 +891,7 @@ export class FeedService {
 							name: true,
 							displayColor: true,
 							profileImage: true,
+							isRemote: true,
 						},
 					},
 					sharedEvent: {
@@ -881,6 +902,8 @@ export class FeedService {
 									username: true,
 									name: true,
 									displayColor: true,
+									profileImage: true,
+									isRemote: true,
 								},
 							},
 							tags: true,
@@ -893,6 +916,7 @@ export class FeedService {
 											id: true,
 											username: true,
 											profileImage: true,
+											isRemote: true,
 										},
 									},
 								},
@@ -913,7 +937,16 @@ export class FeedService {
 				type: 'like',
 				createdAt: l.createdAt.toISOString(),
 				user: l.user,
-				event: this.mapEvent(l.event),
+				event: this.mapEvent({
+					...l.event,
+					user: l.event.user
+						? {
+								...l.event.user,
+								profileImage: l.event.user.profileImage,
+								isRemote: l.event.user.isRemote,
+							}
+						: null,
+				}),
 			})
 		})
 
@@ -923,7 +956,16 @@ export class FeedService {
 				type: 'rsvp',
 				createdAt: r.createdAt.toISOString(),
 				user: r.user,
-				event: this.mapEvent(r.event),
+				event: this.mapEvent({
+					...r.event,
+					user: r.event.user
+						? {
+								...r.event.user,
+								profileImage: r.event.user.profileImage,
+								isRemote: r.event.user.isRemote,
+							}
+						: null,
+				}),
 				data: { status: r.status },
 			})
 		})
@@ -934,7 +976,16 @@ export class FeedService {
 				type: 'comment',
 				createdAt: c.createdAt.toISOString(),
 				user: c.author,
-				event: this.mapEvent(c.event),
+				event: this.mapEvent({
+					...c.event,
+					user: c.event.user
+						? {
+								...c.event.user,
+								profileImage: c.event.user.profileImage,
+								isRemote: c.event.user.isRemote,
+							}
+						: null,
+				}),
 				data: { commentContent: c.content },
 			})
 		})
@@ -945,7 +996,16 @@ export class FeedService {
 				type: 'event_created',
 				createdAt: e.createdAt.toISOString(),
 				user: e.user,
-				event: this.mapEvent(e),
+				event: this.mapEvent({
+					...e,
+					user: e.user
+						? {
+								...e.user,
+								profileImage: e.user.profileImage,
+								isRemote: e.user.isRemote,
+							}
+						: null,
+				}),
 			})
 		})
 
@@ -956,8 +1016,24 @@ export class FeedService {
 					type: 'event_shared',
 					createdAt: s.createdAt.toISOString(),
 					user: s.user,
-					event: this.mapEvent(s.sharedEvent),
-					sharedEvent: this.mapEvent(s),
+					event: this.mapEvent({
+						...s.sharedEvent,
+						user: s.sharedEvent.user
+							? {
+									...s.sharedEvent.user,
+									isRemote: s.sharedEvent.user.isRemote,
+								}
+							: null,
+					}),
+					sharedEvent: this.mapEvent({
+						...s,
+						user: s.user
+							? {
+									...s.user,
+									isRemote: s.user.isRemote,
+								}
+							: null,
+					}),
 				})
 			}
 		})
@@ -1016,6 +1092,7 @@ export class FeedService {
 			name: string | null
 			displayColor: string
 			profileImage: string | null
+			isRemote: boolean
 		} | null
 		tags: Array<{ id: string; tag: string }>
 		viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
@@ -1025,6 +1102,7 @@ export class FeedService {
 				id: string
 				username: string
 				profileImage?: string | null
+				isRemote: boolean
 			}
 		}>
 		_count?: { attendance?: number; comments?: number; likes?: number }
@@ -1047,6 +1125,7 @@ export class FeedService {
 						name: e.user.name,
 						displayColor: e.user.displayColor,
 						profileImage: e.user.profileImage,
+						isRemote: e.user.isRemote,
 					}
 				: null,
 			tags: e.tags.map((t) => ({ id: t.id, tag: t.tag })),
@@ -1068,6 +1147,7 @@ export class FeedService {
 				id: string
 				username: string
 				profileImage?: string | null
+				isRemote: boolean
 			}
 		}>
 		user: {
@@ -1076,6 +1156,7 @@ export class FeedService {
 			name: string | null
 			displayColor: string
 			profileImage?: string | null
+			isRemote: boolean
 		} | null
 	}): FeedActivity['event'] {
 		const computedStatus = (e.attendance?.[0]?.status as ViewerStatus) ?? null
@@ -1093,6 +1174,8 @@ export class FeedService {
 						username: e.user.username,
 						name: e.user.name,
 						displayColor: e.user.displayColor,
+						profileImage: e.user.profileImage,
+						isRemote: e.user.isRemote,
 					}
 				: null,
 			viewerStatus: computedStatus,
@@ -1102,6 +1185,7 @@ export class FeedService {
 					id: a.user.id,
 					username: a.user.username,
 					profileImage: a.user.profileImage,
+					isRemote: a.user.isRemote,
 				},
 			})),
 		}

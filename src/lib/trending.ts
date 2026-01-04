@@ -24,6 +24,7 @@ export interface TrendingEvent {
 		name: string | null
 		displayColor: string
 		profileImage: string | null
+		isRemote: boolean
 	} | null
 	tags: Array<{ id: string; tag: string }>
 	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null

@@ -25,6 +25,8 @@ export interface FeedEventSummary {
 		username: string
 		name: string | null
 		displayColor: string
+		profileImage?: string | null
+		isRemote: boolean
 	} | null
 	attendance?: Array<{
 		status: string
@@ -32,6 +34,7 @@ export interface FeedEventSummary {
 			id: string
 			username: string
 			profileImage?: string | null
+			isRemote: boolean
 		}
 	}>
 	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
@@ -47,6 +50,7 @@ export interface FeedActivity {
 		name: string | null
 		displayColor: string
 		profileImage: string | null
+		isRemote: boolean
 	} | null
 	event: FeedEventSummary
 	sharedEvent?: FeedEventSummary
@@ -80,7 +84,10 @@ app.get('/activity/feed', async (c) => {
 		const userId = c.get('userId')
 		const cursor = c.req.query('cursor')
 		const limitParam = c.req.query('limit')
-		const limit = limitParam ? parseInt(limitParam) : 20
+		let limit = limitParam ? parseInt(limitParam) : 20
+		if (isNaN(limit) || limit <= 0) {
+			limit = 20
+		}
 
 		if (!userId) {
 			return c.json({ items: [] })

@@ -229,7 +229,7 @@ describe('FeedPage', () => {
 			type: 'onboarding',
 			id: 'onboarding1',
 			timestamp: new Date().toISOString(),
-			data: { suggestions: [{ id: 'u1', username: 'suggested1', name: 'Suggested User', displayColor: '#000' }] }
+			data: { suggestions: [{ id: 'u1', username: 'suggested1', name: 'Suggested User', displayColor: '#000', profileImage: null }] }
 		}]
 
 		mockUseHomeFeed.mockReturnValue({

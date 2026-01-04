@@ -224,6 +224,62 @@ const SetupEventListenersSchema = {
 			userId: z.string(),
 		}),
 	}),
+	// User started following someone (local or remote)
+	followAdded: z.object({
+		data: z.object({
+			username: z.string(),
+			actorUrl: z.string().optional(),
+			isAccepted: z.boolean().optional(),
+		}),
+	}),
+	// User unfollowed someone
+	followRemoved: z.object({
+		data: z.object({
+			username: z.string(),
+		}),
+	}),
+	followAccepted: z.object({
+		data: z.object({
+			username: z.string(),
+			actorUrl: z.string().optional(),
+			isAccepted: z.boolean(),
+			followerCount: z.number().nullable().optional(),
+		}),
+	}),
+	followPending: z.object({
+		data: z.object({
+			username: z.string(),
+			actorUrl: z.string().optional(),
+			isAccepted: z.boolean(),
+		}),
+	}),
+	followRejected: z.object({
+		data: z.object({
+			username: z.string(),
+		}),
+	}),
+	// Someone followed the user
+	followerAdded: z.object({
+		data: z.object({
+			username: z.string(),
+			follower: z.object({
+				username: z.string(),
+				actorUrl: z.string(),
+				accepted: z.boolean().optional(),
+			}),
+			followerCount: z.number().optional(),
+		}),
+	}),
+	followerRemoved: z.object({
+		data: z.object({
+			username: z.string(),
+			follower: z.object({
+				username: z.string(),
+				actorUrl: z.string(),
+			}).optional(), // Sometimes might just have ID or username depending on logic
+			followerCount: z.number().optional(),
+		}),
+	}),
 	commentAdded: z.object({
 		data: z.object({
 			eventId: z.string(),
@@ -236,17 +292,14 @@ const SetupEventListenersSchema = {
 			commentId: z.string(),
 		}),
 	}),
+	// Removed incorrect follower schema
+
 	profileUpdated: z.object({
 		data: z.object({
 			username: z.string(),
 		}),
 	}),
-	follower: z.object({
-		data: z.object({
-			username: z.string(),
-			followerCount: z.number().nullable().optional(),
-		}),
-	}),
+
 	mention: z.object({
 		data: z.object({
 			commentId: z.string().optional(),
@@ -484,7 +537,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follow:added', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.profileUpdated.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followAdded.parse(JSON.parse(e.data))
 			if (data.username) {
 				queryClient.invalidateQueries({
 					queryKey: queryKeysParam.users.profile(data.username),
@@ -500,7 +553,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follower:added', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.follower.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followerAdded.parse(JSON.parse(e.data))
 			if (data.username) {
 				if (data.followerCount !== null && data.followerCount !== undefined) {
 					const profileData = queryClient.getQueryData(
@@ -537,7 +590,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follower:removed', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.follower.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followerRemoved.parse(JSON.parse(e.data))
 			if (data.username) {
 				if (data.followerCount !== null && data.followerCount !== undefined) {
 					const profileData = queryClient.getQueryData(
@@ -574,7 +627,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follow:removed', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.profileUpdated.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followRemoved.parse(JSON.parse(e.data))
 			if (data.username) {
 				queryClient.setQueryData(queryKeysParam.users.followStatus(data.username), {
 					isFollowing: false,
@@ -591,7 +644,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follow:pending', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.profileUpdated.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followPending.parse(JSON.parse(e.data))
 			if (data.username) {
 				queryClient.setQueryData(queryKeysParam.users.followStatus(data.username), {
 					isFollowing: true,
@@ -605,7 +658,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follow:accepted', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.follower.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followAccepted.parse(JSON.parse(e.data))
 			if (data.username) {
 				queryClient.setQueryData(queryKeysParam.users.followStatus(data.username), {
 					isFollowing: true,
@@ -646,7 +699,7 @@ const setupEventListeners = (
 
 	eventSource.addEventListener('follow:rejected', (e) => {
 		try {
-			const { data } = SetupEventListenersSchema.profileUpdated.parse(JSON.parse(e.data))
+			const { data } = SetupEventListenersSchema.followRejected.parse(JSON.parse(e.data))
 			if (data.username) {
 				queryClient.setQueryData(queryKeysParam.users.followStatus(data.username), {
 					isFollowing: false,
