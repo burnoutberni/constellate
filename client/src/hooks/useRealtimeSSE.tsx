@@ -283,7 +283,17 @@ const SetupEventListenersSchema = {
 	commentAdded: z.object({
 		data: z.object({
 			eventId: z.string(),
-			comment: z.any(), // Keeping logic generic for now, ideally strictly typed
+			comment: z.object({
+				id: z.string(),
+				content: z.string(),
+				createdAt: z.string().optional(),
+				author: z.object({
+					id: z.string(),
+					username: z.string(),
+					name: z.string().nullable().optional(),
+					profileImage: z.string().nullable().optional(),
+				}).optional()
+			}).passthrough(),
 		}),
 	}),
 	commentDeleted: z.object({

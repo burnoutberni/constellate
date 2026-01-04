@@ -340,7 +340,7 @@ export function useRSVP(eventId: string) {
 					...page,
 					items: page.items.map((item) => {
 						// Trending Event
-						if (item.type === 'trending_event' && (item.data as Event).id === eventId) {
+						if (item.type === 'trending_event' && (item.data as Partial<Event>).id === eventId) {
 							return { ...item, data: getUpdatedEvent(item.data as Event) }
 						}
 						// Activity (e.g. Create)

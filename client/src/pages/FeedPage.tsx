@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { z } from 'zod'
 
 import { EventCard } from '@/components/EventCard'
 import { OnboardingHero } from '@/components/Feed/OnboardingHero'
@@ -11,86 +10,16 @@ import { Button, Card, Spinner, AddIcon } from '@/components/ui'
 import { useHomeFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useUIStore } from '@/stores'
-// import { Activity, SuggestedUser, Event } from '@/types'
-
-// Type guards
-
-// Validated data types
-type ValidatedSuggestedUsers = z.infer<typeof SuggestedUsersSchema>
-type ValidatedEvent = z.infer<typeof EventSchema>
-type ValidatedActivity = z.infer<typeof ActivitySchema>
-type ValidatedHeader = z.infer<typeof HeaderSchema>
-
-// Schemas
-// Schemas
-const EventUserSchema = z.object({
-	id: z.string(),
-	username: z.string(),
-	name: z.string().nullable().optional(),
-	displayColor: z.string().optional(),
-	profileImage: z.string().nullable().optional(),
-	isRemote: z.boolean(),
-})
-
-const TagSchema = z.object({
-	id: z.string(),
-	tag: z.string(),
-})
-
-const EventSchema = z.object({
-	id: z.string(),
-	title: z.string(),
-	startTime: z.string(),
-	endTime: z.string().nullable().optional(),
-	timezone: z.string().default('UTC'),
-	summary: z.string().nullable().optional(),
-	location: z.string().nullable().optional(),
-	headerImage: z.string().nullable().optional(),
-	user: EventUserSchema.optional(),
-	userId: z.string().optional(),
-	visibility: z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED']).optional(),
-	tags: z.array(TagSchema).default([]),
-	_count: z.object({
-		attendance: z.number(),
-		likes: z.number(),
-		comments: z.number(),
-	}).optional(),
-	attendance: z.array(z.object({
-		status: z.string(),
-		user: EventUserSchema,
-	})).optional(),
-	viewerStatus: z.enum(['attending', 'maybe', 'not_attending']).nullable().optional(),
-}).passthrough() // Allow extra fields but ensure core ones are present
-
-const ActivitySchema = z.object({
-	id: z.string(),
-	type: z.string(),
-	createdAt: z.string(),
-	user: EventUserSchema,
-	event: EventSchema,
-})
-
-const SuggestedUserSchema = z.object({
-	id: z.string(),
-	username: z.string(),
-	name: z.string().nullable(),
-	displayColor: z.string(),
-	profileImage: z.string().nullable(),
-	bio: z.string().nullable().optional(),
-	_count: z.object({
-		followers: z.number(),
-		events: z.number()
-	}).optional()
-})
-
-const SuggestedUsersSchema = z.object({
-	suggestions: z.array(SuggestedUserSchema)
-})
-
-const HeaderSchema = z.object({
-	title: z.string(),
-})
-
+import {
+	HeaderSchema,
+	SuggestedUsersSchema,
+	EventSchema,
+	ActivitySchema,
+	type ValidatedSuggestedUsers,
+	type ValidatedEvent,
+	type ValidatedActivity,
+	type ValidatedHeader
+} from '@/types'
 
 // Validation helpers
 function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
@@ -155,7 +84,10 @@ export function FeedPage() {
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
 
-	if (status === 'pending') {
+	// If not authenticated, the query is disabled so status stays pending/idle
+	// We only show loading spinner if we are explicitly loading (isFetching)
+	// OR if we are authenticated (so we expect data eventually)
+	if (status === 'pending' && (isFetching || Boolean(user))) {
 		return (
 			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
