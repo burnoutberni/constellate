@@ -44,6 +44,7 @@ function CardOptionsMenu({ event }: { event: Event }) {
 			<Button
 				variant="ghost"
 				size="sm"
+				type="button"
 				className="h-8 w-8 p-0 rounded-full hover:bg-background-tertiary text-text-secondary"
 				onClick={toggleMenu}
 			>
@@ -61,6 +62,7 @@ function CardOptionsMenu({ event }: { event: Event }) {
 				>
 					<div className="p-1">
 						<button
+							type="button"
 							className="text-text-primary group flex w-full items-center px-4 py-2 text-sm hover:bg-background-secondary text-left transition-colors"
 							onClick={(e) => {
 								e.preventDefault()

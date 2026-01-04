@@ -11,15 +11,15 @@ import { Button, Card, Spinner, AddIcon } from '@/components/ui'
 import { useHomeFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { useUIStore } from '@/stores'
-import { Activity, SuggestedUser, Event } from '@/types'
+// import { Activity, SuggestedUser, Event } from '@/types'
 
 // Type guards
 
 // Validated data types
-type ValidatedSuggestedUsers = { suggestions: SuggestedUser[] }
-type ValidatedEvent = Event
-type ValidatedActivity = Activity
-type ValidatedHeader = { title: string }
+type ValidatedSuggestedUsers = z.infer<typeof SuggestedUsersSchema>
+type ValidatedEvent = z.infer<typeof EventSchema>
+type ValidatedActivity = z.infer<typeof ActivitySchema>
+type ValidatedHeader = z.infer<typeof HeaderSchema>
 
 // Schemas
 // Schemas
@@ -95,21 +95,18 @@ const HeaderSchema = z.object({
 // Validation helpers
 function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
 	const result = SuggestedUsersSchema.safeParse(data)
-	if (!result.success) {return null}
+	if (!result.success) { return null }
 	return result.data
 }
 
 function getTrendingEventData(data: unknown): ValidatedEvent | null {
 	const result = EventSchema.safeParse(data)
-	if (!result.success) {return null}
-	// Cast is safe because schema ensures shape
-	return result.data as unknown as ValidatedEvent
+	return result.success ? result.data : null
 }
 
 function getActivityData(data: unknown): ValidatedActivity | null {
 	const result = ActivitySchema.safeParse(data)
-	if (!result.success) {return null}
-	return result.data as unknown as ValidatedActivity
+	return result.success ? result.data : null
 }
 
 function getHeaderData(data: unknown): ValidatedHeader | null {
