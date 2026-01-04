@@ -257,4 +257,37 @@ describe('FeedPage', () => {
 
 		expect(screen.getByText('Failed to load feed.')).toBeInTheDocument()
 	})
+	it('should show suggested users card', async () => {
+		const feedItems = [{
+			type: 'suggested_users',
+			id: 'suggestions1',
+			timestamp: new Date().toISOString(),
+			data: {
+				suggestions: [
+					{
+						id: 'u1',
+						username: 'suggested1',
+						name: 'Suggested User',
+						displayColor: '#000',
+						profileImage: null,
+						_count: { followers: 10, events: 5 }
+					}
+				]
+			}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// SuggestedUsersCard renders "Suggested for you" usually, or we check for username
+		expect(screen.getByText('Suggested User')).toBeInTheDocument()
+		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
+	})
 })
