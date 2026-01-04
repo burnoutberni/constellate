@@ -11,6 +11,7 @@ import {
 	fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeText } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -435,7 +436,7 @@ async function handleCreate(activity: CreateActivity): Promise<void> {
  */
 function getLocationValue(eventLocation: unknown): string | null {
 	if (typeof eventLocation === 'string') {
-		return eventLocation
+		return sanitizeText(eventLocation)
 	}
 	if (
 		eventLocation &&
@@ -443,7 +444,7 @@ function getLocationValue(eventLocation: unknown): string | null {
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
-		return eventLocation.name
+		return sanitizeText(eventLocation.name)
 	}
 	return null
 }
@@ -464,17 +465,20 @@ function getAttachmentUrl(attachment: unknown): string | null {
 function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
 	const eventObj = event as Record<string, unknown>
 
-	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
+	const getString = (val: unknown) => {
+		const str = typeof val === 'string' ? val : null
+		return str ? sanitizeText(str) : null
+	}
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
 	return {
-		eventId: getString(eventObj.id) || '',
+		eventId: typeof eventObj.id === 'string' ? eventObj.id : '',
 		eventName: getString(eventObj.name) || '',
 		eventSummary: getString(eventObj.summary),
 		eventContent: getString(eventObj.content),
 		locationValue: getLocationValue(eventObj.location),
-		eventStartTime: getString(eventObj.startTime) || '',
-		eventEndTime: getString(eventObj.endTime),
+		eventStartTime: typeof eventObj.startTime === 'string' ? eventObj.startTime : '',
+		eventEndTime: typeof eventObj.endTime === 'string' ? eventObj.endTime : null,
 		eventDuration: getString(eventObj.duration),
 		eventUrl: getString(eventObj.url),
 		eventStatus: eventObj.eventStatus,
@@ -746,7 +750,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeText(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -853,22 +857,23 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : ''
+	const eventSummary =
+		typeof eventObj.summary === 'string' ? sanitizeText(eventObj.summary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
 	const eventLocation = eventObj.location
 	let locationValue: string | null
 	if (typeof eventLocation === 'string') {
-		locationValue = eventLocation
+		locationValue = sanitizeText(eventLocation)
 	} else if (
 		eventLocation &&
 		typeof eventLocation === 'object' &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
-		locationValue = eventLocation.name
+		locationValue = sanitizeText(eventLocation.name)
 	} else {
 		locationValue = null
 	}
@@ -905,8 +910,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeText(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
