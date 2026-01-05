@@ -1,3 +1,4 @@
+import React from 'react'
 import { Link } from 'react-router-dom'
 
 import {
@@ -30,6 +31,7 @@ interface EventCardProps {
 export function EventCard(props: EventCardProps) {
 	const { event, variant = 'full', isAuthenticated = false } = props
 	const { user } = useAuth()
+	const [isMenuOpen, setMenuOpen] = React.useState(false)
 	const isOwner = Boolean(user?.id) && user?.id === event.user?.id
 
 	// Determine visual status style
@@ -149,7 +151,7 @@ export function EventCard(props: EventCardProps) {
 							{event.title}
 						</h3>
 						{isAuthenticated && !isOwner && (
-							<CardOptionsMenu event={event} />
+							<CardOptionsMenu event={event} onOpenChange={setMenuOpen} />
 						)}
 					</div>
 
@@ -206,6 +208,7 @@ export function EventCard(props: EventCardProps) {
 											eventId={event.id}
 											currentStatus={event.viewerStatus}
 											size="sm"
+											onOpenChange={setMenuOpen}
 										/>
 									)}
 									{isOwner && (
@@ -214,7 +217,7 @@ export function EventCard(props: EventCardProps) {
 
 									{/* Hamburger Menu (Report, etc) */}
 									{isAuthenticated && !isOwner && (
-										<CardOptionsMenu event={event} />
+										<CardOptionsMenu event={event} onOpenChange={setMenuOpen} />
 									)}
 								</div>
 							</div>
@@ -280,7 +283,7 @@ export function EventCard(props: EventCardProps) {
 	)
 
 	return (
-		<div className="h-full relative group hover:z-10 focus-within:z-20 has-[.rsvp-open]:z-30">
+		<div className={cn("h-full relative group hover:z-10 focus-within:z-20", isMenuOpen && "z-30")}>
 			<Link to={eventLink} className="block h-full">
 				{renderCardContent()}
 			</Link>

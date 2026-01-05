@@ -284,14 +284,15 @@ export function useRSVP(eventId: string) {
 					} else if (input.status !== 'attending' && oldStatus === 'attending') {
 						newCount = Math.max(0, newCount - 1)
 					}
-				} else if (user) {
+				} else if (user && user.id) {
 					// Add new (only possible if we have user data)
 					updatedAttendance.push({
 						status: input.status,
 						user: {
-							...user,
+							id: user.id,
 							username: user.username || '',
-							profileImage: user.image,
+							name: user.name || null,
+							profileImage: user.image || null,
 							isRemote: false
 						}
 					})

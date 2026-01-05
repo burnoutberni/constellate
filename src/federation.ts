@@ -332,8 +332,10 @@ async function handleAcceptFollow(
 	const actorUrl = activity.actor
 
 	const followerUrl =
-		isNonNullObject(followActivity) && 'actor' in followActivity
-			? (followActivity.actor as string)
+		isNonNullObject(followActivity) &&
+		'actor' in followActivity &&
+		typeof followActivity.actor === 'string'
+			? followActivity.actor
 			: ''
 	const baseUrl = getBaseUrl()
 

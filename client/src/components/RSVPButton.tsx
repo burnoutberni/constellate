@@ -13,14 +13,20 @@ interface RSVPButtonProps {
     size?: 'sm' | 'md' | 'lg'
     onSignUp?: () => void
     isAuthenticated?: boolean
+    onOpenChange?: (isOpen: boolean) => void
 }
 
-export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onSignUp, isAuthenticated = true }: RSVPButtonProps) {
+export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onSignUp, isAuthenticated = true, onOpenChange }: RSVPButtonProps) {
     const [isOpen, setIsOpen] = useState(false)
     const { mutate: rsvp, isPending } = useRSVP(eventId)
     const [isAnimating, setIsAnimating] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const buttonRef = useRef<HTMLButtonElement>(null)
+
+    // Notify parent of open state change
+    useEffect(() => {
+        onOpenChange?.(isOpen)
+    }, [isOpen, onOpenChange])
 
     // Close on click outside
     useEffect(() => {

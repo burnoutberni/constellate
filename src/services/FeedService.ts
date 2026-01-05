@@ -528,9 +528,12 @@ export class FeedService {
 				visibility: 'PUBLIC',
 			},
 			orderBy: [
-				// rudimentary "trending" sort by checking if friends are going?
-				// For now just recent or soonest?
-				// Let's rely on creation/updates or just proximity
+				// Sort by popularity (attendance count) then by date
+				{
+					attendance: {
+						_count: 'desc',
+					},
+				},
 				{ startTime: 'asc' },
 			],
 			take: 5,

@@ -7,11 +7,17 @@ import { ReportContentModal } from './ReportContentModal'
 
 interface CardOptionsMenuProps {
     event: Event
+    onOpenChange?: (isOpen: boolean) => void
 }
 
-export function CardOptionsMenu({ event }: CardOptionsMenuProps) {
+export function CardOptionsMenu({ event, onOpenChange }: CardOptionsMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isReportOpen, setIsReportOpen] = useState(false)
+
+    // Sync external open handler
+    React.useEffect(() => {
+        onOpenChange?.(isOpen)
+    }, [isOpen, onOpenChange])
 
     const toggleMenu = (e: React.MouseEvent) => {
         e.preventDefault()

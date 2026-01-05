@@ -22,25 +22,41 @@ import {
 } from '@/types'
 
 // Validation helpers
+// Validation helpers
 function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
 	const result = SuggestedUsersSchema.safeParse(data)
-	if (!result.success) { return null }
+	if (!result.success) {
+		console.error('FeedPage: Invalid suggested_users data', result.error)
+		return null
+	}
 	return result.data
 }
 
 function getTrendingEventData(data: unknown): ValidatedEvent | null {
 	const result = EventSchema.safeParse(data)
-	return result.success ? result.data : null
+	if (!result.success) {
+		console.error('FeedPage: Invalid trending_event data', result.error)
+		return null
+	}
+	return result.data
 }
 
 function getActivityData(data: unknown): ValidatedActivity | null {
 	const result = ActivitySchema.safeParse(data)
-	return result.success ? result.data : null
+	if (!result.success) {
+		console.error('FeedPage: Invalid activity data', result.error)
+		return null
+	}
+	return result.data
 }
 
 function getHeaderData(data: unknown): ValidatedHeader | null {
 	const result = HeaderSchema.safeParse(data)
-	return result.success ? result.data : null
+	if (!result.success) {
+		console.error('FeedPage: Invalid header data', result.error)
+		return null
+	}
+	return result.data
 }
 
 export function FeedPage() {
