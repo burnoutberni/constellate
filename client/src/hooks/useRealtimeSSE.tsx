@@ -188,7 +188,7 @@ const SetupEventListenersSchema = {
 			event: z.object({
 				id: z.string(),
 				user: z.object({ username: z.string() }).optional(),
-			}),
+			}).passthrough(),
 		}),
 	}),
 	eventDeleted: z.object({
@@ -387,7 +387,8 @@ const setupEventListeners = (
 			if (updatedEvent.user?.username && updatedEvent.id) {
 				queryClient.setQueryData(
 					queryKeysParam.events.detail(updatedEvent.user.username, updatedEvent.id),
-					updatedEvent
+					(oldData: EventDetail | undefined) =>
+						(oldData ? { ...oldData, ...updatedEvent } : updatedEvent) as unknown as EventDetail
 				)
 			}
 			queryClient.invalidateQueries({ queryKey: queryKeysParam.events.lists() })

@@ -479,6 +479,7 @@ export class FeedService {
 					startTime: { gte: start, lte: end },
 				},
 			},
+			take: 50,
 			include: {
 				event: {
 					include: {

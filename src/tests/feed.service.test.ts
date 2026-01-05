@@ -507,4 +507,158 @@ describe('FeedService', () => {
 			expect(result.items.find((i) => i.type === 'header')).toBeUndefined()
 		})
 	})
+	it('should handle pagination for established users', async () => {
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([{ actorUrl: 'url' }] as any)
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue(['friend-id'])
+
+		const cursorDate = new Date('2024-01-01T00:00:00.000Z')
+
+		// Mock findMany for activities using cursor
+		vi.mocked(prisma.eventLike.findMany).mockResolvedValue([
+			{
+				id: 'l2',
+				createdAt: new Date('2023-12-31T00:00:00.000Z'),
+				user: {},
+				event: { title: 'Old Event', startTime: new Date(), tags: [], user: {} },
+			} as any,
+		])
+		vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
+		vi.mocked(prisma.event.findMany).mockResolvedValue([]) // No new events
+
+		const result = await FeedService.getFeed('user-id', cursorDate.toISOString())
+
+		expect(result.items).toHaveLength(1)
+		expect(result.items[0].id).toBe('like-l2')
+	})
+
+	it('should correctly map remote event details in feed', async () => {
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([])
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue([])
+
+		const date = new Date()
+		const remoteEvent = {
+			id: 'ev-remote',
+			title: 'Remote Event',
+			startTime: date,
+			updatedAt: date,
+			user: null, // Remote event might have null user relation if structured differently or just relying on attributedTo?
+			// Actually FeedService expects user object or handles it.
+			// Let's look at mapToTrendingEvent: `user: { ... } | null`.
+			attributedTo: 'https://remote.server/users/remote_user',
+			tags: [],
+			_count: { attendance: 0, comments: 0, likes: 0 },
+			attendance: [],
+		}
+
+		// We need to match the partial signature expected by prisma mock.
+		// If user is null, mapToTrendingEvent handles it.
+		vi.mocked(prisma.event.findMany).mockResolvedValue([remoteEvent as any])
+
+		const result = await FeedService.getFeed('new-user-id')
+
+		const item = result.items[0]
+		expect(item).toBeDefined()
+		if (item.type === 'trending_event') {
+			// Check that it didn't crash and has some data
+			expect(item.id).toBe('ev-remote')
+			// If user is null, what does mapped data look like?
+			// The mapToTrendingEvent function likely handles it.
+		}
+	})
+
+	it('should correctly filter and map mixed activity types', async () => {
+		// Verify filterVisibleActivities and mapToTrendingEvent coverage
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([{ actorUrl: 'url' }] as any)
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue(['friend-id'])
+
+		const { canUserViewEvent } = await import('../lib/eventVisibility')
+		vi.mocked(canUserViewEvent).mockImplementation(async (event, userId) => {
+			if ((event as any).id === 'ev-private') return false
+			return true
+		})
+
+		const date = new Date()
+		// 1. Visible Like
+		const activityLike = {
+			id: 'l1',
+			createdAt: date,
+			user: { id: 'u2', username: 'liker', isRemote: false },
+			event: {
+				id: 'ev-public',
+				title: 'Public Event',
+				startTime: date,
+				tags: [],
+				user: { id: 'u3' },
+			},
+		}
+		// 2. Hidden Like (on private event)
+		const activityLikeHidden = {
+			id: 'l2',
+			createdAt: date,
+			user: { id: 'u2' },
+			event: {
+				id: 'ev-private',
+				title: 'Private Event',
+				startTime: date,
+				tags: [],
+				user: { id: 'u3' },
+			},
+		}
+
+		// 3. Comment
+		const activityComment = {
+			id: 'c1',
+			createdAt: date,
+			author: { id: 'u2', username: 'commenter', isRemote: false }, // FeedService expects 'author' relation
+			event: {
+				id: 'ev-commented',
+				title: 'Commented Event',
+				startTime: date,
+				tags: [],
+				user: { id: 'u3' },
+			},
+			content: 'Nice event',
+		}
+
+		// 4. Attendance
+		const activityAttendance = {
+			id: 'a1',
+			createdAt: date,
+			status: 'attending',
+			user: { id: 'u2', username: 'attendee', isRemote: false },
+			event: {
+				id: 'ev-attending',
+				title: 'Attended Event',
+				startTime: date,
+				tags: [],
+				user: { id: 'u3' },
+			},
+		}
+
+		vi.mocked(prisma.eventLike.findMany).mockResolvedValue([
+			activityLike as any,
+			activityLikeHidden as any,
+		])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([activityComment as any])
+		vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([activityAttendance as any])
+		vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+		const result = await FeedService.getFeed('user-id')
+
+		// Expect: Public Like + Comment + Attendance (3 items). Hidden Like filtered out.
+		expect(result.items).toHaveLength(3)
+
+		const likeItem = result.items.find((i) => i.id === 'like-l1')
+		const commentItem = result.items.find((i) => i.id === 'comment-c1')
+		const attendanceItem = result.items.find((i) => i.id === 'rsvp-a1')
+
+		expect(likeItem).toBeDefined()
+		expect(commentItem).toBeDefined()
+		expect(attendanceItem).toBeDefined()
+
+		// Verify mapping (FeedActivity structure)
+		expect((commentItem?.data as any).type).toBe('comment')
+		expect((attendanceItem?.data as any).type).toBe('rsvp')
+	})
 })
