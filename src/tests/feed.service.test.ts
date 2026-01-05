@@ -836,3 +836,40 @@ describe('FeedService', () => {
 		expect((trendingItem?.data as any).tags).toHaveLength(1)
 	})
 })
+
+it('should sort suggested events by popularity (attendance count) then date', async () => {
+	const userId = 'user-id'
+
+	vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([])
+	vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue([])
+
+	// Mock empty RSVPs so it proceeds to fetch suggestions
+	vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([])
+	vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+	// We trigger getTimelineItems via getHomeFeed -> addTodayItems
+	await FeedService.getHomeFeed(userId)
+
+	// Check the arguments passed to prisma.event.findMany
+	// The suggestions call is the one with `orderBy`
+	const findManyCalls = vi.mocked(prisma.event.findMany).mock.calls
+	const suggestionsCall = findManyCalls.find(
+		(args) =>
+			args[0]?.where?.visibility === 'PUBLIC' &&
+			Array.isArray(args[0]?.orderBy) &&
+			args[0].orderBy[0]?.attendance
+	)
+
+	expect(suggestionsCall).toBeDefined()
+	if (!suggestionsCall || !suggestionsCall[0]) throw new Error('Suggestions call not found')
+
+	const orderBy = suggestionsCall[0].orderBy
+	expect(orderBy).toEqual([
+		{
+			attendance: {
+				_count: 'desc',
+			},
+		},
+		{ startTime: 'asc' },
+	])
+})

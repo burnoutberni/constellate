@@ -9,6 +9,7 @@ import { Navbar } from '@/components/Navbar'
 import { Button, Card, Spinner, AddIcon } from '@/components/ui'
 import { useHomeFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
+import { logger } from '@/lib/logger'
 import { useUIStore } from '@/stores'
 import {
 	HeaderSchema,
@@ -23,10 +24,11 @@ import {
 
 // Validation helpers
 // Validation helpers
+
 function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
 	const result = SuggestedUsersSchema.safeParse(data)
 	if (!result.success) {
-		console.error('FeedPage: Invalid suggested_users data', result.error)
+		logger.error('FeedPage: Invalid suggested_users data', result.error)
 		return null
 	}
 	return result.data
@@ -35,7 +37,7 @@ function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
 function getTrendingEventData(data: unknown): ValidatedEvent | null {
 	const result = EventSchema.safeParse(data)
 	if (!result.success) {
-		console.error('FeedPage: Invalid trending_event data', result.error)
+		logger.error('FeedPage: Invalid trending_event data', result.error)
 		return null
 	}
 	return result.data
@@ -44,7 +46,7 @@ function getTrendingEventData(data: unknown): ValidatedEvent | null {
 function getActivityData(data: unknown): ValidatedActivity | null {
 	const result = ActivitySchema.safeParse(data)
 	if (!result.success) {
-		console.error('FeedPage: Invalid activity data', result.error)
+		logger.error('FeedPage: Invalid activity data', result.error)
 		return null
 	}
 	return result.data
@@ -53,7 +55,7 @@ function getActivityData(data: unknown): ValidatedActivity | null {
 function getHeaderData(data: unknown): ValidatedHeader | null {
 	const result = HeaderSchema.safeParse(data)
 	if (!result.success) {
-		console.error('FeedPage: Invalid header data', result.error)
+		logger.error('FeedPage: Invalid header data', result.error)
 		return null
 	}
 	return result.data

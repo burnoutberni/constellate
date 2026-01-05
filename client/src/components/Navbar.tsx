@@ -52,7 +52,6 @@ export function Navbar({
 				// Wait for minimum animation time (1.2s) even if fetch is faster
 				await Promise.all([
 					queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() }),
-					queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() }),
 					new Promise((resolve) => setTimeout(resolve, 1200)),
 				])
 			} catch (error) {

@@ -163,7 +163,7 @@ export function useUpdateEvent(eventId: string, username: string) {
 			// Invalidate event detail and lists
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
-			queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+			queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
 		},
 	})
 }
@@ -227,7 +227,7 @@ export function useRSVP(eventId: string) {
 		onMutate: async (input) => {
 			// Cancel outgoing queries
 			await queryClient.cancelQueries({ queryKey: queryKeys.events.details() })
-			await queryClient.cancelQueries({ queryKey: queryKeys.activity.feed() })
+
 			await queryClient.cancelQueries({ queryKey: queryKeys.activity.home() })
 
 			const previousData = new Map()
@@ -328,7 +328,7 @@ export function useRSVP(eventId: string) {
 
 			// 2. Update Feed and Home
 			const feedQueries = [
-				...queryClient.getQueriesData({ queryKey: queryKeys.activity.feed() }),
+
 				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),
 			]
 
@@ -475,7 +475,7 @@ export function useShareEvent(eventId: string) {
 			handleMutationError(error, 'Failed to share event')
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+			queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() })
 		},
 	})
 }

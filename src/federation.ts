@@ -329,14 +329,30 @@ async function handleAcceptFollow(
 	activity: AcceptActivity,
 	followActivity: FollowActivity | Record<string, unknown>
 ): Promise<void> {
-	const actorUrl = activity.actor
+	let actorUrl = ''
+	if (typeof activity.actor === 'string') {
+		actorUrl = activity.actor
+	} else if (
+		isNonNullObject(activity.actor) &&
+		'id' in activity.actor &&
+		typeof (activity.actor as Record<string, unknown>).id === 'string'
+	) {
+		actorUrl = (activity.actor as Record<string, unknown>).id as string
+	}
 
-	const followerUrl =
-		isNonNullObject(followActivity) &&
-		'actor' in followActivity &&
-		typeof followActivity.actor === 'string'
-			? followActivity.actor
-			: ''
+	let followerUrl = ''
+	if (isNonNullObject(followActivity) && 'actor' in followActivity) {
+		if (typeof followActivity.actor === 'string') {
+			followerUrl = followActivity.actor
+		} else if (
+			isNonNullObject(followActivity.actor) &&
+			'id' in followActivity.actor &&
+			typeof (followActivity.actor as Record<string, unknown>).id === 'string'
+		) {
+			followerUrl = (followActivity.actor as Record<string, unknown>).id as string
+		}
+	}
+
 	const baseUrl = getBaseUrl()
 
 	console.log(`[handleAcceptFollow] Processing Accept activity:`)
