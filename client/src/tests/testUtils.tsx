@@ -3,6 +3,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../design-system'
 
+// Mock matchMedia for JSDOM environment if missing
+if (typeof window !== 'undefined' && !window.matchMedia) {
+	Object.defineProperty(window, 'matchMedia', {
+		writable: true,
+		value: (query: string) => ({
+			matches: false,
+			media: query,
+			onchange: null,
+			addListener: () => { }, // Deprecated
+			removeListener: () => { }, // Deprecated
+			addEventListener: () => { },
+			removeEventListener: () => { },
+			dispatchEvent: () => false,
+		}),
+	})
+}
+
+
 /**
  * Creates a test wrapper with QueryClient that can be cleaned up.
  * Use this instead of creating QueryClient instances directly in tests.
