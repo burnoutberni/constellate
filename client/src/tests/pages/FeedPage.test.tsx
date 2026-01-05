@@ -189,6 +189,28 @@ describe('FeedPage', () => {
 		expect(document.querySelector('.animate-spin')).toBeInTheDocument()
 	})
 
+	it('should NOT show loading state for unauthenticated user when pending', async () => {
+		mockUseAuth.mockReturnValue({
+			user: null, // Unauthenticated
+			logout: vi.fn(),
+		})
+		mockUseHomeFeed.mockReturnValue({
+			data: undefined,
+			isLoading: true, // React Query might say loading
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'pending', // But status is pending because enabled: false
+			isFetching: false, // And not actually fetching
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// Should NOT show spinner
+		expect(document.querySelector('.animate-spin')).not.toBeInTheDocument()
+		// Should likely show welcome/onboarding or empty state (depending on implementation fallbacks)
+		// For now just ensuring spinner is gone is the regression fix check
+	})
+
 	it('should display feed items and headers', async () => {
 		const feedItems = [
 			{
