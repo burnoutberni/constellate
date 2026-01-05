@@ -163,7 +163,7 @@ export function useUpdateEvent(eventId: string, username: string) {
 			// Invalidate event detail and lists
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
-			queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
+			queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() })
 		},
 	})
 }
@@ -239,11 +239,11 @@ export function useRSVP(eventId: string) {
 				if (input === null) {
 					// Remove attendance
 					const updatedAttendance = currentAttendance.filter(
-						(a: { user?: { id?: string } }) => a.user?.id !== userId
+						(a) => a.user?.id !== userId
 					)
 
 					// Only decrement if we actually removed someone AND they were confirmed attending
-					const removedUser = currentAttendance.find((a: { user?: { id?: string } }) => a.user?.id === userId)
+					const removedUser = currentAttendance.find((a) => a.user?.id === userId)
 					const wasAttending = removedUser?.status === 'attending'
 
 					const newCount = wasAttending
@@ -263,7 +263,7 @@ export function useRSVP(eventId: string) {
 				// Add or update attendance
 				const existingIndex = userId
 					? currentAttendance.findIndex(
-						(a: { user?: { id?: string } }) => a.user?.id === userId
+						(a) => a.user?.id === userId
 					)
 					: -1
 

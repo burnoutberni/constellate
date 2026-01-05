@@ -104,17 +104,20 @@ export class FeedService {
 		const items: FeedItem[] = []
 		const cursorDate = cursor ? new Date(cursor) : undefined
 
+		// Fetch more candidates to account for visibility filtering
+		const fetchLimit = limit * 2
 		const activities = await this.fetchPagedActivities(
 			followedUserIds,
 			userId,
 			cursorDate,
-			limit
+			fetchLimit
 		)
 
-		// Filter activities for visibility
+		// Filter activities for visibility, then slice to limit
 		const visibleActivities = await this.filterVisibleActivities(activities, userId)
+		const slicedActivities = visibleActivities.slice(0, limit)
 
-		visibleActivities.forEach((a) => {
+		slicedActivities.forEach((a) => {
 			items.push({
 				type: 'activity',
 				id: a.id,
@@ -689,12 +692,9 @@ export class FeedService {
 		followedUserIds: string[],
 		viewerId: string,
 		cursorDate?: Date,
-		limit: number = 20
+		fetchLimit: number = 40
 	) {
 		const dateFilter = cursorDate ? { lt: cursorDate } : undefined
-
-		// Fetch more than limit to account for filtering
-		const fetchLimit = limit * 2
 
 		const [likes, rsvps, comments, newEvents, shares] = await Promise.all([
 			prisma.eventLike.findMany({
@@ -1044,7 +1044,8 @@ export class FeedService {
 
 		results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-		return results.slice(0, limit)
+		// Return all results - slicing happens after visibility filtering in caller
+		return results
 	}
 
 	private static async filterVisibleActivities(
