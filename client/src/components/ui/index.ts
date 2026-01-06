@@ -28,6 +28,7 @@ export {
 	type CardFooterProps,
 } from './Card'
 export { Input, type InputProps, type InputSize } from './Input'
+export { PasswordInput } from './PasswordInput'
 export { Textarea, type TextareaProps, type TextareaSize } from './Textarea'
 export {
 	ToggleGroup,
