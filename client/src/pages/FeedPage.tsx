@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 
+import { CreateEventModal } from '@/components/CreateEventModal'
 import { EventCard } from '@/components/EventCard'
 import { OnboardingHero } from '@/components/Feed/OnboardingHero'
 import { Sidebar } from '@/components/Feed/Sidebar'
@@ -64,6 +64,7 @@ function getHeaderData(data: unknown): ValidatedHeader | null {
 export function FeedPage() {
 	const { user, logout } = useAuth()
 	const { sseConnected, isFeedRefreshing } = useUIStore()
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
 	// Unified Feed Query (Smart Agenda)
 	const {
@@ -154,12 +155,14 @@ export function FeedPage() {
 					<div className="flex justify-between items-center mb-6">
 						<h1 className="text-2xl font-bold text-text-primary">Home</h1>
 						{user && (
-							<Link to="/events/new">
-								<Button variant="primary" size="sm">
-									<AddIcon className="w-4 h-4 mr-2" />
-									New Event
-								</Button>
-							</Link>
+							<Button
+								variant="primary"
+								size="sm"
+								onClick={() => setIsCreateModalOpen(true)}
+							>
+								<AddIcon className="w-4 h-4 mr-2" />
+								New Event
+							</Button>
 						)}
 					</div>
 
@@ -263,6 +266,16 @@ export function FeedPage() {
 				{/* Sidebar (Desktop only) */}
 				<Sidebar />
 			</div>
+
+			{/* Create Event Modal */}
+			<CreateEventModal
+				isOpen={isCreateModalOpen}
+				onClose={() => setIsCreateModalOpen(false)}
+				onSuccess={() => {
+					setIsCreateModalOpen(false)
+					refetch()
+				}}
+			/>
 		</div>
 	)
 }

@@ -21,11 +21,6 @@ export interface TrendingEvent {
         comments: number
         attendance: number
     }
-    engagement?: {
-        likes: number
-        comments: number
-        attendance: number
-    }
     tags?: Array<{ id: string; tag: string }>
 }
 
@@ -85,11 +80,11 @@ export function TrendingEventCard({ event, showRank = false }: TrendingEventProp
                 </div>
 
                 {/* Metrics if available (trending events usually have them) */}
-                {(event.trendingMetrics || event.engagement) && (
+                {event.trendingMetrics && (
                     <div className="mt-4 flex flex-wrap gap-4 text-xs text-text-secondary">
-                        {(event.trendingMetrics?.likes ?? 0) > 0 && <span>❤️ {event.trendingMetrics?.likes} likes</span>}
-                        {(event.trendingMetrics?.comments ?? 0) > 0 && <span>💬 {event.trendingMetrics?.comments} comments</span>}
-                        {(event.trendingMetrics?.attendance ?? 0) > 0 && <span>📅 {event.trendingMetrics?.attendance} RSVPs</span>}
+                        {(event.trendingMetrics.likes ?? 0) > 0 && <span>❤️ {event.trendingMetrics.likes} likes</span>}
+                        {(event.trendingMetrics.comments ?? 0) > 0 && <span>💬 {event.trendingMetrics.comments} comments</span>}
+                        {(event.trendingMetrics.attendance ?? 0) > 0 && <span>📅 {event.trendingMetrics.attendance} RSVPs</span>}
                     </div>
                 )}
 
