@@ -6,7 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { useAuth } from '../hooks/useAuth'
 
 import { TermsOfServiceAgreement } from './TermsOfServiceAgreement'
-import { Modal, Button, Input } from './ui'
+import { Modal, Button, Input, PasswordInput } from './ui'
 
 const log = createLogger('[SignupModal]')
 
@@ -131,8 +131,7 @@ export function SignupModal({ isOpen, onClose, action, onSuccess }: SignupModalP
 						autoFocus={isLogin}
 					/>
 
-					<Input
-						type="password"
+					<PasswordInput
 						label="Password"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
