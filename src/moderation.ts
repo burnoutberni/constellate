@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { AppealStatus, ReportCategory } from '@prisma/client'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { PaginationSchema, getSkip, formatPaginationResponse } from './lib/pagination.js'
 
 const app = new Hono()
 
@@ -405,9 +406,14 @@ app.get('/reports', async (c) => {
 	await requireAdmin(c)
 
 	const status = c.req.query('status') as 'pending' | 'resolved' | 'dismissed' | undefined
-	const page = parseInt(c.req.query('page') || '1')
-	const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100)
-	const skip = (page - 1) * limit
+
+	const query = PaginationSchema.parse({
+		page: c.req.query('page'),
+		limit: c.req.query('limit'),
+	})
+
+	const skip = getSkip(query.page, query.limit)
+	const limit = query.limit
 
 	const where = status ? { status } : {}
 
@@ -432,15 +438,7 @@ app.get('/reports', async (c) => {
 
 	const reportsWithPaths = await enrichReportsWithContentPaths(reports)
 
-	return c.json({
-		reports: reportsWithPaths,
-		pagination: {
-			page,
-			limit,
-			total,
-			pages: Math.ceil(total / limit),
-		},
-	})
+	return c.json(formatPaginationResponse(reportsWithPaths, total, query.page, limit))
 })
 
 // Update report status (admin only)
@@ -536,9 +534,13 @@ app.get('/appeals', async (c) => {
 app.get('/admin/appeals', async (c) => {
 	await requireAdmin(c)
 	const statusParam = c.req.query('status')
-	const page = parseInt(c.req.query('page') || '1')
-	const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100)
-	const skip = (page - 1) * limit
+
+	const query = PaginationSchema.parse({
+		page: c.req.query('page'),
+		limit: c.req.query('limit'),
+	})
+	const skip = getSkip(query.page, query.limit)
+	const limit = query.limit
 
 	// Validate and convert status query parameter to enum value
 	let statusEnum: AppealStatus | undefined
@@ -572,15 +574,7 @@ app.get('/admin/appeals', async (c) => {
 		prisma.appeal.count({ where }),
 	])
 
-	return c.json({
-		appeals,
-		pagination: {
-			page,
-			limit,
-			total,
-			pages: Math.ceil(total / limit),
-		},
-	})
+	return c.json(formatPaginationResponse(appeals, total, query.page, limit))
 })
 
 // Resolve appeal (admin only)

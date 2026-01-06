@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
 import { EventCard } from '@/components/EventCard'
@@ -15,47 +16,22 @@ import {
 	HeaderSchema,
 	SuggestedUsersSchema,
 	EventSchema,
-	ActivitySchema,
-	type ValidatedSuggestedUsers,
-	type ValidatedEvent,
-	type ValidatedActivity,
-	type ValidatedHeader
+	ActivitySchema
 } from '@/types'
 
 // Validation helpers
 // Validation helpers
 
-function getSuggestedUsersData(data: unknown): ValidatedSuggestedUsers | null {
-	const result = SuggestedUsersSchema.safeParse(data)
-	if (!result.success) {
-		logger.error('FeedPage: Invalid suggested_users data', result.error)
-		return null
-	}
-	return result.data
-}
+// Validation helpers
 
-function getTrendingEventData(data: unknown): ValidatedEvent | null {
-	const result = EventSchema.safeParse(data)
+function getValidatedData<T extends z.ZodTypeAny>(
+	schema: T,
+	data: unknown,
+	context: string
+): z.infer<T> | null {
+	const result = schema.safeParse(data)
 	if (!result.success) {
-		logger.error('FeedPage: Invalid trending_event data', result.error)
-		return null
-	}
-	return result.data
-}
-
-function getActivityData(data: unknown): ValidatedActivity | null {
-	const result = ActivitySchema.safeParse(data)
-	if (!result.success) {
-		logger.error('FeedPage: Invalid activity data', result.error)
-		return null
-	}
-	return result.data
-}
-
-function getHeaderData(data: unknown): ValidatedHeader | null {
-	const result = HeaderSchema.safeParse(data)
-	if (!result.success) {
-		logger.error('FeedPage: Invalid header data', result.error)
+		logger.error(`FeedPage: Invalid ${context} data`, result.error)
 		return null
 	}
 	return result.data
@@ -187,7 +163,7 @@ export function FeedPage() {
 
 								switch (item.type) {
 									case 'header': {
-										const validated = getHeaderData(item.data)
+										const validated = getValidatedData(HeaderSchema, item.data, 'header')
 										if (validated) {
 											const { title } = validated
 											return (
@@ -202,7 +178,7 @@ export function FeedPage() {
 									}
 
 									case 'onboarding': {
-										const validated = getSuggestedUsersData(item.data)
+										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
 										if (validated) {
 											return <OnboardingHero key={key} suggestions={validated.suggestions} />
 										}
@@ -210,7 +186,7 @@ export function FeedPage() {
 									}
 
 									case 'suggested_users': {
-										const validated = getSuggestedUsersData(item.data)
+										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
 										if (validated) {
 											return <SuggestedUsersCard key={key} users={validated.suggestions} />
 										}
@@ -218,7 +194,7 @@ export function FeedPage() {
 									}
 
 									case 'trending_event': {
-										const validated = getTrendingEventData(item.data)
+										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
 										if (validated) {
 											return (
 												<div key={key} className="h-full">
@@ -230,7 +206,7 @@ export function FeedPage() {
 									}
 
 									case 'activity': {
-										const validated = getActivityData(item.data)
+										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
 										if (validated) {
 											// For "Smart Agenda", we show the Event itself
 											return (

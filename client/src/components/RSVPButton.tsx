@@ -120,7 +120,6 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onS
     const stopPropagation = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation()
         e.preventDefault()
-        e.nativeEvent.stopImmediatePropagation()
     }
 
     // Helper to determine if we should remove or add attendance

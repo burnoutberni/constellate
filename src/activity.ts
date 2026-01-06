@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono'
+import { CursorPaginationSchema } from './lib/pagination'
 import { prisma } from './lib/prisma.js'
 import { FeedService } from './services/FeedService.js'
 import { EventVisibility } from '@prisma/client'
@@ -82,18 +83,18 @@ app.get('/activity/home', async (c) => {
 app.get('/activity/feed', async (c) => {
 	try {
 		const userId = c.get('userId')
-		const cursor = c.req.query('cursor')
-		const limitParam = c.req.query('limit')
-		let limit = limitParam ? parseInt(limitParam) : 20
-		if (isNaN(limit) || limit <= 0) {
-			limit = 20
-		}
+
+		// Use shared schema for validation and defaults
+		const query = CursorPaginationSchema.parse({
+			limit: c.req.query('limit'),
+			cursor: c.req.query('cursor'),
+		})
 
 		if (!userId) {
 			return c.json({ items: [] })
 		}
 
-		const result = await FeedService.getFeed(userId, cursor, limit)
+		const result = await FeedService.getFeed(userId, query.cursor, query.limit)
 		return c.json(result)
 	} catch (error) {
 		console.error('Error getting activity feed:', error)
