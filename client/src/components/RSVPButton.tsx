@@ -77,34 +77,45 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onS
         setIsOpen(false)
     }
 
-    // Determine visual state
-    let label = 'Going'
-    let icon = <AddIcon className="w-4 h-4" />
+    // Declarative style configuration for each status
+    const statusConfig = {
+        attending: {
+            label: 'Going',
+            icon: <CheckIcon className="w-4 h-4" />,
+            wrapperClass:
+                'bg-primary-600 dark:bg-primary-600 text-white hover:bg-primary-700 dark:hover:bg-primary-500 border border-transparent shadow-md ring-0',
+            separatorClass: 'border-l-white/20',
+            buttonTextClass: 'text-white',
+        },
+        maybe: {
+            label: 'Maybe',
+            icon: <QuestionIcon className="w-4 h-4" />,
+            wrapperClass:
+                'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/50 shadow-sm',
+            separatorClass: 'border-l-amber-300 dark:border-l-amber-700',
+            buttonTextClass: 'text-amber-900 dark:text-amber-200',
+        },
+        not_attending: {
+            label: 'Not Going',
+            icon: <CloseIcon className="w-4 h-4" />,
+            wrapperClass:
+                'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700 shadow-sm',
+            separatorClass: 'border-l-neutral-200 dark:border-l-neutral-700',
+            buttonTextClass: 'text-neutral-600 dark:text-neutral-300',
+        },
+        default: {
+            label: 'Going',
+            icon: <AddIcon className="w-4 h-4" />,
+            wrapperClass:
+                'bg-transparent text-primary-600 dark:text-primary-400 border border-primary-600 dark:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 shadow-sm',
+            separatorClass: 'border-l-primary-600 dark:border-l-primary-400',
+            buttonTextClass: 'text-primary-600 dark:text-primary-400',
+        },
+    } as const
 
-    // Default / Not Attending styles (Ghost-like but with border)
-    let wrapperClass = "bg-transparent text-primary-600 dark:text-primary-400 border border-primary-600 dark:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 shadow-sm"
-    let separatorClass = "border-l-primary-600 dark:border-l-primary-400"
-    let buttonTextClass = "text-primary-600 dark:text-primary-400"
-
-    if (currentStatus === 'attending') {
-        label = 'Going'
-        icon = <CheckIcon className="w-4 h-4" />
-        wrapperClass = "bg-primary-600 dark:bg-primary-600 text-white hover:bg-primary-700 dark:hover:bg-primary-500 border border-transparent shadow-md ring-0"
-        separatorClass = "border-l-white/20"
-        buttonTextClass = "text-white"
-    } else if (currentStatus === 'maybe') {
-        label = 'Maybe'
-        icon = <QuestionIcon className="w-4 h-4" />
-        wrapperClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/50 shadow-sm"
-        separatorClass = "border-l-amber-300 dark:border-l-amber-700"
-        buttonTextClass = "text-amber-900 dark:text-amber-200"
-    } else if (currentStatus === 'not_attending') {
-        label = 'Not Going'
-        icon = <CloseIcon className="w-4 h-4" />
-        wrapperClass = "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700 shadow-sm"
-        separatorClass = "border-l-neutral-200 dark:border-l-neutral-700"
-        buttonTextClass = "text-neutral-600 dark:text-neutral-300"
-    }
+    // Get current configuration based on status
+    const config = currentStatus ? statusConfig[currentStatus] : statusConfig.default
+    const { label, icon, wrapperClass, separatorClass, buttonTextClass } = config
 
     const stopPropagation = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation()

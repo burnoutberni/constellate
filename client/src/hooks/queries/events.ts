@@ -228,91 +228,133 @@ export function useRSVP(eventId: string) {
 			// Cancel outgoing queries
 			await queryClient.cancelQueries({ queryKey: queryKeys.events.details() })
 
+
 			await queryClient.cancelQueries({ queryKey: queryKeys.activity.home() })
 
 			const previousData = new Map()
 
-			// Helper to calculate the new event state
-			const getUpdatedEvent = (event: Event) => {
+			// Helper: Remove attendance from event
+			const removeAttendance = (event: Event, targetUserId: string | undefined) => {
 				const currentAttendance = event.attendance || []
+				const updatedAttendance = currentAttendance.filter((a) => a.user?.id !== targetUserId)
 
-				if (input === null) {
-					// Remove attendance
-					const updatedAttendance = currentAttendance.filter(
-						(a) => a.user?.id !== userId
-					)
+				// Only decrement if we actually removed someone AND they were confirmed attending
+				const removedUser = currentAttendance.find((a) => a.user?.id === targetUserId)
+				const wasAttending = removedUser?.status === 'attending'
 
-					// Only decrement if we actually removed someone AND they were confirmed attending
-					const removedUser = currentAttendance.find((a) => a.user?.id === userId)
-					const wasAttending = removedUser?.status === 'attending'
-
-					const newCount = wasAttending
-						? Math.max((event._count?.attendance || 0) - 1, 0)
-						: (event._count?.attendance || 0)
-
-					return {
-						...event,
-						viewerStatus: null,
-						attendance: updatedAttendance,
-						_count: {
-							...event._count,
-							attendance: newCount,
-						},
-					}
-				}
-				// Add or update attendance
-				const existingIndex = userId
-					? currentAttendance.findIndex(
-						(a) => a.user?.id === userId
-					)
-					: -1
-
-				const updatedAttendance = [...currentAttendance]
-				let newCount = event._count?.attendance || 0
-
-				if (existingIndex >= 0) {
-					// Update existing
-					const oldStatus = updatedAttendance[existingIndex].status
-					updatedAttendance[existingIndex] = {
-						...updatedAttendance[existingIndex],
-						status: input.status
-					}
-
-					// Update count if status changed to/from 'attending'
-					if (input.status === 'attending' && oldStatus !== 'attending') {
-						newCount += 1
-					} else if (input.status !== 'attending' && oldStatus === 'attending') {
-						newCount = Math.max(0, newCount - 1)
-					}
-				} else if (user && user.id) {
-					// Add new (only possible if we have user data)
-					updatedAttendance.push({
-						status: input.status,
-						user: {
-							id: user.id,
-							username: user.username || '',
-							name: user.name || null,
-							profileImage: user.image || null,
-							isRemote: false
-						}
-					})
-					// Only increment if status is 'attending'
-					if (input.status === 'attending') {
-						newCount += 1
-					}
-				}
+				const newCount = wasAttending
+					? Math.max((event._count?.attendance || 0) - 1, 0)
+					: (event._count?.attendance || 0)
 
 				return {
 					...event,
-					viewerStatus: input.status,
+					viewerStatus: null,
 					attendance: updatedAttendance,
 					_count: {
 						...event._count,
 						attendance: newCount,
 					},
 				}
-
 			}
+
+			// Helper: Update existing attendance
+			const updateExistingAttendance = (
+				event: Event,
+				currentAttendance: Event['attendance'],
+				existingIndex: number,
+				newStatus: string
+			) => {
+				const updatedAttendance = [...(currentAttendance || [])]
+				const oldStatus = updatedAttendance[existingIndex].status
+
+				updatedAttendance[existingIndex] = {
+					...updatedAttendance[existingIndex],
+					status: newStatus,
+				}
+
+				// Update count if status changed to/from 'attending'
+				let newCount = event._count?.attendance || 0
+				if (newStatus === 'attending' && oldStatus !== 'attending') {
+					newCount += 1
+				} else if (newStatus !== 'attending' && oldStatus === 'attending') {
+					newCount = Math.max(0, newCount - 1)
+				}
+
+				return {
+					...event,
+					viewerStatus: newStatus,
+					attendance: updatedAttendance,
+					_count: {
+						...event._count,
+						attendance: newCount,
+					},
+				}
+			}
+
+			// Helper: Add new attendance
+			const addNewAttendance = (
+				event: Event,
+				currentAttendance: Event['attendance'],
+				newStatus: string,
+				currentUser: { id: string; username?: string | null; name?: string | null; image?: string | null }
+			) => {
+				const updatedAttendance = [
+					...(currentAttendance || []),
+					{
+						status: newStatus,
+						user: {
+							id: currentUser.id,
+							username: currentUser.username || '',
+							name: currentUser.name || null,
+							profileImage: currentUser.image || null,
+							isRemote: false,
+						},
+					},
+				]
+
+				// Only increment if status is 'attending'
+				const newCount =
+					newStatus === 'attending'
+						? (event._count?.attendance || 0) + 1
+						: (event._count?.attendance || 0)
+
+				return {
+					...event,
+					viewerStatus: newStatus,
+					attendance: updatedAttendance,
+					_count: {
+						...event._count,
+						attendance: newCount,
+					},
+				}
+			}
+
+			// Main function to calculate the new event state
+			const getUpdatedEvent = (event: Event) => {
+				const currentAttendance = event.attendance || []
+
+				// Case 1: Remove attendance
+				if (input === null) {
+					return removeAttendance(event, userId)
+				}
+
+				// Case 2 & 3: Add or update attendance
+				const existingIndex = userId
+					? currentAttendance.findIndex((a) => a.user?.id === userId)
+					: -1
+
+				if (existingIndex >= 0) {
+					// Case 2: Update existing attendance
+					return updateExistingAttendance(event, currentAttendance, existingIndex, input.status)
+				} if (user && user.id) {
+					// Case 3: Add new attendance
+					return addNewAttendance(event, currentAttendance, input.status, user)
+				}
+
+				// Fallback: no change
+				return event
+			}
+
 
 			// 1. Update Event Details
 			const eventQueries = queryClient.getQueriesData({
