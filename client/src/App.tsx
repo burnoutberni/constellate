@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState, useMemo, lazy, Suspense, type ReactNode } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { z } from 'zod'
 
 import { useCurrentUserProfile } from '@/hooks/queries'
 
@@ -25,27 +26,15 @@ import { useUIStore } from './stores'
 const TOAST_MAX_LENGTH = 1000
 
 // Type guard for toast data
-interface ToastData {
-	message: string
-	variant: 'error' | 'success'
-}
+const ToastDataSchema = z.object({
+	message: z.string().min(1).max(TOAST_MAX_LENGTH),
+	variant: z.enum(['error', 'success']),
+})
+
+type ToastData = z.infer<typeof ToastDataSchema>
 
 function isToastData(data: unknown): data is ToastData {
-	if (!data || typeof data !== 'object' || Array.isArray(data)) {
-		return false
-	}
-
-	const { message, variant } = data as Partial<ToastData>
-
-	if (typeof message !== 'string' || message.length === 0 || message.length > TOAST_MAX_LENGTH) {
-		return false
-	}
-
-	if (variant !== 'error' && variant !== 'success') {
-		return false
-	}
-
-	return true
+	return ToastDataSchema.safeParse(data).success
 }
 
 // Lazy load pages
