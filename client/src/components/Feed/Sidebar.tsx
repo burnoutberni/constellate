@@ -5,11 +5,13 @@ import { SuggestedUsersCard } from '@/components/Feed/SuggestedUsersCard'
 import { MiniCalendar } from '@/components/MiniCalendar'
 import { Card } from '@/components/ui'
 import { useSuggestedUsers } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
 
 export function Sidebar() {
     const navigate = useNavigate()
+    const { user } = useAuth()
     const [date, setDate] = useState(new Date())
-    const { data: suggestions } = useSuggestedUsers(5)
+    const { data: suggestions } = useSuggestedUsers(5, { enabled: Boolean(user) })
 
     const handleDateSelect = (newDate: Date) => {
         setDate(newDate)

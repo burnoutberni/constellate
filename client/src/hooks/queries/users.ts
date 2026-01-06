@@ -58,9 +58,10 @@ export function useFollowStatus(username: string) {
 	})
 }
 
-export function useSuggestedUsers(limit = 5) {
+export function useSuggestedUsers(limit = 5, options?: { enabled?: boolean }) {
 	return useQuery<SuggestedUser[]>({
 		queryKey: ['users', 'suggestions', limit],
+		enabled: options?.enabled ?? true,
 		queryFn: () =>
 			api.get<SuggestedUser[]>(
 				'/user-search/suggestions',

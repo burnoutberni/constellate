@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 import { CommunityStats } from '@/components/CommunityStats'
 import { EventCard } from '@/components/EventCard'
@@ -59,9 +59,7 @@ export function HomePage() {
 		[]
 	)
 
-	if (user) {
-		return <Navigate to="/feed" replace />
-	}
+
 
 	return (
 		<div className="min-h-screen bg-background-secondary">

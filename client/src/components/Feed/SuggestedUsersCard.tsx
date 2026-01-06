@@ -22,7 +22,7 @@ export function SuggestedUsersCard({ users }: SuggestedUsersCardProps) {
                             <Link to={`/@${user.username}`}>
                                 <Avatar
                                     src={user.profileImage || undefined}
-                                    fallback={(user.name?.[0] || user.username[0]).toUpperCase()}
+                                    fallback={(user.name?.[0] || user.username?.[0] || '?').toUpperCase()}
                                     size="md"
                                 />
                             </Link>
