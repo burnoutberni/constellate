@@ -148,7 +148,7 @@ app.get('/users', async (c) => {
 			users.map((u) => u.username)
 		)
 
-		return c.json(formatPaginationResponse(users, total, query.page, query.limit))
+		return c.json(formatPaginationResponse(users, total, query.page, query.limit, 'users'))
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)

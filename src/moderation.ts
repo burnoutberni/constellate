@@ -438,7 +438,7 @@ app.get('/reports', async (c) => {
 
 	const reportsWithPaths = await enrichReportsWithContentPaths(reports)
 
-	return c.json(formatPaginationResponse(reportsWithPaths, total, query.page, limit))
+	return c.json(formatPaginationResponse(reportsWithPaths, total, query.page, limit, 'reports'))
 })
 
 // Update report status (admin only)
@@ -574,7 +574,7 @@ app.get('/admin/appeals', async (c) => {
 		prisma.appeal.count({ where }),
 	])
 
-	return c.json(formatPaginationResponse(appeals, total, query.page, limit))
+	return c.json(formatPaginationResponse(appeals, total, query.page, limit, 'appeals'))
 })
 
 // Resolve appeal (admin only)
