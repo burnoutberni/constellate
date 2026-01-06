@@ -257,6 +257,146 @@ describe('FeedService', () => {
 		expect(result.items[1].type).toBe('trending_event')
 	})
 
+	it('should properly slice activities after visibility filtering', async () => {
+		// Mock established user
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([{ actorUrl: 'url' }] as any)
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue(['friend-id'])
+
+		const { canUserViewEvent } = await import('../lib/eventVisibility')
+		// Mock visibility: only even-numbered events are visible
+		vi.mocked(canUserViewEvent).mockImplementation(async (event) => {
+			const eventId = (event as any).id
+			if (!eventId) return true // Default to visible if no ID
+			return eventId.endsWith('2') || eventId.endsWith('4') || eventId.endsWith('6')
+		})
+
+		const date = new Date()
+		// Create 6 activities, but only 3 will be visible after filtering
+		const likes = Array.from({ length: 6 }, (_, i) => ({
+			id: `l${i + 1}`,
+			createdAt: date,
+			user: { id: 'u2', username: 'liker', isRemote: false },
+			event: {
+				id: `ev-${i + 1}`,
+				title: `Event ${i + 1}`,
+				startTime: date,
+				user: { id: 'u3', username: 'creator', isRemote: false },
+				tags: [],
+				attendance: [],
+			},
+		}))
+
+		vi.mocked(prisma.eventLike.findMany).mockResolvedValue(likes as any)
+		vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
+		vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+		// Request limit of 2, but we fetch more candidates (fetchLimit = 4)
+		// After filtering, we should get exactly 2 visible items
+		const result = await FeedService.getFeed('user-id', undefined, 2)
+
+		// Should have exactly 2 items (sliced after filtering)
+		expect(result.items).toHaveLength(2)
+		expect(result.items[0].type).toBe('activity')
+		expect(result.items[1].type).toBe('activity')
+		// Verify they are the visible ones (ev-2, ev-4)
+		expect((result.items[0].data as any).event.id).toBe('ev-2')
+		expect((result.items[1].data as any).event.id).toBe('ev-4')
+	})
+
+	it('should handle when all activities are filtered out', async () => {
+		// Mock established user
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([{ actorUrl: 'url' }] as any)
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue(['friend-id'])
+
+		const { canUserViewEvent } = await import('../lib/eventVisibility')
+		// Mock visibility: all events are invisible
+		vi.mocked(canUserViewEvent).mockResolvedValue(false)
+
+		const date = new Date()
+		const likes = [
+			{
+				id: 'l1',
+				createdAt: date,
+				user: { id: 'u2', username: 'liker', isRemote: false },
+				event: {
+					id: 'ev-1',
+					title: 'Event 1',
+					startTime: date,
+					user: { id: 'u3', username: 'creator', isRemote: false },
+					tags: [],
+					attendance: [],
+				},
+			},
+		]
+
+		vi.mocked(prisma.eventLike.findMany).mockResolvedValue(likes as any)
+		vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
+		// Mock trending events to fill the feed
+		vi.mocked(prisma.event.findMany)
+			.mockResolvedValueOnce([]) // newEvents
+			.mockResolvedValueOnce([]) // shares
+			.mockResolvedValueOnce([
+				// trending
+				{
+					id: 'tr-1',
+					title: 'Trending',
+					startTime: date,
+					updatedAt: date,
+					user: { id: 'u4', username: 'trend', isRemote: false },
+					tags: [],
+					attendance: [],
+				} as any,
+			])
+
+		const result = await FeedService.getFeed('user-id', undefined, 5)
+
+		// Should have trending events since all activities were filtered
+		expect(result.items.length).toBeGreaterThan(0)
+		expect(result.items[0].type).toBe('trending_event')
+	})
+
+	it('should return more visible items than limit when available', async () => {
+		// Mock established user
+		vi.mocked(SocialGraphService.getFollowing).mockResolvedValue([{ actorUrl: 'url' }] as any)
+		vi.mocked(SocialGraphService.resolveFollowedUserIds).mockResolvedValue(['friend-id'])
+
+		const { canUserViewEvent } = await import('../lib/eventVisibility')
+		// All events are visible
+		vi.mocked(canUserViewEvent).mockResolvedValue(true)
+
+		const date = new Date()
+		// Create 10 activities, all visible
+		const likes = Array.from({ length: 10 }, (_, i) => ({
+			id: `l${i + 1}`,
+			createdAt: date,
+			user: { id: 'u2', username: 'liker', isRemote: false },
+			event: {
+				id: `ev-${i + 1}`,
+				title: `Event ${i + 1}`,
+				startTime: date,
+				user: { id: 'u3', username: 'creator', isRemote: false },
+				tags: [],
+				attendance: [],
+			},
+		}))
+
+		vi.mocked(prisma.eventLike.findMany).mockResolvedValue(likes as any)
+		vi.mocked(prisma.eventAttendance.findMany).mockResolvedValue([])
+		vi.mocked(prisma.comment.findMany).mockResolvedValue([])
+		vi.mocked(prisma.event.findMany).mockResolvedValue([])
+
+		// Request limit of 5
+		const result = await FeedService.getFeed('user-id', undefined, 5)
+
+		// Should have exactly 5 items (sliced from 10 visible)
+		expect(result.items).toHaveLength(5)
+		result.items.forEach((item) => {
+			expect(item.type).toBe('activity')
+		})
+	})
+
 	describe('getHomeFeed (Smart Agenda)', () => {
 		it('should return "Today" section with events', async () => {
 			const userId = 'user-id'
