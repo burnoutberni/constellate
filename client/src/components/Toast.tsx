@@ -79,7 +79,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 	> = {
 		error: {
 			container:
-				'rounded-r-lg border-l-4 border-error-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10',
+				'rounded-r-lg border-l-4 border-error-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10 p-4',
 			message: 'text-sm font-medium text-text-primary',
 			icon: 'text-error-600',
 			ariaLive: 'assertive',
@@ -88,7 +88,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 		},
 		success: {
 			container:
-				'rounded-r-lg border-l-4 border-success-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10',
+				'rounded-r-lg border-l-4 border-success-600 bg-background-primary dark:bg-background-secondary shadow-lg ring-1 ring-black/5 dark:ring-white/10 p-4',
 			message: 'text-sm font-medium text-text-primary',
 			icon: 'text-success-600',
 			ariaLive: 'polite',

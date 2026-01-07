@@ -23,17 +23,15 @@ export function HomePage() {
 	// const navigate = useNavigate()
 
 	// Queries
-	const { data: eventsData, isLoading: eventsLoading } = useEvents(10, { enabled: !user })
-	const { data: trendingData, isLoading: trendingLoading } = useTrendingEvents(6, 7, {
-		enabled: !user,
-	})
+	const { data: eventsData, isLoading: eventsLoading } = useEvents(10)
+	const { data: trendingData, isLoading: trendingLoading } = useTrendingEvents(6, 7)
 	const { data: recommendationsData, isLoading: recommendationsLoading } = useRecommendedEvents(
 		6,
 		{
 			enabled: Boolean(user),
 		}
 	)
-	const { data: statsData, isLoading: statsLoading } = usePlatformStats({ enabled: !user })
+	const { data: statsData, isLoading: statsLoading } = usePlatformStats()
 
 	// Derived data
 	const upcomingEvents =
