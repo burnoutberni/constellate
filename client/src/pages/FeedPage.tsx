@@ -1,41 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { z } from 'zod'
+import { useEffect, useRef, useState, useMemo } from 'react'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
-import { EventCard } from '@/components/EventCard'
-import { OnboardingHero } from '@/components/Feed/OnboardingHero'
+import { FeedItemRenderer } from '@/components/Feed/FeedItem'
 import { Sidebar } from '@/components/Feed/Sidebar'
-import { SuggestedUsersCard } from '@/components/Feed/SuggestedUsersCard'
 import { Navbar } from '@/components/Navbar'
 import { Button, Card, Spinner, AddIcon } from '@/components/ui'
 import { useHomeFeed, type FeedItem } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
-import { logger } from '@/lib/logger'
 import { useUIStore } from '@/stores'
-import {
-	HeaderSchema,
-	SuggestedUsersSchema,
-	EventSchema,
-	ActivitySchema
-} from '@/types'
-
-// Validation helpers
-// Validation helpers
-
-// Validation helpers
-
-function getValidatedData<T extends z.ZodTypeAny>(
-	schema: T,
-	data: unknown,
-	context: string
-): z.infer<T> | null {
-	const result = schema.safeParse(data)
-	if (!result.success) {
-		logger.error(`FeedPage: Invalid ${context} data`, result.error)
-		return null
-	}
-	return result.data
-}
 
 export function FeedPage() {
 	const { user, logout } = useAuth()
@@ -79,6 +51,12 @@ export function FeedPage() {
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
 
+	// Bolt: Memoize allItems to prevent unnecessary re-creation on every render
+	const allItems = useMemo(() =>
+		data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || [],
+		[data]
+	)
+
 	// If not authenticated, the query is disabled so status stays pending/idle
 	// We only show loading spinner if we are explicitly loading (isFetching)
 	// OR if we are authenticated (so we expect data eventually)
@@ -119,8 +97,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -158,70 +134,13 @@ export function FeedPage() {
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
-
-								switch (item.type) {
-									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
-									}
-
-									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
-									}
-
-									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
-									}
-
-									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
-									}
-
-									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated.event} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
-									}
-
-									default:
-										return null
-								}
-							})
+							allItems.map((item: FeedItem) => (
+								<FeedItemRenderer
+									key={`${item.type}-${item.id}`}
+									item={item}
+									isAuthenticated={Boolean(user)}
+								/>
+							))
 						)}
 					</div>
 
