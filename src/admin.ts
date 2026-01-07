@@ -33,10 +33,7 @@ const UserListQuerySchema = PaginationSchema.extend({
 // Create user schema
 const CreateUserSchema = z.object({
 	username: z.string().min(1).max(50),
-	email: z
-		.string()
-		.regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, { message: 'Invalid email' })
-		.optional(),
+	email: z.email().optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional().default(false),
 	isBot: z.boolean().optional().default(false),
@@ -48,10 +45,7 @@ const CreateUserSchema = z.object({
 // Update user schema
 const UpdateUserSchema = z.object({
 	username: z.string().min(1).max(50).optional(),
-	email: z
-		.string()
-		.regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, { message: 'Invalid email' })
-		.optional(),
+	email: z.email().optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional(),
 	isBot: z.boolean().optional(),

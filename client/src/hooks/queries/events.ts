@@ -392,23 +392,33 @@ export function useRSVP(eventId: string) {
 				const newPages = feedData.pages.map((page) => ({
 					...page,
 					items: page.items.map((item) => {
+						// Safe type guard helper
+						const isObject = (val: unknown): val is Record<string, unknown> =>
+							typeof val === 'object' && val !== null
+
 						// Trending Event
-						if (item.type === 'trending_event' && (item.data as Partial<Event>).id === eventId) {
-							return { ...item, data: getUpdatedEvent(item.data as Event) }
+						if (item.type === 'trending_event' && isObject(item.data) && item.data.id === eventId) {
+							return { ...item, data: getUpdatedEvent(item.data as unknown as Event) }
 						}
 						// Activity (e.g. Create)
-						if (item.type === 'activity' && (item.data as { event?: Event })?.event?.id === eventId) {
-							const activityData = item.data as { event: Event }
-							return {
-								...item,
-								data: {
-									...activityData,
-									event: getUpdatedEvent(activityData.event)
+						if (item.type === 'activity') {
+							const activityPayload = item.data
+							if (
+								isObject(activityPayload) &&
+								isObject(activityPayload.event) &&
+								activityPayload.event.id === eventId
+							) {
+								return {
+									...item,
+									data: {
+										...activityPayload,
+										event: getUpdatedEvent(activityPayload.event as unknown as Event),
+									},
 								}
 							}
 						}
 						return item
-					})
+					}),
 				}))
 
 				queryClient.setQueryData(queryKey, { ...feedData, pages: newPages })
