@@ -385,8 +385,14 @@ describe('Event Query Hooks', () => {
                                 data: {
                                     id: eventId,
                                     title: 'Test Event',
+                                    startTime: '2024-01-01T00:00:00Z',
+                                    timezone: 'UTC',
                                     attendance: [],
-                                    _count: { attendance: 0 },
+                                    _count: {
+                                        attendance: 0,
+                                        likes: 0,
+                                        comments: 0,
+                                    },
                                 },
                             },
                         ],
@@ -428,12 +434,25 @@ describe('Event Query Hooks', () => {
                             {
                                 type: 'activity',
                                 data: {
+                                    id: 'test-activity-id',
+                                    createdAt: '2024-01-01T00:00:00Z',
                                     type: 'Create',
+                                    user: {
+                                        id: 'test-user-id',
+                                        username: 'testuser',
+                                        isRemote: false,
+                                    },
                                     event: {
                                         id: eventId,
                                         title: 'Test Event',
+                                        startTime: '2024-01-01T00:00:00Z',
+                                        timezone: 'UTC',
                                         attendance: [],
-                                        _count: { attendance: 0 },
+                                        _count: {
+                                            attendance: 0,
+                                            likes: 0,
+                                            comments: 0,
+                                        },
                                     },
                                 },
                             },
