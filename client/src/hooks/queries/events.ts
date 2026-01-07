@@ -384,6 +384,10 @@ export function useRSVP(eventId: string) {
 				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),
 			]
 
+			// Safe type guard helper
+			const isObject = (val: unknown): val is Record<string, unknown> =>
+				typeof val === 'object' && val !== null
+
 			feedQueries.forEach(([queryKey, data]) => {
 				const feedData = data as { pages?: Array<{ items: Array<{ type: string; data: unknown }> }> }
 				if (!feedData || !feedData.pages) { return }
@@ -392,10 +396,6 @@ export function useRSVP(eventId: string) {
 				const newPages = feedData.pages.map((page) => ({
 					...page,
 					items: page.items.map((item) => {
-						// Safe type guard helper
-						const isObject = (val: unknown): val is Record<string, unknown> =>
-							typeof val === 'object' && val !== null
-
 						// Trending Event
 						if (item.type === 'trending_event' && isObject(item.data) && item.data.id === eventId) {
 							return { ...item, data: getUpdatedEvent(item.data as unknown as Event) }
