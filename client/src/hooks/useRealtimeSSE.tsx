@@ -379,6 +379,38 @@ const setupEventListeners = (
 		queryClient.invalidateQueries({ queryKey: queryKeysParam.events.lists() })
 	})
 
+	const mergeEventDetails = (
+		oldData: EventDetail | undefined,
+		updatedEvent: Partial<EventDetail>
+	): EventDetail => {
+		if (!oldData) {
+			return updatedEvent as EventDetail
+		}
+		// Deep merge logic to preserve nested objects if missing in update
+		// Spread operator works for top-level, but explicit handling ensures safety
+		const merged = { ...oldData, ...updatedEvent }
+
+		// Preserve nested objects if they are missing in the update
+		// Note: If updatedEvent explicitly has them as null/undefined, we might overwrite,
+		// but usually partial updates just omit keys.
+		// We check if the key is NOT in updatedEvent
+		if (!('likes' in updatedEvent) && oldData.likes) {
+			merged.likes = oldData.likes
+		}
+		if (!('comments' in updatedEvent) && oldData.comments) {
+			merged.comments = oldData.comments
+		}
+		if (!('_count' in updatedEvent) && oldData._count) {
+			merged._count = oldData._count
+		}
+		// Also user profile might be minimal in update
+		if (!('user' in updatedEvent) && oldData.user) {
+			merged.user = oldData.user
+		}
+
+		return merged
+	}
+
 	eventSource.addEventListener('event:updated', (e) => {
 		try {
 			const { data } = SetupEventListenersSchema.eventUpdated.parse(JSON.parse(e.data))
@@ -388,7 +420,7 @@ const setupEventListeners = (
 				queryClient.setQueryData(
 					queryKeysParam.events.detail(updatedEvent.user.username, updatedEvent.id),
 					(oldData: EventDetail | undefined) =>
-						(oldData ? { ...oldData, ...updatedEvent } : updatedEvent) as unknown as EventDetail
+						mergeEventDetails(oldData, updatedEvent as unknown as Partial<EventDetail>)
 				)
 			}
 			queryClient.invalidateQueries({ queryKey: queryKeysParam.events.lists() })
