@@ -196,6 +196,107 @@ export function useDeleteEvent(eventId: string) {
 	})
 }
 
+// Helper: Remove attendance from event
+const removeAttendance = (event: Event, targetUserId: string | undefined) => {
+	const currentAttendance = event.attendance || []
+	const updatedAttendance = currentAttendance.filter((a) => a.user?.id !== targetUserId)
+
+	// Only decrement if we actually removed someone AND they were confirmed attending
+	const removedUser = currentAttendance.find((a) => a.user?.id === targetUserId)
+	const wasAttending = removedUser?.status === 'attending'
+
+	const newCount = wasAttending
+		? Math.max((event._count?.attendance || 0) - 1, 0)
+		: (event._count?.attendance || 0)
+
+	return {
+		...event,
+		viewerStatus: null,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
+// Helper: Update existing attendance
+const updateExistingAttendance = (
+	event: Event,
+	currentAttendance: Event['attendance'],
+	existingIndex: number,
+	newStatus: string
+) => {
+	const updatedAttendance = [...(currentAttendance || [])]
+	const oldStatus = updatedAttendance[existingIndex].status
+
+	updatedAttendance[existingIndex] = {
+		...updatedAttendance[existingIndex],
+		status: newStatus,
+	}
+
+	// Update count if status changed to/from 'attending'
+	let newCount = event._count?.attendance || 0
+	if (newStatus === 'attending' && oldStatus !== 'attending') {
+		newCount += 1
+	} else if (newStatus !== 'attending' && oldStatus === 'attending') {
+		newCount = Math.max(0, newCount - 1)
+	}
+
+	return {
+		...event,
+		viewerStatus: newStatus,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
+// Helper: Add new attendance
+const addNewAttendance = (
+	event: Event,
+	currentAttendance: Event['attendance'],
+	newStatus: string,
+	currentUser: {
+		id: string
+		username?: string | null
+		name?: string | null
+		image?: string | null
+	}
+) => {
+	const updatedAttendance = [
+		...(currentAttendance || []),
+		{
+			status: newStatus,
+			user: {
+				id: currentUser.id,
+				username: currentUser.username || '',
+				name: currentUser.name || null,
+				profileImage: currentUser.image || null,
+				isRemote: false,
+			},
+		},
+	]
+
+	// Only increment if status is 'attending'
+	const newCount =
+		newStatus === 'attending'
+			? (event._count?.attendance || 0) + 1
+			: (event._count?.attendance || 0)
+
+	return {
+		...event,
+		viewerStatus: newStatus,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
 export function useRSVP(eventId: string) {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
@@ -233,102 +334,6 @@ export function useRSVP(eventId: string) {
 
 			const previousData = new Map()
 
-			// Helper: Remove attendance from event
-			const removeAttendance = (event: Event, targetUserId: string | undefined) => {
-				const currentAttendance = event.attendance || []
-				const updatedAttendance = currentAttendance.filter((a) => a.user?.id !== targetUserId)
-
-				// Only decrement if we actually removed someone AND they were confirmed attending
-				const removedUser = currentAttendance.find((a) => a.user?.id === targetUserId)
-				const wasAttending = removedUser?.status === 'attending'
-
-				const newCount = wasAttending
-					? Math.max((event._count?.attendance || 0) - 1, 0)
-					: (event._count?.attendance || 0)
-
-				return {
-					...event,
-					viewerStatus: null,
-					attendance: updatedAttendance,
-					_count: {
-						...event._count,
-						attendance: newCount,
-					},
-				}
-			}
-
-			// Helper: Update existing attendance
-			const updateExistingAttendance = (
-				event: Event,
-				currentAttendance: Event['attendance'],
-				existingIndex: number,
-				newStatus: string
-			) => {
-				const updatedAttendance = [...(currentAttendance || [])]
-				const oldStatus = updatedAttendance[existingIndex].status
-
-				updatedAttendance[existingIndex] = {
-					...updatedAttendance[existingIndex],
-					status: newStatus,
-				}
-
-				// Update count if status changed to/from 'attending'
-				let newCount = event._count?.attendance || 0
-				if (newStatus === 'attending' && oldStatus !== 'attending') {
-					newCount += 1
-				} else if (newStatus !== 'attending' && oldStatus === 'attending') {
-					newCount = Math.max(0, newCount - 1)
-				}
-
-				return {
-					...event,
-					viewerStatus: newStatus,
-					attendance: updatedAttendance,
-					_count: {
-						...event._count,
-						attendance: newCount,
-					},
-				}
-			}
-
-			// Helper: Add new attendance
-			const addNewAttendance = (
-				event: Event,
-				currentAttendance: Event['attendance'],
-				newStatus: string,
-				currentUser: { id: string; username?: string | null; name?: string | null; image?: string | null }
-			) => {
-				const updatedAttendance = [
-					...(currentAttendance || []),
-					{
-						status: newStatus,
-						user: {
-							id: currentUser.id,
-							username: currentUser.username || '',
-							name: currentUser.name || null,
-							profileImage: currentUser.image || null,
-							isRemote: false,
-						},
-					},
-				]
-
-				// Only increment if status is 'attending'
-				const newCount =
-					newStatus === 'attending'
-						? (event._count?.attendance || 0) + 1
-						: (event._count?.attendance || 0)
-
-				return {
-					...event,
-					viewerStatus: newStatus,
-					attendance: updatedAttendance,
-					_count: {
-						...event._count,
-						attendance: newCount,
-					},
-				}
-			}
-
 			// Main function to calculate the new event state
 			const getUpdatedEvent = (event: Event) => {
 				const currentAttendance = event.attendance || []
@@ -348,7 +353,12 @@ export function useRSVP(eventId: string) {
 					return updateExistingAttendance(event, currentAttendance, existingIndex, input.status)
 				} if (user && user.id) {
 					// Case 3: Add new attendance
-					return addNewAttendance(event, currentAttendance, input.status, user)
+					return addNewAttendance(event, currentAttendance, input.status, {
+						id: user.id,
+						username: user.username,
+						name: user.name,
+						image: user.image,
+					})
 				}
 
 				// Fallback: no change

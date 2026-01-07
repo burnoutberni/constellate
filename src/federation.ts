@@ -125,7 +125,7 @@ export async function handleActivity(activity: Activity): Promise<void> {
  * Handle Follow activity
  */
 async function handleFollow(activity: FollowActivity): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	const objectUrl = activity.object
 
 	// Parse target username from object URL
@@ -222,7 +222,7 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
  * Handle Accept activity (for our Follow requests)
  */
 async function handleAccept(activity: AcceptActivity): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	const object = activity.object
 
 	console.log(`[handleAccept] Received Accept activity:`)
@@ -262,7 +262,7 @@ async function handleAcceptEvent(
 	activity: AcceptActivity,
 	object: string | ActivityPubEvent | Record<string, unknown>
 ): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	let objectUrl: string
 	if (typeof object === 'string') {
 		objectUrl = object
@@ -325,32 +325,25 @@ async function handleAcceptEvent(
 	console.log(`✅ Attending from ${actorUrl}`)
 }
 
+function extractActorId(actor: unknown): string {
+	if (typeof actor === 'string') {
+		return actor
+	}
+	if (isNonNullObject(actor) && 'id' in actor && typeof actor.id === 'string') {
+		return actor.id
+	}
+	return ''
+}
+
 async function handleAcceptFollow(
 	activity: AcceptActivity,
 	followActivity: FollowActivity | Record<string, unknown>
 ): Promise<void> {
-	let actorUrl = ''
-	if (typeof activity.actor === 'string') {
-		actorUrl = activity.actor
-	} else if (
-		isNonNullObject(activity.actor) &&
-		'id' in activity.actor &&
-		typeof (activity.actor as Record<string, unknown>).id === 'string'
-	) {
-		actorUrl = (activity.actor as Record<string, unknown>).id as string
-	}
-
+	const actorUrl = extractActorId(activity.actor)
 	let followerUrl = ''
+
 	if (isNonNullObject(followActivity) && 'actor' in followActivity) {
-		if (typeof followActivity.actor === 'string') {
-			followerUrl = followActivity.actor
-		} else if (
-			isNonNullObject(followActivity.actor) &&
-			'id' in followActivity.actor &&
-			typeof (followActivity.actor as Record<string, unknown>).id === 'string'
-		) {
-			followerUrl = (followActivity.actor as Record<string, unknown>).id as string
-		}
+		followerUrl = extractActorId(followActivity.actor)
 	}
 
 	const baseUrl = getBaseUrl()
