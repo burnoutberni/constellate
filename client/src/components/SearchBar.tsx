@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
@@ -94,23 +94,31 @@ export function SearchBar() {
 	}
 
 	// Get all selectable items
-	const getSelectableItems = () => {
+	const selectableItems = useMemo(() => {
 		const items: Array<
-			| { type: 'user'; data: User }
-			| { type: 'event'; data: Event }
-			| { type: 'remote'; data: RemoteAccountSuggestion }
+			| { type: 'user'; data: User; id: string }
+			| { type: 'event'; data: Event; id: string }
+			| { type: 'remote'; data: RemoteAccountSuggestion; id: string }
 		> = []
 
 		if (results) {
-			results.users.forEach((user) => items.push({ type: 'user', data: user }))
-			results.events.forEach((event) => items.push({ type: 'event', data: event }))
+			results.users.forEach((user) =>
+				items.push({ type: 'user', data: user, id: `search-result-user-${user.id}` })
+			)
+			results.events.forEach((event) =>
+				items.push({ type: 'event', data: event, id: `search-result-event-${event.id}` })
+			)
 			if (results.remoteAccountSuggestion) {
-				items.push({ type: 'remote', data: results.remoteAccountSuggestion })
+				items.push({
+					type: 'remote',
+					data: results.remoteAccountSuggestion,
+					id: 'search-result-remote',
+				})
 			}
 		}
 
 		return items
-	}
+	}, [results])
 
 	// Handle item click
 	const handleItemClick = (
@@ -144,12 +152,10 @@ export function SearchBar() {
 			return
 		}
 
-		const items = getSelectableItems()
-
 		switch (e.key) {
 			case 'ArrowDown':
 				e.preventDefault()
-				setSelectedIndex((prev) => (prev < items.length - 1 ? prev + 1 : prev))
+				setSelectedIndex((prev) => (prev < selectableItems.length - 1 ? prev + 1 : prev))
 				break
 			case 'ArrowUp':
 				e.preventDefault()
@@ -157,8 +163,8 @@ export function SearchBar() {
 				break
 			case 'Enter':
 				e.preventDefault()
-				if (selectedIndex >= 0 && selectedIndex < items.length) {
-					const item = items[selectedIndex]
+				if (selectedIndex >= 0 && selectedIndex < selectableItems.length) {
+					const item = selectableItems[selectedIndex]
 					handleItemClick(item)
 				}
 				break
@@ -171,8 +177,6 @@ export function SearchBar() {
 				break
 		}
 	}
-
-	const selectableItems = getSelectableItems()
 
 	const searchIcon = <SearchIcon className="w-5 h-5" />
 
@@ -191,21 +195,39 @@ export function SearchBar() {
 				leftIcon={searchIcon}
 				rightIcon={loadingSpinner}
 				className="w-full"
+				role="combobox"
+				aria-autocomplete="list"
+				aria-expanded={isOpen}
+				aria-controls="search-results-listbox"
+				aria-activedescendant={
+					selectedIndex >= 0 ? selectableItems[selectedIndex]?.id : undefined
+				}
+				aria-label="Search events, users, or remote accounts"
 			/>
 
 			{isOpen && results && (
-				<div className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
+				<div
+					id="search-results-listbox"
+					role="listbox"
+					className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
 					{results.users.length > 0 && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
+							<div
+								className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary"
+								role="presentation">
 								Users
 							</div>
 							{results.users.map((user, index) => {
 								const itemIndex = index
 								const isSelected = selectedIndex === itemIndex
+								const itemId = selectableItems[itemIndex]?.id
 								return (
 									<Button
 										key={user.id}
+										id={itemId}
+										role="option"
+										aria-selected={isSelected}
+										tabIndex={-1}
 										onClick={() =>
 											handleItemClick({ type: 'user', data: user })
 										}
@@ -252,15 +274,22 @@ export function SearchBar() {
 
 					{results.events.length > 0 && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
+							<div
+								className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary"
+								role="presentation">
 								Events
 							</div>
 							{results.events.map((event, index) => {
 								const itemIndex = results.users.length + index
 								const isSelected = selectedIndex === itemIndex
+								const itemId = selectableItems[itemIndex]?.id
 								return (
 									<Button
 										key={event.id}
+										id={itemId}
+										role="option"
+										aria-selected={isSelected}
+										tabIndex={-1}
 										onClick={() =>
 											handleItemClick({ type: 'event', data: event })
 										}
@@ -288,10 +317,16 @@ export function SearchBar() {
 
 					{results.remoteAccountSuggestion && (
 						<div>
-							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
+							<div
+								className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary"
+								role="presentation">
 								Remote Account
 							</div>
 							<Button
+								id={selectableItems[selectableItems.length - 1]?.id}
+								role="option"
+								aria-selected={selectedIndex === selectableItems.length - 1}
+								tabIndex={-1}
 								onClick={() => {
 									if (results.remoteAccountSuggestion) {
 										handleItemClick({
