@@ -397,10 +397,6 @@ export function useRSVP(eventId: string) {
 				}
 			})
 
-
-
-			// ... existing code ...
-
 			// 2. Update Feed and Home
 			const feedQueries = [
 				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),

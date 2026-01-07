@@ -387,26 +387,18 @@ const setupEventListeners = (
 			// Cannot construct full EventDetail from partial update without existing data
 			return undefined
 		}
-		// Deep merge logic to preserve nested objects if missing in update
-		// Spread operator works for top-level, but explicit handling ensures safety
+
+		// Start with a shallow merge
 		const merged = { ...oldData, ...updatedEvent }
 
-		// Preserve nested objects if they are missing in the update
-		// Note: If updatedEvent explicitly has them as null/undefined, we might overwrite,
-		// but usually partial updates just omit keys.
-		// We check if the key is NOT in updatedEvent
-		if (!('likes' in updatedEvent) && oldData.likes) {
-			merged.likes = oldData.likes
+		// Deep merge _count if present in both
+		if (oldData._count && updatedEvent._count) {
+			merged._count = { ...oldData._count, ...updatedEvent._count }
 		}
-		if (!('comments' in updatedEvent) && oldData.comments) {
-			merged.comments = oldData.comments
-		}
-		if (!('_count' in updatedEvent) && oldData._count) {
-			merged._count = oldData._count
-		}
-		// Also user profile might be minimal in update
-		if (!('user' in updatedEvent) && oldData.user) {
-			merged.user = oldData.user
+
+		// Deep merge user if present in both
+		if (oldData.user && updatedEvent.user) {
+			merged.user = { ...oldData.user, ...updatedEvent.user }
 		}
 
 		return merged
