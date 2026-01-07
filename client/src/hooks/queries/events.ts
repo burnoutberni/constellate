@@ -4,7 +4,15 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { getErrorStatus } from '@/lib/errorHandling'
-import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
+import {
+	EventSchema,
+	ActivitySchema,
+	type ValidatedEvent,
+	type ValidatedActivity,
+	type Event,
+	type EventDetail,
+	type EventRecommendationPayload,
+} from '@/types'
 
 import { queryKeys } from './keys'
 
@@ -297,6 +305,15 @@ const addNewAttendance = (
 	}
 }
 
+// Type Guard Helpers
+function isTrendingEvent(data: unknown): data is ValidatedEvent {
+	return EventSchema.safeParse(data).success
+}
+
+function isActivity(data: unknown): data is ValidatedActivity {
+	return ActivitySchema.safeParse(data).success
+}
+
 export function useRSVP(eventId: string) {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
@@ -378,43 +395,38 @@ export function useRSVP(eventId: string) {
 				}
 			})
 
+
+
+			// ... existing code ...
+
 			// 2. Update Feed and Home
 			const feedQueries = [
-
 				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),
 			]
 
-			// Safe type guard helper
-			const isObject = (val: unknown): val is Record<string, unknown> =>
-				typeof val === 'object' && val !== null
-
 			feedQueries.forEach(([queryKey, data]) => {
 				const feedData = data as { pages?: Array<{ items: Array<{ type: string; data: unknown }> }> }
-				if (!feedData || !feedData.pages) { return }
+				if (!feedData || !feedData.pages) {
+					return
+				}
 				previousData.set(queryKey, feedData)
 
 				const newPages = feedData.pages.map((page) => ({
 					...page,
 					items: page.items.map((item) => {
 						// Trending Event
-						if (item.type === 'trending_event' && isObject(item.data) && item.data.id === eventId) {
+						if (item.type === 'trending_event' && isTrendingEvent(item.data) && item.data.id === eventId) {
 							return { ...item, data: getUpdatedEvent(item.data as unknown as Event) }
 						}
 						// Activity (e.g. Create)
-						if (item.type === 'activity') {
+						if (item.type === 'activity' && isActivity(item.data) && item.data.event.id === eventId) {
 							const activityPayload = item.data
-							if (
-								isObject(activityPayload) &&
-								isObject(activityPayload.event) &&
-								activityPayload.event.id === eventId
-							) {
-								return {
-									...item,
-									data: {
-										...activityPayload,
-										event: getUpdatedEvent(activityPayload.event as unknown as Event),
-									},
-								}
+							return {
+								...item,
+								data: {
+									...activityPayload,
+									event: getUpdatedEvent(activityPayload.event as unknown as Event),
+								},
 							}
 						}
 						return item

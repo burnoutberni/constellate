@@ -382,9 +382,10 @@ const setupEventListeners = (
 	const mergeEventDetails = (
 		oldData: EventDetail | undefined,
 		updatedEvent: Partial<EventDetail>
-	): EventDetail => {
+	): EventDetail | undefined => {
 		if (!oldData) {
-			return updatedEvent as EventDetail
+			// Cannot construct full EventDetail from partial update without existing data
+			return undefined
 		}
 		// Deep merge logic to preserve nested objects if missing in update
 		// Spread operator works for top-level, but explicit handling ensures safety
