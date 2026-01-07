@@ -16,6 +16,7 @@ const { wrapper } = createTestWrapper()
 
 describe('AttendanceWidget', () => {
 	const defaultProps = {
+		eventId: '1',
 		userAttendance: null,
 		attendingCount: 10,
 		maybeCount: 5,
@@ -34,8 +35,11 @@ describe('AttendanceWidget', () => {
 	it('renders RSVP buttons with correct counts', () => {
 		render(<AttendanceWidget {...defaultProps} />, { wrapper })
 
-		expect(screen.getByText(/👍 Going \(10\)/)).toBeInTheDocument()
-		expect(screen.getByText(/🤔 Maybe \(5\)/)).toBeInTheDocument()
+		expect(screen.getByText('Going')).toBeInTheDocument()
+		expect(screen.getByText(/10 going/)).toBeInTheDocument()
+
+		expect(screen.getByText(/5 maybe/)).toBeInTheDocument()
+
 		expect(screen.getByText(/❤️ 15/)).toBeInTheDocument()
 	})
 
@@ -43,32 +47,6 @@ describe('AttendanceWidget', () => {
 		render(<AttendanceWidget {...defaultProps} userHasShared={true} />, { wrapper })
 
 		expect(screen.getByText(/✅ Shared/)).toBeInTheDocument()
-	})
-
-	it('calls onRSVP with attending status', () => {
-		const onRSVP = vi.fn()
-		render(<AttendanceWidget {...defaultProps} onRSVP={onRSVP} />, { wrapper })
-
-		const goingButton = screen.getByText(/👍 Going/).closest('button')
-		expect(goingButton).toBeTruthy()
-		if (goingButton) {
-			fireEvent.click(goingButton)
-		}
-
-		expect(onRSVP).toHaveBeenCalledWith('attending')
-	})
-
-	it('calls onRSVP with maybe status', () => {
-		const onRSVP = vi.fn()
-		render(<AttendanceWidget {...defaultProps} onRSVP={onRSVP} />, { wrapper })
-
-		const maybeButton = screen.getByText(/🤔 Maybe/).closest('button')
-		expect(maybeButton).toBeTruthy()
-		if (maybeButton) {
-			fireEvent.click(maybeButton)
-		}
-
-		expect(onRSVP).toHaveBeenCalledWith('maybe')
 	})
 
 	it('calls onLike when like button is clicked', () => {
@@ -97,16 +75,6 @@ describe('AttendanceWidget', () => {
 		expect(onShare).toHaveBeenCalled()
 	})
 
-	it('disables RSVP buttons when pending', () => {
-		render(<AttendanceWidget {...defaultProps} isRSVPPending={true} />, { wrapper })
-
-		const goingButton = screen.getByText(/Updating.../).closest('button')
-		const maybeButton = screen.getByText(/🤔 Maybe/).closest('button')
-
-		expect(goingButton).toBeDisabled()
-		expect(maybeButton).toBeDisabled()
-	})
-
 	it('disables share button when user has shared', () => {
 		render(<AttendanceWidget {...defaultProps} userHasShared={true} />, { wrapper })
 
@@ -125,17 +93,6 @@ describe('AttendanceWidget', () => {
 		render(<AttendanceWidget {...defaultProps} isAuthenticated={true} />, { wrapper })
 
 		expect(screen.queryByTestId('sign-up-prompt')).not.toBeInTheDocument()
-	})
-
-	it('shows updating text when RSVP is pending for attending', () => {
-		render(
-			<AttendanceWidget {...defaultProps} isRSVPPending={true} userAttendance="attending" />,
-			{
-				wrapper,
-			}
-		)
-
-		expect(screen.getByText('Updating...')).toBeInTheDocument()
 	})
 
 	it('shows sharing text when share is pending', () => {

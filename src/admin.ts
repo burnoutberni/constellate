@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { requireAdmin } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { PaginationSchema, formatPaginationResponse, getSkip } from './lib/pagination.js'
 import { Prisma, FailedDeliveryStatus } from '@prisma/client'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
@@ -15,15 +16,7 @@ import { handleError } from './lib/errors.js'
 const app = new Hono()
 
 // User list schema
-const UserListQuerySchema = z.object({
-	page: z
-		.string()
-		.optional()
-		.transform((val) => parseInt(val || '1')),
-	limit: z
-		.string()
-		.optional()
-		.transform((val) => Math.min(parseInt(val || '20'), 100)),
+const UserListQuerySchema = PaginationSchema.extend({
 	search: z.string().optional(),
 	isBot: z
 		.string()
@@ -40,7 +33,7 @@ const UserListQuerySchema = z.object({
 // Create user schema
 const CreateUserSchema = z.object({
 	username: z.string().min(1).max(50),
-	email: z.string().email().optional(),
+	email: z.email().optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional().default(false),
 	isBot: z.boolean().optional().default(false),
@@ -52,7 +45,7 @@ const CreateUserSchema = z.object({
 // Update user schema
 const UpdateUserSchema = z.object({
 	username: z.string().min(1).max(50).optional(),
-	email: z.string().email().optional(),
+	email: z.email().optional(),
 	name: z.string().optional(),
 	isAdmin: z.boolean().optional(),
 	isBot: z.boolean().optional(),
@@ -79,9 +72,8 @@ app.get('/users', async (c) => {
 			isBot: c.req.query('isBot'),
 		})
 
-		const page = query.page
-		const limit = query.limit
-		const skip = (page - 1) * limit
+		const { page, limit } = query
+		const skip = getSkip(page, limit)
 
 		// Build where clause
 		const where: {
@@ -101,7 +93,7 @@ app.get('/users', async (c) => {
 		}
 		// Only filter by isBot if explicitly provided (true or false)
 		// If undefined, don't filter (show all users)
-		if (query.isBot !== undefined && query.isBot !== null) {
+		if (query.isBot !== undefined) {
 			where.isBot = query.isBot
 		}
 
@@ -150,15 +142,7 @@ app.get('/users', async (c) => {
 			users.map((u) => u.username)
 		)
 
-		return c.json({
-			users,
-			pagination: {
-				page,
-				limit,
-				total,
-				pages: Math.ceil(total / limit),
-			},
-		})
+		return c.json(formatPaginationResponse(users, total, query.page, query.limit, 'users'))
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
@@ -216,7 +200,7 @@ app.post('/users', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateUserSchema.parse(body)
 
 		// For non-bot users, password is required
@@ -327,7 +311,7 @@ app.put('/users/:id', async (c) => {
 		await requireAdmin(c)
 
 		const { id } = c.req.param()
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = UpdateUserSchema.parse(body)
 		const existingUser = await findUserById(id)
 		if (!existingUser) {
@@ -382,7 +366,7 @@ async function validateUniqueUserFields(
 			if (conflictingUser.username === data.username) {
 				return { error: 'Username already exists' }
 			}
-			if (conflictingUser.email === data.email) {
+			if (data.email && conflictingUser.email === data.email) {
 				return { error: 'Email already exists' }
 			}
 		}
@@ -532,7 +516,7 @@ app.post('/api-keys', async (c) => {
 	try {
 		await requireAdmin(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const data = CreateApiKeySchema.parse(body)
 
 		// Check if user exists
@@ -658,15 +642,7 @@ app.delete('/api-keys/:id', async (c) => {
 // Federation Management
 // ===========================
 
-const FailedDeliveryQuerySchema = z.object({
-	page: z
-		.string()
-		.optional()
-		.transform((val) => parseInt(val || '1')),
-	limit: z
-		.string()
-		.optional()
-		.transform((val) => Math.min(parseInt(val || '20'), 100)),
+const FailedDeliveryQuerySchema = PaginationSchema.extend({
 	status: z.enum(['PENDING', 'RETRYING', 'FAILED', 'DISCARDED']).optional(),
 	inboxUrl: z.string().optional(),
 })
@@ -681,7 +657,7 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
 			inboxUrl: c.req.query('inboxUrl'),
 		})
 
-		const skip = (query.page - 1) * query.limit
+		const skip = getSkip(query.page, query.limit)
 
 		const where: Prisma.FailedDeliveryWhereInput = {}
 		if (query.status) {
@@ -701,31 +677,30 @@ app.get('/failed-deliveries', requireAdmin, async (c) => {
 			prisma.failedDelivery.count({ where }),
 		])
 
-		return c.json({
-			deliveries: deliveries.map((d) => ({
-				id: d.id,
-				activityId: d.activityId,
-				activityType: d.activityType,
-				inboxUrl: d.inboxUrl,
-				userId: d.userId,
-				lastError: d.lastError,
-				lastErrorCode: d.lastErrorCode,
-				lastAttemptAt: d.lastAttemptAt,
-				attemptCount: d.attemptCount,
-				maxAttempts: d.maxAttempts,
-				nextRetryAt: d.nextRetryAt,
-				status: d.status,
-				createdAt: d.createdAt,
-				resolvedAt: d.resolvedAt,
-				resolvedBy: d.resolvedBy,
-			})),
-			pagination: {
-				page: query.page,
-				limit: query.limit,
+		return c.json(
+			formatPaginationResponse(
+				deliveries.map((d) => ({
+					id: d.id,
+					activityId: d.activityId,
+					activityType: d.activityType,
+					inboxUrl: d.inboxUrl,
+					userId: d.userId,
+					lastError: d.lastError,
+					lastErrorCode: d.lastErrorCode,
+					lastAttemptAt: d.lastAttemptAt,
+					attemptCount: d.attemptCount,
+					maxAttempts: d.maxAttempts,
+					nextRetryAt: d.nextRetryAt,
+					status: d.status,
+					createdAt: d.createdAt,
+					resolvedAt: d.resolvedAt,
+					resolvedBy: d.resolvedBy,
+				})),
 				total,
-				totalPages: Math.ceil(total / query.limit),
-			},
-		})
+				query.page,
+				query.limit
+			)
+		)
 	} catch (error) {
 		return handleError(error, c)
 	}

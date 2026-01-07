@@ -39,7 +39,7 @@ app.get('/.well-known/webfinger', async (c) => {
 		}
 
 		// Parse resource (acct:username@domain)
-		const match = resource.match(/^acct:([^@]+)@(.+)$/)
+		const match = /^acct:([^@]+)@(.+)$/.exec(resource)
 		if (!match) {
 			return c.json({ error: 'Invalid resource format' }, 400)
 		}
@@ -561,7 +561,7 @@ app.post(
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = await c.req.json()
+				activity = (await c.req.json()) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
@@ -573,15 +573,16 @@ app.post(
 			}
 
 			// Validate activity
+			let validatedActivity
 			try {
-				ActivitySchema.parse(activity)
+				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
 				console.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
-			handleActivity(activity).catch((error) => {
+			handleActivity(validatedActivity).catch((error) => {
 				console.error('Error handling activity:', error)
 			})
 
@@ -647,7 +648,7 @@ app.post(
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = await c.req.json()
+				activity = (await c.req.json()) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
@@ -659,15 +660,16 @@ app.post(
 			}
 
 			// Validate activity
+			let validatedActivity
 			try {
-				ActivitySchema.parse(activity)
+				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
 				console.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
-			handleActivity(activity).catch((error) => {
+			handleActivity(validatedActivity).catch((error) => {
 				console.error('Error handling activity:', error)
 			})
 

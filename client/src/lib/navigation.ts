@@ -10,14 +10,14 @@ export type NavLink = {
  */
 export function getNavLinks(hasUser: boolean): NavLink[] {
 	return [
-		{ to: '/feed', label: 'Feed' },
+		// Feed link removed (Home redirects to Feed)
 		{ to: '/discover', label: 'Discover' },
 		{ to: '/calendar', label: 'Calendar' },
 		...(hasUser
 			? [
-					{ to: '/templates', label: 'Templates' },
-					{ to: '/instances', label: 'Instances' },
-				]
+				{ to: '/templates', label: 'Templates' },
+				{ to: '/instances', label: 'Instances' },
+			]
 			: []),
 		{ to: '/about', label: 'About' },
 	]

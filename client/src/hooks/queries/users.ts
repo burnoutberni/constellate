@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
-import type { UserProfile, FollowStatus, Event } from '@/types'
+import type { UserProfile, FollowStatus, Event, SuggestedUser } from '@/types'
 
 import { queryKeys } from './keys'
 
@@ -55,6 +55,21 @@ export function useFollowStatus(username: string) {
 				'Failed to fetch follow status'
 			),
 		enabled: Boolean(username),
+	})
+}
+
+export function useSuggestedUsers(limit = 5, options?: { enabled?: boolean }) {
+	return useQuery<SuggestedUser[]>({
+		queryKey: ['users', 'suggestions', limit],
+		enabled: options?.enabled ?? true,
+		queryFn: () =>
+			api.get<SuggestedUser[]>(
+				'/user-search/suggestions',
+				{ limit },
+				undefined,
+				'Failed to fetch user suggestions'
+			),
+		staleTime: 1000 * 60 * 5, // 5 minutes
 	})
 }
 

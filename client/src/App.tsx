@@ -1,12 +1,14 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState, useMemo, lazy, Suspense, type ReactNode } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { z } from 'zod'
 
 import { useCurrentUserProfile } from '@/hooks/queries'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Footer } from './components/Footer'
 import { MentionNotifications } from './components/MentionNotifications'
+import { ScrollToTop } from './components/ScrollToTop'
 import { SkipLink } from './components/SkipLink'
 import { Toasts } from './components/Toast'
 import { TosAcceptanceModal } from './components/TosAcceptanceModal'
@@ -20,7 +22,20 @@ import { logger, configureLogger } from './lib/logger'
 import { queryClient } from './lib/queryClient'
 import { TOAST_ON_LOAD_KEY } from './lib/storageConstants'
 import { generateId } from './lib/utils'
-import { MAX_MESSAGE_LENGTH, useUIStore } from './stores'
+import { useUIStore } from './stores'
+const TOAST_MAX_LENGTH = 1000
+
+// Type guard for toast data
+const ToastDataSchema = z.object({
+	message: z.string().min(1).max(TOAST_MAX_LENGTH),
+	variant: z.enum(['error', 'success']),
+})
+
+type ToastData = z.infer<typeof ToastDataSchema>
+
+function isToastData(data: unknown): data is ToastData {
+	return ToastDataSchema.safeParse(data).success
+}
 
 // Lazy load pages
 const AboutPage = lazy(() =>
@@ -186,20 +201,11 @@ function AppContent() {
 		const toastData = sessionStorage.getItem(TOAST_ON_LOAD_KEY)
 		if (toastData) {
 			try {
-				const parsed = JSON.parse(toastData)
+				const parsed: unknown = JSON.parse(toastData)
 
 				// Validate the structure and types of the parsed data
 				// Also validate message length to prevent UI issues and potential abuse
-				if (
-					typeof parsed === 'object' &&
-					parsed !== null &&
-					!Array.isArray(parsed) &&
-					typeof parsed.message === 'string' &&
-					parsed.message.length > 0 &&
-					parsed.message.length <= MAX_MESSAGE_LENGTH &&
-					typeof parsed.variant === 'string' &&
-					(parsed.variant === 'error' || parsed.variant === 'success')
-				) {
+				if (isToastData(parsed)) {
 					addToast({
 						id: generateId(),
 						message: parsed.message,
@@ -207,11 +213,9 @@ function AppContent() {
 					})
 				} else {
 					logger.error('Invalid toast data structure in sessionStorage', {
-						hasMessage: typeof parsed?.message === 'string',
-						messageLength:
-							typeof parsed?.message === 'string' ? parsed.message.length : undefined,
-						hasVariant: typeof parsed?.variant === 'string',
-						variantValue: parsed?.variant,
+						parsed,
+						type: typeof parsed,
+						keys: typeof parsed === 'object' && parsed !== null ? Object.keys(parsed) : [],
 					})
 				}
 			} catch (e) {
@@ -229,6 +233,7 @@ function AppContent() {
 
 	return (
 		<ErrorBoundary resetKeys={[location.pathname]}>
+			<ScrollToTop />
 			<SkipLink />
 			<Suspense fallback={<PageLoader />}>
 				<Routes>

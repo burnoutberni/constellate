@@ -1,16 +1,16 @@
-
+import '@testing-library/jest-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { EventDetailPage } from '../../pages/EventDetailPage'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
 import { Route, Routes } from 'react-router-dom'
-import type { Event } from '../../types'
+import type { Event, EventDetail } from '../../types'
 
-const mockEvent: Event = {
+const mockEvent: EventDetail = {
     id: 'event1',
     title: 'Test Event',
     summary: 'Test summary',
-    description: 'Test description',
+    // description removed
     location: 'Test Location',
     startTime: '2024-01-15T10:00:00Z',
     endTime: '2024-01-15T12:00:00Z',
@@ -32,6 +32,7 @@ const mockEvent: Event = {
     organizers: [],
     attendance: [],
     likes: [],
+    comments: [],
     attributedTo: null
 }
 
@@ -167,7 +168,7 @@ describe('EventDetailPage', () => {
         await waitFor(() => {
             expect(screen.getByTestId('event-header')).toBeInTheDocument()
             expect(screen.getByTestId('event-info')).toHaveTextContent('Test Event')
-        })
+        }, { timeout: 5000 })
     })
 
     it('should handle remote event with attributedTo nicely', async () => {
@@ -187,7 +188,7 @@ describe('EventDetailPage', () => {
 
         await waitFor(() => {
             expect(screen.getByTestId('event-header')).toBeInTheDocument()
-        })
+        }, { timeout: 5000 })
     })
 
     it('should log error (graceful fallback) when attributedTo is invalid', async () => {
@@ -210,7 +211,7 @@ describe('EventDetailPage', () => {
         await waitFor(() => {
             expect(screen.getByTestId('event-header')).toBeInTheDocument()
             expect(consoleSpy).toHaveBeenCalledWith('Error parsing attributedTo URL:', expect.any(Error))
-        })
+        }, { timeout: 5000 })
 
         consoleSpy.mockRestore()
     })

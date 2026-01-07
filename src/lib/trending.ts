@@ -12,6 +12,34 @@ export interface EngagementCounts {
 	attendance: number
 }
 
+export interface TrendingEvent {
+	id: string
+	title: string
+	startTime: Date
+	updatedAt: Date
+	// Add other fields as needed for the feed consumer
+	user?: {
+		id: string
+		username: string
+		name: string | null
+		displayColor: string
+		profileImage: string | null
+		isRemote: boolean
+	} | null
+	tags: Array<{ id: string; tag: string }>
+	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
+	attendance?: Array<{
+		status: string
+		user: {
+			id: string
+			username: string
+			profileImage?: string | null
+		}
+	}>
+	_count?: Partial<EngagementCounts>
+	headerImage?: string | null
+}
+
 const MIN_SCORE_MULTIPLIER = 0.35
 
 function getTimestamp(value?: Date | null): number {

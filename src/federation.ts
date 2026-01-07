@@ -36,6 +36,12 @@ import type {
  * Main activity handler - routes to specific handlers
  * Uses atomic upsert to prevent race conditions in activity deduplication
  */
+
+// Type guard to ensure an object is a non-null object (Record)
+function isNonNullObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
 export async function handleActivity(activity: Activity): Promise<void> {
 	try {
 		// Use upsert with unique constraint to atomically check and mark as processed
@@ -119,7 +125,7 @@ export async function handleActivity(activity: Activity): Promise<void> {
  * Handle Follow activity
  */
 async function handleFollow(activity: FollowActivity): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	const objectUrl = activity.object
 
 	// Parse target username from object URL
@@ -216,7 +222,7 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
  * Handle Accept activity (for our Follow requests)
  */
 async function handleAccept(activity: AcceptActivity): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	const object = activity.object
 
 	console.log(`[handleAccept] Received Accept activity:`)
@@ -226,7 +232,7 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 
 	// Handle Follow Accept FIRST - object must be an object with type FOLLOW
 	// This must be checked before Event Accept because Follow activities also have an 'id' field
-	if (typeof object === 'object' && object.type === ActivityType.FOLLOW) {
+	if (isNonNullObject(object) && 'type' in object && object.type === ActivityType.FOLLOW) {
 		console.log(
 			`[handleAccept] Processing Follow Accept: actor=${actorUrl}, object.type=${object.type}`
 		)
@@ -237,7 +243,9 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 	// Handle Event Accept (Attendance) - object can be a string (event URL) or object
 	if (
 		typeof object === 'string' ||
-		(typeof object === 'object' && (object.type === ObjectType.EVENT || object.id))
+		(isNonNullObject(object) &&
+			'type' in object &&
+			(object.type === ObjectType.EVENT || 'id' in object))
 	) {
 		console.log(`[handleAccept] Routing to handleAcceptEvent`)
 		await handleAcceptEvent(activity, object)
@@ -254,11 +262,11 @@ async function handleAcceptEvent(
 	activity: AcceptActivity,
 	object: string | ActivityPubEvent | Record<string, unknown>
 ): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
 	let objectUrl: string
 	if (typeof object === 'string') {
 		objectUrl = object
-	} else if (typeof object === 'object' && object !== null && 'id' in object) {
+	} else if (isNonNullObject(object) && 'id' in object) {
 		objectUrl = object.id as string
 	} else {
 		objectUrl = ''
@@ -317,16 +325,27 @@ async function handleAcceptEvent(
 	console.log(`✅ Attending from ${actorUrl}`)
 }
 
+function extractActorId(actor: unknown): string {
+	if (typeof actor === 'string') {
+		return actor
+	}
+	if (isNonNullObject(actor) && 'id' in actor && typeof actor.id === 'string') {
+		return actor.id
+	}
+	return ''
+}
+
 async function handleAcceptFollow(
 	activity: AcceptActivity,
 	followActivity: FollowActivity | Record<string, unknown>
 ): Promise<void> {
-	const actorUrl = activity.actor
+	const actorUrl = extractActorId(activity.actor)
+	let followerUrl = ''
 
-	const followerUrl =
-		typeof followActivity === 'object' && followActivity !== null && 'actor' in followActivity
-			? (followActivity.actor as string)
-			: ''
+	if (isNonNullObject(followActivity) && 'actor' in followActivity) {
+		followerUrl = extractActorId(followActivity.actor)
+	}
+
 	const baseUrl = getBaseUrl()
 
 	console.log(`[handleAcceptFollow] Processing Accept activity:`)
@@ -439,7 +458,7 @@ function getLocationValue(eventLocation: unknown): string | null {
 	}
 	if (
 		eventLocation &&
-		typeof eventLocation === 'object' &&
+		isNonNullObject(eventLocation) &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
@@ -452,11 +471,10 @@ function getAttachmentUrl(attachment: unknown): string | null {
 	if (
 		Array.isArray(attachment) &&
 		attachment[0] &&
-		typeof attachment[0] === 'object' &&
-		attachment[0] !== null &&
+		isNonNullObject(attachment[0]) &&
 		'url' in attachment[0]
 	) {
-		return attachment[0].url as string
+		return (attachment[0] as Record<string, unknown>).url as string
 	}
 	return null
 }
@@ -615,7 +633,7 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
 		return resolveEventFromString(object)
 	}
 
-	if (typeof object === 'object') {
+	if (isNonNullObject(object)) {
 		return upsertRemoteEventFromObject(object)
 	}
 
@@ -864,7 +882,7 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		locationValue = eventLocation
 	} else if (
 		eventLocation &&
-		typeof eventLocation === 'object' &&
+		isNonNullObject(eventLocation) &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
@@ -953,13 +971,8 @@ function getObjectId(object: DeleteActivity['object']): string {
 	if (typeof object === 'string') {
 		return object
 	}
-	if (
-		typeof object === 'object' &&
-		object !== null &&
-		'id' in object &&
-		typeof object.id === 'string'
-	) {
-		return object.id
+	if (isNonNullObject(object) && 'id' in object && typeof object.id === 'string') {
+		return object.id as string
 	}
 	return ''
 }
@@ -972,12 +985,11 @@ function getObjectId(object: DeleteActivity['object']): string {
  */
 function getFormerType(object: DeleteActivity['object']): string | null {
 	if (
-		typeof object === 'object' &&
-		object !== null &&
+		isNonNullObject(object) &&
 		'formerType' in object &&
 		typeof object.formerType === 'string'
 	) {
-		return object.formerType
+		return object.formerType as string
 	}
 	return null
 }
@@ -1121,7 +1133,7 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
 		return
 	}
 
-	if (typeof object !== 'object' || object === null || !('type' in object)) {
+	if (!isNonNullObject(object) || !('type' in object)) {
 		return
 	}
 
@@ -1164,7 +1176,7 @@ async function handleUndoLike(
 ): Promise<void> {
 	const actorUrl = activity.actor
 	let objectUrl: string
-	if (typeof likeActivity === 'object' && likeActivity !== null && 'object' in likeActivity) {
+	if (isNonNullObject(likeActivity) && 'object' in likeActivity) {
 		objectUrl = typeof likeActivity.object === 'string' ? likeActivity.object : ''
 	} else {
 		objectUrl = ''
@@ -1222,12 +1234,9 @@ async function handleUndoFollow(
 ): Promise<void> {
 	const actorUrl = activity.actor
 	let objectUrl: string
-	if (
-		typeof followActivity === 'object' &&
-		followActivity !== null &&
-		'object' in followActivity
-	) {
-		objectUrl = typeof followActivity.object === 'string' ? followActivity.object : ''
+	if (isNonNullObject(followActivity) && 'object' in followActivity) {
+		objectUrl =
+			typeof followActivity.object === 'string' ? (followActivity.object as string) : ''
 	} else {
 		objectUrl = ''
 	}
@@ -1293,23 +1302,17 @@ async function handleUndoAttendance(
 	attendanceActivity: AcceptActivity | Record<string, unknown>
 ): Promise<void> {
 	let actorUrl: string
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'actor' in activity &&
-		typeof activity.actor === 'string'
-	) {
-		actorUrl = activity.actor
+	if (isNonNullObject(activity) && 'actor' in activity) {
+		actorUrl = typeof activity.actor === 'string' ? (activity.actor as string) : ''
 	} else {
 		actorUrl = ''
 	}
 	let objectUrl: string
-	if (
-		typeof attendanceActivity === 'object' &&
-		attendanceActivity !== null &&
-		'object' in attendanceActivity
-	) {
-		objectUrl = typeof attendanceActivity.object === 'string' ? attendanceActivity.object : ''
+	if (isNonNullObject(attendanceActivity) && 'object' in attendanceActivity) {
+		objectUrl =
+			typeof attendanceActivity.object === 'string'
+				? (attendanceActivity.object as string)
+				: ''
 	} else {
 		objectUrl = ''
 	}
@@ -1442,27 +1445,19 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
  */
 async function handleTentativeAccept(activity: Activity | Record<string, unknown>): Promise<void> {
 	let actorUrl: string
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'actor' in activity &&
-		typeof activity.actor === 'string'
-	) {
+	if (isNonNullObject(activity) && 'actor' in activity && typeof activity.actor === 'string') {
 		actorUrl = activity.actor
 	} else {
 		actorUrl = ''
 	}
 	let objectUrl: string
-	if (typeof activity === 'object' && activity !== null && 'object' in activity) {
-		objectUrl = typeof activity.object === 'string' ? activity.object : ''
+	if (isNonNullObject(activity) && 'object' in activity) {
+		objectUrl = typeof activity.object === 'string' ? (activity.object as string) : ''
 	} else {
 		objectUrl = ''
 	}
 	const activityId =
-		typeof activity === 'object' &&
-		activity !== null &&
-		'id' in activity &&
-		typeof activity.id === 'string'
+		isNonNullObject(activity) && 'id' in activity && typeof activity.id === 'string'
 			? activity.id
 			: null
 
@@ -1638,12 +1633,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
  * @returns The actor URL string, or an empty string if not found
  */
 function extractActorUrl(activity: Activity | Record<string, unknown>) {
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'actor' in activity &&
-		typeof activity.actor === 'string'
-	) {
+	if (isNonNullObject(activity) && 'actor' in activity && typeof activity.actor === 'string') {
 		return activity.actor
 	}
 	return ''
@@ -1656,9 +1646,7 @@ function extractActorUrl(activity: Activity | Record<string, unknown>) {
  * @returns The object value, or null if not present
  */
 function extractObject(activity: Activity | Record<string, unknown>) {
-	return typeof activity === 'object' && activity !== null && 'object' in activity
-		? activity.object
-		: null
+	return isNonNullObject(activity) && 'object' in activity ? activity.object : null
 }
 
 /**
@@ -1716,12 +1704,7 @@ async function findEventByObjectUrl(objectUrl: string) {
  * @returns The activity ID string if present, or null if not found
  */
 function getActivityId(activity: Activity | Record<string, unknown>) {
-	if (
-		typeof activity === 'object' &&
-		activity !== null &&
-		'id' in activity &&
-		typeof activity.id === 'string'
-	) {
+	if (isNonNullObject(activity) && 'id' in activity && typeof activity.id === 'string') {
 		return activity.id
 	}
 	return null

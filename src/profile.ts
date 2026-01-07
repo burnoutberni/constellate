@@ -1,5 +1,6 @@
-import { randomUUID } from 'crypto'
 import { Hono } from 'hono'
+import { randomUUID } from 'crypto'
+import { prisma } from './lib/prisma.js'
 import { z, ZodError } from 'zod'
 import {
 	buildUpdateProfileActivity,
@@ -14,7 +15,6 @@ import { trackInstance } from './lib/instanceHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
-import { prisma } from './lib/prisma.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
@@ -31,17 +31,15 @@ const ProfileUpdateSchema = z.object({
 	bio: z.string().max(500).optional(),
 	displayColor: z
 		.string()
-		.regex(/^#[0-9A-Fa-f]{6}$/)
+		.regex(/^#[0-9a-fA-F]{6}$/, { message: 'Invalid hex color' })
 		.optional(),
 	profileImage: z
-		.string()
 		.url()
 		.optional()
 		.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
 			message: 'Profile image URL is not safe (SSRF protection)',
 		}),
 	headerImage: z
-		.string()
 		.url()
 		.optional()
 		.refine(async (val) => val === undefined || (await isUrlSafe(val)), {
@@ -50,6 +48,8 @@ const ProfileUpdateSchema = z.object({
 	autoAcceptFollowers: z.boolean().optional(),
 	isPublicProfile: z.boolean().optional(),
 	timezone: z.string().optional().refine(isValidTimeZone, 'Invalid IANA timezone identifier'),
+	// Add other profile fields as needed
+	url: z.url().optional(),
 	theme: z.enum(['LIGHT', 'DARK']).nullable().optional(),
 })
 
@@ -480,16 +480,15 @@ app.get('/users/:username/profile', async (c) => {
 	}
 })
 
-// Update own profile
+// Update profile
 app.put('/profile', moderateRateLimit, async (c) => {
 	try {
 		const userId = requireAuth(c)
 
-		const body = await c.req.json()
+		const body: unknown = await c.req.json()
 		const updates = await ProfileUpdateSchema.parseAsync(body)
 
-		// Update user with sanitized input
-		const user = await prisma.user.update({
+		const updatedUser = await prisma.user.update({
 			where: { id: userId },
 			data: {
 				...updates,
@@ -503,10 +502,10 @@ app.put('/profile', moderateRateLimit, async (c) => {
 		})
 
 		// Build and deliver Update(Person) activity to followers
-		const activity = buildUpdateProfileActivity(user)
+		const activity = buildUpdateProfileActivity(updatedUser)
 		await deliverToFollowers(activity, userId)
 
-		return c.json(user)
+		return c.json(updatedUser)
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)

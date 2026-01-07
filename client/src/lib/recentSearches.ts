@@ -4,11 +4,38 @@ import { logger } from './logger'
 const RECENT_SEARCHES_KEY = 'constellate_recent_searches'
 const MAX_RECENT_SEARCHES = 5
 
+function isStringArray(value: unknown): value is string[] {
+	return (
+		Array.isArray(value) &&
+		value.every((item) => typeof item === 'string')
+	)
+}
+
 function getRecentSearches(): string[] {
 	try {
 		const stored = localStorage.getItem(RECENT_SEARCHES_KEY)
-		return stored ? JSON.parse(stored) : []
-	} catch {
+		if (!stored) {
+			return []
+		}
+
+		const parsed: unknown = JSON.parse(stored)
+
+		if (isStringArray(parsed)) {
+			return parsed
+		}
+
+		// Data is corrupted, clear it and return empty array
+		logger.warn('Recent searches data is corrupted, clearing localStorage')
+		localStorage.removeItem(RECENT_SEARCHES_KEY)
+		return []
+	} catch (error) {
+		// JSON parsing failed, clear corrupted data
+		logger.error('Failed to parse recent searches:', error)
+		try {
+			localStorage.removeItem(RECENT_SEARCHES_KEY)
+		} catch {
+			// Ignore errors when trying to clear
+		}
 		return []
 	}
 }

@@ -1,9 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { useAuth } from '@/hooks/useAuth'
 import { useMutationErrorHandler, useQueryErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
 import { getErrorStatus } from '@/lib/errorHandling'
-import type { Event, EventDetail, EventRecommendationPayload } from '@/types'
+import {
+	EventSchema,
+	ActivitySchema,
+	type ValidatedEvent,
+	type ValidatedActivity,
+	type Event,
+	type EventDetail,
+	type EventRecommendationPayload,
+} from '@/types'
 
 import { queryKeys } from './keys'
 
@@ -82,9 +91,10 @@ interface UpdateEventInput {
 }
 
 // Queries
-export function useEvents(limit: number = 50) {
+export function useEvents(limit: number = 50, options?: { enabled?: boolean }) {
 	return useQuery<EventsResponse>({
 		queryKey: queryKeys.events.list(limit),
+		enabled: options?.enabled ?? true,
 		queryFn: () =>
 			api.get<EventsResponse>('/events', { limit }, undefined, 'Failed to fetch events'),
 	})
@@ -161,7 +171,7 @@ export function useUpdateEvent(eventId: string, username: string) {
 			// Invalidate event detail and lists
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.detail(username, eventId) })
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.lists() })
-			queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+			queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() })
 		},
 	})
 }
@@ -194,9 +204,121 @@ export function useDeleteEvent(eventId: string) {
 	})
 }
 
-export function useRSVP(eventId: string, userId?: string) {
+// Helper: Remove attendance from event
+const removeAttendance = (event: Event, targetUserId: string | undefined) => {
+	const currentAttendance = event.attendance || []
+	const updatedAttendance = currentAttendance.filter((a) => a.user?.id !== targetUserId)
+
+	// Only decrement if we actually removed someone AND they were confirmed attending
+	const removedUser = currentAttendance.find((a) => a.user?.id === targetUserId)
+	const wasAttending = removedUser?.status === 'attending'
+
+	const newCount = wasAttending
+		? Math.max((event._count?.attendance || 0) - 1, 0)
+		: (event._count?.attendance || 0)
+
+	return {
+		...event,
+		viewerStatus: null,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
+// Helper: Update existing attendance
+const updateExistingAttendance = (
+	event: Event,
+	currentAttendance: Event['attendance'],
+	existingIndex: number,
+	newStatus: string
+) => {
+	const updatedAttendance = [...(currentAttendance || [])]
+	const oldStatus = updatedAttendance[existingIndex].status
+
+	updatedAttendance[existingIndex] = {
+		...updatedAttendance[existingIndex],
+		status: newStatus,
+	}
+
+	// Update count if status changed to/from 'attending'
+	let newCount = event._count?.attendance || 0
+	if (newStatus === 'attending' && oldStatus !== 'attending') {
+		newCount += 1
+	} else if (newStatus !== 'attending' && oldStatus === 'attending') {
+		newCount = Math.max(0, newCount - 1)
+	}
+
+	return {
+		...event,
+		viewerStatus: newStatus,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
+// Helper: Add new attendance
+const addNewAttendance = (
+	event: Event,
+	currentAttendance: Event['attendance'],
+	newStatus: string,
+	currentUser: {
+		id: string
+		username?: string | null
+		name?: string | null
+		image?: string | null
+	}
+) => {
+	const updatedAttendance = [
+		...(currentAttendance || []),
+		{
+			status: newStatus,
+			user: {
+				id: currentUser.id,
+				username: currentUser.username || '',
+				name: currentUser.name || null,
+				profileImage: currentUser.image || null,
+				isRemote: false,
+			},
+		},
+	]
+
+	// Only increment if status is 'attending'
+	const newCount =
+		newStatus === 'attending'
+			? (event._count?.attendance || 0) + 1
+			: (event._count?.attendance || 0)
+
+	return {
+		...event,
+		viewerStatus: newStatus,
+		attendance: updatedAttendance,
+		_count: {
+			...event._count,
+			attendance: newCount,
+		},
+	}
+}
+
+// Type Guard Helpers
+function isTrendingEvent(data: unknown): data is ValidatedEvent {
+	return EventSchema.safeParse(data).success
+}
+
+function isActivity(data: unknown): data is ValidatedActivity {
+	return ActivitySchema.safeParse(data).success
+}
+
+export function useRSVP(eventId: string) {
 	const queryClient = useQueryClient()
 	const handleMutationError = useMutationErrorHandler()
+	const { user } = useAuth()
+	const userId = user?.id
 
 	return useMutation({
 		mutationFn: async (input: RSVPInput | null) => {
@@ -222,57 +344,94 @@ export function useRSVP(eventId: string, userId?: string) {
 		},
 		onMutate: async (input) => {
 			// Cancel outgoing queries
-			await queryClient.cancelQueries({
-				queryKey: queryKeys.events.details(),
-			})
+			await queryClient.cancelQueries({ queryKey: queryKeys.events.details() })
 
-			// Get all event detail queries to update
+
+			await queryClient.cancelQueries({ queryKey: queryKeys.activity.home() })
+
+			const previousData = new Map()
+
+			// Main function to calculate the new event state
+			const getUpdatedEvent = (event: Event) => {
+				const currentAttendance = event.attendance || []
+
+				// Case 1: Remove attendance
+				if (input === null) {
+					return removeAttendance(event, userId)
+				}
+
+				// Case 2 & 3: Add or update attendance
+				const existingIndex = userId
+					? currentAttendance.findIndex((a) => a.user?.id === userId)
+					: -1
+
+				if (existingIndex >= 0) {
+					// Case 2: Update existing attendance
+					return updateExistingAttendance(event, currentAttendance, existingIndex, input.status)
+				}
+
+				if (user && user.id) {
+					// Case 3: Add new attendance
+					return addNewAttendance(event, currentAttendance, input.status, {
+						id: user.id,
+						username: user.username,
+						name: user.name,
+						image: user.image,
+					})
+				}
+
+				// Fallback: no change
+				return event
+			}
+
+
+			// 1. Update Event Details
 			const eventQueries = queryClient.getQueriesData({
 				queryKey: queryKeys.events.details(),
 			})
 
-			const previousData = new Map()
-
-			// Optimistically update all matching event queries
 			eventQueries.forEach(([queryKey, data]) => {
-				if (data && typeof data === 'object' && 'id' in data && data.id === eventId) {
+				if (data && typeof data === 'object' && 'id' in data && (data as EventDetail).id === eventId) {
 					previousData.set(queryKey, data)
-					const eventDetail = data as unknown as EventDetail
-
-					if (input === null) {
-						// Remove attendance
-						const updatedAttendance = eventDetail.attendance.filter(
-							(a: { user?: { id?: string } }) => userId && a.user?.id !== userId
-						)
-						queryClient.setQueryData(queryKey, {
-							...eventDetail,
-							attendance: updatedAttendance,
-							_count: {
-								...eventDetail._count,
-								attendance: Math.max((eventDetail._count?.attendance || 0) - 1, 0),
-							},
-						})
-					} else {
-						// Add or update attendance
-						const existingIndex = userId
-							? eventDetail.attendance.findIndex(
-								(a: { user?: { id?: string } }) => a.user?.id === userId
-							)
-							: -1
-
-						// We'll wait for SSE to add the actual attendance with full user data
-						// For now, just update the count optimistically if adding
-						if (existingIndex < 0) {
-							queryClient.setQueryData(queryKey, {
-								...eventDetail,
-								_count: {
-									...eventDetail._count,
-									attendance: (eventDetail._count?.attendance || 0) + 1,
-								},
-							})
-						}
-					}
+					queryClient.setQueryData(queryKey, getUpdatedEvent(data as Event))
 				}
+			})
+
+			// 2. Update Feed and Home
+			const feedQueries = [
+				...queryClient.getQueriesData({ queryKey: queryKeys.activity.home() }),
+			]
+
+			feedQueries.forEach(([queryKey, data]) => {
+				const feedData = data as { pages?: Array<{ items: Array<{ type: string; data: unknown }> }> }
+				if (!feedData || !feedData.pages) {
+					return
+				}
+				previousData.set(queryKey, feedData)
+
+				const newPages = feedData.pages.map((page) => ({
+					...page,
+					items: page.items.map((item) => {
+						// Trending Event
+						if (item.type === 'trending_event' && isTrendingEvent(item.data) && item.data.id === eventId) {
+							return { ...item, data: getUpdatedEvent(item.data as unknown as Event) }
+						}
+						// Activity (e.g. Create)
+						if (item.type === 'activity' && isActivity(item.data) && item.data.event.id === eventId) {
+							const activityPayload = item.data
+							return {
+								...item,
+								data: {
+									...activityPayload,
+									event: getUpdatedEvent(activityPayload.event as unknown as Event),
+								},
+							}
+						}
+						return item
+					}),
+				}))
+
+				queryClient.setQueryData(queryKey, { ...feedData, pages: newPages })
 			})
 
 			return { previousData }
@@ -290,8 +449,10 @@ export function useRSVP(eventId: string, userId?: string) {
 			handleMutationError(error, message)
 		},
 		onSuccess: () => {
-			// Don't invalidate immediately - wait for SSE event
-			// SSE will update the cache with accurate data
+			// Invalidate queries to ensure UI reflects change immediately
+			// While SSE handles real-time updates, invalidating ensures the user sees their own action
+			// Removed global feed invalidation to prevent full feed reload spinner on RSVP
+			queryClient.invalidateQueries({ queryKey: queryKeys.events.details() })
 		},
 	})
 }
@@ -386,7 +547,7 @@ export function useShareEvent(eventId: string) {
 			handleMutationError(error, 'Failed to share event')
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed() })
+			queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() })
 		},
 	})
 }
@@ -496,9 +657,10 @@ export function useEventReminder(eventId: string, username: string) {
 	})
 }
 
-export function usePlatformStats() {
+export function usePlatformStats(options?: { enabled?: boolean }) {
 	return useQuery<PlatformStatsResponse>({
 		queryKey: queryKeys.platform.stats(),
+		enabled: options?.enabled ?? true,
 		queryFn: () =>
 			api.get<PlatformStatsResponse>(
 				'/search/stats',

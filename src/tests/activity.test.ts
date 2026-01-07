@@ -83,6 +83,75 @@ describe('Activity Feed API', () => {
 		vi.restoreAllMocks()
 	})
 
+	describe('GET /api/activity/home', () => {
+		it('should return home feed for authenticated user', async () => {
+			// Create an event from followed user
+			await prisma.event.create({
+				data: {
+					title: 'Upcoming Event',
+					startTime: new Date(Date.now() + 86400000),
+					userId: followedUser.id,
+					attributedTo: `${baseUrl}/users/${followedUser.username}`,
+					visibility: 'PUBLIC',
+				},
+			})
+
+			const res = await app.request('/api/activity/home', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
+			expect(Array.isArray(body.items)).toBe(true)
+		})
+
+		it('should return empty items when user is not authenticated', async () => {
+			// Mock no session
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null as any)
+
+			const res = await app.request('/api/activity/home', {
+				headers: {
+					Cookie: 'better-auth.session_token=invalid-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body.items).toEqual([])
+		})
+
+		it('should support cursor parameter for pagination', async () => {
+			const res = await app.request('/api/activity/home?cursor=some-cursor', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
+		})
+
+		it('should handle errors gracefully', async () => {
+			// Mock FeedService to throw an error
+			const { FeedService } = await import('../services/FeedService.js')
+			vi.spyOn(FeedService, 'getHomeFeed').mockRejectedValue(new Error('Database error'))
+
+			const res = await app.request('/api/activity/home', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(500)
+			const body = (await res.json()) as any
+			expect(body.error).toBe('Internal server error')
+		})
+	})
+
 	describe('GET /api/activity/feed', () => {
 		it('should return empty array when user has no following', async () => {
 			// Remove following relationship
@@ -96,7 +165,76 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities).toEqual([])
+			// Filter for actual activity items, ignoring onboarding/trending
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities).toEqual([])
+		})
+
+		it('should handle errors gracefully', async () => {
+			// Mock FeedService to throw an error
+			const { FeedService } = await import('../services/FeedService.js')
+			vi.spyOn(FeedService, 'getFeed').mockRejectedValue(new Error('Database error'))
+
+			const res = await app.request('/api/activity/feed', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(500)
+			const body = (await res.json()) as any
+			expect(body.error).toBe('Internal server error')
+		})
+
+		it('should handle invalid limit parameter (NaN)', async () => {
+			const res = await app.request('/api/activity/feed?limit=invalid', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
+			// Should default to 20
+		})
+
+		it('should handle negative limit parameter', async () => {
+			const res = await app.request('/api/activity/feed?limit=-5', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
+			// Should default to 20
+		})
+
+		it('should handle zero limit parameter', async () => {
+			const res = await app.request('/api/activity/feed?limit=0', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
+			// Should default to 20
+		})
+
+		it('should use custom limit parameter when valid', async () => {
+			const res = await app.request('/api/activity/feed?limit=10', {
+				headers: {
+					Cookie: 'better-auth.session_token=test-token',
+				},
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as any
+			expect(body).toHaveProperty('items')
 		})
 
 		it('should include tags in like activities', async () => {
@@ -130,8 +268,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const likeActivity = body.activities.find((a: any) => a.type === 'like')
-			expect(likeActivity).toBeDefined()
+			// Find like activity within items
+			const likeItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'like'
+			)
+			expect(likeItem).toBeDefined()
+			const likeActivity = likeItem.data
 			expect(likeActivity.event.tags).toBeDefined()
 			expect(Array.isArray(likeActivity.event.tags)).toBe(true)
 			expect(likeActivity.event.tags).toHaveLength(2)
@@ -171,8 +313,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const rsvpActivity = body.activities.find((a: any) => a.type === 'rsvp')
-			expect(rsvpActivity).toBeDefined()
+			const rsvpItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'rsvp'
+			)
+			expect(rsvpItem).toBeDefined()
+			const rsvpActivity = rsvpItem.data
 			expect(rsvpActivity.event.tags).toBeDefined()
 			expect(rsvpActivity.event.tags).toHaveLength(2)
 			expect(rsvpActivity.event.tags[0].tag).toBe('networking')
@@ -211,8 +356,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const commentActivity = body.activities.find((a: any) => a.type === 'comment')
-			expect(commentActivity).toBeDefined()
+			const commentItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'comment'
+			)
+			expect(commentItem).toBeDefined()
+			const commentActivity = commentItem.data
 			expect(commentActivity.event.tags).toBeDefined()
 			expect(commentActivity.event.tags).toHaveLength(1)
 			expect(commentActivity.event.tags[0].tag).toBe('discussion')
@@ -241,11 +389,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities).toHaveLength(1)
-			expect(body.activities[0].type).toBe('event_created')
-			expect(body.activities[0].event.tags).toBeDefined()
-			expect(body.activities[0].event.tags).toHaveLength(3)
-			expect(body.activities[0].event.tags.map((t: { tag: string }) => t.tag)).toEqual([
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities).toHaveLength(1)
+			expect(activities[0].data.type).toBe('event_created')
+			expect(activities[0].data.event.tags).toBeDefined()
+			expect(activities[0].data.event.tags).toHaveLength(3)
+			expect(activities[0].data.event.tags.map((t: { tag: string }) => t.tag)).toEqual([
 				'launch',
 				'product',
 				'announcement',
@@ -280,8 +429,11 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			const likeActivity = body.activities.find((a: any) => a.type === 'like')
-			expect(likeActivity).toBeDefined()
+			const likeItem = body.items.find(
+				(i: any) => i.type === 'activity' && i.data.type === 'like'
+			)
+			expect(likeItem).toBeDefined()
+			const likeActivity = likeItem.data
 			expect(likeActivity.event.tags).toBeDefined()
 			expect(Array.isArray(likeActivity.event.tags)).toBe(true)
 			expect(likeActivity.event.tags).toHaveLength(0)
@@ -343,10 +495,12 @@ describe('Activity Feed API', () => {
 
 			expect(res.status).toBe(200)
 			const body = (await res.json()) as any
-			expect(body.activities.length).toBeGreaterThanOrEqual(3)
+			const activities = body.items.filter((i: any) => i.type === 'activity')
+			expect(activities.length).toBeGreaterThanOrEqual(3)
 
 			// Verify all activities have tags
-			body.activities.forEach((activity: any) => {
+			activities.forEach((item: any) => {
+				const activity = item.data
 				expect(activity.event.tags).toBeDefined()
 				expect(Array.isArray(activity.event.tags)).toBe(true)
 			})

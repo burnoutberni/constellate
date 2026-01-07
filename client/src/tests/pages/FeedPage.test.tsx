@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import '@testing-library/jest-dom'
 import { FeedPage } from '../../pages/FeedPage'
-import type { Activity } from '../../types'
 import type { Event } from '../../types'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
 
@@ -27,28 +26,19 @@ const mockEvent: Event = {
 		likes: 5,
 		comments: 3,
 	},
+	timezone: 'UTC'
 }
 
-const mockActivity: Activity = {
-	id: 'activity1',
-	type: 'event_created',
-	createdAt: '2024-01-15T10:00:00Z',
-	user: {
-		id: 'user1',
-		username: 'testuser',
-		name: 'Test User',
-		isRemote: false,
-	},
-	event: mockEvent,
-}
+
 
 const mockUseEvents = vi.fn()
-const mockUseActivityFeed = vi.fn()
+const mockUseHomeFeed = vi.fn()
 const mockUseRecommendedEvents = vi.fn()
 const mockUseTrendingEvents = vi.fn()
 const mockOpenCreateEventModal = vi.fn()
 const mockCloseCreateEventModal = vi.fn()
 const mockUseAuth = vi.fn()
+const mockUseSuggestedUsers = vi.fn()
 
 vi.mock('../../hooks/useAuth', () => ({
 	useAuth: () => mockUseAuth(),
@@ -61,10 +51,11 @@ vi.mock('../../hooks/queries', async () => {
 	return {
 		...actual,
 		useEvents: () => mockUseEvents(),
-		useActivityFeed: () => mockUseActivityFeed(),
+		useHomeFeed: () => mockUseHomeFeed(), // Updated hook
 		useRecommendedEvents: () => mockUseRecommendedEvents(),
 		useTrendingEvents: () => mockUseTrendingEvents(),
 		useNearbyEvents: () => mockUseNearbyEvents(),
+		useSuggestedUsers: () => mockUseSuggestedUsers(),
 	}
 })
 
@@ -91,6 +82,18 @@ vi.mock('../../components/FollowButton', () => ({
 	FollowButton: () => null,
 }))
 
+// Mock Sidebar to avoid complex children rendering if needed, 
+// or let it render if we want to test its presence
+vi.mock('../../components/Feed/Sidebar', () => ({
+	Sidebar: () => <div data-testid="feed-sidebar">Sidebar</div>,
+}))
+
+vi.mock('../../components/EventCard', () => ({
+	EventCard: ({ event }: { event: { title: string } }) => (
+		<div data-testid="event-card">{event.title}</div>
+	),
+}))
+
 vi.mock('../../hooks/useLocationSuggestions', () => ({
 	useLocationSuggestions: () => ({
 		suggestions: [],
@@ -113,6 +116,10 @@ vi.mock('../../hooks/queries/users', () => ({
 		mutate: vi.fn(),
 		isPending: false,
 	}),
+	useSuggestedUsers: () => ({ // Mock explicitly here too if needed, but handled in queries mock
+		data: [],
+		isLoading: false
+	})
 }))
 
 const { wrapper, queryClient } = createTestWrapper(['/feed'])
@@ -129,9 +136,12 @@ describe('FeedPage', () => {
 			data: { events: [] },
 			isLoading: false,
 		})
-		mockUseActivityFeed.mockReturnValue({
-			data: { activities: [] },
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [] },
 			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
 		})
 		mockUseRecommendedEvents.mockReturnValue({
 			data: { recommendations: [] },
@@ -148,266 +158,158 @@ describe('FeedPage', () => {
 			data: { events: [] },
 			isLoading: false,
 		})
+		mockUseSuggestedUsers.mockReturnValue({
+			data: [],
+			isLoading: false
+		})
 	})
 
 	afterEach(() => {
 		clearQueryClient(queryClient)
 	})
 
-	it('should render feed page', () => {
+	it('should render feed page with sidebar', () => {
 		render(<FeedPage />, { wrapper })
-		expect(screen.getByRole('button', { name: /Create Event/i })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: /New Event/i })).toBeInTheDocument()
+		expect(screen.getByTestId('feed-sidebar')).toBeInTheDocument()
 	})
 
-	it('should show loading state for activity feed', async () => {
-		mockUseActivityFeed.mockReturnValue({
+	it('should show loading state for home feed', async () => {
+		mockUseHomeFeed.mockReturnValue({
 			data: undefined,
 			isLoading: true,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'pending'
 		})
 
 		render(<FeedPage />, { wrapper })
 
-		// Loading state may show spinner or text
-		await waitFor(
-			() => {
-				const loadingElements = screen.queryAllByText(/Loading/i)
-				const spinner = document.querySelector('.animate-spin')
-				expect(loadingElements.length > 0 || spinner).toBeTruthy()
-			},
-			{ timeout: 2000 }
-		)
+		// Loading state shows spinner
+		expect(document.querySelector('.animate-spin')).toBeInTheDocument()
 	})
 
-	it('should display activity feed items', async () => {
-		mockUseActivityFeed.mockReturnValue({
-			data: { activities: [mockActivity] },
-			isLoading: false,
+	it('should NOT show loading state for unauthenticated user when pending', async () => {
+		mockUseAuth.mockReturnValue({
+			user: null, // Unauthenticated
+			logout: vi.fn(),
+		})
+		mockUseHomeFeed.mockReturnValue({
+			data: undefined,
+			isLoading: true, // React Query might say loading
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'pending', // But status is pending because enabled: false
+			isFetching: false, // And not actually fetching
 		})
 
 		render(<FeedPage />, { wrapper })
 
-		// ActivityFeedItem renders the event title, which should be visible
+		// Should NOT show spinner
+		expect(document.querySelector('.animate-spin')).not.toBeInTheDocument()
+		// Should likely show welcome/onboarding or empty state (depending on implementation fallbacks)
+		// For now just ensuring spinner is gone is the regression fix check
+	})
+
+	it('should display feed items and headers', async () => {
+		const feedItems = [
+			{
+				type: 'header',
+				id: 'header-today',
+				timestamp: '2024-01-15T08:00:00Z',
+				data: { title: 'Today' }
+			},
+			{
+				type: 'trending_event', // or 'activity' depending on what we test
+				id: 'activity1',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: mockEvent // simplified, mocked as trending_event data
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
 		await waitFor(
 			() => {
+				expect(screen.getByText('Today')).toBeInTheDocument()
 				expect(screen.getByText('Test Event')).toBeInTheDocument()
 			},
 			{ timeout: 2000 }
 		)
 	})
 
-	it('should show empty state when no activities', () => {
-		mockUseActivityFeed.mockReturnValue({
-			data: { activities: [] },
+	it('should show onboarding hero for new users', async () => {
+		const feedItems = [{
+			type: 'onboarding',
+			id: 'onboarding1',
+			timestamp: new Date().toISOString(),
+			data: { suggestions: [{ id: 'u1', username: 'suggested1', name: 'Suggested User', displayColor: '#000', profileImage: null }] }
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
 			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
 		})
 
 		render(<FeedPage />, { wrapper })
 
-		expect(screen.getByText('No activity yet')).toBeInTheDocument()
+		expect(screen.getByText(/Follow people to see their events and activities here/i)).toBeInTheDocument()
 	})
 
-	it('should switch between activity and trending tabs', async () => {
-		const user = userEvent.setup()
-		render(<FeedPage />, { wrapper })
-
-		// Buttons have role="tab", not role="button"
-		await waitFor(
-			() => {
-				const tabs = screen.getAllByRole('tab')
-				const activityTab = tabs.find((tab) => tab.textContent?.trim() === 'Activity')
-				expect(activityTab).toBeInTheDocument()
-			},
-			{ timeout: 2000 }
-		)
-
-		const tabs = screen.getAllByRole('tab')
-		const trendingTab = tabs.find((tab) => tab.textContent?.trim() === 'Trending')
-		expect(trendingTab).toBeInTheDocument()
-		if (trendingTab) {
-			await user.click(trendingTab)
-			// Just verify the tab was clicked
-			expect(trendingTab).toBeInTheDocument()
-		}
-	})
-
-	it('should filter activities by type', async () => {
-		const activities: Activity[] = [
-			{ ...mockActivity, type: 'event_created' },
-			{ ...mockActivity, id: 'activity2', type: 'like' },
-			{ ...mockActivity, id: 'activity3', type: 'comment' },
-		]
-
-		mockUseActivityFeed.mockReturnValue({
-			data: { activities },
-			isLoading: false,
-		})
-
-		render(<FeedPage />, { wrapper })
-
-		// ActivityFilters component should render when there are activities and user is authenticated
-		// Check for activity feed items - event titles should be visible
-		await waitFor(
-			() => {
-				const eventTitles = screen.getAllByText('Test Event')
-				expect(eventTitles.length).toBeGreaterThan(0)
-			},
-			{ timeout: 2000 }
-		)
-	})
-
-	it('should display recommended events', async () => {
-		const recommendations = [
-			{
-				event: mockEvent,
-				reasons: ['You follow @testuser'],
-			},
-		]
-
-		mockUseRecommendedEvents.mockReturnValue({
-			data: { recommendations },
-			isLoading: false,
-		})
-
-		render(<FeedPage />, { wrapper })
-
-		await waitFor(
-			() => {
-				expect(screen.getByText('Recommended events')).toBeInTheDocument()
-			},
-			{ timeout: 2000 }
-		)
-	})
-
-	it("should display today's events", async () => {
-		const todayEvent = {
-			...mockEvent,
-			startTime: new Date().toISOString(),
-		}
-
-		mockUseEvents.mockReturnValue({
-			data: { events: [todayEvent] },
-			isLoading: false,
-		})
-
-		render(<FeedPage />, { wrapper })
-
-		await waitFor(
-			() => {
-				expect(screen.getByText(/Today's Events/i)).toBeInTheDocument()
-			},
-			{ timeout: 2000 }
-		)
-	})
-
-	it('should handle trending events error', async () => {
-		const user = userEvent.setup()
-		mockUseTrendingEvents.mockReturnValue({
+	it('should show error state', async () => {
+		mockUseHomeFeed.mockReturnValue({
 			data: undefined,
 			isLoading: false,
-			isFetching: false,
-			error: new Error('Failed to load trending events'),
-			refetch: vi.fn(),
+			status: 'error',
+			error: new Error('Failed to load feed')
 		})
 
 		render(<FeedPage />, { wrapper })
 
-		// Need to switch to trending tab first to see the error
-		// The error only shows when activeTab === 'trending'
-		// Buttons have role="tab", not role="button"
-		await waitFor(
-			() => {
-				const tabs = screen.getAllByRole('tab')
-				const trendingTab = tabs.find((tab) => tab.textContent?.trim() === 'Trending')
-				expect(trendingTab).toBeInTheDocument()
-			},
-			{ timeout: 2000 }
-		)
-
-		const tabs = screen.getAllByRole('tab')
-		const trendingTab = tabs.find((tab) => tab.textContent?.trim() === 'Trending')
-		expect(trendingTab).toBeInTheDocument()
-		if (trendingTab) {
-			await user.click(trendingTab)
-
-			await waitFor(
-				() => {
-					// Error message should appear after switching to trending tab
-					expect(
-						screen.getByText("We couldn't load trending events.")
-					).toBeInTheDocument()
-				},
-				{ timeout: 2000 }
-			)
-		} else {
-			// If trending tab not found, fail the test
-			expect(trendingTab).toBeDefined()
-		}
+		expect(screen.getByText('Failed to load feed.')).toBeInTheDocument()
 	})
-
-	it('should display trending events', async () => {
-		const user = userEvent.setup()
-		const trendingEvent = {
-			...mockEvent,
-			trendingRank: 1,
-			trendingScore: 95.5,
-			trendingMetrics: {
-				likes: 10,
-				comments: 5,
-				attendance: 20,
-			},
-		}
-
-		mockUseTrendingEvents.mockReturnValue({
+	it('should show suggested users card', async () => {
+		const feedItems = [{
+			type: 'suggested_users',
+			id: 'suggestions1',
+			timestamp: new Date().toISOString(),
 			data: {
-				events: [trendingEvent],
-				windowDays: 7,
-				generatedAt: new Date().toISOString(),
-			},
+				suggestions: [
+					{
+						id: 'u1',
+						username: 'suggested1',
+						name: 'Suggested User',
+						displayColor: '#000',
+						profileImage: null,
+						_count: { followers: 10, events: 5 }
+					}
+				]
+			}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
 			isLoading: false,
-			isFetching: false,
-			error: null,
-			refetch: vi.fn(),
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
 		})
 
 		render(<FeedPage />, { wrapper })
 
-		// Wait for page to render, then find and click trending tab
-		// Buttons have role="tab", not role="button"
-		await waitFor(
-			() => {
-				const tabs = screen.getAllByRole('tab')
-				const trendingTab = tabs.find((tab) => tab.textContent?.trim() === 'Trending')
-				expect(trendingTab).toBeInTheDocument()
-			},
-			{ timeout: 2000 }
-		)
-
-		const tabs = screen.getAllByRole('tab')
-		const trendingTab = tabs.find((tab) => tab.textContent?.trim() === 'Trending')
-		expect(trendingTab).toBeInTheDocument()
-		if (trendingTab) {
-			await user.click(trendingTab)
-
-			await waitFor(
-				() => {
-					expect(screen.getByText('Test Event')).toBeInTheDocument()
-				},
-				{ timeout: 2000 }
-			)
-		} else {
-			// If trending tab not found, fail the test
-			expect(trendingTab).toBeDefined()
-		}
-	})
-
-	it('should show sign in prompt for unauthenticated users', () => {
-		mockUseAuth.mockReturnValue({
-			user: null,
-			logout: vi.fn(),
-		})
-
-		render(<FeedPage />, { wrapper })
-
-		expect(screen.getByText(/Sign in to see your activity feed/i)).toBeInTheDocument()
+		// SuggestedUsersCard renders "Suggested for you" usually, or we check for username
+		expect(screen.getByText('Suggested User')).toBeInTheDocument()
+		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
 	})
 })

@@ -88,7 +88,7 @@ export const Section = React.forwardRef<HTMLElement, SectionProps>((props, ref) 
 			// Unlike CardTitle (where all headings share HTMLHeadingElement), Section's element types
 			// don't share a common specific type, so TypeScript can't verify ref compatibility statically.
 			// All possible element types extend HTMLElement, so this cast is safe at runtime.
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
 			ref={ref as unknown as any}
 			className={sectionClasses}>
 			{content}

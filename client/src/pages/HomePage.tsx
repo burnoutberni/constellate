@@ -57,6 +57,8 @@ export function HomePage() {
 		[]
 	)
 
+
+
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -101,19 +103,19 @@ export function HomePage() {
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 						{trendingLoading
 							? trendingSkeletonKeys.map((key) => (
-									<div key={key} className="h-full">
-										<Skeleton className="h-64 w-full rounded-xl" />
-									</div>
-								))
+								<div key={key} className="h-full">
+									<Skeleton className="h-64 w-full rounded-xl" />
+								</div>
+							))
 							: trendingEvents.slice(0, 3).map((event) => (
-									<div key={event.id} className="h-full">
-										<EventCard
-											event={event}
-											isAuthenticated={Boolean(user)}
-											variant="full"
-										/>
-									</div>
-								))}
+								<div key={event.id} className="h-full">
+									<EventCard
+										event={event}
+										isAuthenticated={Boolean(user)}
+										variant="full"
+									/>
+								</div>
+							))}
 						{!trendingLoading && trendingEvents.length === 0 && (
 							<div className="col-span-full py-8 text-center text-text-secondary bg-background-primary rounded-xl border border-border-default border-dashed">
 								No trending events right now. Be the first to create a buzz!
@@ -139,19 +141,19 @@ export function HomePage() {
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 							{recommendationsLoading
 								? recSkeletonKeys.map((key) => (
-										<div key={key} className="h-full">
-											<Skeleton className="h-64 w-full rounded-xl" />
-										</div>
-									))
+									<div key={key} className="h-full">
+										<Skeleton className="h-64 w-full rounded-xl" />
+									</div>
+								))
 								: recommendedEvents.slice(0, 3).map((event) => (
-										<div key={event.id} className="h-full">
-											<EventCard
-												event={event}
-												isAuthenticated={Boolean(user)}
-												variant="full"
-											/>
-										</div>
-									))}
+									<div key={event.id} className="h-full">
+										<EventCard
+											event={event}
+											isAuthenticated={Boolean(user)}
+											variant="full"
+										/>
+									</div>
+								))}
 							{!recommendationsLoading && recommendedEvents.length === 0 && (
 								<div className="col-span-full py-8 text-center text-text-secondary bg-background-secondary rounded-xl border border-border-default border-dashed">
 									Interact with more events to get personalized recommendations.
@@ -180,19 +182,19 @@ export function HomePage() {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 						{eventsLoading
 							? eventsSkeletonKeys.map((key) => (
-									<div key={key} className="h-full">
-										<Skeleton className="h-48 w-full rounded-xl" />
-									</div>
-								))
+								<div key={key} className="h-full">
+									<Skeleton className="h-48 w-full rounded-xl" />
+								</div>
+							))
 							: upcomingEvents.slice(0, 4).map((event) => (
-									<div key={event.id} className="h-full">
-										<EventCard
-											event={event}
-											isAuthenticated={Boolean(user)}
-											variant="compact"
-										/>
-									</div>
-								))}
+								<div key={event.id} className="h-full">
+									<EventCard
+										event={event}
+										isAuthenticated={Boolean(user)}
+										variant="compact"
+									/>
+								</div>
+							))}
 						{!eventsLoading && upcomingEvents.length === 0 && (
 							<div className="col-span-full py-12 text-center text-text-secondary">
 								No upcoming events found.

@@ -60,9 +60,8 @@ describe('MobileNav Component', () => {
 	it('should show navigation links', () => {
 		render(<MobileNav isOpen={true} onClose={vi.fn()} />, { wrapper })
 
-		expect(screen.getByText('Feed')).toBeInTheDocument()
-		expect(screen.getByText('Calendar')).toBeInTheDocument()
 		expect(screen.getByText('Discover')).toBeInTheDocument()
+		expect(screen.getByText('Calendar')).toBeInTheDocument()
 		expect(screen.getByText('About')).toBeInTheDocument()
 	})
 
@@ -94,18 +93,18 @@ describe('MobileNav Component', () => {
 	})
 
 	it('should highlight active route', () => {
-		const { wrapper: testWrapper } = createTestWrapper(['/feed'])
+		const { wrapper: testWrapper } = createTestWrapper(['/discover'])
 		render(<MobileNav isOpen={true} onClose={vi.fn()} />, { wrapper: testWrapper })
 
-		// Find the Feed link in the mobile nav (there may be multiple Feed links)
-		const feedLinks = screen.getAllByText('Feed')
-		const mobileNavFeedLink = feedLinks.find((link) => {
+		// Find the Discover link in the mobile nav
+		const discoverLinks = screen.getAllByText('Discover')
+		const mobileNavDiscoverLink = discoverLinks.find((link) => {
 			const parent = link.closest('nav[aria-label="Mobile navigation"]')
 			return parent !== null
 		})
-		expect(mobileNavFeedLink).toBeInTheDocument()
+		expect(mobileNavDiscoverLink).toBeInTheDocument()
 		// The link should have active styling (checked via className)
-		expect(mobileNavFeedLink?.closest('a')).toHaveClass('bg-primary-50')
+		expect(mobileNavDiscoverLink?.closest('a')).toHaveClass('bg-primary-50')
 	})
 
 	it('should close menu when link is clicked', async () => {
@@ -113,15 +112,15 @@ describe('MobileNav Component', () => {
 		const mockClose = vi.fn()
 		render(<MobileNav isOpen={true} onClose={mockClose} />, { wrapper })
 
-		// Find the Feed link in the mobile nav specifically
-		const feedLinks = screen.getAllByText('Feed')
-		const mobileNavFeedLink = feedLinks.find((link) => {
+		// Find the Discover link in the mobile nav specifically
+		const discoverLinks = screen.getAllByText('Discover')
+		const mobileNavDiscoverLink = discoverLinks.find((link) => {
 			const parent = link.closest('nav[aria-label="Mobile navigation"]')
 			return parent !== null
 		})
-		expect(mobileNavFeedLink).toBeInTheDocument()
-		if (mobileNavFeedLink) {
-			await user.click(mobileNavFeedLink)
+		expect(mobileNavDiscoverLink).toBeInTheDocument()
+		if (mobileNavDiscoverLink) {
+			await user.click(mobileNavDiscoverLink)
 		}
 
 		// onClose may be called multiple times due to route change effect
@@ -148,7 +147,7 @@ describe('MobileNav Component', () => {
 		render(<MobileNav isOpen={true} onClose={vi.fn()} />, { wrapper })
 
 		// Focus should be trapped within the menu
-		const firstLink = screen.getByText('Feed')
+		const firstLink = screen.getByText('Discover')
 		expect(firstLink).toBeInTheDocument()
 	})
 })

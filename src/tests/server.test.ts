@@ -27,6 +27,7 @@ vi.mock('../lib/prisma.js', () => ({
 			findUnique: vi.fn(),
 			update: vi.fn(),
 		},
+		$queryRaw: vi.fn(),
 	},
 }))
 
@@ -42,6 +43,57 @@ describe('Server Setup', () => {
 
 			// Should be valid ISO date string
 			expect(() => new Date(body.timestamp)).not.toThrow()
+		})
+
+		it('should return 200 when database is connected', async () => {
+			// Mock successful database query
+			vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }])
+
+			const res = await app.request('/health')
+			const body = (await res.json()) as any
+
+			expect(res.status).toBe(200)
+			expect(body.status).toBe('ok')
+			expect(body.checks.database).toBe('ok')
+		})
+
+		it('should return 503 when database is disconnected', async () => {
+			// Mock database error
+			vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error('Database error'))
+
+			const res = await app.request('/health')
+			const body = (await res.json()) as any
+
+			expect(res.status).toBe(503)
+			expect(body.status).toBe('degraded')
+			expect(body.checks.database).toBe('error')
+		})
+
+		it('should include all required health check fields', async () => {
+			const res = await app.request('/health')
+			const body = (await res.json()) as any
+
+			expect(body).toHaveProperty('status')
+			expect(body).toHaveProperty('timestamp')
+			expect(body).toHaveProperty('checks')
+			expect(body.checks).toHaveProperty('database')
+		})
+	})
+
+	describe('Middleware', () => {
+		it('should apply CORS headers', async () => {
+			const res = await app.request('/')
+
+			// CORS headers should be present
+			expect(res.headers.get('access-control-allow-credentials')).toBe('true')
+		})
+
+		it('should apply security headers', async () => {
+			const res = await app.request('/')
+
+			// Security headers should be present
+			expect(res.headers.get('x-frame-options')).toBeDefined()
+			expect(res.headers.get('x-content-type-options')).toBeDefined()
 		})
 	})
 

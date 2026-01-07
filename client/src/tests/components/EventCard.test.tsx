@@ -1,9 +1,9 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import userEvent from '@testing-library/user-event'
 import { EventCard } from '../../components/EventCard'
 import type { Event } from '../../types'
+import { createTestWrapper } from '../testUtils'
 
 // Mock useAuth hook
 const mockUseAuth = vi.fn()
@@ -81,11 +81,12 @@ const createMockEvent = (overrides?: Partial<Event>): Event => ({
 })
 
 const renderEventCard = (props: Parameters<typeof EventCard>[0]) => {
-	return render(
-		<BrowserRouter>
-			<EventCard {...props} />
-		</BrowserRouter>
-	)
+	const { wrapper } = createTestWrapper()
+	const user = userEvent.setup()
+	return {
+		user,
+		...render(<EventCard {...props} />, { wrapper })
+	}
 }
 
 describe('EventCard Component', () => {
@@ -151,8 +152,9 @@ describe('EventCard Component', () => {
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'full', isAuthenticated: false })
 
-			expect(screen.getByText('10')).toBeInTheDocument() // attendance
-			expect(screen.getByText('5')).toBeInTheDocument() // likes
+			expect(screen.getByText(/10\s*going/i)).toBeInTheDocument() // attendance
+			// Likes are no longer displayed in the footer
+			expect(screen.queryByText('5')).not.toBeInTheDocument()
 			expect(screen.getByText('3')).toBeInTheDocument() // comments
 		})
 
@@ -176,6 +178,11 @@ describe('EventCard Component', () => {
 		})
 
 		it('user does not see sign up link when authenticated', () => {
+			// Mock authenticated user to match isAuthenticated prop
+			mockUseAuth.mockReturnValue({
+				user: { id: 'user2' },
+				loading: false,
+			})
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'full', isAuthenticated: true })
 
@@ -423,6 +430,77 @@ describe('EventCard Component', () => {
 			// Let's assume it does.
 			expect(screen.getByText('User One')).toBeInTheDocument()
 			// expect(screen.getByText('User Two')).toBeInTheDocument() // limit might restrict
+		})
+	})
+	describe('Interactions and Options', () => {
+		it('user can open options menu and see report option', async () => {
+			// Ensure user is logged in
+			mockUseAuth.mockReturnValue({
+				user: { id: 'viewer1' },
+				loading: false,
+			})
+
+			const event = createMockEvent()
+			const { user } = renderEventCard({ event, variant: 'full', isAuthenticated: true })
+
+			// Verify auth elements are showing (RSVP button requires auth and !owner)
+			const buttons = screen.queryAllByRole('button')
+			const rsvpButton = buttons.find(b => b.textContent?.includes('RSVP') || b.textContent?.includes('Going') || b.textContent?.includes('Maybe'))
+			expect(rsvpButton).toBeDefined()
+
+			// Use text content selector as accessible name might be calculating differently in test env
+			const optionsButton = screen.getByText('⋮')
+			await user.click(optionsButton)
+
+			expect(screen.getByRole('button', { name: /Report Event/i })).toBeInTheDocument()
+		})
+
+		it('opens report modal when clicking report', async () => {
+			mockUseAuth.mockReturnValue({
+				user: { id: 'viewer1' },
+				loading: false,
+			})
+
+			const event = createMockEvent()
+			const { user } = renderEventCard({ event, variant: 'full', isAuthenticated: true })
+
+			const optionsButton = screen.getByText('⋮')
+			await user.click(optionsButton)
+
+			const reportButton = screen.getByRole('button', { name: /Report Event/i })
+			await user.click(reportButton)
+
+			// Modal should be open. ReportContentModal renders a Dialog.
+			// We can check for "Report Content" title or similar.
+			expect(screen.getByText('Report Content')).toBeInTheDocument()
+			expect(screen.getByText(/Help us understand what's wrong with/)).toBeInTheDocument()
+		})
+	})
+
+	describe('Attribution Fallbacks', () => {
+		it('displays attributedTo domain if user and organizers are missing', () => {
+			const event = createMockEvent({
+				user: undefined,
+				organizers: [],
+				attributedTo: 'https://mastodon.social/@user',
+				url: 'https://mastodon.social/@user/123'
+			})
+			renderEventCard({ event, variant: 'full', isAuthenticated: false })
+
+			expect(screen.getByText('Remote Source')).toBeInTheDocument()
+			expect(screen.getByText('@user@mastodon.social')).toBeInTheDocument()
+		})
+
+		it('displays domain if attributedTo cannot be parsed as user', () => {
+			const event = createMockEvent({
+				user: undefined,
+				organizers: [],
+				attributedTo: 'https://example.com',
+			})
+			renderEventCard({ event, variant: 'full', isAuthenticated: false })
+
+			expect(screen.getByText('Remote Source')).toBeInTheDocument()
+			expect(screen.getByText('example.com')).toBeInTheDocument()
 		})
 	})
 })

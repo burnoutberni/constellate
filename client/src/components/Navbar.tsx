@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import React, { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import { getNavLinks, shouldShowBreadcrumbs } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
+import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
 
 import { Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs'
@@ -38,6 +39,31 @@ export function Navbar({
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const location = useLocation()
 	const navigate = useNavigate()
+	const queryClient = useQueryClient()
+	const { setIsFeedRefreshing } = useUIStore()
+
+	const handleLogoClick = async (e: React.MouseEvent) => {
+		if (user) {
+			e.preventDefault()
+			setIsFeedRefreshing(true)
+
+			try {
+				// Invalidate queries to trigger background refetch
+				// Wait for minimum animation time (1.2s) even if fetch is faster
+				await Promise.all([
+					queryClient.invalidateQueries({ queryKey: queryKeys.activity.home() }),
+					new Promise((resolve) => setTimeout(resolve, 1200)),
+				])
+			} catch (error) {
+				console.error('Failed to refresh feed:', error)
+			} finally {
+				setIsFeedRefreshing(false)
+				navigate('/feed')
+			}
+		}
+	}
+
+
 
 	// Check if current user is admin
 	const { data: currentUserProfile } = useQuery<UserProfile | null>({
@@ -92,6 +118,7 @@ export function Navbar({
 
 							<Link
 								to={user ? '/feed' : '/'}
+								onClick={handleLogoClick}
 								className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600 hover:opacity-80 transition-opacity">
 								Constellate
 							</Link>
