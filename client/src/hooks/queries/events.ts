@@ -368,7 +368,9 @@ export function useRSVP(eventId: string) {
 				if (existingIndex >= 0) {
 					// Case 2: Update existing attendance
 					return updateExistingAttendance(event, currentAttendance, existingIndex, input.status)
-				} if (user && user.id) {
+				}
+
+				if (user && user.id) {
 					// Case 3: Add new attendance
 					return addNewAttendance(event, currentAttendance, input.status, {
 						id: user.id,
