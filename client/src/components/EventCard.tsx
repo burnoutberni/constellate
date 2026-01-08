@@ -13,7 +13,7 @@ import {
 	SafeHTML,
 } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
-import { cn , getInitials } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 import type { Event } from '@/types'
 
 import { formatTime, formatDate } from '../lib/formatUtils'
@@ -187,6 +187,7 @@ export function EventCard(props: EventCardProps) {
 							<AttendeeFacepile attendance={event.attendance} counts={event._count} alwaysShowCounts />
 						</div>
 					)}
+					{renderOrganizers()}
 				</div>
 			)}
 
@@ -282,8 +283,8 @@ export function EventCard(props: EventCardProps) {
 							</div>
 						)}
 
-						{/* Only show organizer section if viewer is not the organizer */}
-						{!isOwner && renderOrganizers()}
+						{/* Always show organizer section */}
+						{renderOrganizers()}
 					</div>
 				</div>
 			)}

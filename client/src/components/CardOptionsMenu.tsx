@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Button } from '@/components/ui'
+import { Button, Modal } from '@/components/ui'
 import { useDeleteEvent } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import type { Event } from '@/types'
@@ -16,6 +16,7 @@ interface CardOptionsMenuProps {
 export function CardOptionsMenu({ event, onOpenChange }: CardOptionsMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isReportOpen, setIsReportOpen] = useState(false)
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const { user } = useAuth()
     const navigate = useNavigate()
     const { mutate: deleteEvent } = useDeleteEvent(event.id)
@@ -43,13 +44,14 @@ export function CardOptionsMenu({ event, onOpenChange }: CardOptionsMenuProps) {
         e.preventDefault()
         e.stopPropagation()
         setIsOpen(false)
+        setIsDeleteConfirmOpen(true)
+    }
 
-        // eslint-disable-next-line no-alert
-        if (window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-            if (user?.id) {
-                deleteEvent(user.id)
-            }
+    const confirmDelete = () => {
+        if (user?.id) {
+            deleteEvent(user.id)
         }
+        setIsDeleteConfirmOpen(false)
     }
 
     return (
@@ -116,6 +118,34 @@ export function CardOptionsMenu({ event, onOpenChange }: CardOptionsMenuProps) {
                 targetId={event.id}
                 contentTitle={event.title}
             />
+
+            <Modal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                className="max-w-md"
+            >
+                <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-text-primary">Delete Event?</h3>
+                    <p className="text-sm text-text-secondary">
+                        Are you sure you want to delete <span className="font-semibold">{event.title}</span>? This action cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsDeleteConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            className="bg-error-600 hover:bg-error-700 text-white"
+                            onClick={confirmDelete}
+                        >
+                            Delete Event
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     )
 }

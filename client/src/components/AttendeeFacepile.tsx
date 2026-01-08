@@ -72,8 +72,9 @@ export function AttendeeFacepile({
                                 key={a.user?.id || i}
                                 src={userData?.profileImage || undefined}
                                 alt={userData?.name || userData?.username || 'User'}
-                                fallback={getInitials(userData?.name || userData?.username || '?')}
-                                className="border-2 border-background-primary w-8 h-8"
+                                fallback={getInitials(userData?.name, userData?.username || '?')}
+                                size="sm"
+                                className="border-2 border-background-primary"
                             />
                         </div>
                     )

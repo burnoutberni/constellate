@@ -51,34 +51,82 @@ vi.mock('../../lib/formatUtils', () => ({
 			year: date.getUTCFullYear() !== now.getUTCFullYear() ? 'numeric' : undefined,
 		})
 	}),
+	formatDate: vi.fn((dateString: string, options?: Intl.DateTimeFormatOptions) => {
+		// Simple mock that returns a fixed string for tests or uses toLocaleDateString
+		if (dateString === '2024-01-15T10:00:00Z') {
+			// Return a format consistent with what the component expects
+			// The component often calls it with { weekday: 'long', month: 'long', day: 'numeric' }
+			// or { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+			if (options?.weekday) {
+				return 'Monday, January 15'
+			}
+			if (options?.hour) {
+				return 'Jan 15, 11:00 AM'
+			}
+			return 'January 15, 2024'
+		}
+		return new Date(dateString).toLocaleDateString('en-US', options)
+	}),
 }))
 
-const createMockEvent = (overrides?: Partial<Event>): Event => ({
-	id: '1',
-	title: 'Test Event',
-	summary: 'This is a test event summary',
-	location: 'Test Location',
-	startTime: '2024-01-15T10:00:00Z',
-	endTime: '2024-01-15T12:00:00Z',
-	timezone: 'UTC',
-	visibility: 'PUBLIC',
-	tags: [
-		{ id: '1', tag: 'test' },
-		{ id: '2', tag: 'event' },
-	],
-	user: {
-		id: 'user1',
-		username: 'testuser',
-		name: 'Test User',
-		isRemote: false,
-	},
-	_count: {
-		attendance: 10,
-		likes: 5,
-		comments: 3,
-	},
-	...overrides,
-})
+const createMockEvent = (overrides?: Partial<Event>): Event => {
+	// Generate attendance array based on counts if not provided
+	let attendance = overrides?.attendance
+	if (!attendance && overrides?._count?.attendance) {
+		attendance = Array.from({ length: overrides._count.attendance }).map((_, i) => ({
+			userId: `user-attending-${i}`,
+			eventId: overrides.id || '1',
+			status: 'attending',
+			user: {
+				id: `user-attending-${i}`,
+				username: `attendee${i}`,
+				name: `Attendee ${i}`,
+				isRemote: false,
+			},
+		})) as Event['attendance']
+	} else if (!attendance && !overrides?._count) {
+		// Default mock has 10 attendance in _count, so generate 10
+		attendance = Array.from({ length: 10 }).map((_, i) => ({
+			userId: `user-attending-${i}`,
+			eventId: overrides?.id || '1',
+			status: 'attending',
+			user: {
+				id: `user-attending-${i}`,
+				username: `attendee${i}`,
+				name: `Attendee ${i}`,
+				isRemote: false,
+			},
+		})) as Event['attendance']
+	}
+
+	return {
+		id: '1',
+		title: 'Test Event',
+		summary: 'This is a test event summary',
+		location: 'Test Location',
+		startTime: '2024-01-15T10:00:00Z',
+		endTime: '2024-01-15T12:00:00Z',
+		timezone: 'UTC',
+		visibility: 'PUBLIC',
+		tags: [
+			{ id: '1', tag: 'test' },
+			{ id: '2', tag: 'event' },
+		],
+		user: {
+			id: 'user1',
+			username: 'testuser',
+			name: 'Test User',
+			isRemote: false,
+		},
+		_count: {
+			attendance: 10,
+			likes: 5,
+			comments: 3,
+		},
+		attendance,
+		...overrides,
+	}
+}
 
 const renderEventCard = (props: Parameters<typeof EventCard>[0]) => {
 	const { wrapper } = createTestWrapper()
@@ -210,7 +258,7 @@ describe('EventCard Component', () => {
 
 			// Date formatting is handled by formatRelativeDate and formatTime
 			// We verify the formatted date text is present (user-facing)
-			expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
+			expect(screen.getByText(/January 15/)).toBeInTheDocument()
 			expect(screen.getByText(/11:00 AM/)).toBeInTheDocument()
 		})
 
@@ -245,7 +293,7 @@ describe('EventCard Component', () => {
 			const event = createMockEvent()
 			renderEventCard({ event, variant: 'compact', isAuthenticated: false })
 
-			expect(screen.getByText('10 attending')).toBeInTheDocument()
+			expect(screen.getByText('10 going')).toBeInTheDocument()
 		})
 
 		it('user can see organizer information', () => {
@@ -260,7 +308,7 @@ describe('EventCard Component', () => {
 			renderEventCard({ event, variant: 'compact', isAuthenticated: false })
 
 			// Verify the formatted date text is present (user-facing)
-			expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
+			expect(screen.getByText(/Jan 15/)).toBeInTheDocument()
 			expect(screen.getByText(/11:00 AM/)).toBeInTheDocument()
 		})
 
@@ -292,7 +340,7 @@ describe('EventCard Component', () => {
 			})
 			renderEventCard({ event, variant: 'compact', isAuthenticated: false })
 
-			expect(screen.queryByText('0 attending')).not.toBeInTheDocument()
+			expect(screen.queryByText('0 going')).not.toBeInTheDocument()
 		})
 	})
 

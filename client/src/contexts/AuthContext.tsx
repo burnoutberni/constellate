@@ -79,7 +79,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const checkAuth = useCallback(async () => {
 		try {
 			const { data: session } = await authClient.getSession()
-			const authenticatedUser = (session?.user as unknown as User) || null
+			const sessionUser = session?.user
+			const authenticatedUser: User | null = sessionUser ? {
+				id: sessionUser.id,
+				email: sessionUser.email,
+				name: sessionUser.name,
+				username: (sessionUser as { username?: string | null }).username, // Ideally auth-client returns this, but if not we assume it is there or extend type
+				image: sessionUser.image,
+				isRemote: (sessionUser as { isRemote?: boolean }).isRemote || false,
+			} : null
+
+			// Verify key fields
+			if (authenticatedUser && !authenticatedUser.id) {
+				throw new Error('User session missing ID')
+			}
+
 			setUser(authenticatedUser)
 		} catch (error) {
 			logger.error('Auth check failed:', error)

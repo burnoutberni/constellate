@@ -12,6 +12,7 @@ import { normalizeTimeZone } from './lib/timezone.js'
 import { randomBytes } from 'crypto'
 import { requireAuth } from './middleware/auth.js'
 import { buildEventFilter } from './lib/eventQueries.js'
+import { Prisma } from '@prisma/client'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -143,8 +144,8 @@ app.post('/subscriptions', async (c) => {
 			data: {
 				userId,
 				name,
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-				filters: (filters || {}) as any,
+				 
+				filters: (filters || {}) as Prisma.InputJsonValue,
 				token,
 			},
 		})

@@ -114,15 +114,10 @@ export function CalendarPage() {
 			// Invalidate the events list query to refetch data
 			// We use the exact same key params as the hook
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.events.list({
-					limit: 500,
-					rangeStart: dateRange.start.toISOString(),
-					rangeEnd: dateRange.end.toISOString(),
-					onlyMine: true,
-				})
+				queryKey: queryKeys.events.lists()
 			})
 		},
-		[queryClient, dateRange]
+		[queryClient]
 	)
 
 	const { isConnected } = useRealtime({

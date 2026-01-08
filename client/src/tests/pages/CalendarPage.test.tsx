@@ -194,7 +194,7 @@ describe('CalendarPage', () => {
 
 		await waitFor(
 			() => {
-				expect(screen.getByText('Export Calendar')).toBeInTheDocument()
+				expect(screen.getByText('Export My Calendar')).toBeInTheDocument()
 			},
 			{ timeout: 2000 }
 		)

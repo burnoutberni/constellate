@@ -74,9 +74,17 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
         context.setIsOpen(!context.isOpen)
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            context.setIsOpen(!context.isOpen)
+        }
+    }
+
     if (asChild && React.isValidElement(children)) {
-        return React.cloneElement(children as React.ReactElement<{ onClick?: React.MouseEventHandler; 'aria-expanded'?: boolean; 'aria-haspopup'?: boolean }>, {
+        return React.cloneElement(children as React.ReactElement<{ onClick?: React.MouseEventHandler; onKeyDown?: React.KeyboardEventHandler; 'aria-expanded'?: boolean; 'aria-haspopup'?: boolean }>, {
             onClick: handleClick,
+            onKeyDown: handleKeyDown,
             'aria-expanded': context.isOpen,
             'aria-haspopup': true,
         })
@@ -85,6 +93,7 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
     return (
         <button
             onClick={handleClick}
+            onKeyDown={handleKeyDown}
             aria-expanded={context.isOpen}
             aria-haspopup={true}
             type="button">
@@ -95,7 +104,77 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
 
 export function DropdownMenuContent({ className, align = 'center', children }: DropdownMenuContentProps) {
     const context = React.useContext(DropdownContext)
+    const contentRef = useRef<HTMLDivElement>(null)
+    const [focusedIndex, setFocusedIndex] = useState(-1)
+
     if (!context) { throw new Error('DropdownMenuContent must be used within a DropdownMenu') }
+
+    // Reset focused index when opening
+    useEffect(() => {
+        if (context.isOpen) {
+            // We can use a timeout to avoid synchronous update warning if absolutely needed,
+            // or better, rely on the fact that focusedIndex -1 is fine until interaction.
+            // However, to satisfy the linter and keep behavior:
+            const timer = setTimeout(() => setFocusedIndex(0), 0)
+            return () => clearTimeout(timer)
+        }
+    }, [context.isOpen])
+
+    // Handle keyboard navigation within menu
+    useEffect(() => {
+        if (!context.isOpen || !contentRef.current) { return }
+
+        const getMenuItems = () => {
+            return Array.from(contentRef.current?.querySelectorAll('[role="menuitem"]') || []) as HTMLElement[]
+        }
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const items = getMenuItems()
+            if (!items.length) { return }
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault()
+                    setFocusedIndex(prev => (prev + 1) % items.length)
+                    break
+                case 'ArrowUp':
+                    e.preventDefault()
+                    setFocusedIndex(prev => (prev - 1 + items.length) % items.length)
+                    break
+                case 'Home':
+                    e.preventDefault()
+                    setFocusedIndex(0)
+                    break
+                case 'End':
+                    e.preventDefault()
+                    setFocusedIndex(items.length - 1)
+                    break
+                case 'Enter':
+                case ' ':
+                    // Trigger click on focused item if input is active
+                    e.preventDefault()
+                    if (focusedIndex >= 0 && items[focusedIndex]) {
+                        items[focusedIndex].click()
+                    }
+                    break
+                default:
+                    break
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [context.isOpen, focusedIndex])
+
+    // Focus element when focusedIndex changes
+    useEffect(() => {
+        if (!context.isOpen || !contentRef.current) { return }
+        const items = Array.from(contentRef.current?.querySelectorAll('[role="menuitem"]') || []) as HTMLElement[]
+        if (focusedIndex >= 0 && items[focusedIndex]) {
+            items[focusedIndex].focus()
+        }
+    }, [focusedIndex, context.isOpen])
+
 
     if (!context.isOpen) { return null }
 
@@ -107,11 +186,14 @@ export function DropdownMenuContent({ className, align = 'center', children }: D
 
     return (
         <div
+            ref={contentRef}
             className={cn(
                 'absolute z-50 mt-2 min-w-[12rem] overflow-hidden rounded-xl border border-border-default bg-background-primary p-1 text-text-primary shadow-lg animate-in fade-in-80 zoom-in-95',
                 alignmentClasses[align],
                 className
-            )}>
+            )}
+            role="menu"
+        >
             {children}
         </div>
     )
@@ -122,28 +204,52 @@ export function DropdownMenuItem({ asChild, children, className, onClick }: Drop
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()
+        e.preventDefault() // Prevent default behavior
         onClick?.()
         context?.setIsOpen(false)
     }
 
+    // Also handle KeyDown locally if needed, but parent handles delegation mostly.
+    // However, for accessibility, we should enable standard keyboard interaction on the item itself if focused.
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+            onClick?.()
+            context?.setIsOpen(false)
+        }
+    }
+
     const baseClasses = cn(
-        'relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none transition-colors hover:bg-background-secondary focus:bg-background-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none transition-colors hover:bg-background-secondary focus:bg-background-secondary focus:outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className
     )
 
     if (asChild && React.isValidElement(children)) {
-        const child = children as React.ReactElement<{ className?: string; onClick?: (e: React.MouseEvent) => void }>
+        const child = children as React.ReactElement<{ className?: string; onClick?: (e: React.MouseEvent) => void; onKeyDown?: (e: React.KeyboardEvent) => void; role?: string; tabIndex?: number }>
         return React.cloneElement(child, {
             className: cn(baseClasses, child.props.className),
             onClick: (e: React.MouseEvent) => {
                 handleClick(e)
                 child.props.onClick?.(e)
-            }
+            },
+            onKeyDown: (e: React.KeyboardEvent) => {
+                handleKeyDown(e)
+                child.props.onKeyDown?.(e)
+            },
+            role: 'menuitem',
+            tabIndex: -1 // Manage focus via roving index manually or rely on focus() calls
         })
     }
 
     return (
-        <div className={baseClasses} onClick={handleClick}>
+        <div
+            className={baseClasses}
+            onClick={handleClick}
+            role="menuitem"
+            tabIndex={0} // Make focusable
+            onKeyDown={handleKeyDown}
+        >
             {children}
         </div>
     )
