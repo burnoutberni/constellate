@@ -53,10 +53,14 @@ export function getInitials(name?: string | null, username?: string | null): str
 		}
 
 		// Try to split on common separators (_, -, .)
-		const parts = cleanUsername.split(/[_\-.]/)
+		const parts = cleanUsername.split(/[_\-.]/).filter(Boolean)
 		if (parts.length >= 2) {
 			// Use first letter of first two parts
-			return (parts[0][0] + parts[1][0]).toUpperCase()
+			const first = parts[0]?.[0]
+			const second = parts[1]?.[0]
+			if (first && second) {
+				return (first + second).toUpperCase()
+			}
 		}
 
 		// Single part - use first two letters

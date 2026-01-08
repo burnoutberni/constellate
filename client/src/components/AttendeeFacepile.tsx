@@ -69,7 +69,6 @@ export function AttendeeFacepile({
                             style={{ zIndex: 30 - i }} // Stack: First on top
                         >
                             <Avatar
-                                key={a.user?.id || i}
                                 src={userData?.profileImage || undefined}
                                 alt={userData?.name || userData?.username || 'User'}
                                 fallback={getInitials(userData?.name, userData?.username || '?')}

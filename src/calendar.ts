@@ -144,7 +144,7 @@ app.post('/subscriptions', async (c) => {
 			data: {
 				userId,
 				name,
-				 
+
 				filters: (filters || {}) as Prisma.InputJsonValue,
 				token,
 			},

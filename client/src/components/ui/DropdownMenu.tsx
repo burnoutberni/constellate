@@ -204,7 +204,11 @@ export function DropdownMenuItem({ asChild, children, className, onClick }: Drop
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()
-        e.preventDefault() // Prevent default behavior
+        // Only prevent default if not a child (e.g. Link)
+        // If it is a child, we let the child handle the click (navigation)
+        if (!asChild) {
+            e.preventDefault()
+        }
         onClick?.()
         context?.setIsOpen(false)
     }

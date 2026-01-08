@@ -160,6 +160,7 @@ function transformEventForClient<
 
 	return {
 		...rest,
+		_count: (event as any)._count || { attendance: 0, likes: 0, comments: 0 },
 		originalEventId: sharedEvent?.id ?? null,
 		viewerStatus: (event as T & { viewerStatus?: string | null }).viewerStatus ?? viewerStatus, // Preserve existing if present
 	}
