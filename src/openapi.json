@@ -4226,6 +4226,100 @@
 				}
 			}
 		},
+		"/api/calendar/subscriptions": {
+			"post": {
+				"tags": ["Calendar"],
+				"summary": "Create a calendar subscription",
+				"description": "Creates a new calendar subscription with specified filters and returns a secure feed URL.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["name"],
+								"properties": {
+									"name": {
+										"type": "string",
+										"metadata": {
+											"description": "Name of the subscription"
+										}
+									},
+									"filters": {
+										"type": "object",
+										"metadata": {
+											"description": "JSON filters for the subscription (e.g., { \"onlyMine\": true })"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Subscription created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"id": {
+											"type": "string"
+										},
+										"name": {
+											"type": "string"
+										},
+										"token": {
+											"type": "string"
+										},
+										"feedUrl": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			}
+		},
+		"/api/calendar/feed/{filename}": {
+			"get": {
+				"tags": ["Calendar"],
+				"summary": "Get subscription feed",
+				"description": "Returns an iCal feed for a specific subscription token (embedded in filename).",
+				"parameters": [
+					{
+						"name": "filename",
+						"in": "path",
+						"required": true,
+						"description": "Filename containing the token (e.g., TOKEN.ics)",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "iCal file",
+						"content": {
+							"text/calendar": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Feed not found"
+					}
+				}
+			}
+		},
 		"/api/calendar/feed.ics": {
 			"get": {
 				"tags": ["Calendar"],

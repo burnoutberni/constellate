@@ -4,7 +4,12 @@ import {
 	fetchInstancePublicTimeline,
 	pollKnownActors,
 } from '../lib/instanceHelpers.js'
-import { cacheEventFromOutboxActivity } from '../lib/activitypubHelpers.js'
+import {
+	cacheEventFromOutboxActivity,
+	fetchActor,
+	cacheRemoteUser,
+} from '../lib/activitypubHelpers.js'
+import type { Person } from '../lib/activitypubSchemas.js'
 
 import { config } from '../config.js'
 
@@ -44,7 +49,7 @@ export function stopInstancePoller() {
 
 /**
  * Force a hard refresh of an instance
- * Resets pagination to start from the beginning
+ * Resets pagination to start from the beginning and refreshes user profiles
  */
 export async function refreshInstance(domain: string) {
 	console.log(`Force refreshing instance: ${domain}`)
@@ -60,11 +65,49 @@ export async function refreshInstance(domain: string) {
 		data: { lastPageUrl: null },
 	})
 
+	// Refresh all remote users from this instance
+	await refreshInstanceUsers(domain)
+
 	// Process immediately
 	await processInstance({
 		...instance,
 		lastPageUrl: null,
 	})
+}
+
+/**
+ * Refresh profile data for all users from a specific instance
+ */
+async function refreshInstanceUsers(domain: string) {
+	// Find all remote users from this instance
+
+	// Find all remote users from this instance
+	const users = await prisma.user.findMany({
+		where: {
+			isRemote: true,
+			externalActorUrl: {
+				contains: domain,
+			},
+		},
+	})
+
+	console.log(`  Refreshing ${users.length} users from ${domain}...`)
+
+	// Refresh each user's profile
+	for (const user of users) {
+		if (!user.externalActorUrl) continue
+
+		try {
+			const actor = await fetchActor(user.externalActorUrl)
+			if (actor) {
+				await cacheRemoteUser(actor as unknown as Person)
+			}
+		} catch (error) {
+			console.warn(`Failed to refresh user ${user.username}:`, error)
+		}
+	}
+
+	console.log(`  ✅ Refreshed ${users.length} user profiles from ${domain}`)
 }
 
 /**

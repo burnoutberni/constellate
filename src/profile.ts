@@ -53,6 +53,36 @@ const ProfileUpdateSchema = z.object({
 	theme: z.enum(['LIGHT', 'DARK']).nullable().optional(),
 })
 
+// Get current user's attendance (list of event IDs)
+app.get('/user/attendance', async (c) => {
+	try {
+		const userId = requireAuth(c)
+
+		const attendance = await prisma.eventAttendance.findMany({
+			where: {
+				userId,
+				status: {
+					in: ['attending', 'maybe'],
+				},
+			},
+			select: {
+				eventId: true,
+				status: true,
+			},
+		})
+
+		return c.json({
+			attendance: attendance.map((a) => ({
+				eventId: a.eventId,
+				status: a.status,
+			})),
+		})
+	} catch (error) {
+		console.error('Error fetching user attendance:', error)
+		return c.json({ error: 'Internal server error' }, 500)
+	}
+})
+
 // Get current user's own profile (includes admin status)
 // This must come BEFORE /users/:username/profile to avoid route conflicts
 app.get('/users/me/profile', async (c) => {

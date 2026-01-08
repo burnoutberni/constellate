@@ -1,6 +1,7 @@
 export const queryKeys = {
     events: {
-        list: (limit: number) => ['events', 'list', limit] as const,
+        list: (options: number | { limit?: number; rangeStart?: string; rangeEnd?: string; onlyMine?: boolean }) =>
+            ['events', 'list', options] as const,
         detail: (username: string | undefined | null, eventId: string) =>
             ['events', 'detail', username, eventId] as const,
         lists: () => ['events', 'list'] as const,

@@ -1,19 +1,44 @@
 
 import { Avatar } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
+import { getInitials } from '@/lib/utils'
 import type { Event } from '@/types'
 
-export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Event['attendance'], counts?: { attendance?: number } }) {
+export function AttendeeFacepile({
+    attendance = [],
+    counts: _counts,
+    alwaysShowCounts = false
+}: {
+    attendance?: Event['attendance']
+    counts?: { attendance?: number }
+    alwaysShowCounts?: boolean
+}) {
+    const { user: currentUser } = useAuth()
+
     // Filter logic to ensure user and id exist at runtime
     type AttendanceItem = NonNullable<Event['attendance']>[number]
     const hasUser = (a: AttendanceItem) => Boolean(a.user?.id)
 
+    // Helper to get user data - use current user data if it's the viewer's attendance
+    const getUserData = (attendanceItem: AttendanceItem) => {
+        if (currentUser && attendanceItem.user?.id === currentUser.id) {
+            // Use fresh data from current user context
+            return {
+                ...attendanceItem.user,
+                name: currentUser.name,
+                username: currentUser.username,
+                profileImage: currentUser.image,
+            }
+        }
+        return attendanceItem.user
+    }
+
     const going = attendance.filter(a => a.status === 'attending' && hasUser(a))
     const maybe = attendance.filter(a => a.status === 'maybe' && hasUser(a))
 
-
-
-    const goingCount = counts?.attendance ?? going.length
-    const maybeCount = maybe.length // Might be partial if not fully loaded, but best effort.
+    // Use actual filtered counts - don't use counts.attendance as it includes both going AND maybe
+    const goingCount = going.length
+    const maybeCount = maybe.length
 
     // Limit faces
     const MAX_FACES = 5
@@ -35,44 +60,53 @@ export function AttendeeFacepile({ attendance = [], counts }: { attendance?: Eve
             <div className="flex items-center -space-x-2 transition-all duration-500 ease-out group-hover:space-x-1 group-hover:ml-1">
 
                 {/* Going Group */}
-                {displayedGoing.map((a, i) => (
-                    <div
-                        key={a.user.id}
-                        className="relative transition-transform duration-300 group-hover:scale-110 z-20"
-                        style={{ zIndex: 30 - i }} // Stack: First on top
-                    >
-                        <Avatar
-                            src={a.user?.profileImage || undefined}
-                            fallback={a.user?.username?.[0] || '?'}
-                            size="xs" // "Small dot sized" -> xs (w-6 h-6)
-                            bordered
-                            className="ring-background-primary dark:ring-neutral-900 ring-2"
-                        />
-                    </div>
-                ))}
+                {displayedGoing.map((a, i) => {
+                    const userData = getUserData(a)
+                    return (
+                        <div
+                            key={a.user?.id || `going-${i}`}
+                            className="relative transition-transform duration-300 group-hover:scale-110 z-20"
+                            style={{ zIndex: 30 - i }} // Stack: First on top
+                        >
+                            <Avatar
+                                key={a.user?.id || i}
+                                src={userData?.profileImage || undefined}
+                                alt={userData?.name || userData?.username || 'User'}
+                                fallback={getInitials(userData?.name || userData?.username || '?')}
+                                className="border-2 border-background-primary w-8 h-8"
+                            />
+                        </div>
+                    )
+                })}
 
                 {/* Maybe Group */}
-                {displayedMaybe.map((a, i) => (
-                    <div
-                        key={a.user.id}
-                        className="relative transition-all duration-300 group-hover:scale-105 z-10"
-                        style={{ zIndex: 10 - i }}
-                    >
-                        <Avatar
-                            src={a.user?.profileImage || undefined}
-                            fallback={a.user?.username?.[0] || '?'}
-                            size="xs"
-                            bordered
-                            className="grayscale opacity-60 ring-background-primary dark:ring-neutral-900 ring-2 group-hover:grayscale-0 group-hover:opacity-100"
-                        />
-                    </div>
-                ))}
+                {displayedMaybe.map((a, i) => {
+                    const userData = getUserData(a)
+                    return (
+                        <div
+                            key={a.user?.id || `maybe-${i}`}
+                            className="relative transition-all duration-300 group-hover:scale-105 z-10"
+                            style={{ zIndex: 10 - i }}
+                        >
+                            <Avatar
+                                src={userData?.profileImage || undefined}
+                                fallback={getInitials(userData?.name, userData?.username)}
+                                size="xs"
+                                bordered
+                                className="grayscale opacity-60 ring-background-primary dark:ring-neutral-900 ring-2 group-hover:grayscale-0 group-hover:opacity-100"
+                            />
+                        </div>
+                    )
+                })}
 
 
             </div>
 
-            {/* Text Summary - Fades in/slides on hover */}
-            <div className="flex flex-col justify-center text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 delay-75 pointer-events-none whitespace-nowrap">
+            {/* Text Summary - Always visible if alwaysShowCounts, otherwise fades in on hover */}
+            <div className={`flex flex-col justify-center text-xs whitespace-nowrap transition-all duration-300 ${alwaysShowCounts
+                ? 'opacity-100 translate-x-0'
+                : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 delay-75 pointer-events-none'
+                }`}>
                 {goingCount > 0 && (
                     <span className="font-medium text-text-primary">
                         {goingCount} going

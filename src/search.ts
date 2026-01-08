@@ -10,6 +10,7 @@ import { prisma } from './lib/prisma.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
+import { buildEventInclude, hydrateEventUsers, transformEventsForClient } from './events.js'
 
 // Geographic constants for nearby search
 // KM_PER_DEGREE is approximately 111 km per degree of latitude
@@ -338,25 +339,7 @@ app.get('/', async (c) => {
 		const [events, total] = await Promise.all([
 			prisma.event.findMany({
 				where: combinedWhere,
-				include: {
-					user: {
-						select: {
-							id: true,
-							username: true,
-							name: true,
-							displayColor: true,
-							profileImage: true,
-						},
-					},
-					tags: true,
-					_count: {
-						select: {
-							attendance: true,
-							likes: true,
-							comments: true,
-						},
-					},
-				},
+				include: buildEventInclude(userId),
 				orderBy,
 				skip,
 				take: limit,
@@ -364,8 +347,11 @@ app.get('/', async (c) => {
 			prisma.event.count({ where: combinedWhere }),
 		])
 
+		const eventsWithUsers = await hydrateEventUsers(events)
+		const eventsForClient = transformEventsForClient(eventsWithUsers, userId)
+
 		return c.json({
-			events,
+			events: eventsForClient,
 			pagination: {
 				page,
 				limit,
@@ -428,35 +414,15 @@ app.get('/upcoming', async (c) => {
 					visibilityFilter,
 				],
 			},
-			include: {
-				user: {
-					select: {
-						id: true,
-						username: true,
-						name: true,
-						displayColor: true,
-						profileImage: true,
-					},
-				},
-				_count: {
-					select: {
-						attendance: true,
-						likes: true,
-						comments: true,
-					},
-				},
-			},
+			include: buildEventInclude(userId),
 			orderBy: { startTime: 'asc' },
 			take: limit,
 		})
 
-		// Ensure _count is explicitly included in response
-		const eventsWithCounts = events.map((event) => ({
-			...event,
-			_count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
-		}))
+		const eventsWithUsers = await hydrateEventUsers(events)
+		const eventsForClient = transformEventsForClient(eventsWithUsers, userId)
 
-		return c.json({ events: eventsWithCounts })
+		return c.json({ events: eventsForClient })
 	} catch (error) {
 		console.error('Error getting upcoming events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
@@ -494,36 +460,15 @@ app.get('/popular', async (c) => {
 					visibilityFilter,
 				],
 			},
-			include: {
-				user: {
-					select: {
-						id: true,
-						username: true,
-						name: true,
-						displayColor: true,
-						profileImage: true,
-					},
-				},
-				tags: true,
-				_count: {
-					select: {
-						attendance: true,
-						likes: true,
-						comments: true,
-					},
-				},
-			},
+			include: buildEventInclude(userId),
 			orderBy: { popularityScore: 'desc' },
 			take: limit,
 		})
 
-		// Ensure _count is explicitly included in response
-		const eventsWithCounts = events.map((event) => ({
-			...event,
-			_count: event._count ?? { attendance: 0, likes: 0, comments: 0 },
-		}))
+		const eventsWithUsers = await hydrateEventUsers(events)
+		const eventsForClient = transformEventsForClient(eventsWithUsers, userId)
 
-		return c.json({ events: eventsWithCounts })
+		return c.json({ events: eventsForClient })
 	} catch (error) {
 		console.error('Error getting popular events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
@@ -587,25 +532,7 @@ app.get('/nearby', async (c) => {
 			visibilityFilter = { visibility: 'PUBLIC' }
 		}
 
-		const baseInclude = {
-			user: {
-				select: {
-					id: true,
-					username: true,
-					name: true,
-					displayColor: true,
-					profileImage: true,
-				},
-			},
-			tags: true,
-			_count: {
-				select: {
-					attendance: true,
-					likes: true,
-					comments: true,
-				},
-			},
-		}
+		const baseInclude = buildEventInclude(userId)
 
 		// Fetch more events than requested to account for Haversine filtering
 		// Use a multiplier that scales better for smaller limits
@@ -731,7 +658,7 @@ app.get('/nearby', async (c) => {
 				longitude: params.longitude,
 				radiusKm,
 			},
-			events: results,
+			events: transformEventsForClient(await hydrateEventUsers(results), userId),
 		})
 	} catch (error) {
 		if (error instanceof ZodError) {

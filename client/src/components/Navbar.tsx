@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
-import { getNavLinks, shouldShowBreadcrumbs } from '@/lib/navigation'
+import { getMainNavLinks, shouldShowBreadcrumbs } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores'
 import type { UserProfile } from '@/types'
@@ -22,18 +22,19 @@ type AuthenticatedUser = {
 	id: string
 	username?: string | null
 	image?: string | null
+	isRemote: boolean
 }
 
 
 export function Navbar({
-	isConnected,
+	isConnected: _isConnected,
 	user,
 	onLogout,
 	breadcrumbs,
 }: {
 	isConnected?: boolean
 	user?: AuthenticatedUser | null
-	onLogout?: () => void
+	onLogout?: () => void | Promise<void>
 	breadcrumbs?: BreadcrumbItem[]
 }) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -92,9 +93,9 @@ export function Navbar({
 		setMobileMenuOpen(false)
 	}, [])
 
-	const navLinks = getNavLinks(Boolean(user))
+	const mainNavLinks = getMainNavLinks(Boolean(user))
 
-	const topLevelPaths = ['/', ...navLinks.map((link) => link.to)]
+	const topLevelPaths = ['/', ...mainNavLinks.map((link) => link.to)]
 	const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname, topLevelPaths)
 
 	return (
@@ -103,7 +104,7 @@ export function Navbar({
 				className="bg-background-primary/80 border-b border-border-default sticky top-0 z-30 backdrop-blur-md transition-all duration-200"
 				aria-label="Main navigation">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex items-center justify-between h-16 gap-4">
+					<div className="relative flex items-center justify-between h-16 gap-4">
 						{/* Left: Logo & Mobile Menu */}
 						<div className="flex items-center gap-3 lg:gap-8 flex-shrink-0">
 							<Button
@@ -127,7 +128,7 @@ export function Navbar({
 							<nav
 								className="hidden md:flex items-center gap-1"
 								aria-label="Desktop navigation">
-								{navLinks.map((link) => {
+								{mainNavLinks.map((link) => {
 									const isActive = location.pathname === link.to
 									return (
 										<Link
@@ -147,9 +148,11 @@ export function Navbar({
 							</nav>
 						</div>
 
-						{/* Center: Search Bar (Desktop) */}
-						<div className="hidden lg:block flex-1 max-w-md">
-							<SearchBar />
+						{/* Center: Search Bar (Desktop) - Absolute centered to ensure true centering */}
+						<div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md pointer-events-none">
+							<div className="w-full pointer-events-auto">
+								<SearchBar />
+							</div>
 						</div>
 
 						{/* Right: Actions */}
@@ -164,15 +167,7 @@ export function Navbar({
 								<SearchIcon className="w-5 h-5" />
 							</Button>
 
-							{/* Connection Status */}
-							{isConnected && (
-								<div
-									className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-full bg-success-50 text-success-700 dark:bg-success-900/20 dark:text-success-400 border border-success-200 dark:border-success-900/50 text-xs font-medium"
-									aria-label="Live connection status">
-									<div className="w-1.5 h-1.5 bg-success-500 rounded-full animate-pulse" />
-									<span>Live</span>
-								</div>
-							)}
+
 
 							{user ? (
 								<div className="flex items-center gap-2">

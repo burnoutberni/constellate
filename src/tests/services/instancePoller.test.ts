@@ -24,6 +24,9 @@ vi.mock('../../lib/prisma.js', () => ({
 			update: vi.fn(),
 			findUnique: vi.fn(),
 		},
+		user: {
+			findMany: vi.fn(),
+		},
 	},
 }))
 
@@ -35,12 +38,15 @@ vi.mock('../../lib/instanceHelpers.js', () => ({
 
 vi.mock('../../lib/activitypubHelpers.js', () => ({
 	cacheEventFromOutboxActivity: vi.fn(),
+	fetchActor: vi.fn(),
+	cacheRemoteUser: vi.fn(),
 }))
 
 describe('Instance Poller Service', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		vi.useFakeTimers()
+		vi.mocked(prisma.user.findMany).mockResolvedValue([])
 	})
 
 	afterEach(() => {

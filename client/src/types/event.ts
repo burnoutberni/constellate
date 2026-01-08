@@ -53,7 +53,7 @@ export interface Event {
 	startTime: string
 	endTime?: string | null
 	timezone: string
-	user?: EventUser
+	user?: EventUser | null
 	userId?: string
 	attributedTo?: string | null
 	organizers?: Array<{
@@ -91,7 +91,7 @@ export interface Event {
 	viewerStatus?: 'attending' | 'maybe' | 'not_attending' | null
 	attendance?: Array<{
 		status: string
-		user: EventUser
+		user: EventUser | null
 	}>
 }
 

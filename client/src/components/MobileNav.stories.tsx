@@ -145,12 +145,13 @@ const meta = {
 	tags: ['autodocs'],
 	args: {
 		isOpen: false,
-		onClose: () => {},
+		onClose: () => { },
 		user: {
 			id: 'user1',
 			name: 'John Doe',
 			email: 'john@example.com',
 			username: 'johndoe',
+			isRemote: false,
 		},
 	},
 	argTypes: {
@@ -232,6 +233,7 @@ const WithAdminWrapperInner = () => {
 		name: 'John Doe',
 		email: 'john@example.com',
 		username: 'johndoe',
+		isRemote: false,
 	}
 
 	return (

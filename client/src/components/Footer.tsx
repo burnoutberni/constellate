@@ -17,6 +17,7 @@ const footerSections: FooterSection[] = [
 		title: 'Platform',
 		links: [
 			{ to: '/discover', label: 'Discover' },
+			{ to: '/instances', label: 'Instances' },
 			{ to: '/about', label: 'About' },
 			{ to: '/moderation', label: 'Moderation' },
 		],

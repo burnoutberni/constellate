@@ -12,6 +12,7 @@ interface User {
 	name?: string
 	username?: string | null
 	image?: string | null
+	isRemote: boolean
 }
 
 interface TosStatus {
@@ -78,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const checkAuth = useCallback(async () => {
 		try {
 			const { data: session } = await authClient.getSession()
-			const authenticatedUser = session?.user || null
+			const authenticatedUser = (session?.user as unknown as User) || null
 			setUser(authenticatedUser)
 		} catch (error) {
 			logger.error('Auth check failed:', error)

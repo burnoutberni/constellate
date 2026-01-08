@@ -34,6 +34,7 @@ import {
 } from './lib/trending.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { listEventRemindersForUser } from './services/reminders.js'
+import { buildEventFilter } from './lib/eventQueries.js'
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -70,7 +71,7 @@ const eventUserSummarySelect = {
 	isRemote: true,
 } as const
 
-const eventBaseInclude = {
+export const eventBaseInclude = {
 	user: {
 		select: eventUserSummarySelect,
 	},
@@ -94,6 +95,9 @@ const authenticatedEventExtras = {
 		select: {
 			status: true,
 			userId: true,
+			user: {
+				select: eventUserSummarySelect,
+			},
 		},
 	},
 	likes: {
@@ -103,7 +107,7 @@ const authenticatedEventExtras = {
 	},
 } as const
 
-function buildEventInclude(userId?: string) {
+export function buildEventInclude(userId?: string) {
 	if (userId) {
 		return {
 			...eventBaseInclude,
@@ -113,7 +117,7 @@ function buildEventInclude(userId?: string) {
 	return eventBaseInclude
 }
 
-async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
+export async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
 	events: T[]
 ): Promise<T[]> {
 	return Promise.all(
@@ -133,20 +137,46 @@ async function hydrateEventUsers<T extends { user: unknown; attributedTo: string
 }
 
 // Transform sharedEvent to originalEventId for client compatibility
-function transformEventForClient<T extends { sharedEvent?: { id: string } | null }>(
-	event: T
-): Omit<T, 'sharedEvent'> & { originalEventId?: string | null } {
+// Also derives viewerStatus from attendance list if available
+function transformEventForClient<
+	T extends {
+		sharedEvent?: { id: string } | null
+		attendance?: Array<{ userId: string; status: string }>
+	},
+>(
+	event: T,
+	viewerId?: string
+): Omit<T, 'sharedEvent'> & { originalEventId?: string | null; viewerStatus?: string | null } {
 	const { sharedEvent, ...rest } = event
+
+	// Derive viewerStatus from attendance if viewerId is provided
+	let viewerStatus: string | null = null
+	if (viewerId && event.attendance) {
+		const myAttendance = event.attendance.find((a) => a.userId === viewerId)
+		if (myAttendance) {
+			viewerStatus = myAttendance.status
+		}
+	}
+
 	return {
 		...rest,
 		originalEventId: sharedEvent?.id ?? null,
+		viewerStatus: (event as T & { viewerStatus?: string | null }).viewerStatus ?? viewerStatus, // Preserve existing if present
 	}
 }
 
-function transformEventsForClient<T extends { sharedEvent?: { id: string } | null }>(
-	events: T[]
-): Array<Omit<T, 'sharedEvent'> & { originalEventId?: string | null }> {
-	return events.map(transformEventForClient)
+export function transformEventsForClient<
+	T extends {
+		sharedEvent?: { id: string } | null
+		attendance?: Array<{ userId: string; status: string }>
+	},
+>(
+	events: T[],
+	viewerId?: string
+): Array<
+	Omit<T, 'sharedEvent'> & { originalEventId?: string | null; viewerStatus?: string | null }
+> {
+	return events.map((e) => transformEventForClient(e, viewerId))
 }
 
 function buildCountMap(records: Array<{ eventId: string }>) {
@@ -530,6 +560,15 @@ app.post('/', moderateRateLimit, async (c) => {
 			},
 		})
 
+		// Automatically add creator as attending
+		await prisma.eventAttendance.create({
+			data: {
+				eventId: event.id,
+				userId,
+				status: 'attending',
+			},
+		})
+
 		// Build and deliver Create activity
 		const activity = buildCreateEventActivity(event, userId)
 
@@ -578,6 +617,9 @@ app.get('/', async (c) => {
 			}
 		}
 
+		// Handle "onlyMine" filter
+		const onlyMine = c.req.query('onlyMine') === 'true'
+
 		let rangeFilter: Prisma.EventWhereInput | undefined
 		if (rangeStartDate && rangeEndDate) {
 			rangeFilter = {
@@ -613,8 +655,16 @@ app.get('/', async (c) => {
 			? buildVisibilityWhere({ userId, followedActorUrls })
 			: { visibility: 'PUBLIC' as const }
 
-		// Combine visibility, sharedEventId, and range filters
-		const filters: Prisma.EventWhereInput[] = [visibilityWhere, { sharedEventId: null }]
+		// Apply "onlyMine" filter if requested
+		const onlyMineFilter = buildEventFilter({ onlyMine }, userId)
+
+		// Combine filters
+		const filters: Prisma.EventWhereInput[] = [
+			visibilityWhere,
+			{ sharedEventId: null },
+			onlyMineFilter, // Add this
+		]
+
 		if (rangeFilter) {
 			filters.push(rangeFilter)
 		} else if (!rangeStartDate && !rangeEndDate) {
@@ -642,7 +692,7 @@ app.get('/', async (c) => {
 		})
 
 		const eventsWithUsers = await hydrateEventUsers(events)
-		const eventsForClient = transformEventsForClient(eventsWithUsers)
+		const eventsForClient = transformEventsForClient(eventsWithUsers, userId)
 
 		const total = await prisma.event.count({ where })
 

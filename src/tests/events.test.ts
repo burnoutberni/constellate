@@ -3182,3 +3182,115 @@ describe('Events API', () => {
 		vi.restoreAllMocks()
 	})
 })
+
+// OnlyMine filter tests
+
+describe('GET /events with onlyMine filter', () => {
+	let testUser: any
+	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
+
+	beforeEach(async () => {
+		// Clean up
+		await prisma.eventTag.deleteMany({})
+		await prisma.eventAttendance.deleteMany({})
+		await prisma.event.deleteMany({})
+		await prisma.user.deleteMany({})
+
+		testUser = await prisma.user.create({
+			data: {
+				username: 'alice_om',
+				email: 'alice_om@test.com',
+				name: 'Alice OnlyMine',
+				isRemote: false,
+			},
+		})
+
+		// Create a public event by another user
+		const otherUser = await prisma.user.create({
+			data: { username: 'bob_om', email: 'bob_om@test.com', isRemote: false },
+		})
+		await prisma.event.create({
+			data: {
+				title: 'Public Event',
+				startTime: new Date(Date.now() + 86400000),
+				userId: otherUser.id,
+				attributedTo: `${baseUrl}/users/${otherUser.username}`,
+				visibility: 'PUBLIC',
+			},
+		})
+	})
+
+	it('returns empty list when unauthenticated even if public events exist', async () => {
+		// Mock unauthenticated session
+		const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue(null)
+
+		const res = await app.request('/api/events?onlyMine=true')
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as any
+
+		// Should be empty because no user is logged in to match "Mine"
+		expect(body.events).toHaveLength(0)
+
+		sessionSpy.mockRestore()
+	})
+
+	it('returns user events when authenticated', async () => {
+		// Mock authenticated session
+		const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+			user: testUser,
+			session: { id: 'sess', userId: testUser.id, expiresAt: new Date() },
+		} as any)
+
+		// Create an event for testUser
+		const myEvent = await prisma.event.create({
+			data: {
+				title: 'My Event',
+				startTime: new Date(Date.now() + 86400000),
+				userId: testUser.id,
+				attributedTo: `${baseUrl}/users/${testUser.username}`,
+				visibility: 'PUBLIC',
+			},
+		})
+
+		const res = await app.request('/api/events?onlyMine=true')
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as any
+
+		expect(body.events).toHaveLength(1)
+		expect(body.events[0].id).toBe(myEvent.id)
+
+		sessionSpy.mockRestore()
+	})
+
+	it('DOES NOT return unrelated public events when onlyMine=true and authenticated', async () => {
+		// Mock authenticated session
+		const sessionSpy = vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+			user: testUser,
+			session: { id: 'sess', userId: testUser.id, expiresAt: new Date() },
+		} as any)
+
+		// Create a public event by another user (should NOT be seen)
+		const stranger = await prisma.user.create({
+			data: { username: 'stranger', email: 'stranger@test.com', isRemote: false },
+		})
+		const publicEvent = await prisma.event.create({
+			data: {
+				title: 'Stranger Event',
+				startTime: new Date(Date.now() + 86400000),
+				userId: stranger.id,
+				attributedTo: `${baseUrl}/users/${stranger.username}`,
+				visibility: 'PUBLIC',
+			},
+		})
+
+		const res = await app.request('/api/events?onlyMine=true')
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as any
+
+		// If the bug exists, this might fail (length might be > 0 if it returns public events)
+		const found = body.events.find((e: any) => e.id === publicEvent.id)
+		expect(found).toBeUndefined()
+
+		sessionSpy.mockRestore()
+	})
+})

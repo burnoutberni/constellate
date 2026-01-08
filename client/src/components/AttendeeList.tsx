@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { getInitials } from '@/lib/utils'
+
 import { Avatar, Badge, Button } from './ui'
 
 export interface Attendee {
@@ -84,7 +86,7 @@ export function AttendeeList({
 										<Avatar
 											src={a.user.profileImage || undefined}
 											alt={a.user.name || a.user.username}
-											fallback={(a.user.name || a.user.username)[0]}
+											fallback={getInitials(a.user.name, a.user.username)}
 											size="sm"
 										/>
 										<span className="text-sm font-medium text-text-primary">
@@ -106,9 +108,9 @@ export function AttendeeList({
 								{(showAll
 									? maybe
 									: maybe.slice(
-											0,
-											Math.max(1, initialDisplayCount - attending.length)
-										)
+										0,
+										Math.max(1, initialDisplayCount - attending.length)
+									)
 								).map((a) => (
 									<Link
 										key={a.user.id}
@@ -118,7 +120,7 @@ export function AttendeeList({
 										<Avatar
 											src={a.user.profileImage || undefined}
 											alt={a.user.name || a.user.username}
-											fallback={(a.user.name || a.user.username)[0]}
+											fallback={getInitials(a.user.name, a.user.username)}
 											size="sm"
 										/>
 										<span className="text-sm font-medium text-text-secondary">

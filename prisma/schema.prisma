@@ -63,21 +63,22 @@ model User {
 
   // Relations
   events                 Event[]
-  following              Following[]       @relation("UserFollowing")
-  followers              Follower[]        @relation("UserFollowers")
+  following              Following[]            @relation("UserFollowing")
+  followers              Follower[]             @relation("UserFollowers")
   eventAttendance        EventAttendance[]
   eventLikes             EventLike[]
   comments               Comment[]
-  notifications          Notification[]    @relation("NotificationRecipient")
-  triggeredNotifications Notification[]    @relation("NotificationActor")
+  notifications          Notification[]         @relation("NotificationRecipient")
+  triggeredNotifications Notification[]         @relation("NotificationActor")
   mentionsReceived       CommentMention[]
   inboxItems             InboxItem[]
-  blockedUsers           BlockedUser[]     @relation("BlockingUser")
-  blockedBy              BlockedUser[]     @relation("BlockedUser")
-  reports                Report[]          @relation("Reporter")
-  reportedIn             Report[]          @relation("ReportedUser")
+  blockedUsers           BlockedUser[]          @relation("BlockingUser")
+  blockedBy              BlockedUser[]          @relation("BlockedUser")
+  reports                Report[]               @relation("Reporter")
+  reportedIn             Report[]               @relation("ReportedUser")
   eventTemplates         EventTemplate[]
   reminders              EventReminder[]
+  calendarSubscriptions  CalendarSubscription[]
 
   // Auth
   sessions        Session[]
@@ -602,6 +603,33 @@ model EventReminder {
   @@index([userId])
   @@index([eventId])
   @@index([status, remindAt])
+}
+
+// Calendar subscriptions for secure iCal feeds
+model CalendarSubscription {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Secure token for the feed URL (randomly generated)
+  token String @unique
+
+  // Owner
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  name String // e.g. "My Events", "Community Events"
+
+  // Filtering logic stored as JSON
+  // e.g. { "onlyMine": true } or { "tags": ["concert"] }
+  filters Json
+
+  expiresAt      DateTime?
+  lastAccessedAt DateTime?
+
+  @@index([userId])
+  @@index([token])
 }
 
 // Federated instances tracking

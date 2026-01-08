@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import { getInitials } from '@/lib/utils'
 import type { CommentWithMentions } from '@/types'
 
 import { ReportButton } from './ReportButton'
@@ -78,7 +79,7 @@ export function CommentItem({
 			<Avatar
 				src={comment.author.profileImage || undefined}
 				alt={comment.author.name || comment.author.username}
-				fallback={comment.author.name?.[0] || comment.author.username[0]}
+				fallback={getInitials(comment.author.name, comment.author.username)}
 				size="sm"
 				className="flex-shrink-0"
 			/>

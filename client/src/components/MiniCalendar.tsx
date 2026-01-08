@@ -12,7 +12,7 @@ interface MiniCalendarProps {
 }
 
 export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) {
-    const { data } = useEvents(100)
+    const { data } = useEvents({ limit: 100 })
     const events = useMemo(() => data?.events || [], [data?.events])
 
     const monthRange = useMemo(() => {
@@ -163,19 +163,16 @@ export function MiniCalendar({ selectedDate, onDateSelect }: MiniCalendarProps) 
                             onClick={() => handleDayClick(day)}
                             variant="ghost"
                             size="sm"
-                            className={`aspect-square text-xs rounded hover:bg-background-secondary transition-colors relative ${
-                                isToday ? 'ring-1 ring-primary-500 font-semibold' : ''
-                            } ${
-                                isSelected
+                            className={`aspect-square text-xs rounded hover:bg-background-secondary transition-colors relative ${isToday ? 'ring-1 ring-primary-500 font-semibold' : ''
+                                } ${isSelected
                                     ? 'bg-primary-600 text-white hover:bg-primary-700'
                                     : 'text-text-primary'
-                            }`}>
+                                }`}>
                             {day}
                             {dayEvents.length > 0 && (
                                 <div
-                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                                        isSelected ? 'bg-white dark:bg-primary-200' : 'bg-primary-500 dark:bg-primary-400'
-                                    }`}
+                                    className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white dark:bg-primary-200' : 'bg-primary-500 dark:bg-primary-400'
+                                        }`}
                                 />
                             )}
                         </Button>
