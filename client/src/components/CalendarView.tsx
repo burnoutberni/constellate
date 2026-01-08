@@ -164,19 +164,24 @@ function MonthView({
 		return { daysInMonth, startingDayOfWeek, year, month }
 	}, [currentDate])
 
+	// Bolt: Optimized from O(Days * Events) to O(Events)
 	const eventsByDay = useMemo(() => {
 		const map = new Map<number, Event[]>()
-		const { year, month, daysInMonth } = monthMetadata
+		const { year, month } = monthMetadata
 
-		for (let day = 1; day <= daysInMonth; day++) {
-			const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-			const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
-
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= dayStart && eventDate <= dayEnd
-			})
-			map.set(day, filtered)
+		for (const event of events) {
+			const d = new Date(event.startTime)
+			// Check if event is in the current month view
+			if (d.getFullYear() === year && d.getMonth() === month) {
+				const day = d.getDate()
+				if (!map.has(day)) {
+					map.set(day, [])
+				}
+				const dayEvents = map.get(day)
+				if (dayEvents) {
+					dayEvents.push(event)
+				}
+			}
 		}
 		return map
 	}, [events, monthMetadata])
@@ -352,40 +357,41 @@ function WeekView({
 
 	const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
+	// Bolt: Optimized from O(Days * Hours * Events) to O(Events)
 	const eventsByDayAndHour = useMemo(() => {
 		const map = new Map<string, Event[]>()
 
+		// Create a lookup map for local date string -> day object (for ISO string key generation)
+		const dayLookup = new Map<string, Date>()
 		for (const day of weekDays) {
-			for (const hour of hours) {
-				const key = `${day.toISOString()}-${hour}`
-				const hourStart = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					0,
-					0,
-					0
-				)
-				const hourEnd = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					59,
-					59,
-					999
-				)
+			// Key based on local YYYY-MM-DD
+			const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
+			dayLookup.set(key, day)
+		}
 
-				const filtered = events.filter((event) => {
-					const eventDate = new Date(event.startTime)
-					return eventDate >= hourStart && eventDate <= hourEnd
-				})
-				map.set(key, filtered)
+		for (const event of events) {
+			const d = new Date(event.startTime)
+			const hour = d.getHours()
+
+			// Filter by hour range (mimics original behavior)
+			if (hour < 7 || hour > 19) {continue}
+
+			const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+			const day = dayLookup.get(dayKey)
+
+			if (day) {
+				const key = `${day.toISOString()}-${hour}`
+				if (!map.has(key)) {
+					map.set(key, [])
+				}
+				const slotEvents = map.get(key)
+				if (slotEvents) {
+					slotEvents.push(event)
+				}
 			}
 		}
 		return map
-	}, [events, weekDays, hours])
+	}, [events, weekDays])
 
 	const today = new Date()
 
@@ -515,37 +521,34 @@ function DayView({
 
 	const hours = useMemo(() => Array.from({ length: 13 }, (_, i) => i + 7), []) // 7 AM to 7 PM
 
+	// Bolt: Optimized from O(Hours * Events) to O(Events)
 	const eventsByHour = useMemo(() => {
 		const map = new Map<number, Event[]>()
+		const year = currentDate.getFullYear()
+		const month = currentDate.getMonth()
+		const date = currentDate.getDate()
 
-		for (const hour of hours) {
-			const hourStart = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				0,
-				0,
-				0
-			)
-			const hourEnd = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				59,
-				59,
-				999
-			)
-
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= hourStart && eventDate <= hourEnd
-			})
-			map.set(hour, filtered)
+		for (const event of events) {
+			const d = new Date(event.startTime)
+			if (
+				d.getFullYear() === year &&
+				d.getMonth() === month &&
+				d.getDate() === date
+			) {
+				const hour = d.getHours()
+				if (hour >= 7 && hour <= 19) {
+					if (!map.has(hour)) {
+						map.set(hour, [])
+					}
+					const hourEvents = map.get(hour)
+					if (hourEvents) {
+						hourEvents.push(event)
+					}
+				}
+			}
 		}
 		return map
-	}, [events, currentDate, hours])
+	}, [events, currentDate])
 
 	const today = new Date()
 	const isToday = currentDate.toDateString() === today.toDateString()
