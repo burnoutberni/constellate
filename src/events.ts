@@ -142,11 +142,16 @@ function transformEventForClient<
 	T extends {
 		sharedEvent?: { id: string } | null
 		attendance?: Array<{ userId: string; status: string }>
+		_count?: { attendance: number; likes: number; comments: number } | null
 	},
 >(
 	event: T,
 	viewerId?: string
-): Omit<T, 'sharedEvent'> & { originalEventId?: string | null; viewerStatus?: string | null } {
+): Omit<T, 'sharedEvent'> & {
+	originalEventId?: string | null
+	viewerStatus?: string | null
+	_count: { attendance: number; likes: number; comments: number }
+} {
 	const { sharedEvent, ...rest } = event
 
 	// Derive viewerStatus from attendance if viewerId is provided
@@ -160,7 +165,7 @@ function transformEventForClient<
 
 	return {
 		...rest,
-		_count: (event as any)._count || { attendance: 0, likes: 0, comments: 0 },
+		_count: event._count || { attendance: 0, likes: 0, comments: 0 },
 		originalEventId: sharedEvent?.id ?? null,
 		viewerStatus: (event as T & { viewerStatus?: string | null }).viewerStatus ?? viewerStatus, // Preserve existing if present
 	}
@@ -175,7 +180,11 @@ export function transformEventsForClient<
 	events: T[],
 	viewerId?: string
 ): Array<
-	Omit<T, 'sharedEvent'> & { originalEventId?: string | null; viewerStatus?: string | null }
+	Omit<T, 'sharedEvent'> & {
+		originalEventId?: string | null
+		viewerStatus?: string | null
+		_count: { attendance: number; likes: number; comments: number }
+	}
 > {
 	return events.map((e) => transformEventForClient(e, viewerId))
 }

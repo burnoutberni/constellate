@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeRecipients, buildAddressingFromActivity, getBroadcastTarget } from '../events.js'
+import {
+	normalizeRecipients,
+	buildAddressingFromActivity,
+	getBroadcastTarget,
+	transformEventsForClient,
+} from '../events.js'
 
 describe('events helper utilities', () => {
 	describe('normalizeRecipients', () => {
@@ -62,6 +67,56 @@ describe('events helper utilities', () => {
 
 		it('defaults to public when visibility is missing', () => {
 			expect(getBroadcastTarget(undefined, 'owner')).toBeUndefined()
+		})
+	})
+
+	describe('transformEventsForClient', () => {
+		it('ensures _count is populated when missing', () => {
+			const events = [{ id: '1' }] as any
+			const result = transformEventsForClient(events)
+			expect(result[0]._count).toEqual({ attendance: 0, likes: 0, comments: 0 })
+		})
+
+		it('preserves existing _count', () => {
+			const events = [{ id: '1', _count: { attendance: 5, likes: 2, comments: 1 } }] as any
+			const result = transformEventsForClient(events)
+			expect(result[0]._count).toEqual({ attendance: 5, likes: 2, comments: 1 })
+		})
+
+		it('derives viewerStatus from attendance', () => {
+			const events = [
+				{
+					id: '1',
+					attendance: [{ userId: 'user1', status: 'attending' }],
+				},
+			] as any
+			const result = transformEventsForClient(events, 'user1')
+			expect(result[0].viewerStatus).toBe('attending')
+		})
+
+		it('returns null viewerStatus if user not in attendance', () => {
+			const events = [
+				{
+					id: '1',
+					attendance: [{ userId: 'user2', status: 'attending' }],
+				},
+			] as any
+			const result = transformEventsForClient(events, 'user1')
+			expect(result[0].viewerStatus).toBeNull()
+		})
+
+		it('preserves existing viewerStatus if present', () => {
+			const events = [
+				{
+					id: '1',
+					viewerStatus: 'maybe',
+					attendance: [{ userId: 'user1', status: 'attending' }],
+				},
+			] as any
+			// Even if attendance says 'attending', if 'viewerStatus' is already set, it should keep it
+			// (Assuming the function prefers existing prop as per implementation: (event ...).viewerStatus ?? derived)
+			const result = transformEventsForClient(events, 'user1')
+			expect(result[0].viewerStatus).toBe('maybe')
 		})
 	})
 })
