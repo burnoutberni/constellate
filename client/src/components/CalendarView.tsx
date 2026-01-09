@@ -102,15 +102,25 @@ interface EventButtonProps {
 }
 
 // Helper to determining button styles based on participation status
+const getStatusStyles = (
+	status: string | null | undefined,
+	styles: {
+		attending: string
+		maybe: string
+		default: string
+	}
+) => {
+	if (status === 'attending') {return styles.attending}
+	if (status === 'maybe') {return styles.maybe}
+	return styles.default
+}
+
 const getEventButtonStyle = (status?: string | null) => {
-	if (status === 'attending') {
-		return 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50'
-	}
-	if (status === 'maybe') {
-		return 'bg-background-primary text-primary-700 hover:bg-primary-50 border border-dashed border-primary-500 ring-0 dark:bg-primary-900/10 dark:text-primary-400 dark:border-primary-500/70'
-	}
-	// Default / Not attending
-	return 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
+	return getStatusStyles(status, {
+		attending: 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50',
+		maybe: 'bg-background-primary text-primary-700 hover:bg-primary-50 border border-dashed border-primary-500 ring-0 dark:bg-primary-900/10 dark:text-primary-400 dark:border-primary-500/70',
+		default: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
+	})
 }
 
 // Bolt: Memoized to prevent unnecessary re-renders
@@ -453,13 +463,11 @@ const DayEventButton = React.memo(({
 	const handleMouseLeave = () => onEventHover?.(null)
 
 	const getDayButtonStyle = (status?: string | null) => {
-		if (status === 'attending') {
-			return 'bg-primary-50 border-primary-200 hover:bg-primary-100 dark:bg-primary-900/20 dark:border-primary-800 dark:hover:bg-primary-900/30'
-		}
-		if (status === 'maybe') {
-			return 'bg-background-primary border-primary-300 border-dashed hover:bg-primary-50 dark:bg-primary-900/10 dark:border-primary-500/50'
-		}
-		return 'bg-background-primary hover:bg-background-secondary border-border-default'
+		return getStatusStyles(status, {
+			attending: 'bg-primary-50 border-primary-200 hover:bg-primary-100 dark:bg-primary-900/20 dark:border-primary-800 dark:hover:bg-primary-900/30',
+			maybe: 'bg-background-primary border-primary-300 border-dashed hover:bg-primary-50 dark:bg-primary-900/10 dark:border-primary-500/50',
+			default: 'bg-background-primary hover:bg-background-secondary border-border-default'
+		})
 	}
 
 	return (

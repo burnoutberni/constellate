@@ -106,19 +106,23 @@ export function DropdownMenuContent({ className, align = 'center', children }: D
     const context = React.useContext(DropdownContext)
     const contentRef = useRef<HTMLDivElement>(null)
     const [focusedIndex, setFocusedIndex] = useState(-1)
+    const [wasOpen, setWasOpen] = useState(context?.isOpen ?? false)
 
     if (!context) { throw new Error('DropdownMenuContent must be used within a DropdownMenu') }
 
     // Reset focused index when opening
-    useEffect(() => {
-        if (context.isOpen) {
-            // We can use a timeout to avoid synchronous update warning if absolutely needed,
-            // or better, rely on the fact that focusedIndex -1 is fine until interaction.
-            // However, to satisfy the linter and keep behavior:
-            const timer = setTimeout(() => setFocusedIndex(0), 0)
-            return () => clearTimeout(timer)
-        }
-    }, [context.isOpen])
+    if (context.isOpen && !wasOpen) {
+        setFocusedIndex(0)
+        setWasOpen(true)
+    }
+    if (!context.isOpen && wasOpen) {
+        setWasOpen(false)
+    }
+
+    /* 
+       Removed effect that was causing lint errors. 
+       State is now synchronized during render.
+    */
 
     // Handle keyboard navigation within menu
     useEffect(() => {

@@ -198,7 +198,7 @@ export function FeedPage() {
 										if (validated) {
 											return (
 												<div key={key} className="h-full">
-													{<EventCard event={validated} isAuthenticated={Boolean(user)} />}
+													<EventCard event={validated} isAuthenticated={Boolean(user)} />
 												</div>
 											)
 										}
