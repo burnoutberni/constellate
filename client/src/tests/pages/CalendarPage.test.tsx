@@ -231,4 +231,55 @@ describe('CalendarPage', () => {
 			{ timeout: 2000 }
 		)
 	})
+	it('should handle subscription copy', async () => {
+		const user = userEvent.setup()
+		const writeTextMock = vi.fn().mockResolvedValue(undefined)
+		Object.assign(navigator, {
+			clipboard: {
+				writeText: writeTextMock,
+			},
+		})
+
+			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+				if (url.includes('/api/events')) {
+					return Promise.resolve({
+						ok: true,
+						json: async () => ({ events: [] }),
+					} as Response)
+				}
+				if (url.includes('/api/calendar/subscriptions')) {
+					return Promise.resolve({
+						ok: true,
+						json: async () => ({ feedUrl: 'https://example.com/feed.ics' }),
+					} as Response)
+				}
+				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
+			})
+
+		render(<CalendarPage />, { wrapper })
+
+		// Open subscription modal
+		await waitFor(
+			() => {
+				expect(screen.getByText('Get Private Feed URL')).toBeInTheDocument()
+			},
+			{ timeout: 2000 }
+		)
+		await user.click(screen.getByText('Get Private Feed URL'))
+
+		// Generate feed URL
+		await user.click(screen.getByText('Generate Feed URL'))
+
+		// Wait for URL to appear and click Copy
+		await waitFor(() => {
+			expect(screen.getByDisplayValue('https://example.com/feed.ics')).toBeInTheDocument()
+		})
+		await user.click(screen.getByText('Copy'))
+
+		// Verify clipboard call and toast
+		expect(writeTextMock).toHaveBeenCalledWith('https://example.com/feed.ics')
+		await waitFor(() => {
+			expect(screen.getByText('Copied!')).toBeInTheDocument()
+		})
+	})
 })
