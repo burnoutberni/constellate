@@ -44,7 +44,7 @@ function buildVisibilityAddressing(
 }
 
 export function buildCreateEventActivity(
-	event: Event & { user: User | null },
+	event: Event & { user: Pick<User, 'username'> | null },
 	_userId: string
 ): CreateActivity {
 	const baseUrl = getBaseUrl()
@@ -109,7 +109,7 @@ export function buildCreateEventActivity(
  * ```
  */
 export function buildUpdateEventActivity(
-	event: Event & { user: User | null },
+	event: Event & { user: Pick<User, 'username'> | null },
 	_userId: string
 ): UpdateActivity {
 	const baseUrl = getBaseUrl()

@@ -85,9 +85,10 @@ async function refreshInstanceUsers(domain: string) {
 	const users = await prisma.user.findMany({
 		where: {
 			isRemote: true,
-			externalActorUrl: {
-				contains: domain,
-			},
+			OR: [
+				{ externalActorUrl: { startsWith: `https://${domain}/` } },
+				{ externalActorUrl: { startsWith: `http://${domain}/` } },
+			],
 		},
 	})
 

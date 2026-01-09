@@ -121,6 +121,38 @@ describe('Instance Poller Service', () => {
 		)
 	})
 
+	it('should strictly match user domains', async () => {
+		const domain = 'example.com'
+		const mockUsers = [
+			{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
+			{ username: 'invalid', externalActorUrl: 'https://not-example.com/u/invalid' },
+		]
+
+		// We mock the findMany call to return what we want to verify the *query* arguments
+		// validation happens in the implementation via prisma.user.findMany args
+		vi.mocked(prisma.user.findMany).mockResolvedValue([mockUsers[0]] as any)
+		vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+			id: 'inst-1',
+			domain,
+			lastPageUrl: null,
+		} as any)
+
+		await refreshInstance(domain)
+
+		// Verify the query construction
+		expect(prisma.user.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({
+				where: {
+					isRemote: true,
+					OR: [
+						{ externalActorUrl: { startsWith: `https://${domain}/` } },
+						{ externalActorUrl: { startsWith: `http://${domain}/` } },
+					],
+				},
+			})
+		)
+	})
+
 	it('should discover public endpoint if missing', async () => {
 		const mockInstance = {
 			domain: 'discover.me',

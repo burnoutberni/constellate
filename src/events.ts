@@ -364,7 +364,7 @@ function buildEventCreationData(
 
 // Helper function to broadcast event creation
 async function broadcastEventCreation(
-	event: Event & { user: unknown; tags: unknown[] },
+	event: Omit<Event, 'user'> & { user: unknown; tags: unknown[] },
 	user: {
 		id: string
 		username: string
@@ -551,32 +551,42 @@ app.post('/', moderateRateLimit, async (c) => {
 		}
 
 		// Create event with sanitized input
-		const event = await prisma.event.create({
-			data: buildEventCreationData(
-				validatedData,
-				userId,
-				actorUrl,
-				visibility,
-				startTime,
-				endTime,
-				recurrencePattern,
-				recurrenceEndDate,
-				timezone,
-				tagsToCreate
-			),
-			include: {
-				user: true,
-				tags: true,
-			},
-		})
+		// Use transaction to ensure event and attendance are created together
+		const event = await prisma.$transaction(async (tx) => {
+			// Create event with sanitized input
+			const newEvent = await tx.event.create({
+				data: buildEventCreationData(
+					validatedData,
+					userId,
+					actorUrl,
+					visibility,
+					startTime,
+					endTime,
+					recurrencePattern,
+					recurrenceEndDate,
+					timezone,
+					tagsToCreate
+				),
+				include: {
+					user: true,
+					tags: true,
+				},
+			})
 
-		// Automatically add creator as attending
-		await prisma.eventAttendance.create({
-			data: {
-				eventId: event.id,
-				userId,
-				status: 'attending',
-			},
+			// Automatically add creator as attending
+			await tx.eventAttendance.create({
+				data: {
+					eventId: newEvent.id,
+					userId,
+					status: 'attending',
+				},
+			})
+
+			// Fetch the fully populated event with _count and attendance
+			return tx.event.findUniqueOrThrow({
+				where: { id: newEvent.id },
+				include: buildEventInclude(userId),
+			})
 		})
 
 		// Build and deliver Create activity
@@ -586,13 +596,9 @@ app.post('/', moderateRateLimit, async (c) => {
 		await deliverActivity(activity, addressing, userId)
 
 		// Broadcast real-time update
-		await broadcastEventCreation(
-			event as Event & { user: typeof user; tags: unknown[] },
-			user,
-			userId
-		)
+		await broadcastEventCreation(event, user, userId)
 
-		return c.json(event, 201)
+		return c.json(transformEventForClient(event, userId), 201)
 	} catch (error) {
 		console.error('Error creating event:', error)
 		return handleError(error, c)
