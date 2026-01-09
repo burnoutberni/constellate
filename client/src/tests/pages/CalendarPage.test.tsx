@@ -85,27 +85,41 @@ global.fetch = vi.fn()
 const { wrapper, queryClient } = createTestWrapper(['/calendar'])
 
 describe('CalendarPage', () => {
+	let mockEventsResponse: (Event | Record<string, unknown>)[] = []
+	let mockSubscriptionResponse: { feedUrl?: string } = {}
+
 	beforeEach(() => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
 		// Reset window mock between tests
 		vi.mocked(mockAddToast).mockClear()
 
+		// Reset mock response data
+		mockEventsResponse = []
+		mockSubscriptionResponse = { feedUrl: 'https://example.com/feed.ics' }
+
 		mockUseRealtime.mockReturnValue({
 			isConnected: true,
 		})
-			// Mock fetch to handle both attendance and events calls
-			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
 
+			// Centralized mock fetch
+			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
 				if (url.includes('/api/events')) {
 					return Promise.resolve({
 						ok: true,
-						json: async () => ({ events: [] }),
+						json: async () => ({ events: mockEventsResponse }),
+					} as Response)
+				}
+				if (url.includes('/api/calendar/subscriptions')) {
+					return Promise.resolve({
+						ok: true,
+						json: async () => mockSubscriptionResponse,
 					} as Response)
 				}
 				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
 			})
 	})
+
 	afterEach(() => {
 		clearQueryClient(queryClient)
 	})
@@ -165,17 +179,7 @@ describe('CalendarPage', () => {
 			...mockEvent,
 			startTime: new Date().toISOString(),
 		}
-
-			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-
-				if (url.includes('/api/events')) {
-					return Promise.resolve({
-						ok: true,
-						json: async () => ({ events: [todayEvent] }),
-					} as Response)
-				}
-				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
-			})
+		mockEventsResponse = [todayEvent]
 
 		render(<CalendarPage />, { wrapper })
 
@@ -189,17 +193,6 @@ describe('CalendarPage', () => {
 	})
 
 	it('should handle calendar export', async () => {
-		; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-
-			if (url.includes('/api/events')) {
-				return Promise.resolve({
-					ok: true,
-					json: async () => ({ events: [] }),
-				} as Response)
-			}
-			return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
-		})
-
 		render(<CalendarPage />, { wrapper })
 
 		await waitFor(
@@ -264,6 +257,7 @@ describe('CalendarPage', () => {
 		beforeEach(async () => {
 			user = userEvent.setup()
 			writeTextMock = vi.fn().mockResolvedValue(undefined)
+			mockSubscriptionResponse = { feedUrl: 'https://example.com/feed.ics' }
 
 			Object.defineProperty(navigator, 'clipboard', {
 				value: {
@@ -272,22 +266,6 @@ describe('CalendarPage', () => {
 				writable: true,
 				configurable: true,
 			})
-
-				; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-					if (url.includes('/api/events')) {
-						return Promise.resolve({
-							ok: true,
-							json: async () => ({ events: [] }),
-						} as Response)
-					}
-					if (url.includes('/api/calendar/subscriptions')) {
-						return Promise.resolve({
-							ok: true,
-							json: async () => ({ feedUrl: 'https://example.com/feed.ics' }),
-						} as Response)
-					}
-					return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
-				})
 
 			render(<CalendarPage />, { wrapper })
 
