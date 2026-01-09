@@ -30,7 +30,7 @@ const DropdownContext = React.createContext<{
     setIsOpen: (open: boolean) => void
 } | null>(null)
 
-export function DropdownMenu({ children }: DropdownMenuProps) {
+export function DropdownMenu({ children }: Readonly<DropdownMenuProps>) {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -65,7 +65,7 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
     )
 }
 
-export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerProps) {
+export function DropdownMenuTrigger({ asChild, children }: Readonly<DropdownMenuTriggerProps>) {
     const context = React.useContext(DropdownContext)
     if (!context) { throw new Error('DropdownMenuTrigger must be used within a DropdownMenu') }
 
@@ -102,31 +102,16 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
     )
 }
 
-export function DropdownMenuContent({ className, align = 'center', children }: DropdownMenuContentProps) {
+function DropdownMenuContentInner({ className, align = 'center', children }: Readonly<DropdownMenuContentProps>) {
     const context = React.useContext(DropdownContext)
     const contentRef = useRef<HTMLDivElement>(null)
-    const [focusedIndex, setFocusedIndex] = useState(-1)
-    const [wasOpen, setWasOpen] = useState(context?.isOpen ?? false)
+    const [focusedIndex, setFocusedIndex] = useState(0)
 
-    if (!context) { throw new Error('DropdownMenuContent must be used within a DropdownMenu') }
-
-    // Reset focused index when opening
-    if (context.isOpen && !wasOpen) {
-        setFocusedIndex(0)
-        setWasOpen(true)
-    }
-    if (!context.isOpen && wasOpen) {
-        setWasOpen(false)
-    }
-
-    /* 
-       Removed effect that was causing lint errors. 
-       State is now synchronized during render.
-    */
+    if (!context) { throw new Error('DropdownMenuContentInner must be used within a DropdownMenu') }
 
     // Handle keyboard navigation within menu
     useEffect(() => {
-        if (!context.isOpen || !contentRef.current) { return }
+        if (!contentRef.current) { return }
 
         const getMenuItems = () => {
             return Array.from(contentRef.current?.querySelectorAll('[role="menuitem"]') || []) as HTMLElement[]
@@ -168,19 +153,16 @@ export function DropdownMenuContent({ className, align = 'center', children }: D
 
         document.addEventListener('keydown', handleKeyDown)
         return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [context.isOpen, focusedIndex])
+    }, [focusedIndex])
 
     // Focus element when focusedIndex changes
     useEffect(() => {
-        if (!context.isOpen || !contentRef.current) { return }
+        if (!contentRef.current) { return }
         const items = Array.from(contentRef.current?.querySelectorAll('[role="menuitem"]') || []) as HTMLElement[]
         if (focusedIndex >= 0 && items[focusedIndex]) {
             items[focusedIndex].focus()
         }
-    }, [focusedIndex, context.isOpen])
-
-
-    if (!context.isOpen) { return null }
+    }, [focusedIndex])
 
     const alignmentClasses = {
         start: 'left-0',
@@ -203,7 +185,16 @@ export function DropdownMenuContent({ className, align = 'center', children }: D
     )
 }
 
-export function DropdownMenuItem({ asChild, children, className, onClick }: DropdownMenuItemProps) {
+export function DropdownMenuContent(props: Readonly<DropdownMenuContentProps>) {
+    const context = React.useContext(DropdownContext)
+    if (!context) { throw new Error('DropdownMenuContent must be used within a DropdownMenu') }
+
+    if (!context.isOpen) { return null }
+
+    return <DropdownMenuContentInner {...props} />
+}
+
+export function DropdownMenuItem({ asChild, children, className, onClick }: Readonly<DropdownMenuItemProps>) {
     const context = React.useContext(DropdownContext)
 
     const handleClick = (e: React.MouseEvent) => {

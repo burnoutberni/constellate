@@ -845,7 +845,7 @@ app.get('/trending', lenientRateLimit, async (c) => {
 			.slice(0, limit)
 
 		const events = scoredEvents.map(({ event, metrics, score }, index) => ({
-			...transformEventForClient(event),
+			...transformEventForClient(event, userId),
 			trendingScore: score,
 			trendingRank: index + 1,
 			trendingMetrics: metrics,
