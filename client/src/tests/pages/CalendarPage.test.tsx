@@ -57,6 +57,29 @@ vi.mock('react-router-dom', async () => {
 	}
 })
 
+const { mockAddToast } = vi.hoisted(() => ({
+	mockAddToast: vi.fn(),
+}))
+
+vi.mock('../../stores', () => ({
+	useUIStore: (
+		// eslint-disable-next-line no-unused-vars
+		selector?: (_state: {
+			addToast: unknown
+			setIsFeedRefreshing: unknown
+		}) => unknown
+	) => {
+		const state = {
+			addToast: mockAddToast,
+			setIsFeedRefreshing: vi.fn(),
+		}
+		if (selector) {
+			return selector(state)
+		}
+		return state
+	},
+}))
+
 global.fetch = vi.fn()
 
 const { wrapper, queryClient } = createTestWrapper(['/calendar'])
@@ -65,6 +88,9 @@ describe('CalendarPage', () => {
 	beforeEach(() => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
+		// Reset window mock between tests
+		vi.mocked(mockAddToast).mockClear()
+
 		mockUseRealtime.mockReturnValue({
 			isConnected: true,
 		})
@@ -80,7 +106,6 @@ describe('CalendarPage', () => {
 				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
 			})
 	})
-
 	afterEach(() => {
 		clearQueryClient(queryClient)
 	})
@@ -231,13 +256,17 @@ describe('CalendarPage', () => {
 			{ timeout: 2000 }
 		)
 	})
+
 	it('should handle subscription copy', async () => {
 		const user = userEvent.setup()
 		const writeTextMock = vi.fn().mockResolvedValue(undefined)
-		Object.assign(navigator, {
-			clipboard: {
+
+		Object.defineProperty(navigator, 'clipboard', {
+			value: {
 				writeText: writeTextMock,
 			},
+			writable: true,
+			configurable: true,
 		})
 
 			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
@@ -279,7 +308,12 @@ describe('CalendarPage', () => {
 		// Verify clipboard call and toast
 		expect(writeTextMock).toHaveBeenCalledWith('https://example.com/feed.ics')
 		await waitFor(() => {
-			expect(screen.getByText('Copied!')).toBeInTheDocument()
+			expect(mockAddToast).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: 'Copied!',
+					variant: 'success',
+				})
+			)
 		})
 	})
 })
