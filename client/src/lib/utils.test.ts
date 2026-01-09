@@ -8,11 +8,11 @@ describe('getInitials', () => {
     });
 
     it('should return initials for a single name', () => {
-        expect(getInitials('Alice')).toBe('Al');
+        expect(getInitials('Alice')).toBe('AL');
     });
 
     it('should handle whitespace-only name by falling back to username', () => {
-        expect(getInitials('   ', 'user123')).toBe('us');
+        expect(getInitials('   ', 'user123')).toBe('US');
     });
 
     it('should handle whitespace-only name and no username by returning "?"', () => {
@@ -24,6 +24,6 @@ describe('getInitials', () => {
     });
 
     it('should handle null/undefined name by falling back to username', () => {
-        expect(getInitials(undefined, 'user123')).toBe('us');
+        expect(getInitials(undefined, 'user123')).toBe('US');
     });
 });

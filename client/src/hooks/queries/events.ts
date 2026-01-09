@@ -548,9 +548,9 @@ export function useLikeEvent(eventId: string, userId?: string) {
 							...eventDetail,
 							likes: updatedLikes,
 							_count: {
-								attendance: 0,
-								comments: 0,
 								...eventDetail._count,
+								attendance: eventDetail._count?.attendance ?? 0,
+								comments: eventDetail._count?.comments ?? 0,
 								likes: Math.max((eventDetail._count?.likes || 0) - 1, 0),
 							},
 						})
@@ -560,9 +560,9 @@ export function useLikeEvent(eventId: string, userId?: string) {
 						queryClient.setQueryData(queryKey, {
 							...eventDetail,
 							_count: {
-								attendance: 0,
-								comments: 0,
 								...eventDetail._count,
+								attendance: eventDetail._count?.attendance ?? 0,
+								comments: eventDetail._count?.comments ?? 0,
 								likes: (eventDetail._count?.likes || 0) + 1,
 							},
 						})
