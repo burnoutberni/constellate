@@ -20,7 +20,7 @@ export function CardOptionsMenu({ event, onOpenChange }: CardOptionsMenuProps) {
     const { user } = useAuth()
     const navigate = useNavigate()
     const { mutate: deleteEvent } = useDeleteEvent(event.id)
-    const isOwner = user?.id === event.user?.id
+    const isOwner = Boolean(user?.id) && user?.id === event.user?.id
 
     // Sync external open handler
     React.useEffect(() => {
