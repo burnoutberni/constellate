@@ -146,15 +146,6 @@ export function Navbar({
 									)
 								})}
 							</nav>
-
-							{_isConnected && (
-								<div
-									className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-full ml-4"
-									aria-label="Live connection status">
-									<div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-									Live
-								</div>
-							)}
 						</div>
 
 						{/* Center: Search Bar (Desktop) - Absolute centered to ensure true centering */}

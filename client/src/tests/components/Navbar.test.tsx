@@ -106,13 +106,6 @@ describe('Navbar Component', () => {
 		expect(screen.getByLabelText('User menu')).toBeInTheDocument()
 	})
 
-	it('should show connection status when connected', () => {
-		render(<Navbar isConnected={true} />, { wrapper })
-
-		expect(screen.getByLabelText('Live connection status')).toBeInTheDocument()
-		expect(screen.getByText('Live')).toBeInTheDocument()
-	})
-
 	it('should highlight active navigation link', () => {
 		const { wrapper: testWrapper } = createTestWrapper(['/discover'])
 		render(<Navbar />, { wrapper: testWrapper })
