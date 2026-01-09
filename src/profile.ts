@@ -19,7 +19,7 @@ import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
-import { AppError } from './lib/errors.js'
+import { AppError, handleError } from './lib/errors.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { isUrlSafe } from './lib/ssrfProtection.js'
 
@@ -79,7 +79,7 @@ app.get('/user/attendance', async (c) => {
 		})
 	} catch (error) {
 		console.error('Error fetching user attendance:', error)
-		return c.json({ error: 'Internal server error' }, 500)
+		return handleError(error, c)
 	}
 })
 

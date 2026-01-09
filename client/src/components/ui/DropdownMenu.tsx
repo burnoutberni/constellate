@@ -109,6 +109,13 @@ function DropdownMenuContentInner({ className, align = 'center', children }: Rea
 
     if (!context) { throw new Error('DropdownMenuContentInner must be used within a DropdownMenu') }
 
+    const focusedIndexRef = useRef(focusedIndex)
+
+    // Sync ref with state
+    useEffect(() => {
+        focusedIndexRef.current = focusedIndex
+    }, [focusedIndex])
+
     // Handle keyboard navigation within menu
     useEffect(() => {
         if (!contentRef.current) { return }
@@ -142,8 +149,9 @@ function DropdownMenuContentInner({ className, align = 'center', children }: Rea
                 case ' ':
                     // Trigger click on focused item if input is active
                     e.preventDefault()
-                    if (focusedIndex >= 0 && items[focusedIndex]) {
-                        items[focusedIndex].click()
+                    // Use ref to get current value without breaking effect stability
+                    if (focusedIndexRef.current >= 0 && items[focusedIndexRef.current]) {
+                        items[focusedIndexRef.current].click()
                     }
                     break
                 default:
@@ -153,7 +161,7 @@ function DropdownMenuContentInner({ className, align = 'center', children }: Rea
 
         document.addEventListener('keydown', handleKeyDown)
         return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [focusedIndex])
+    }, [])
 
     // Focus element when focusedIndex changes
     useEffect(() => {

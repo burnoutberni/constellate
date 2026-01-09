@@ -12,6 +12,7 @@ import { normalizeTimeZone } from './lib/timezone.js'
 import { randomBytes } from 'crypto'
 import { requireAuth } from './middleware/auth.js'
 import { buildEventFilter } from './lib/eventQueries.js'
+import { handleError } from './lib/errors.js'
 import { Prisma } from '@prisma/client'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
@@ -158,7 +159,7 @@ app.post('/subscriptions', async (c) => {
 		})
 	} catch (error) {
 		console.error('Error creating subscription:', error)
-		return c.json({ error: 'Internal server error' }, 500)
+		return handleError(error, c)
 	}
 })
 
