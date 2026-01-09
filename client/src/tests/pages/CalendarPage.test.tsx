@@ -57,24 +57,63 @@ vi.mock('react-router-dom', async () => {
 	}
 })
 
+const { mockAddToast } = vi.hoisted(() => ({
+	mockAddToast: vi.fn(),
+}))
+
+vi.mock('../../stores', () => ({
+	useUIStore: (
+		// eslint-disable-next-line no-unused-vars
+		selector?: (_state: {
+			addToast: unknown
+			setIsFeedRefreshing: unknown
+		}) => unknown
+	) => {
+		const state = {
+			addToast: mockAddToast,
+			setIsFeedRefreshing: vi.fn(),
+		}
+		if (selector) {
+			return selector(state)
+		}
+		return state
+	},
+}))
+
 global.fetch = vi.fn()
 
 const { wrapper, queryClient } = createTestWrapper(['/calendar'])
 
 describe('CalendarPage', () => {
+	let mockEventsResponse: (Event | Record<string, unknown>)[] = []
+	let mockSubscriptionResponse: { feedUrl?: string } = {}
+
 	beforeEach(() => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
+		// Reset window mock between tests
+		vi.mocked(mockAddToast).mockClear()
+
+		// Reset mock response data
+		mockEventsResponse = []
+		mockSubscriptionResponse = { feedUrl: 'https://example.com/feed.ics' }
+
 		mockUseRealtime.mockReturnValue({
 			isConnected: true,
 		})
-			// Mock fetch to handle both attendance and events calls
-			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
 
+			// Centralized mock fetch
+			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
 				if (url.includes('/api/events')) {
 					return Promise.resolve({
 						ok: true,
-						json: async () => ({ events: [] }),
+						json: async () => ({ events: mockEventsResponse }),
+					} as Response)
+				}
+				if (url.includes('/api/calendar/subscriptions')) {
+					return Promise.resolve({
+						ok: true,
+						json: async () => mockSubscriptionResponse,
 					} as Response)
 				}
 				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
@@ -140,17 +179,7 @@ describe('CalendarPage', () => {
 			...mockEvent,
 			startTime: new Date().toISOString(),
 		}
-
-			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-
-				if (url.includes('/api/events')) {
-					return Promise.resolve({
-						ok: true,
-						json: async () => ({ events: [todayEvent] }),
-					} as Response)
-				}
-				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
-			})
+		mockEventsResponse = [todayEvent]
 
 		render(<CalendarPage />, { wrapper })
 
@@ -164,17 +193,6 @@ describe('CalendarPage', () => {
 	})
 
 	it('should handle calendar export', async () => {
-		; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-
-			if (url.includes('/api/events')) {
-				return Promise.resolve({
-					ok: true,
-					json: async () => ({ events: [] }),
-				} as Response)
-			}
-			return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
-		})
-
 		render(<CalendarPage />, { wrapper })
 
 		await waitFor(
@@ -230,5 +248,81 @@ describe('CalendarPage', () => {
 			},
 			{ timeout: 2000 }
 		)
+	})
+
+	describe('Subscription Feed URL', () => {
+		let user: ReturnType<typeof userEvent.setup>
+		let writeTextMock: ReturnType<typeof vi.fn>
+
+		beforeEach(async () => {
+			user = userEvent.setup()
+			writeTextMock = vi.fn().mockResolvedValue(undefined)
+			mockSubscriptionResponse = { feedUrl: 'https://example.com/feed.ics' }
+
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: writeTextMock,
+				},
+				writable: true,
+				configurable: true,
+			})
+
+			render(<CalendarPage />, { wrapper })
+
+			// Navigate to the "Ready to copy" state
+			await waitFor(
+				() => {
+					expect(screen.getByText('Get Private Feed URL')).toBeInTheDocument()
+				},
+				{ timeout: 2000 }
+			)
+			await user.click(screen.getByText('Get Private Feed URL'))
+			await user.click(screen.getByText('Generate Feed URL'))
+
+			// Wait for Copy button to be ready
+			await waitFor(() => {
+				expect(screen.getByText('Copy')).toBeInTheDocument()
+			})
+		})
+
+		it('should copy to clipboard successfully', async () => {
+			await waitFor(() => {
+				expect(screen.getByDisplayValue('https://example.com/feed.ics')).toBeInTheDocument()
+			})
+
+			await user.click(screen.getByText('Copy'))
+
+			// Verify clipboard call and toast
+			expect(writeTextMock).toHaveBeenCalledWith('https://example.com/feed.ics')
+			await waitFor(() => {
+				expect(mockAddToast).toHaveBeenCalledWith(
+					expect.objectContaining({
+						message: 'Copied!',
+						variant: 'success',
+					})
+				)
+			})
+		})
+
+		it('should show an error toast when clipboard API is not available', async () => {
+			// Mock clipboard as unavailable
+			Object.defineProperty(navigator, 'clipboard', {
+				value: undefined,
+				writable: true,
+				configurable: true,
+			})
+
+			await user.click(screen.getByText('Copy'))
+
+			// Verify error toast is shown
+			await waitFor(() => {
+				expect(mockAddToast).toHaveBeenCalledWith(
+					expect.objectContaining({
+						message: 'Failed to copy to clipboard',
+						variant: 'error',
+					})
+				)
+			})
+		})
 	})
 })

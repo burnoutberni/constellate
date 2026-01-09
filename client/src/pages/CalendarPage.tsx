@@ -351,13 +351,23 @@ export function CalendarPage() {
 										/>
 										<Button
 											variant="secondary"
-											onClick={() => {
-												navigator.clipboard.writeText(subscriptionUrl)
-												addToast({
-													id: 'copy-sub-url',
-													message: 'Copied!',
-													variant: 'success'
-												})
+											onClick={async () => {
+												try {
+													if (navigator.clipboard && navigator.clipboard.writeText) {
+														await navigator.clipboard.writeText(subscriptionUrl)
+														addToast({
+															id: 'copy-sub-url',
+															message: 'Copied!',
+															variant: 'success'
+														})
+													} else {
+														throw new Error('Clipboard API not available')
+													}
+												} catch (err) {
+													handleError(err, 'Failed to copy to clipboard', {
+														context: 'CalendarPage.copySubscriptionUrl'
+													})
+												}
 											}}>
 											Copy
 										</Button>
