@@ -803,6 +803,73 @@ describe('Events API', () => {
 			expect(res.status).toBe(400)
 		})
 
+		it('should return 404 when user is remote', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: 'remote_user',
+					isRemote: true,
+					externalActorUrl: 'https://remote.com/users/u',
+					publicKey: 'key',
+					privateKey: 'key',
+				},
+			})
+
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+				user: {
+					id: remoteUser.id,
+					username: remoteUser.username,
+					email: remoteUser.email,
+				},
+				session: {
+					id: 'remote-session',
+					userId: remoteUser.id,
+					expiresAt: new Date(Date.now() + 86400000),
+				},
+			} as any)
+
+			const eventData = {
+				title: 'Remote Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+			}
+
+			const res = await app.request('/api/events', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(eventData),
+			})
+
+			expect(res.status).toBe(404)
+		})
+
+		it('should return 400 when tags are invalid', async () => {
+			vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
+				user: {
+					id: testUser.id,
+					username: testUser.username,
+					email: testUser.email,
+				},
+				session: {
+					id: 'test-session',
+					userId: testUser.id,
+					expiresAt: new Date(Date.now() + 86400000),
+				},
+			} as any)
+
+			const eventData = {
+				title: 'Invalid Tags Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				tags: ['valid', 123], // invalid tag type
+			}
+
+			const res = await app.request('/api/events', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(eventData),
+			})
+
+			expect(res.status).toBe(400)
+		})
+
 		it('should handle optional fields', async () => {
 			const eventData = {
 				title: 'Minimal Event',

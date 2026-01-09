@@ -14,7 +14,7 @@ import {
 	fetchInstancePublicTimeline,
 	pollKnownActors,
 } from '../../lib/instanceHelpers.js'
-import { cacheEventFromOutboxActivity } from '../../lib/activitypubHelpers.js'
+import { cacheEventFromOutboxActivity, fetchActor } from '../../lib/activitypubHelpers.js'
 
 // Mock dependencies
 vi.mock('../../lib/prisma.js', () => ({
@@ -332,5 +332,28 @@ describe('Instance Poller Service', () => {
 			)
 			// Should log success (console log not checked but execution path covered)
 		})
+	})
+
+	it('should skip users without externalActorUrl', async () => {
+		const domain = 'example.com'
+		const mockUsers = [
+			{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
+			{ username: 'invalid', externalActorUrl: null }, // Should be skipped
+		]
+
+		vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+		vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+			id: 'inst-1',
+			domain,
+			lastPageUrl: null,
+		} as any)
+
+		await refreshInstance(domain)
+
+		// Verification:
+		// fetchActor should be called for valid user
+		expect(fetchActor).toHaveBeenCalledWith('https://example.com/u/valid')
+		// fetchActor should NOT be called for invalid user (null url)
+		expect(fetchActor).toHaveBeenCalledTimes(1)
 	})
 })

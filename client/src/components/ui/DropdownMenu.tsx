@@ -251,7 +251,7 @@ export function DropdownMenuItem({ asChild, children, className, onClick }: Drop
             className={baseClasses}
             onClick={handleClick}
             role="menuitem"
-            tabIndex={0} // Make focusable
+            tabIndex={-1} // Manage focus via roving index manually or rely on focus() calls
             onKeyDown={handleKeyDown}
         >
             {children}

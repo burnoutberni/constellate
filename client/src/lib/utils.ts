@@ -33,13 +33,15 @@ export function getInitials(name?: string | null, username?: string | null): str
 	// Try to get initials from name first
 	if (name) {
 		const trimmedName = name.trim()
-		const parts = trimmedName.split(/\s+/)
-		if (parts.length >= 2) {
-			// Use first letter of first and last name
-			return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+		if (trimmedName) {
+			const parts = trimmedName.split(/\s+/)
+			if (parts.length >= 2) {
+				// Use first letter of first and last name
+				return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+			}
+			// Single name - use first two letters
+			return trimmedName.slice(0, 2).toUpperCase()
 		}
-		// Single name - use first two letters
-		return trimmedName.slice(0, 2).toUpperCase()
 	}
 
 	// Fallback to username
