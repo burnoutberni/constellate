@@ -4,7 +4,7 @@
  */
 
 import { Hono } from 'hono'
-import { CursorPaginationSchema } from './lib/pagination'
+import { CursorPaginationSchema } from './lib/pagination.js'
 import { prisma } from './lib/prisma.js'
 import { FeedService } from './services/FeedService.js'
 import { EventVisibility } from '@prisma/client'
