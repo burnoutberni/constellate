@@ -4,6 +4,7 @@
  */
 
 import { safeFetch } from './ssrfProtection.js'
+import { sanitizeText } from './sanitization.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
@@ -90,18 +91,18 @@ export async function cacheRemoteUser(actor: Person) {
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
 		update: {
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			publicKey,
 			inboxUrl,
 			sharedInboxUrl,
 			profileImage: profileImageUrl,
 			headerImage: headerImageUrl,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},
 		create: {
 			username: `${username}@${new URL(actorUrl).hostname}`,
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			externalActorUrl: actorUrl,
 			isRemote: true,
 			publicKey,
@@ -109,7 +110,7 @@ export async function cacheRemoteUser(actor: Person) {
 			sharedInboxUrl,
 			profileImage: profileImageUrl,
 			headerImage: headerImageUrl,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},
 	})
@@ -297,9 +298,9 @@ export function extractLocationValue(
 	eventLocation: string | Record<string, unknown> | undefined
 ): string | null {
 	if (!eventLocation) return null
-	if (typeof eventLocation === 'string') return eventLocation
+	if (typeof eventLocation === 'string') return sanitizeText(eventLocation)
 	if (typeof eventLocation === 'object' && 'name' in eventLocation) {
-		return eventLocation.name as string
+		return sanitizeText(eventLocation.name as string)
 	}
 	return null
 }
@@ -325,8 +326,9 @@ export async function cacheEventFromOutboxActivity(
 
 	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
 	const eventId = eventObj.id as string | undefined
-	const eventName = eventObj.name as string | undefined
-	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventName = eventObj.name ? sanitizeText(eventObj.name as string) : undefined
+	const rawSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventSummary = rawSummary ? sanitizeText(rawSummary) : undefined
 	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 	const eventStartTime = eventObj.startTime as string | undefined
 	const eventEndTime = eventObj.endTime as string | undefined
