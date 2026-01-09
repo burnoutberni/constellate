@@ -30,7 +30,7 @@ const meta = {
 	args: {
 		isConnected: false,
 		user: null,
-		onLogout: () => {},
+		onLogout: () => { },
 	},
 	argTypes: {
 		onLogout: {
@@ -59,6 +59,7 @@ const mockUser = {
 	email: 'john@example.com',
 	username: 'johndoe',
 	image: 'https://i.pravatar.cc/150?img=12',
+	isRemote: false,
 }
 
 export const Default: Story = {

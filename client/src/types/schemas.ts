@@ -23,7 +23,7 @@ export const EventSchema = z.object({
     summary: z.string().nullable().optional(),
     location: z.string().nullable().optional(),
     headerImage: z.string().nullable().optional(),
-    user: EventUserSchema.optional(),
+    user: EventUserSchema.nullable().optional(),
     userId: z.string().optional(),
     visibility: z.enum(['PUBLIC', 'FOLLOWERS', 'PRIVATE', 'UNLISTED']).optional(),
     tags: z.array(TagSchema).default([]),
@@ -34,7 +34,7 @@ export const EventSchema = z.object({
     }).optional(),
     attendance: z.array(z.object({
         status: z.string(),
-        user: EventUserSchema,
+        user: EventUserSchema.nullable(),
     })).optional(),
     viewerStatus: z.enum(['attending', 'maybe', 'not_attending']).nullable().optional(),
 }).passthrough()

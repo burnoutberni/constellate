@@ -8,6 +8,13 @@ config()
 vi.mock('../lib/eventVisibility.js', () => ({
 	canUserViewEvent: vi.fn().mockResolvedValue(true),
 }))
+vi.mock('../middleware/auth.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../middleware/auth.js')>()
+	return {
+		...actual,
+		requireAuth: vi.fn(() => 'test-user-id'),
+	}
+})
 import { prisma } from '../lib/prisma.js'
 import { canUserViewEvent } from '../lib/eventVisibility.js'
 
@@ -33,6 +40,7 @@ describe('Calendar Export', () => {
 		// Create test user
 		testUser = await prisma.user.create({
 			data: {
+				id: 'test-user-id',
 				username: 'testuser',
 				email: 'test@example.com',
 				name: 'Test User',
@@ -465,6 +473,43 @@ describe('Calendar Export', () => {
 			const icsContent = await res.text()
 			expect(icsContent).not.toContain('RRULE')
 			expect(icsContent).toContain('SUMMARY:Incomplete Recurring Event')
+		})
+	})
+
+	describe('Calendar Subscriptions', () => {
+		it('should create a subscription and return a feed URL', async () => {
+			const res = await app.request('/api/calendar/subscriptions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: 'My Events',
+					filters: { onlyMine: true },
+				}),
+			})
+
+			expect(res.status).toBe(200)
+			const data = await res.json()
+			expect(data.name).toBe('My Events')
+			expect(data.feedUrl).toContain('/api/calendar/feed/')
+			expect(data.token).toBeDefined()
+		})
+
+		it('should serve a feed using the subscription token', async () => {
+			// Create subscription directly in DB
+			const sub = await prisma.calendarSubscription.create({
+				data: {
+					userId: testUser.id,
+					name: 'Direct Sub',
+					filters: { onlyMine: true },
+					token: 'test-token-123',
+				},
+			})
+
+			const res = await app.request(`/api/calendar/feed/${sub.token}.ics`)
+			expect(res.status).toBe(200)
+			const text = await res.text()
+			expect(text).toContain(`X-WR-CALNAME:Direct Sub`)
+			expect(text).toContain('BEGIN:VCALENDAR')
 		})
 	})
 })

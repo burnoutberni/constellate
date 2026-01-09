@@ -13,10 +13,10 @@ import {
 	SafeHTML,
 } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 import type { Event } from '@/types'
 
-import { formatTime, formatRelativeDate } from '../lib/formatUtils'
+import { formatTime, formatDate } from '../lib/formatUtils'
 
 import { AttendeeFacepile } from './AttendeeFacepile'
 import { CardOptionsMenu } from './CardOptionsMenu'
@@ -76,7 +76,7 @@ export function EventCard(props: EventCardProps) {
 				<div className="flex items-center gap-2 pt-2 border-t border-border-default">
 					<Avatar
 						src={event.user.profileImage || undefined}
-						fallback={event.user.name || event.user.username}
+						fallback={getInitials(event.user.name, event.user.username)}
 						size="sm"
 					/>
 					<div className="flex-1 min-w-0">
@@ -99,7 +99,7 @@ export function EventCard(props: EventCardProps) {
 					{event.organizers.map((org) => (
 						<div key={org.url || org.username} className="flex items-center gap-2">
 							<Avatar
-								fallback={org.username}
+								fallback={getInitials(org.display, org.username)}
 								size="sm"
 								className="w-6 h-6 text-xs"
 							/>
@@ -119,7 +119,7 @@ export function EventCard(props: EventCardProps) {
 			return (
 				<div className="flex items-center gap-2 pt-2 border-t border-border-default">
 					<Avatar
-						fallback="?"
+						fallback={getInitials(getAttributedToName(event.attributedTo), undefined)}
 						size="sm"
 					/>
 					<div className="flex-1 min-w-0">
@@ -145,36 +145,48 @@ export function EventCard(props: EventCardProps) {
 			)}
 			{/* Compact Variant Content */}
 			{variant === 'compact' && (
-				<div className="space-y-2">
+				<div className="space-y-1">
 					<div className="flex items-start justify-between gap-2">
-						<h3 className="font-semibold text-text-primary line-clamp-2 flex-1">
+						<h3 className="font-semibold text-text-primary line-clamp-2 flex-1 text-sm">
 							{event.title}
 						</h3>
-						{isAuthenticated && !isOwner && (
-							<CardOptionsMenu event={event} onOpenChange={setMenuOpen} />
-						)}
+						<div className="flex items-center gap-1 flex-shrink-0">
+							{isAuthenticated && (
+								<RSVPButton
+									eventId={event.id}
+									currentStatus={event.viewerStatus}
+									size="sm"
+									onOpenChange={setMenuOpen}
+									variant="icon"
+								/>
+							)}
+						</div>
 					</div>
 
-					{event._count && event._count.attendance > 0 && (
-						<Badge variant="primary" size="sm">
-							{event._count.attendance} attending
-						</Badge>
-					)}
 
-					<div className="flex items-center gap-2 text-sm text-text-secondary">
-						<CalendarIcon className="w-4 h-4" aria-label="Date" />
-						<span>{formatRelativeDate(event.startTime)}</span>
-						<span>•</span>
-						<span>{formatTime(event.startTime)}</span>
+
+					<div className="flex items-center gap-2 text-xs text-text-secondary">
+						<CalendarIcon className="w-3.5 h-3.5" aria-label="Date" />
+						{/* Show regular date format even in compact mode for consistency, or keep short if space needed. 
+                            User asked for full date, but compact cards are small using relative might still be better?
+                            Constraint: "always show the full date and not just 'In 2 days' or 'Tomorrow'" 
+                            So I will use formatDate here too, maybe shorter options. */}
+						<span>{formatDate(event.startTime, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
 					</div>
 
 					{event.location && (
-						<div className="flex items-center gap-2 text-sm text-text-secondary">
-							<LocationIcon className="w-4 h-4" aria-label="Location" />
+						<div className="flex items-center gap-2 text-xs text-text-secondary">
+							<LocationIcon className="w-3.5 h-3.5" aria-label="Location" />
 							<span className="truncate">{event.location}</span>
 						</div>
 					)}
 
+					{/* Attendance Facepile - Always show counts */}
+					{(event._count || (event.attendance && event.attendance.length > 0)) && (
+						<div className="pt-1">
+							<AttendeeFacepile attendance={event.attendance} counts={event._count} alwaysShowCounts />
+						</div>
+					)}
 					{renderOrganizers()}
 				</div>
 			)}
@@ -189,7 +201,6 @@ export function EventCard(props: EventCardProps) {
 								alt={event.title}
 								className="w-full h-full object-cover"
 							/>
-							{/* Overlay badges optional */}
 						</div>
 					)}
 
@@ -202,8 +213,8 @@ export function EventCard(props: EventCardProps) {
 								</h3>
 
 								<div className="flex items-center gap-2 flex-shrink-0 z-20">
-									{/* RSVP Button - Available at all times if authenticated and not owner */}
-									{isAuthenticated && !isOwner && (
+									{/* RSVP Button - Available at all times if authenticated */}
+									{isAuthenticated && (
 										<RSVPButton
 											eventId={event.id}
 											currentStatus={event.viewerStatus}
@@ -211,12 +222,9 @@ export function EventCard(props: EventCardProps) {
 											onOpenChange={setMenuOpen}
 										/>
 									)}
-									{isOwner && (
-										<Badge variant="primary" size="sm">You are Host</Badge>
-									)}
 
-									{/* Hamburger Menu (Report, etc) */}
-									{isAuthenticated && !isOwner && (
+									{/* Hamburger Menu (Report, Edit, Delete provided by CardOptionsMenu) */}
+									{isAuthenticated && (
 										<CardOptionsMenu event={event} onOpenChange={setMenuOpen} />
 									)}
 								</div>
@@ -247,7 +255,7 @@ export function EventCard(props: EventCardProps) {
 						<div className="flex items-center gap-2 text-sm text-text-secondary mt-auto">
 							<CalendarIcon className="w-4 h-4" aria-label="Date" />
 							<span className="font-medium">
-								{formatRelativeDate(event.startTime)}
+								{formatDate(event.startTime, { weekday: 'long', month: 'long', day: 'numeric' })}
 							</span>
 							<span>•</span>
 							<span>{formatTime(event.startTime)}</span>
@@ -264,7 +272,7 @@ export function EventCard(props: EventCardProps) {
 							<div className="flex items-center gap-4 pt-2 border-t border-border-default text-sm text-text-secondary">
 								{/* Facepile for Attendance */}
 								<div className="mr-auto">
-									<AttendeeFacepile attendance={event.attendance} counts={event._count} />
+									<AttendeeFacepile attendance={event.attendance} counts={event._count} alwaysShowCounts />
 								</div>
 								{event._count && event._count.comments > 0 && (
 									<div className="flex items-center gap-1">
@@ -275,6 +283,7 @@ export function EventCard(props: EventCardProps) {
 							</div>
 						)}
 
+						{/* Always show organizer section */}
 						{renderOrganizers()}
 					</div>
 				</div>

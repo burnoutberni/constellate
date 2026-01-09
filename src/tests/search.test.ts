@@ -670,6 +670,7 @@ describe('Search API - Advanced Filters', () => {
 			const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
 			expect(foundEvent).toBeDefined()
 			expect(foundEvent.user).toBeDefined()
+			expect(foundEvent.user).toBeDefined()
 			expect(foundEvent._count).toBeDefined()
 			expect(typeof foundEvent._count.attendance).toBe('number')
 			expect(typeof foundEvent._count.likes).toBe('number')
@@ -793,6 +794,7 @@ describe('Search API - Advanced Filters', () => {
 
 			const foundEvent = body.events.find((e: { id: string }) => e.id === event.id)
 			expect(foundEvent).toBeDefined()
+			expect(foundEvent.user).toBeDefined()
 			expect(foundEvent.user).toBeDefined()
 			expect(foundEvent._count).toBeDefined()
 			expect(typeof foundEvent._count.attendance).toBe('number')

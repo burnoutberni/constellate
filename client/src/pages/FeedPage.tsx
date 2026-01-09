@@ -211,7 +211,7 @@ export function FeedPage() {
 											// For "Smart Agenda", we show the Event itself
 											return (
 												<div key={key} className="h-full">
-													<EventCard event={validated.event} isAuthenticated={Boolean(user)} />
+													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
 												</div>
 											)
 										}

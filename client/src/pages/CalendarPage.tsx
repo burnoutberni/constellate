@@ -1,11 +1,19 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Card, Button } from '@/components/ui'
-import { useThemeColors } from '@/design-system'
+import { EventCard } from '@/components/EventCard'
+import {
+	/* Components */
+	Button,
+	Card,
+} from '@/components/ui'
+import { useEvents, queryKeys } from '@/hooks/queries'
+import { useAuth } from '@/hooks/useAuth'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/api-client'
-import { logger } from '@/lib/logger'
+import { useUIStore } from '@/stores'
 import type { Event } from '@/types'
 
 import { CalendarEventPopup } from '../components/CalendarEventPopup'
@@ -13,23 +21,23 @@ import { CalendarNavigation } from '../components/CalendarNavigation'
 import { CalendarView } from '../components/CalendarView'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { Navbar } from '../components/Navbar'
-import { useAuth } from '../hooks/useAuth'
-import { useRealtime, type RealtimeEvent } from '../hooks/useRealtime'
 import { eventsWithinRange } from '../lib/recurrence'
 
+
 export function CalendarPage() {
-	const colors = useThemeColors()
+
 	const navigate = useNavigate()
 	const handleError = useErrorHandler()
-	const [events, setEvents] = useState<Event[]>([])
+	const addToast = useUIStore((state) => state.addToast)
+	const queryClient = useQueryClient()
 	const [currentDate, setCurrentDate] = useState(new Date())
 	const [view, setView] = useState<'month' | 'week' | 'day'>('month')
-	const [loading, setLoading] = useState(true)
 	const [selectedEvent, setSelectedEvent] = useState<{
 		event: Event
 		position: { x: number; y: number }
 	} | null>(null)
-	const [userAttendance, setUserAttendance] = useState<Array<{ eventId: string }>>([])
+	const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
+	const [subscriptionUrl, setSubscriptionUrl] = useState<string | null>(null)
 
 	const dateRange = useMemo(() => {
 		let start: Date, end: Date
@@ -96,119 +104,39 @@ export function CalendarPage() {
 
 	const { user, logout } = useAuth()
 
-	// Fetch user's attendance data
-	useEffect(() => {
-		const fetchAttendance = async () => {
-			if (!user) {
-				return
-			}
-			try {
-				const data = await api.get<{ attendance: string[] }>(
-					'/user/attendance',
-					undefined,
-					undefined,
-					'Failed to fetch attendance'
-				)
-				setUserAttendance(data.attendance.map((eventId) => ({ eventId })))
-			} catch (error) {
-				logger.error('Error fetching user attendance:', error)
-			}
-		}
-		fetchAttendance()
-	}, [user])
 
-	const userAttendingEventIds = useMemo(
-		() => new Set(userAttendance.map((a) => a.eventId)),
-		[userAttendance]
-	)
 
 	// Real-time updates
-	const isEventRelevant = useCallback(
-		(event: Event) => {
-			const eventStartMs = new Date(event.startTime).getTime()
-			if (
-				!Number.isNaN(eventStartMs) &&
-				eventStartMs >= dateRange.startMs &&
-				eventStartMs <= dateRange.endMs
-			) {
-				return true
-			}
-			if (event.recurrencePattern && event.recurrenceEndDate) {
-				const recurrenceEndMs = new Date(event.recurrenceEndDate).getTime()
-				return (
-					!Number.isNaN(recurrenceEndMs) &&
-					!Number.isNaN(eventStartMs) &&
-					eventStartMs <= dateRange.endMs &&
-					recurrenceEndMs >= dateRange.startMs
-				)
-			}
-			return false
-		},
-		[dateRange.startMs, dateRange.endMs]
-	)
-
+	// Since we are using useQuery, we should invalidate queries on updates
+	// rather than managing local state
 	const handleRealtimeEvent = useCallback(
-		(eventMessage: RealtimeEvent) => {
-			if (eventMessage.type === 'event:created') {
-				const incoming = eventMessage.data.event
-				if (!isEventRelevant(incoming)) {
-					return
-				}
-				setEvents((prev) => {
-					const exists = prev.some((evt) => evt.id === incoming.id)
-					if (exists) {
-						return prev.map((evt) => (evt.id === incoming.id ? incoming : evt))
-					}
-					return [...prev, incoming]
-				})
-			} else if (eventMessage.type === 'event:updated') {
-				const updated = eventMessage.data.event
-				setEvents((prev) => {
-					const exists = prev.some((evt) => evt.id === updated.id)
-					if (!exists) {
-						if (!isEventRelevant(updated)) {
-							return prev
-						}
-						return [...prev, updated]
-					}
-					return prev.map((evt) => (evt.id === updated.id ? updated : evt))
-				})
-			} else if (eventMessage.type === 'event:deleted') {
-				setEvents((prev) => prev.filter((evt) => evt.id !== eventMessage.data.eventId))
-			}
+		() => {
+			// Invalidate the events list query to refetch data
+			// We use the exact same key params as the hook
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.events.lists()
+			})
 		},
-		[isEventRelevant]
+		[queryClient]
 	)
 
 	const { isConnected } = useRealtime({
 		onEvent: handleRealtimeEvent,
 	})
 
-	// Fetch events
-	useEffect(() => {
-		const fetchEvents = async () => {
-			try {
-				setLoading(true)
-				const data = await api.get<{ events: Event[] }>(
-					'/events',
-					{
-						limit: 500,
-						rangeStart: dateRange.start.toISOString(),
-						rangeEnd: dateRange.end.toISOString(),
-					},
-					undefined,
-					'Failed to fetch events'
-				)
-				setEvents(data.events)
-			} catch (error) {
-				logger.error('Error fetching events:', error)
-			} finally {
-				setLoading(false)
-			}
-		}
+	// Memoize ISO strings to prevent infinite loop
+	const rangeStartISO = useMemo(() => dateRange.start.toISOString(), [dateRange.start])
+	const rangeEndISO = useMemo(() => dateRange.end.toISOString(), [dateRange.end])
 
-		fetchEvents()
-	}, [dateRange.start, dateRange.end, dateRange.startMs, dateRange.endMs, view])
+	// Fetch events using hook
+	const { data: eventsData, isLoading } = useEvents({
+		limit: 500,
+		rangeStart: rangeStartISO,
+		rangeEnd: rangeEndISO,
+		onlyMine: true,
+	})
+
+	const events = useMemo(() => eventsData?.events || [], [eventsData])
 
 	// Calendar helpers
 	const rangeEvents = useMemo(
@@ -329,8 +257,7 @@ export function CalendarPage() {
 									view={view}
 									currentDate={currentDate}
 									events={rangeEvents}
-									loading={loading}
-									userAttendingEventIds={userAttendingEventIds}
+									loading={isLoading}
 									onEventClick={handleEventClick}
 								/>
 							</Card>
@@ -340,61 +267,24 @@ export function CalendarPage() {
 					{/* Upcoming Events Sidebar */}
 					<div className="space-y-4">
 						<Card>
-							<h2 className="font-bold text-lg mb-4">Upcoming Events</h2>
+							<h2 className="font-bold text-lg mb-4">My Upcoming Events</h2>
 							<div className="space-y-3">
 								{upcomingEvents.length === 0 ? (
 									<p className="text-sm text-text-secondary">
 										No upcoming events
 									</p>
 								) : (
-									upcomingEvents.slice(0, 5).map((event) => {
-										const isAttending = userAttendingEventIds.has(event.id)
-										return (
-											<Button
-												key={event.id}
-												onClick={() => handleNavigateToEvent(event.id)}
-												variant="ghost"
-												className={`flex gap-3 p-2 rounded hover:bg-background-secondary cursor-pointer w-full justify-start transition-colors ${
-													isAttending ? 'ring-1 ring-primary-500' : ''
-												}`}>
-												<div
-													className="w-12 h-12 rounded flex items-center justify-center text-white font-bold flex-shrink-0"
-													style={{
-														backgroundColor:
-															event.user?.displayColor ||
-															colors.info[500],
-													}}>
-													{new Date(event.startTime).getDate()}
-												</div>
-												<div className="flex-1 min-w-0">
-													<div className="font-medium text-sm truncate">
-														{event.title}
-													</div>
-													<div className="text-xs text-text-secondary">
-														{new Date(
-															event.startTime
-														).toLocaleDateString('en-US', {
-															month: 'short',
-															day: 'numeric',
-															hour: 'numeric',
-															minute: '2-digit',
-														})}
-													</div>
-													{event.location && (
-														<div className="text-xs text-text-secondary mt-1">
-															📍 {event.location}
-														</div>
-													)}
-													{event._count && (
-														<div className="text-xs text-text-secondary mt-1">
-															👥 {event._count.attendance} · ❤️{' '}
-															{event._count.likes}
-														</div>
-													)}
-												</div>
-											</Button>
-										)
-									})
+									<div className="space-y-4">
+										{upcomingEvents.slice(0, 5).map((event) => (
+											<div key={event.id} className="h-full">
+												<EventCard
+													event={event}
+													variant="compact"
+													isAuthenticated={Boolean(user)}
+												/>
+											</div>
+										))}
+									</div>
 								)}
 							</div>
 						</Card>
@@ -402,36 +292,105 @@ export function CalendarPage() {
 						{/* Calendar Export */}
 						{user && (
 							<Card>
-								<h2 className="font-bold text-lg mb-4">Export Calendar</h2>
+								<h2 className="font-bold text-lg mb-4">Export My Calendar</h2>
 								<p className="text-sm text-text-secondary mb-4">
 									Export your calendar feed to add events to your calendar
 									application.
 								</p>
 								<div className="text-sm">
-									<a
-										href={`/api/calendar/${user.username}/feed.ics`}
-										download
-										className="text-primary-600 hover:text-primary-700 underline">
-										Download iCal Feed
-									</a>
+									<Button
+										variant="outline"
+										className="w-full justify-center"
+										onClick={() => setIsSubscriptionModalOpen(true)}>
+										Get Private Feed URL
+									</Button>
 								</div>
 							</Card>
 						)}
 					</div>
 				</div>
-			</div>
+			</div >
+
+			{/* Subscription Modal */}
+			{
+				isSubscriptionModalOpen && (
+					<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+						<div className="bg-background-primary rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+							<h3 className="text-lg font-bold">Subscribe to My Events</h3>
+							<p className="text-sm text-text-secondary">
+								Copy this URL to your calendar application (Google Calendar, Outlook, Apple Calendar) to see your events.
+							</p>
+
+							{!subscriptionUrl ? (
+								<Button
+									className="w-full"
+									onClick={async () => {
+										try {
+											const res = await api.post<{ feedUrl: string }>(
+												'/calendar/subscriptions',
+												{
+													name: 'My Events',
+													filters: { onlyMine: true }
+												}
+											)
+											setSubscriptionUrl(res.feedUrl)
+										} catch (err) {
+											handleError(err, 'Failed to create subscription')
+										}
+									}}>
+									Generate Feed URL
+								</Button>
+							) : (
+								<div className="space-y-2">
+									<div className="flex gap-2">
+										<input
+											readOnly
+											value={subscriptionUrl}
+											className="flex-1 bg-background-secondary border border-border-default rounded px-3 py-2 text-sm font-mono"
+											onClick={(e) => e.currentTarget.select()}
+										/>
+										<Button
+											variant="secondary"
+											onClick={() => {
+												navigator.clipboard.writeText(subscriptionUrl)
+												addToast({
+													id: 'copy-sub-url',
+													message: 'Copied!',
+													variant: 'success'
+												})
+											}}>
+											Copy
+										</Button>
+									</div>
+									<p className="text-xs text-text-tertiary">
+										Treat this URL like a password. It gives access to your private calendar.
+									</p>
+								</div>
+							)}
+
+							<div className="flex justify-end pt-2">
+								<Button variant="ghost" onClick={() => setIsSubscriptionModalOpen(false)}>
+									Close
+								</Button>
+							</div>
+						</div>
+					</div>
+				)
+			}
 
 			{/* Event Popup */}
-			{selectedEvent && (
-				<CalendarEventPopup
-					event={selectedEvent.event}
-					position={selectedEvent.position}
-					onClose={() => setSelectedEvent(null)}
-					onNavigateToEvent={handleNavigateToEvent}
-					onExportICS={handleExportICS}
-					onExportGoogle={handleExportGoogle}
-				/>
-			)}
-		</div>
+			{
+				selectedEvent && (
+					<CalendarEventPopup
+						event={selectedEvent.event}
+						position={selectedEvent.position}
+						onClose={() => setSelectedEvent(null)}
+						onNavigateToEvent={handleNavigateToEvent}
+						onExportICS={handleExportICS}
+						onExportGoogle={handleExportGoogle}
+					/>
+				)
+			}
+		</div >
 	)
 }

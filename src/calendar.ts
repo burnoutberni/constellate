@@ -9,6 +9,11 @@ import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent } from './lib/eventVisibility.js'
 import { normalizeTimeZone } from './lib/timezone.js'
+import { randomBytes } from 'crypto'
+import { requireAuth } from './middleware/auth.js'
+import { buildEventFilter } from './lib/eventQueries.js'
+import { handleError } from './lib/errors.js'
+import { Prisma } from '@prisma/client'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -118,6 +123,168 @@ function ensureTimezone(calendar: ReturnType<typeof ical>, timezone: string, cac
 	})
 	cache.add(timezone)
 }
+
+// Create a new calendar subscription
+app.post('/subscriptions', async (c) => {
+	try {
+		const userId = requireAuth(c)
+		const body = (await c.req.json()) as {
+			name?: string
+			filters?: Record<string, unknown>
+		}
+		const { name, filters } = body
+
+		if (!name) {
+			return c.json({ error: 'Name is required' }, 400)
+		}
+
+		// Generate a secure random token
+		const token = randomBytes(32).toString('hex')
+
+		const subscription = await prisma.calendarSubscription.create({
+			data: {
+				userId,
+				name,
+
+				filters: (filters || {}) as Prisma.InputJsonValue,
+				token,
+			},
+		})
+
+		const feedUrl = resolveAppUrl(`/api/calendar/feed/${subscription.token}.ics`)
+
+		return c.json({
+			...subscription,
+			feedUrl,
+		})
+	} catch (error) {
+		console.error('Error creating subscription:', error)
+		return handleError(error, c)
+	}
+})
+
+// Serve a calendar subscription feed
+app.get('/feed/:filename', async (c) => {
+	try {
+		const filename = c.req.param('filename')
+		if (!filename.endsWith('.ics')) {
+			return c.text('Invalid feed URL', 400)
+		}
+		const cleanToken = filename.replace(/\.ics$/, '')
+
+		const subscription = await prisma.calendarSubscription.findUnique({
+			where: { token: cleanToken },
+		})
+
+		if (!subscription) {
+			return c.text('Calendar not found', 404)
+		}
+
+		// Update last accessed
+		await prisma.calendarSubscription.update({
+			where: { id: subscription.id },
+			data: { lastAccessedAt: new Date() },
+		})
+
+		const filters = subscription.filters as Record<string, unknown>
+		const eventFilter = buildEventFilter(
+			{
+				onlyMine: filters.onlyMine === true,
+			},
+			subscription.userId
+		)
+
+		// Fetch events using the subscription's filter AND user's visibility rights
+		// Note: We authenticate as the subscription owner
+		const events = await prisma.event.findMany({
+			where: {
+				...eventFilter,
+				// Ensure we respect visibility even for the owner (e.g. if they shouldn't see something, though 'onlyMine' mostly implies they can)
+				// But mostly we need to ensure we don't leak other people's private events if the filter is loose (like "all public")
+				// For "onlyMine", it's events they are interacting with, so they should see them.
+			},
+			include: {
+				user: {
+					select: {
+						username: true,
+						name: true,
+					},
+				},
+			},
+			orderBy: { startTime: 'asc' },
+			// Limit to reasonable window? For now, maybe last 30 days and future?
+			// Or just future? Standard iCal feeds often include some history.
+			// Let's settle on: started within last 3 months OR is future
+			// where: { ...eventFilter, OR: [{ startTime: ... }, { endTime: ... }] }
+			// For simplicity and performance, let's grab all future and recent past (3 months)
+		})
+
+		// Filter for visibility in memory if needed, or rely on query.
+		// Since 'buildEventFilter' for 'onlyMine' selects based on attendance/ownership,
+		// the user definitely has access to these events.
+		// If we add other filters later (like "all public events with tag X"), we'd need 'buildVisibilityWhere'.
+
+		const filteredEvents = []
+		for (const event of events) {
+			// Double check visibility just to be safe, reusing existing logic
+			if (await canUserViewEvent(event, subscription.userId)) {
+				filteredEvents.push(event)
+			}
+		}
+
+		// Create calendar
+		const calendar = ical({
+			name: subscription.name,
+			description: `Constellate Calendar Feed: ${subscription.name}`,
+			url: resolveAppUrl(`/api/calendar/feed/${filename}`),
+		})
+		const usedTimezones = new Set<string>()
+
+		// Add events
+		for (const event of filteredEvents) {
+			const { pageUrl, description } = getEventExportMetadata(event)
+			const eventTimezone = normalizeTimeZone(event.timezone)
+			ensureTimezone(calendar, eventTimezone, usedTimezones)
+
+			calendar.createEvent({
+				start: event.startTime,
+				end: event.endTime || event.startTime,
+				summary: event.title,
+				description,
+				location: event.location || undefined,
+				url: pageUrl,
+				timezone: eventTimezone,
+				organizer: event.user
+					? {
+							name: event.user.name || event.user.username,
+							email: `${event.user.username}@${APP_HOSTNAME}`,
+						}
+					: undefined,
+				status:
+					event.eventStatus === 'EventCancelled'
+						? ICalEventStatus.CANCELLED
+						: ICalEventStatus.CONFIRMED,
+				repeating:
+					event.recurrencePattern && event.recurrenceEndDate
+						? ({
+								freq: mapRecurrenceFrequency(
+									event.recurrencePattern as RecurrenceFrequency
+								),
+								until: event.recurrenceEndDate,
+							} as const)
+						: undefined,
+			})
+		}
+
+		return c.text(calendar.toString(), 200, {
+			'Content-Type': 'text/calendar; charset=utf-8',
+			'Content-Disposition': `attachment; filename="${subscription.name.replace(/[^a-z0-9]/gi, '_')}.ics"`,
+		})
+	} catch (error) {
+		console.error('Error generating feed:', error)
+		return c.text('Internal server error', 500)
+	}
+})
 
 // Export single event as ICS
 app.get('/:id/export.ics', async (c) => {

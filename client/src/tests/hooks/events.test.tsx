@@ -472,6 +472,38 @@ describe('Event Query Hooks', () => {
                 expect(activityEvent?._count.attendance).toBe(1)
             })
         })
+
+        it('should safely handle optimistic update with partial count data', async () => {
+            const eventId = 'test-event-id'
+            vi.mocked(api.post).mockResolvedValue({ success: true })
+
+            const { result } = renderHook(() => useRSVP(eventId), { wrapper })
+
+            // Set up initial event data with partial counts (missing likes/comments)
+            // This simulates what might happen if the server returns partial data or types are loose
+            const initialData = {
+                id: eventId,
+                title: 'Test Event',
+                attendance: [],
+                _count: { attendance: 0, likes: undefined, comments: undefined } as unknown as EventDetail['_count'], // Explicitly undefined
+            }
+            queryClient.setQueryData(['events', 'detail', 'testuser', eventId], initialData)
+
+            // Trigger RSVP
+            result.current.mutate({ status: 'attending' })
+
+            // Check optimistic update ensures valid number types
+            await waitFor(() => {
+                const data = queryClient.getQueryData<EventDetail>(['events', 'detail', 'testuser', eventId])
+                expect(data?.viewerStatus).toBe('attending')
+                expect(data?._count.attendance).toBe(1)
+                // These are critical assertions - checking that we don't end up with undefined
+                // The current implementation might fail here or leave them undefined if just spreading
+                // The fix should ensure they are numbers
+                expect(typeof data?._count.likes).toBe('number')
+                expect(typeof data?._count.comments).toBe('number')
+            })
+        })
     })
 
     describe('useUpdateEvent', () => {

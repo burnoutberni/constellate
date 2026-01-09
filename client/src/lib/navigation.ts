@@ -4,15 +4,20 @@ export type NavLink = {
 }
 
 /**
- * Get navigation links based on user authentication status.
- * @param hasUser - Whether a user is authenticated
- * @returns Array of navigation links
+ * Get main navigation links (visible in navbar).
  */
-export function getNavLinks(hasUser: boolean): NavLink[] {
+export function getMainNavLinks(_hasUser: boolean): NavLink[] {
 	return [
-		// Feed link removed (Home redirects to Feed)
 		{ to: '/discover', label: 'Discover' },
 		{ to: '/calendar', label: 'Calendar' },
+	]
+}
+
+/**
+ * Get secondary navigation links (visible in "More" menu).
+ */
+export function getSecondaryNavLinks(hasUser: boolean): NavLink[] {
+	return [
 		...(hasUser
 			? [
 				{ to: '/templates', label: 'Templates' },
@@ -21,6 +26,10 @@ export function getNavLinks(hasUser: boolean): NavLink[] {
 			: []),
 		{ to: '/about', label: 'About' },
 	]
+}
+// Keep getNavLinks for backward compatibility if needed, combining both
+export function getNavLinks(hasUser: boolean): NavLink[] {
+	return [...getMainNavLinks(hasUser), ...getSecondaryNavLinks(hasUser)]
 }
 
 /**

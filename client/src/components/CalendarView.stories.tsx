@@ -16,7 +16,7 @@ const meta = {
 		currentDate: new Date(),
 		events: [],
 		loading: false,
-		onEventClick: () => {},
+		onEventClick: () => { },
 	},
 	argTypes: {
 		onEventClick: {
@@ -126,7 +126,7 @@ export const WithAttendingEvents: Story = {
 		currentDate: new Date(),
 		events: mockEvents,
 		loading: false,
-		userAttendingEventIds: new Set(['1']),
+		// userAttendingEventIds removed as it does not exist on CalendarViewProps
 		onEventClick: (_event, _position) => {
 			// Event click handler
 		},

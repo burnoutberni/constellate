@@ -71,6 +71,21 @@ export async function cacheRemoteUser(actor: Person) {
 		console.error('Error tracking instance:', error)
 	})
 
+	// Extract icon URL - handle both string and object formats
+	const getIconUrl = (icon: unknown): string | null => {
+		if (!icon) return null
+		if (typeof icon === 'string') return icon
+		if (icon && typeof icon === 'object' && 'url' in icon) {
+			return typeof (icon as { url: unknown }).url === 'string'
+				? ((icon as { url: unknown }).url as string)
+				: null
+		}
+		return null
+	}
+
+	const profileImageUrl = getIconUrl(actor.icon)
+	const headerImageUrl = getIconUrl(actor.image)
+
 	// Upsert user
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
@@ -79,8 +94,8 @@ export async function cacheRemoteUser(actor: Person) {
 			publicKey,
 			inboxUrl,
 			sharedInboxUrl,
-			profileImage: actor.icon?.url || null,
-			headerImage: actor.image?.url || null,
+			profileImage: profileImageUrl,
+			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},
@@ -92,8 +107,8 @@ export async function cacheRemoteUser(actor: Person) {
 			publicKey,
 			inboxUrl,
 			sharedInboxUrl,
-			profileImage: actor.icon?.url || null,
-			headerImage: actor.image?.url || null,
+			profileImage: profileImageUrl,
+			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
 		},

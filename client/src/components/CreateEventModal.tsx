@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
@@ -607,6 +608,11 @@ export function CreateEventModal({
 								loading={templatesLoading}
 								error={templateError}
 							/>
+							<div className="mt-2 text-sm text-text-secondary">
+								<Link to="/templates" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+									Manage your templates →
+								</Link>
+							</div>
 						</div>
 					)}
 					<form onSubmit={handleSubmit} className="space-y-4">

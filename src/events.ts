@@ -34,6 +34,7 @@ import {
 } from './lib/trending.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { listEventRemindersForUser } from './services/reminders.js'
+import { buildEventFilter } from './lib/eventQueries.js'
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -70,7 +71,7 @@ const eventUserSummarySelect = {
 	isRemote: true,
 } as const
 
-const eventBaseInclude = {
+export const eventBaseInclude = {
 	user: {
 		select: eventUserSummarySelect,
 	},
@@ -94,6 +95,9 @@ const authenticatedEventExtras = {
 		select: {
 			status: true,
 			userId: true,
+			user: {
+				select: eventUserSummarySelect,
+			},
 		},
 	},
 	likes: {
@@ -103,7 +107,7 @@ const authenticatedEventExtras = {
 	},
 } as const
 
-function buildEventInclude(userId?: string) {
+export function buildEventInclude(userId?: string) {
 	if (userId) {
 		return {
 			...eventBaseInclude,
@@ -113,7 +117,7 @@ function buildEventInclude(userId?: string) {
 	return eventBaseInclude
 }
 
-async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
+export async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
 	events: T[]
 ): Promise<T[]> {
 	return Promise.all(
@@ -133,20 +137,56 @@ async function hydrateEventUsers<T extends { user: unknown; attributedTo: string
 }
 
 // Transform sharedEvent to originalEventId for client compatibility
-function transformEventForClient<T extends { sharedEvent?: { id: string } | null }>(
-	event: T
-): Omit<T, 'sharedEvent'> & { originalEventId?: string | null } {
+// Also derives viewerStatus from attendance list if available
+function transformEventForClient<
+	T extends {
+		sharedEvent?: { id: string } | null
+		attendance?: Array<{ userId: string; status: string }>
+		_count?: { attendance: number; likes: number; comments: number } | null
+	},
+>(
+	event: T,
+	viewerId?: string
+): Omit<T, 'sharedEvent'> & {
+	originalEventId?: string | null
+	viewerStatus?: string | null
+	_count: { attendance: number; likes: number; comments: number }
+} {
 	const { sharedEvent, ...rest } = event
+
+	// Derive viewerStatus from attendance if viewerId is provided
+	let viewerStatus: string | null = null
+	if (viewerId && event.attendance) {
+		const myAttendance = event.attendance.find((a) => a.userId === viewerId)
+		if (myAttendance) {
+			viewerStatus = myAttendance.status
+		}
+	}
+
 	return {
 		...rest,
+		_count: event._count || { attendance: 0, likes: 0, comments: 0 },
 		originalEventId: sharedEvent?.id ?? null,
+		viewerStatus: (event as T & { viewerStatus?: string | null }).viewerStatus ?? viewerStatus, // Preserve existing if present
 	}
 }
 
-function transformEventsForClient<T extends { sharedEvent?: { id: string } | null }>(
-	events: T[]
-): Array<Omit<T, 'sharedEvent'> & { originalEventId?: string | null }> {
-	return events.map(transformEventForClient)
+export function transformEventsForClient<
+	T extends {
+		sharedEvent?: { id: string } | null
+		attendance?: Array<{ userId: string; status: string }>
+	},
+>(
+	events: T[],
+	viewerId?: string
+): Array<
+	Omit<T, 'sharedEvent'> & {
+		originalEventId?: string | null
+		viewerStatus?: string | null
+		_count: { attendance: number; likes: number; comments: number }
+	}
+> {
+	return events.map((e) => transformEventForClient(e, viewerId))
 }
 
 function buildCountMap(records: Array<{ eventId: string }>) {
@@ -324,7 +364,7 @@ function buildEventCreationData(
 
 // Helper function to broadcast event creation
 async function broadcastEventCreation(
-	event: Event & { user: unknown; tags: unknown[] },
+	event: Omit<Event, 'user'> & { user: unknown; tags: unknown[] },
 	user: {
 		id: string
 		username: string
@@ -361,9 +401,12 @@ async function broadcastEventCreation(
 				profileImage: user.profileImage,
 			},
 			_count: {
-				attendance: 0,
-				likes: 0,
-				comments: 0,
+				attendance:
+					(event as unknown as { _count?: { attendance?: number } })._count?.attendance ??
+					0,
+				likes: (event as unknown as { _count?: { likes?: number } })._count?.likes ?? 0,
+				comments:
+					(event as unknown as { _count?: { comments?: number } })._count?.comments ?? 0,
 			},
 		},
 	}
@@ -511,23 +554,42 @@ app.post('/', moderateRateLimit, async (c) => {
 		}
 
 		// Create event with sanitized input
-		const event = await prisma.event.create({
-			data: buildEventCreationData(
-				validatedData,
-				userId,
-				actorUrl,
-				visibility,
-				startTime,
-				endTime,
-				recurrencePattern,
-				recurrenceEndDate,
-				timezone,
-				tagsToCreate
-			),
-			include: {
-				user: true,
-				tags: true,
-			},
+		// Use transaction to ensure event and attendance are created together
+		const event = await prisma.$transaction(async (tx) => {
+			// Create event with sanitized input
+			const newEvent = await tx.event.create({
+				data: buildEventCreationData(
+					validatedData,
+					userId,
+					actorUrl,
+					visibility,
+					startTime,
+					endTime,
+					recurrencePattern,
+					recurrenceEndDate,
+					timezone,
+					tagsToCreate
+				),
+				include: {
+					user: true,
+					tags: true,
+				},
+			})
+
+			// Automatically add creator as attending
+			await tx.eventAttendance.create({
+				data: {
+					eventId: newEvent.id,
+					userId,
+					status: 'attending',
+				},
+			})
+
+			// Fetch the fully populated event with _count and attendance
+			return tx.event.findUniqueOrThrow({
+				where: { id: newEvent.id },
+				include: buildEventInclude(userId),
+			})
 		})
 
 		// Build and deliver Create activity
@@ -537,13 +599,9 @@ app.post('/', moderateRateLimit, async (c) => {
 		await deliverActivity(activity, addressing, userId)
 
 		// Broadcast real-time update
-		await broadcastEventCreation(
-			event as Event & { user: typeof user; tags: unknown[] },
-			user,
-			userId
-		)
+		await broadcastEventCreation(event, user, userId)
 
-		return c.json(event, 201)
+		return c.json(transformEventForClient(event, userId), 201)
 	} catch (error) {
 		console.error('Error creating event:', error)
 		return handleError(error, c)
@@ -577,6 +635,9 @@ app.get('/', async (c) => {
 				rangeEndDate = parsed
 			}
 		}
+
+		// Handle "onlyMine" filter
+		const onlyMine = c.req.query('onlyMine') === 'true'
 
 		let rangeFilter: Prisma.EventWhereInput | undefined
 		if (rangeStartDate && rangeEndDate) {
@@ -613,8 +674,16 @@ app.get('/', async (c) => {
 			? buildVisibilityWhere({ userId, followedActorUrls })
 			: { visibility: 'PUBLIC' as const }
 
-		// Combine visibility, sharedEventId, and range filters
-		const filters: Prisma.EventWhereInput[] = [visibilityWhere, { sharedEventId: null }]
+		// Apply "onlyMine" filter if requested
+		const onlyMineFilter = buildEventFilter({ onlyMine }, userId)
+
+		// Combine filters
+		const filters: Prisma.EventWhereInput[] = [
+			visibilityWhere,
+			{ sharedEventId: null },
+			onlyMineFilter, // Add this
+		]
+
 		if (rangeFilter) {
 			filters.push(rangeFilter)
 		} else if (!rangeStartDate && !rangeEndDate) {
@@ -642,7 +711,7 @@ app.get('/', async (c) => {
 		})
 
 		const eventsWithUsers = await hydrateEventUsers(events)
-		const eventsForClient = transformEventsForClient(eventsWithUsers)
+		const eventsForClient = transformEventsForClient(eventsWithUsers, userId)
 
 		const total = await prisma.event.count({ where })
 
@@ -776,7 +845,7 @@ app.get('/trending', lenientRateLimit, async (c) => {
 			.slice(0, limit)
 
 		const events = scoredEvents.map(({ event, metrics, score }, index) => ({
-			...transformEventForClient(event),
+			...transformEventForClient(event, userId),
 			trendingScore: score,
 			trendingRank: index + 1,
 			trendingMetrics: metrics,

@@ -26,6 +26,7 @@ const mockUser = {
 	name: 'Current User',
 	username: 'currentuser',
 	image: null,
+	isRemote: false,
 }
 
 // Mock AuthContext value for Storybook
@@ -33,10 +34,11 @@ const mockAuthValue = {
 	user: mockUser,
 	loading: false,
 	tosStatus: null,
-	checkTosStatus: async () => {},
-	login: async () => {},
-	signup: async () => {},
-	logout: async () => {},
+	checkTosStatus: async () => { },
+	checkAuth: async () => { },
+	login: async () => { },
+	signup: async () => { },
+	logout: async () => { },
 }
 
 const meta = {

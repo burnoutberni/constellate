@@ -498,7 +498,11 @@ export class FeedService {
 						},
 						tags: true,
 						_count: {
-							select: { attendance: true },
+							select: {
+								attendance: true,
+								likes: true,
+								comments: true,
+							},
 						},
 						attendance: {
 							take: 5,
@@ -553,7 +557,11 @@ export class FeedService {
 				},
 				tags: true,
 				_count: {
-					select: { attendance: true },
+					select: {
+						attendance: true,
+						likes: true,
+						comments: true,
+					},
 				},
 				attendance: {
 					take: 5,
@@ -639,6 +647,13 @@ export class FeedService {
 								isRemote: true,
 							},
 						},
+					},
+				},
+				_count: {
+					select: {
+						attendance: true,
+						likes: true,
+						comments: true,
 					},
 				},
 			},

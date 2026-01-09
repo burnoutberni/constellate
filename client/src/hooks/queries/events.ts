@@ -91,12 +91,31 @@ interface UpdateEventInput {
 }
 
 // Queries
-export function useEvents(limit: number = 50, options?: { enabled?: boolean }) {
+interface UseEventsOptions {
+	limit?: number
+	rangeStart?: string
+	rangeEnd?: string
+	onlyMine?: boolean
+	enabled?: boolean
+}
+
+export function useEvents(options: UseEventsOptions = {}) {
+	const { limit = 50, rangeStart, rangeEnd, onlyMine, enabled = true } = options
 	return useQuery<EventsResponse>({
-		queryKey: queryKeys.events.list(limit),
-		enabled: options?.enabled ?? true,
+		queryKey: queryKeys.events.list({ limit, rangeStart, rangeEnd, onlyMine }),
+		enabled,
 		queryFn: () =>
-			api.get<EventsResponse>('/events', { limit }, undefined, 'Failed to fetch events'),
+			api.get<EventsResponse>(
+				'/events',
+				{
+					limit,
+					...(rangeStart && { rangeStart }),
+					...(rangeEnd && { rangeEnd }),
+					...(onlyMine && { onlyMine: 'true' }),
+				},
+				undefined,
+				'Failed to fetch events'
+			),
 	})
 }
 
@@ -224,6 +243,8 @@ const removeAttendance = (event: Event, targetUserId: string | undefined) => {
 		_count: {
 			...event._count,
 			attendance: newCount,
+			likes: event._count?.likes ?? 0,
+			comments: event._count?.comments ?? 0,
 		},
 	}
 }
@@ -258,6 +279,8 @@ const updateExistingAttendance = (
 		_count: {
 			...event._count,
 			attendance: newCount,
+			likes: event._count?.likes ?? 0,
+			comments: event._count?.comments ?? 0,
 		},
 	}
 }
@@ -301,6 +324,8 @@ const addNewAttendance = (
 		_count: {
 			...event._count,
 			attendance: newCount,
+			likes: event._count?.likes ?? 0,
+			comments: event._count?.comments ?? 0,
 		},
 	}
 }
@@ -434,6 +459,29 @@ export function useRSVP(eventId: string) {
 				queryClient.setQueryData(queryKey, { ...feedData, pages: newPages })
 			})
 
+			// 3. Update Search Results and Event Lists
+			const listQueries = [
+				...queryClient.getQueriesData({ queryKey: ['search', 'events'] }),
+				...queryClient.getQueriesData({ queryKey: ['events', 'list'] }),
+			]
+
+			listQueries.forEach(([queryKey, data]) => {
+				const listData = data as EventsResponse // Both have similar structure { events: [], pagination: ... }
+				if (!listData || !listData.events) {
+					return
+				}
+				previousData.set(queryKey, listData)
+
+				const updatedEvents = listData.events.map((event) => {
+					if (event.id === eventId) {
+						return getUpdatedEvent(event)
+					}
+					return event
+				})
+
+				queryClient.setQueryData(queryKey, { ...listData, events: updatedEvents })
+			})
+
 			return { previousData }
 		},
 		onError: (error, variables, context) => {
@@ -453,6 +501,8 @@ export function useRSVP(eventId: string) {
 			// While SSE handles real-time updates, invalidating ensures the user sees their own action
 			// Removed global feed invalidation to prevent full feed reload spinner on RSVP
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.details() })
+			queryClient.invalidateQueries({ queryKey: ['search', 'events'] })
+			queryClient.invalidateQueries({ queryKey: ['events', 'list'] })
 		},
 	})
 }
@@ -499,6 +549,8 @@ export function useLikeEvent(eventId: string, userId?: string) {
 							likes: updatedLikes,
 							_count: {
 								...eventDetail._count,
+								attendance: eventDetail._count?.attendance ?? 0,
+								comments: eventDetail._count?.comments ?? 0,
 								likes: Math.max((eventDetail._count?.likes || 0) - 1, 0),
 							},
 						})
@@ -509,6 +561,8 @@ export function useLikeEvent(eventId: string, userId?: string) {
 							...eventDetail,
 							_count: {
 								...eventDetail._count,
+								attendance: eventDetail._count?.attendance ?? 0,
+								comments: eventDetail._count?.comments ?? 0,
 								likes: (eventDetail._count?.likes || 0) + 1,
 							},
 						})

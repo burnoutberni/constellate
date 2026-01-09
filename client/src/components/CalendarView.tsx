@@ -9,7 +9,6 @@ interface CalendarViewProps {
 	currentDate: Date
 	events: Event[]
 	loading: boolean
-	userAttendingEventIds?: Set<string>
 	onEventClick?: (event: Event, position: { x: number; y: number }) => void
 	onEventHover?: (event: Event | null) => void
 }
@@ -50,7 +49,6 @@ export function CalendarView({
 	currentDate,
 	events,
 	loading,
-	userAttendingEventIds,
 	onEventClick,
 	onEventHover,
 }: CalendarViewProps) {
@@ -60,7 +58,6 @@ export function CalendarView({
 				currentDate={currentDate}
 				events={events}
 				loading={loading}
-				userAttendingEventIds={userAttendingEventIds}
 				onEventClick={onEventClick}
 				onEventHover={onEventHover}
 			/>
@@ -72,7 +69,6 @@ export function CalendarView({
 				currentDate={currentDate}
 				events={events}
 				loading={loading}
-				userAttendingEventIds={userAttendingEventIds}
 				onEventClick={onEventClick}
 				onEventHover={onEventHover}
 			/>
@@ -83,7 +79,6 @@ export function CalendarView({
 			currentDate={currentDate}
 			events={events}
 			loading={loading}
-			userAttendingEventIds={userAttendingEventIds}
 			onEventClick={onEventClick}
 			onEventHover={onEventHover}
 		/>
@@ -94,24 +89,51 @@ interface ViewProps {
 	currentDate: Date
 	events: Event[]
 	loading: boolean
-	userAttendingEventIds?: Set<string>
 	onEventClick?: (event: Event, position: { x: number; y: number }) => void
 	onEventHover?: (event: Event | null) => void
 }
 
 interface EventButtonProps {
 	event: Event
-	isAttending: boolean
 	onEventClick: (event: Event, e: React.MouseEvent<HTMLButtonElement>) => void
 	onEventHover?: (event: Event | null) => void
 	title?: string
 	className?: string
 }
 
+// Helper to determining button styles based on participation status
+const getStatusStyles = (
+	status: string | null | undefined,
+	styles: {
+		attending: string
+		maybe: string
+		default: string
+	}
+) => {
+	if (status === 'attending') { return styles.attending }
+	if (status === 'maybe') { return styles.maybe }
+	return styles.default
+}
+
+const getEventButtonStyle = (status?: string | null) => {
+	return getStatusStyles(status, {
+		attending: 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50',
+		maybe: 'bg-background-primary text-primary-700 hover:bg-primary-50 border border-dashed border-primary-500 ring-0 dark:bg-primary-900/10 dark:text-primary-400 dark:border-primary-500/70',
+		default: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
+	})
+}
+
+const getDayButtonStyle = (status?: string | null) => {
+	return getStatusStyles(status, {
+		attending: 'bg-primary-50 border-primary-200 hover:bg-primary-100 dark:bg-primary-900/20 dark:border-primary-800 dark:hover:bg-primary-900/30',
+		maybe: 'bg-background-primary border-primary-300 border-dashed hover:bg-primary-50 dark:bg-primary-900/10 dark:border-primary-500/50',
+		default: 'bg-background-primary hover:bg-background-secondary border-border-default'
+	})
+}
+
 // Bolt: Memoized to prevent unnecessary re-renders
 const MonthEventButton = React.memo(({
 	event,
-	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
@@ -125,11 +147,7 @@ const MonthEventButton = React.memo(({
 			key={event.id}
 			variant="ghost"
 			size="sm"
-			className={`text-xs px-2 py-1 rounded truncate w-full justify-start transition-colors ${
-				isAttending
-					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50'
-					: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
-			}`}
+			className={`text-xs px-2 py-1 rounded truncate w-full justify-start transition-colors ${getEventButtonStyle(event.viewerStatus)}`}
 			title={title || event.title}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
@@ -143,7 +161,6 @@ function MonthView({
 	currentDate,
 	events,
 	loading,
-	userAttendingEventIds,
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
@@ -246,10 +263,7 @@ function MonthView({
 												<MonthEventButton
 													key={event.id}
 													event={event}
-													isAttending={
-														userAttendingEventIds?.has(event.id) ??
-														false
-													}
+
 													onEventClick={handleEventClick}
 													onEventHover={onEventHover}
 												/>
@@ -274,7 +288,6 @@ function MonthView({
 // Bolt: Memoized to prevent unnecessary re-renders
 const WeekEventButton = React.memo(({
 	event,
-	isAttending,
 	onEventClick,
 	onEventHover,
 	title,
@@ -288,11 +301,7 @@ const WeekEventButton = React.memo(({
 			key={event.id}
 			variant="ghost"
 			size="sm"
-			className={`text-xs px-2 py-1 mb-1 rounded truncate w-full justify-start transition-colors ${
-				isAttending
-					? 'bg-primary-100 text-primary-800 hover:bg-primary-200 ring-1 ring-primary-500 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-500/50'
-					: 'bg-info-50 text-info-700 hover:bg-info-100 dark:bg-info-900/20 dark:text-info-300 dark:hover:bg-info-900/30'
-			}`}
+			className={`text-xs px-2 py-1 mb-1 rounded truncate w-full justify-start transition-colors ${getEventButtonStyle(event.viewerStatus)}`}
 			title={title || event.title}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
@@ -312,7 +321,6 @@ function WeekView({
 	currentDate,
 	events,
 	loading,
-	userAttendingEventIds,
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
@@ -405,11 +413,10 @@ function WeekView({
 							return (
 								<div
 									key={day.toISOString()}
-									className={`text-center text-sm font-semibold py-2 rounded ${
-										isToday
-											? 'bg-info-600 text-white dark:bg-info-500'
-											: 'text-text-primary'
-									}`}>
+									className={`text-center text-sm font-semibold py-2 rounded ${isToday
+										? 'bg-info-600 text-white dark:bg-info-500'
+										: 'text-text-primary'
+										}`}>
 									<div className="text-xs uppercase">
 										{day.toLocaleDateString('en-US', { weekday: 'short' })}
 									</div>
@@ -436,9 +443,7 @@ function WeekView({
 											<WeekEventButton
 												key={event.id}
 												event={event}
-												isAttending={
-													userAttendingEventIds?.has(event.id) ?? false
-												}
+
 												onEventClick={handleEventClick}
 												onEventHover={onEventHover}
 												title={`${event.title} - ${new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
@@ -458,7 +463,6 @@ function WeekView({
 // Bolt: Memoized to prevent unnecessary re-renders
 const DayEventButton = React.memo(({
 	event,
-	isAttending,
 	onEventClick,
 	onEventHover,
 }: EventButtonProps) => {
@@ -466,15 +470,13 @@ const DayEventButton = React.memo(({
 	const handleMouseEnter = () => onEventHover?.(event)
 	const handleMouseLeave = () => onEventHover?.(null)
 
+
+
 	return (
 		<Button
 			key={event.id}
 			variant="ghost"
-			className={`p-3 rounded border border-border-default w-full justify-start transition-colors ${
-				isAttending
-					? 'bg-primary-50 border-primary-200 hover:bg-primary-100 dark:bg-primary-900/20 dark:border-primary-800 dark:hover:bg-primary-900/30'
-					: 'bg-background-primary hover:bg-background-secondary'
-			}`}
+			className={`p-3 rounded border w-full justify-start transition-colors ${getDayButtonStyle(event.viewerStatus)}`}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
@@ -503,7 +505,6 @@ function DayView({
 	currentDate,
 	events,
 	loading,
-	userAttendingEventIds,
 	onEventClick,
 	onEventHover,
 }: ViewProps) {
@@ -560,11 +561,10 @@ function DayView({
 				<div>
 					{/* Day header */}
 					<div
-						className={`text-center text-lg font-semibold py-4 mb-4 rounded ${
-							isToday
-								? 'bg-info-600 text-white dark:bg-info-500'
-								: 'bg-background-tertiary text-text-primary'
-						}`}>
+						className={`text-center text-lg font-semibold py-4 mb-4 rounded ${isToday
+							? 'bg-info-600 text-white dark:bg-info-500'
+							: 'bg-background-tertiary text-text-primary'
+							}`}>
 						<div className="text-sm uppercase">
 							{currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
 						</div>
@@ -597,10 +597,6 @@ function DayView({
 													<DayEventButton
 														key={event.id}
 														event={event}
-														isAttending={
-															userAttendingEventIds?.has(event.id) ??
-															false
-														}
 														onEventClick={handleEventClick}
 														onEventHover={onEventHover}
 													/>

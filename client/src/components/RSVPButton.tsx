@@ -14,9 +14,10 @@ interface RSVPButtonProps {
     onSignUp?: () => void
     isAuthenticated?: boolean
     onOpenChange?: (isOpen: boolean) => void
+    variant?: 'default' | 'icon'
 }
 
-export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onSignUp, isAuthenticated = true, onOpenChange }: RSVPButtonProps) {
+export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onSignUp, isAuthenticated = true, onOpenChange, variant = 'default' }: RSVPButtonProps) {
     const [isOpen, setIsOpen] = useState(false)
     const { mutate: rsvp, isPending } = useRSVP(eventId)
     const [isAnimating, setIsAnimating] = useState(false)
@@ -146,7 +147,8 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onS
         >
             <div className={cn(
                 "flex rounded-md transition-all duration-200 group",
-                wrapperClass
+                wrapperClass,
+                variant === 'icon' && "w-auto" // Let widths animate in icon mode if needed
             )}>
                 <Button
                     variant="ghost" // Use ghost as we handle outer styling
@@ -162,14 +164,24 @@ export function RSVPButton({ eventId, currentStatus, className, size = 'sm', onS
                         "!bg-transparent !hover:bg-transparent !active:bg-transparent hover:text-current",
                         buttonTextClass,
                         isAnimating && "scale-105",
-                        "focus:z-10 focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 dark:focus:ring-offset-neutral-900"
+                        "focus:z-10 focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 dark:focus:ring-offset-neutral-900",
+                        // Icon variant transitions: hide text by default, show on hover
+                        variant === 'icon' ? "w-8 pr-0 pl-2 group-hover:w-auto group-hover:pr-3" : ""
                     )}
                     onClick={handleMainClick}
                     onMouseDown={stopPropagation}
                     loading={isPending}
                     aria-label={currentStatus ? `Change RSVP status from ${label}` : "RSVP to event"}
                 >
-                    {label}
+                    {variant === 'icon' ? (
+                        <span className={cn(
+                            "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-300 ease-in-out overflow-hidden inline-block align-middle ml-0 group-hover:ml-2"
+                        )}>
+                            {label}
+                        </span>
+                    ) : (
+                        label
+                    )}
                 </Button>
                 <button
                     ref={buttonRef}

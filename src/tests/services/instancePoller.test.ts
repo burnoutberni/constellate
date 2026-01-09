@@ -14,7 +14,7 @@ import {
 	fetchInstancePublicTimeline,
 	pollKnownActors,
 } from '../../lib/instanceHelpers.js'
-import { cacheEventFromOutboxActivity } from '../../lib/activitypubHelpers.js'
+import { cacheEventFromOutboxActivity, fetchActor } from '../../lib/activitypubHelpers.js'
 
 // Mock dependencies
 vi.mock('../../lib/prisma.js', () => ({
@@ -23,6 +23,9 @@ vi.mock('../../lib/prisma.js', () => ({
 			findMany: vi.fn(),
 			update: vi.fn(),
 			findUnique: vi.fn(),
+		},
+		user: {
+			findMany: vi.fn(),
 		},
 	},
 }))
@@ -35,12 +38,15 @@ vi.mock('../../lib/instanceHelpers.js', () => ({
 
 vi.mock('../../lib/activitypubHelpers.js', () => ({
 	cacheEventFromOutboxActivity: vi.fn(),
+	fetchActor: vi.fn(),
+	cacheRemoteUser: vi.fn(),
 }))
 
 describe('Instance Poller Service', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		vi.useFakeTimers()
+		vi.mocked(prisma.user.findMany).mockResolvedValue([])
 	})
 
 	afterEach(() => {
@@ -111,6 +117,38 @@ describe('Instance Poller Service', () => {
 				data: expect.objectContaining({
 					lastFetchedAt: expect.any(Date),
 				}),
+			})
+		)
+	})
+
+	it('should strictly match user domains', async () => {
+		const domain = 'example.com'
+		const mockUsers = [
+			{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
+			{ username: 'invalid', externalActorUrl: 'https://not-example.com/u/invalid' },
+		]
+
+		// We mock the findMany call to return what we want to verify the *query* arguments
+		// validation happens in the implementation via prisma.user.findMany args
+		vi.mocked(prisma.user.findMany).mockResolvedValue([mockUsers[0]] as any)
+		vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+			id: 'inst-1',
+			domain,
+			lastPageUrl: null,
+		} as any)
+
+		await refreshInstance(domain)
+
+		// Verify the query construction
+		expect(prisma.user.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({
+				where: {
+					isRemote: true,
+					OR: [
+						{ externalActorUrl: { startsWith: `https://${domain}/` } },
+						{ externalActorUrl: { startsWith: `http://${domain}/` } },
+					],
+				},
 			})
 		)
 	})
@@ -294,5 +332,28 @@ describe('Instance Poller Service', () => {
 			)
 			// Should log success (console log not checked but execution path covered)
 		})
+	})
+
+	it('should skip users without externalActorUrl', async () => {
+		const domain = 'example.com'
+		const mockUsers = [
+			{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
+			{ username: 'invalid', externalActorUrl: null }, // Should be skipped
+		]
+
+		vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+		vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+			id: 'inst-1',
+			domain,
+			lastPageUrl: null,
+		} as any)
+
+		await refreshInstance(domain)
+
+		// Verification:
+		// fetchActor should be called for valid user
+		expect(fetchActor).toHaveBeenCalledWith('https://example.com/u/valid')
+		// fetchActor should NOT be called for invalid user (null url)
+		expect(fetchActor).toHaveBeenCalledTimes(1)
 	})
 })

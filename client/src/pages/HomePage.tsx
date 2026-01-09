@@ -23,7 +23,7 @@ export function HomePage() {
 	// const navigate = useNavigate()
 
 	// Queries
-	const { data: eventsData, isLoading: eventsLoading } = useEvents(10)
+	const { data: eventsData, isLoading: eventsLoading } = useEvents({ limit: 10 })
 	const { data: trendingData, isLoading: trendingLoading } = useTrendingEvents(6, 7)
 	const { data: recommendationsData, isLoading: recommendationsLoading } = useRecommendedEvents(
 		6,

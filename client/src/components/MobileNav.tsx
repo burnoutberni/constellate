@@ -13,6 +13,7 @@ export interface MobileNavProps {
 		name?: string
 		email?: string
 		username?: string | null
+		isRemote: boolean
 	} | null
 	isAdmin?: boolean
 }
