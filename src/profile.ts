@@ -19,7 +19,7 @@ import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
 import type { FollowActivity } from './lib/activitypubSchemas.js'
-import { AppError, handleError } from './lib/errors.js'
+import { AppError } from './lib/errors.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { isUrlSafe } from './lib/ssrfProtection.js'
 
@@ -51,36 +51,6 @@ const ProfileUpdateSchema = z.object({
 	// Add other profile fields as needed
 	url: z.url().optional(),
 	theme: z.enum(['LIGHT', 'DARK']).nullable().optional(),
-})
-
-// Get current user's attendance (list of event IDs)
-app.get('/user/attendance', async (c) => {
-	try {
-		const userId = requireAuth(c)
-
-		const attendance = await prisma.eventAttendance.findMany({
-			where: {
-				userId,
-				status: {
-					in: ['attending', 'maybe'],
-				},
-			},
-			select: {
-				eventId: true,
-				status: true,
-			},
-		})
-
-		return c.json({
-			attendance: attendance.map((a) => ({
-				eventId: a.eventId,
-				status: a.status,
-			})),
-		})
-	} catch (error) {
-		console.error('Error fetching user attendance:', error)
-		return handleError(error, c)
-	}
 })
 
 // Get current user's own profile (includes admin status)

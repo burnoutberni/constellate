@@ -70,12 +70,7 @@ describe('CalendarPage', () => {
 		})
 			// Mock fetch to handle both attendance and events calls
 			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-				if (url.includes('/api/user/attendance')) {
-					return Promise.resolve({
-						ok: true,
-						json: async () => ({ attendance: [] }),
-					} as Response)
-				}
+
 				if (url.includes('/api/events')) {
 					return Promise.resolve({
 						ok: true,
@@ -147,12 +142,7 @@ describe('CalendarPage', () => {
 		}
 
 			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-				if (url.includes('/api/user/attendance')) {
-					return Promise.resolve({
-						ok: true,
-						json: async () => ({ attendance: [] }),
-					} as Response)
-				}
+
 				if (url.includes('/api/events')) {
 					return Promise.resolve({
 						ok: true,
@@ -175,12 +165,7 @@ describe('CalendarPage', () => {
 
 	it('should handle calendar export', async () => {
 		; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-			if (url.includes('/api/user/attendance')) {
-				return Promise.resolve({
-					ok: true,
-					json: async () => ({ attendance: [] }),
-				} as Response)
-			}
+
 			if (url.includes('/api/events')) {
 				return Promise.resolve({
 					ok: true,
