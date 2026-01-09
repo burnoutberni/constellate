@@ -316,4 +316,58 @@ describe('CalendarPage', () => {
 			)
 		})
 	})
+
+	it('should show an error toast when clipboard API is not available', async () => {
+		const user = userEvent.setup()
+
+		// Mock clipboard as unavailable
+		Object.defineProperty(navigator, 'clipboard', {
+			value: undefined,
+			writable: true,
+			configurable: true,
+		})
+
+			; (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+				if (url.includes('/api/events')) {
+					return Promise.resolve({ ok: true, json: async () => ({ events: [] }) } as Response)
+				}
+				if (url.includes('/api/calendar/subscriptions')) {
+					return Promise.resolve({
+						ok: true,
+						json: async () => ({ feedUrl: 'https://example.com/feed.ics' }),
+					} as Response)
+				}
+				return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
+			})
+
+		render(<CalendarPage />, { wrapper })
+
+		// Open subscription modal
+		await waitFor(
+			() => {
+				expect(screen.getByText('Get Private Feed URL')).toBeInTheDocument()
+			},
+			{ timeout: 2000 }
+		)
+		await user.click(screen.getByText('Get Private Feed URL'))
+
+		// Generate feed URL
+		await user.click(screen.getByText('Generate Feed URL'))
+
+		// Wait for URL to appear and click Copy
+		await waitFor(() => {
+			expect(screen.getByText('Copy')).toBeInTheDocument()
+		})
+		await user.click(screen.getByText('Copy'))
+
+		// Verify error toast is shown
+		await waitFor(() => {
+			expect(mockAddToast).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: 'Failed to copy to clipboard',
+					variant: 'error',
+				})
+			)
+		})
+	})
 })
