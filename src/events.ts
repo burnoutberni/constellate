@@ -401,9 +401,12 @@ async function broadcastEventCreation(
 				profileImage: user.profileImage,
 			},
 			_count: {
-				attendance: 0,
-				likes: 0,
-				comments: 0,
+				attendance:
+					(event as unknown as { _count?: { attendance?: number } })._count?.attendance ??
+					0,
+				likes: (event as unknown as { _count?: { likes?: number } })._count?.likes ?? 0,
+				comments:
+					(event as unknown as { _count?: { comments?: number } })._count?.comments ?? 0,
 			},
 		},
 	}

@@ -34,7 +34,7 @@ export const EventSchema = z.object({
     }).optional(),
     attendance: z.array(z.object({
         status: z.string(),
-        user: EventUserSchema,
+        user: EventUserSchema.nullable(),
     })).optional(),
     viewerStatus: z.enum(['attending', 'maybe', 'not_attending']).nullable().optional(),
 }).passthrough()
