@@ -1,0 +1,4 @@
+## 2026-01-10 - Stored XSS in ActivityPub Federation
+**Vulnerability:** Incoming ActivityPub data (events, comments, profiles) was not being sanitized before storage. Malicious actors could inject `<script>` tags into `name`, `summary`, or `content` fields, which would then be stored in the database and potentially executed on clients viewing this data.
+**Learning:** Federated protocols like ActivityPub often involve exchanging rich text (HTML). Trusting incoming data from external instances without strict sanitization is a critical risk. Even if the frontend escapes output, Stored XSS should be prevented at the ingress point (Defense in Depth).
+**Prevention:** Explicitly sanitize all string fields from external sources using a strict sanitizer (like `DOMPurify` via `sanitizeText`) before saving them to the database. Ensure that helper functions extracting data (like `extractEventProperties`) perform this sanitization.
