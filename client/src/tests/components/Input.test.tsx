@@ -73,6 +73,24 @@ describe('Input Component', () => {
 		expect(input).toBeInTheDocument()
 	})
 
+	it('should render interactive right icon when onRightIconClick is provided', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleIconClick}
+				rightIconAriaLabel="Clear input"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Clear input' })
+		expect(button).toBeInTheDocument()
+
+		fireEvent.click(button)
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
+
 	it('should handle value changes', () => {
 		const handleChange = vi.fn()
 		render(<Input type="text" onChange={handleChange} />)
