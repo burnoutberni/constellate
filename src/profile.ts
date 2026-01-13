@@ -526,8 +526,12 @@ async function fetchRemoteUserCounts(
 	}
 
 	console.log(`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`)
-	const { fetchRemoteCollectionCount, fetchActor, cacheEventFromOutboxActivity } =
-		await import('./lib/activitypubHelpers.js')
+	const {
+		fetchRemoteCollectionCount,
+		fetchActor,
+		cacheEventFromOutboxActivity,
+		fetchRemoteCollectionItems,
+	} = await import('./lib/activitypubHelpers.js')
 
 	try {
 		const actorUrl = user.externalActorUrl
@@ -584,7 +588,7 @@ async function fetchRemoteUserCounts(
 			if (typeof outboxData.totalItems === 'number') {
 				eventCount = outboxData.totalItems
 			}
-			const items = await fetchOutboxItems(outboxData)
+			const items = await fetchRemoteCollectionItems(outboxUrl!)
 			if (items.length > 0) {
 				await Promise.all(
 					items.map((item) =>
@@ -612,38 +616,6 @@ function getCollectionUrl(val: unknown): string | null {
 	if (typeof val === 'string') return val
 	if (val && typeof val === 'object' && 'id' in val) return (val as { id: string }).id
 	return null
-}
-
-async function fetchOutboxItems(outboxData: {
-	first?: string | { id?: string; orderedItems?: unknown[]; items?: unknown[] }
-	orderedItems?: unknown[]
-	items?: unknown[]
-}): Promise<unknown[]> {
-	if (outboxData.first) {
-		const firstPageUrl =
-			typeof outboxData.first === 'string' ? outboxData.first : (outboxData.first?.id ?? null)
-		if (firstPageUrl) {
-			try {
-				const pageResponse = await safeFetch(firstPageUrl, {
-					headers: { Accept: ContentType.ACTIVITY_JSON },
-				})
-				if (pageResponse.ok) {
-					const page = (await pageResponse.json()) as {
-						orderedItems?: unknown[]
-						items?: unknown[]
-					}
-					return page.orderedItems || page.items || []
-				}
-			} catch (e) {
-				console.error('Error fetching outbox page:', e)
-			}
-		}
-		if (typeof outboxData.first === 'object') {
-			const firstObj = outboxData.first as { orderedItems?: unknown[]; items?: unknown[] }
-			return firstObj.orderedItems || firstObj.items || []
-		}
-	}
-	return outboxData.orderedItems || outboxData.items || []
 }
 
 function buildUserWithCounts(

@@ -12,6 +12,9 @@ interface FollowButtonProps {
 	size?: 'sm' | 'md' | 'lg'
 	fullWidth?: boolean
 	followStatus?: { isFollowing: boolean; isAccepted: boolean } | null
+	isPending?: boolean
+	onClick?: () => void
+	isLoading?: boolean
 }
 
 const FollowIcon = ({ className }: { className?: string }) => (
@@ -71,6 +74,9 @@ export function FollowButton({
 	size = 'md',
 	fullWidth = false,
 	followStatus: providedStatus,
+	isPending: externalIsPending,
+	onClick,
+	isLoading: externalIsLoading,
 }: FollowButtonProps) {
 	const { user } = useAuth()
 	const { data: fetchedStatus, isLoading: statusLoading } = useFollowStatus(username)
@@ -86,12 +92,17 @@ export function FollowButton({
 	const followStatus = providedStatus ?? fetchedStatus
 	const isFollowing = followStatus?.isFollowing ?? false
 	const isAccepted = followStatus?.isAccepted ?? false
-	const isPending = isFollowing && !isAccepted
+	const isPending = externalIsPending ?? (isFollowing && !isAccepted)
 
-	const isLoading = statusLoading || followMutation.isPending || unfollowMutation.isPending
+	const isLoading = externalIsLoading ?? (statusLoading || followMutation.isPending || unfollowMutation.isPending)
 
 		const handleClick = async () => {
 		if (isLoading) {return}
+
+		if (onClick) {
+			onClick()
+			return
+		}
 
 		setButtonState('loading')
 
