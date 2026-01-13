@@ -381,68 +381,16 @@ export async function fetchRemoteCollectionCount(collectionUrl: string): Promise
 
 /**
  * Fetches items from a remote collection (followers, following, etc)
+ * Handles pagination by following the 'next' property until all items are fetched
  * @param collectionUrl - URL of the collection
  * @returns Array of items, or empty array if unable to fetch
  */
 export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: string): Promise<T[]> {
 	const startTime = Date.now()
+
 	try {
-		const response = await safeFetch(collectionUrl, {
-			headers: {
-				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
-			},
-		})
-
-		const duration = Date.now() - startTime
-
-		if (!response.ok) {
-			console.log(`[collectionItems] ${collectionUrl} → ${response.status} (${duration}ms)`)
-			return []
-		}
-
-		const collection = (await response.json()) as {
-			orderedItems?: T[]
-			items?: T[]
-			first?: { orderedItems?: T[]; items?: T[] }
-			totalItems?: number
-		}
-
-		// Get items from the collection
-		let items = collection.orderedItems || collection.items || []
-
-		// If there's a 'first' page, fetch it (common for paged collections)
-		if (collection.first && items.length === 0) {
-			const firstUrl =
-				typeof collection.first === 'string'
-					? collection.first
-					: (collection.first as { id?: string }).id
-			if (firstUrl) {
-				const firstStartTime = Date.now()
-				const firstResponse = await safeFetch(firstUrl, {
-					headers: {
-						Accept: ContentType.ACTIVITY_JSON,
-					},
-				})
-				const firstDuration = Date.now() - firstStartTime
-				if (firstResponse.ok) {
-					const firstPage = (await firstResponse.json()) as {
-						orderedItems?: T[]
-						items?: T[]
-					}
-					items = firstPage.orderedItems || firstPage.items || []
-					console.log(
-						`[collectionItems] ${firstUrl} → ${items.length} items (${firstDuration}ms)`
-					)
-				} else {
-					console.log(
-						`[collectionItems] ${firstUrl} → ${firstResponse.status} (${firstDuration}ms)`
-					)
-				}
-			}
-		}
-
-		console.log(`[collectionItems] ${collectionUrl} → ${items.length} items (${duration}ms)`)
-		return items
+		const allItems = await fetchAllPages<T>(collectionUrl, startTime)
+		return allItems
 	} catch (error) {
 		const duration = Date.now() - startTime
 		console.log(
@@ -451,6 +399,99 @@ export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: str
 		)
 		return []
 	}
+}
+
+async function fetchAllPages<T>(url: string, startTime: number): Promise<T[]> {
+	const allItems: T[] = []
+	let nextUrl: string | null = url
+	let pageCount = 0
+
+	while (nextUrl) {
+		const pageItems = await fetchSinglePage<T>(nextUrl)
+		if (pageItems === null) {
+			break
+		}
+
+		allItems.push(...pageItems)
+		pageCount++
+
+		const collection = await getCollectionFromPage(nextUrl)
+		nextUrl = getNextPageUrl(collection)
+	}
+
+	logCompletion(url, allItems.length, pageCount, startTime)
+	return allItems
+}
+
+async function fetchSinglePage<T>(pageUrl: string): Promise<T[] | null> {
+	const response = await safeFetch(pageUrl, {
+		headers: {
+			Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
+		},
+	})
+
+	if (!response.ok) {
+		console.log(`[collectionItems] ${pageUrl} → ${response.status}`)
+		return null
+	}
+
+	const collection = (await response.json()) as {
+		orderedItems?: T[]
+		items?: T[]
+		first?: string | { id?: string }
+		next?: string
+	}
+
+	const items = collection.orderedItems || collection.items || []
+
+	if (items.length > 0) {
+		return items
+	}
+
+	if (collection.first) {
+		const firstUrl =
+			typeof collection.first === 'string'
+				? collection.first
+				: (collection.first as { id?: string }).id
+		if (firstUrl && firstUrl !== pageUrl) {
+			const firstResponse = await safeFetch(firstUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (firstResponse.ok) {
+				const firstPage = (await firstResponse.json()) as {
+					orderedItems?: T[]
+					items?: T[]
+				}
+				return firstPage.orderedItems || firstPage.items || []
+			}
+		}
+	}
+
+	return []
+}
+
+async function getCollectionFromPage(pageUrl: string): Promise<{ next?: string } | null> {
+	const response = await safeFetch(pageUrl, {
+		headers: {
+			Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
+		},
+	})
+
+	if (!response.ok) {
+		return null
+	}
+
+	return (await response.json()) as { next?: string }
+}
+
+function getNextPageUrl(collection: { next?: string } | null): string | null {
+	return collection?.next || null
+}
+
+function logCompletion(url: string, totalItems: number, pageCount: number, startTime: number) {
+	console.log(
+		`[collectionItems] ${url} → ${totalItems} items in ${pageCount} pages (${Date.now() - startTime}ms)`
+	)
 }
 
 // Helper function to extract location value from event location

@@ -141,33 +141,23 @@ export function UserListItem({ user, onClose, currentUserId, targetUsername }: R
 
 interface UserListSectionProps {
 	title: string
+	count: number
 	users: (User & { isPending?: boolean; isFollowing?: boolean })[]
 	onClose: () => void
 	currentUserId?: string
 	targetUsername?: string
 }
 
-export function UserListSection({ title, users, onClose, currentUserId, targetUsername }: Readonly<UserListSectionProps>) {
+export function UserListSection({ title, count, users, onClose, currentUserId, targetUsername }: Readonly<UserListSectionProps>) {
 	if (users.length === 0) {
 		return null
-	}
-
-	let baseTitle = title
-	let count: string | null = null
-	const lastParenIndex = title.lastIndexOf(' (')
-	if (lastParenIndex !== -1 && title.endsWith(')')) {
-		const potentialCount = title.slice(lastParenIndex + 2, -1)
-		if (/^\d+$/.test(potentialCount)) {
-			baseTitle = title.slice(0, lastParenIndex)
-			count = potentialCount
-		}
 	}
 
 	return (
 		<div className="mb-4">
 			<h3 className="text-sm font-medium text-text-secondary px-3 mb-2 flex items-center gap-1">
-				<span>{baseTitle}</span>
-				{count && <span className="text-text-tertiary font-normal">({count})</span>}
+				<span>{title}</span>
+				<span className="text-text-tertiary font-normal">({count})</span>
 			</h3>
 			<div className="space-y-1">{users.map((user) => (
 				<UserListItem
@@ -284,7 +274,8 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 				{localUsers.length > 0 && remoteUsers.length > 0 && (
 					<div className="mb-4">
 						<UserListSection
-							title={`Local Users (${sortedLocalUsers.length})`}
+							title="Local Users"
+							count={sortedLocalUsers.length}
 							users={sortedLocalUsers}
 							onClose={onClose}
 							currentUserId={currentUser?.id}
@@ -292,7 +283,8 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 						/>
 						<div className="border-t border-border-default my-4" />
 						<UserListSection
-							title={`Remote Users (${sortedRemoteUsers.length})`}
+							title="Remote Users"
+							count={sortedRemoteUsers.length}
 							users={sortedRemoteUsers}
 							onClose={onClose}
 							currentUserId={currentUser?.id}
@@ -302,7 +294,8 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 				)}
 				{localUsers.length > 0 && remoteUsers.length === 0 && (
 					<UserListSection
-						title={`Followers (${sortedLocalUsers.length})`}
+						title="Followers"
+						count={sortedLocalUsers.length}
 						users={sortedLocalUsers}
 						onClose={onClose}
 						currentUserId={currentUser?.id}
@@ -311,7 +304,8 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 				)}
 				{remoteUsers.length > 0 && localUsers.length === 0 && (
 					<UserListSection
-						title={`Remote Followers (${sortedRemoteUsers.length})`}
+						title="Remote Followers"
+						count={sortedRemoteUsers.length}
 						users={sortedRemoteUsers}
 						onClose={onClose}
 						currentUserId={currentUser?.id}

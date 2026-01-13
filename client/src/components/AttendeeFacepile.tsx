@@ -65,34 +65,33 @@ export function AttendeeFacepile({
     // Plus if we truncated the list in the tooltip
     
     const getTooltipContent = () => {
-        const names = going.map(a => {
+        const items = going.map(a => {
             const u = getUserData(a)
-            return u?.name || u?.username || 'Unknown'
+            return {
+                id: u?.id || u?.username || 'unknown',
+                name: u?.name || u?.username || 'Unknown',
+            }
         })
         
         // Basic sort: Current user first, then alphabetical
-        names.sort((a, b) => {
-            if (a === currentUser?.name || a === currentUser?.username) {return -1}
-            if (b === currentUser?.name || b === currentUser?.username) {return 1}
-            return a.localeCompare(b)
+        items.sort((a, b) => {
+            if (a.id === currentUser?.id) {return -1}
+            if (b.id === currentUser?.id) {return 1}
+            return a.name.localeCompare(b.name)
         })
 
         // We can list up to 10 names
-        const visibleNames = names.slice(0, 10)
+        const visibleItems = items.slice(0, 10)
         
         // Remaining count is (Total Attending) - (Names Shown in Tooltip)
-        // Note: 'names' is derived from 'going' array. 
-        // If 'going' array is shorter than 'totalCount' (due to backend limit), we add that difference.
-        // Also if we slice 'names' for tooltip, we add that difference.
-        
         const knownHiddenCount = Math.max(0, totalCount - displayedCount)
-        const tooltipHiddenCount = Math.max(0, names.length - visibleNames.length)
+        const tooltipHiddenCount = Math.max(0, items.length - visibleItems.length)
         const totalHiddenCount = knownHiddenCount + tooltipHiddenCount
 
         return (
             <div className="text-xs text-left">
-                {visibleNames.map((name) => (
-                    <div key={name}>{name}</div>
+                {visibleItems.map((item) => (
+                    <div key={item.id}>{item.name}</div>
                 ))}
                 {totalHiddenCount > 0 && (
                     <div className="text-gray-400 mt-1 italic">and {totalHiddenCount} others</div>
