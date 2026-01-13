@@ -3,6 +3,26 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { UserProfileHeader } from '../../components/UserProfileHeader'
 import type { UserProfile } from '../../types'
 
+vi.mock('../../components/FollowButton', () => ({
+	FollowButton: vi.fn(({ followStatus, isPending: externalIsPending, onClick, isLoading }) => {
+		const isFollowing = followStatus?.isFollowing ?? false
+		const isAccepted = followStatus?.isAccepted ?? false
+		const isPending = externalIsPending ?? (isFollowing && !isAccepted)
+
+		const getText = () => {
+			if (isPending) return 'Pending'
+			if (isFollowing) return 'Unfollow'
+			return 'Follow'
+		}
+
+		return (
+			<button data-testid="follow-button" onClick={onClick} disabled={isLoading}>
+				{getText()}
+			</button>
+		)
+	}),
+}))
+
 const mockUser: UserProfile = {
 	id: '1',
 	username: 'testuser',
@@ -14,6 +34,7 @@ const mockUser: UserProfile = {
 	isRemote: false,
 	externalActorUrl: null,
 	createdAt: '2023-01-01T00:00:00.000Z',
+	isPublicProfile: true,
 	_count: {
 		events: 5,
 		followers: 10,
