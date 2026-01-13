@@ -58,6 +58,7 @@ describe('Profile API', () => {
 				email: `alice_${suffix}@test.com`,
 				name: 'Alice Test',
 				isRemote: false,
+				privateKey: 'test-private-key-mock',
 				autoAcceptFollowers: true,
 				isPublicProfile: true,
 			},
@@ -69,6 +70,7 @@ describe('Profile API', () => {
 				email: `bob_${suffix}@test.com`,
 				name: 'Bob Test',
 				isRemote: false,
+				privateKey: 'test-private-key-mock',
 				autoAcceptFollowers: true,
 				isPublicProfile: true,
 			},
@@ -485,6 +487,9 @@ describe('Profile API', () => {
 			expect(following).toBeTruthy()
 			expect(following?.accepted).toBe(false)
 
+			// Wait for background delivery
+			await new Promise((resolve) => setTimeout(resolve, 10))
+
 			expect(mockDeliverToInbox).toHaveBeenCalledWith(
 				mockFollowActivity,
 				remoteUser.inboxUrl,
@@ -645,6 +650,9 @@ describe('Profile API', () => {
 				},
 			})
 			expect(following).toBeNull()
+
+			// Wait for background delivery (longer timeout for unfollow)
+			await new Promise((resolve) => setTimeout(resolve, 50))
 
 			expect(mockDeliverToInbox).toHaveBeenCalledWith(
 				mockUndoActivity,

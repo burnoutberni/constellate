@@ -9,7 +9,7 @@ import {
 	fetchActor,
 	cacheRemoteUser,
 } from '../lib/activitypubHelpers.js'
-import type { Person } from '../lib/activitypubSchemas.js'
+import type { Actor } from '../lib/activitypubSchemas.js'
 
 import { config } from '../config.js'
 
@@ -101,7 +101,7 @@ async function refreshInstanceUsers(domain: string) {
 		try {
 			const actor = await fetchActor(user.externalActorUrl)
 			if (actor) {
-				await cacheRemoteUser(actor as unknown as Person)
+				await cacheRemoteUser(actor as Actor)
 			}
 		} catch (error) {
 			console.warn(`Failed to refresh user ${user.username}:`, error)

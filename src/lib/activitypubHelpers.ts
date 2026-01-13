@@ -7,7 +7,7 @@ import { safeFetch } from './ssrfProtection.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
-import type { Person } from './activitypubSchemas.js'
+import type { Actor } from './activitypubSchemas.js'
 import { trackInstance } from './instanceHelpers.js'
 
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
@@ -29,20 +29,43 @@ export function getBaseUrl(): string {
  * @returns Actor object
  */
 export async function fetchActor(actorUrl: string): Promise<Record<string, unknown> | null> {
+	const startTime = Date.now()
 	try {
 		const response = await safeFetch(actorUrl, {
 			headers: {
-				Accept: ContentType.ACTIVITY_JSON,
+				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
 			},
 		})
 
+		const duration = Date.now() - startTime
+
 		if (!response.ok) {
+			console.log(`[fetchActor] ${actorUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
-		return (await response.json()) as Record<string, unknown>
+		// Check content-type before parsing
+		const contentType = response.headers.get('content-type') || ''
+		if (
+			!contentType.includes('application/activity+json') &&
+			!contentType.includes('application/ld+json') &&
+			!contentType.includes('application/json')
+		) {
+			console.log(
+				`[fetchActor] Skipping non-JSON response from ${actorUrl}: ${contentType} (${duration}ms)`
+			)
+			return null
+		}
+
+		const actor = (await response.json()) as Record<string, unknown>
+		console.log(`[fetchActor] ${actorUrl} → OK (${duration}ms)`)
+		return actor
 	} catch (error) {
-		console.error('Error fetching actor:', error)
+		const duration = Date.now() - startTime
+		console.log(
+			`[fetchActor] ${actorUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
 		return null
 	}
 }
@@ -52,7 +75,7 @@ export async function fetchActor(actorUrl: string): Promise<Record<string, unkno
  * @param actor - Actor object from remote instance
  * @returns User record
  */
-export async function cacheRemoteUser(actor: Person) {
+export async function cacheRemoteUser(actor: Actor) {
 	const actorUrl = actor.id
 
 	// Extract username from actor URL or preferredUsername
@@ -86,6 +109,8 @@ export async function cacheRemoteUser(actor: Person) {
 	const profileImageUrl = getIconUrl(actor.icon)
 	const headerImageUrl = getIconUrl(actor.image)
 
+	const createdAt = actor.published ? new Date(actor.published) : undefined
+
 	// Upsert user
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
@@ -98,6 +123,8 @@ export async function cacheRemoteUser(actor: Person) {
 			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
+			createdAt: createdAt,
+			profileSync: new Date(),
 		},
 		create: {
 			username: `${username}@${new URL(actorUrl).hostname}`,
@@ -111,8 +138,60 @@ export async function cacheRemoteUser(actor: Person) {
 			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
+			createdAt: createdAt || undefined,
+			profileSync: new Date(),
 		},
 	})
+}
+
+/**
+ * Caches a remote user by URL - checks cache first before fetching
+ * @param actorUrl - URL of the remote actor
+ * @returns User record or null if unable to fetch
+ */
+export async function cacheRemoteUserByUrl(actorUrl: string) {
+	// First check if user is already cached in our database
+	const startTime = Date.now()
+	const cachedUser = await prisma.user.findUnique({
+		where: { externalActorUrl: actorUrl },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			profileImage: true,
+			displayColor: true,
+			isRemote: true,
+		},
+	})
+
+	if (cachedUser) {
+		const duration = Date.now() - startTime
+		console.log(`[cacheUser] ${actorUrl} → CACHED (${duration}ms) @${cachedUser.username}`)
+		return cachedUser
+	}
+
+	// If not cached, fetch from remote and cache
+	const fetchStartTime = Date.now()
+	try {
+		const actor = await fetchActor(actorUrl)
+		if (actor) {
+			const cached = await cacheRemoteUser(actor as Actor)
+			const fetchDuration = Date.now() - fetchStartTime
+			console.log(
+				`[cacheUser] ${actorUrl} → FETCHED (${fetchDuration}ms) @${cached.username}`
+			)
+			return cached
+		}
+		console.log(`[cacheUser] ${actorUrl} → NULL (no actor)`)
+		return null
+	} catch (error) {
+		const fetchDuration = Date.now() - fetchStartTime
+		console.log(
+			`[cacheUser] ${actorUrl} → ERROR (${fetchDuration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
+		return null
+	}
 }
 
 /**
@@ -256,23 +335,23 @@ export async function isDomainBlocked(domain: string): Promise<boolean> {
 }
 
 /**
- * Fetches follower count from a remote user's ActivityPub followers collection
- * @param actorUrl - Remote user's actor URL
- * @returns Follower count, or null if unable to fetch
+ * Fetches the count of items in a remote collection
+ * @param collectionUrl - URL of the collection
+ * @returns Count, or null if unable to fetch
  */
-export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number | null> {
+export async function fetchRemoteCollectionCount(collectionUrl: string): Promise<number | null> {
+	const startTime = Date.now()
 	try {
-		// Construct followers collection URL
-		const followersUrl = `${actorUrl}/followers`
-
-		const response = await safeFetch(followersUrl, {
+		const response = await safeFetch(collectionUrl, {
 			headers: {
-				Accept: ContentType.ACTIVITY_JSON,
+				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
 			},
 		})
 
+		const duration = Date.now() - startTime
+
 		if (!response.ok) {
-			console.error(`Failed to fetch followers collection: ${response.status}`)
+			console.log(`[collectionCount] ${collectionUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
@@ -280,15 +359,99 @@ export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number
 
 		// Extract totalItems from the collection
 		if (collection.totalItems !== undefined) {
-			return typeof collection.totalItems === 'number'
-				? collection.totalItems
-				: parseInt(collection.totalItems, 10)
+			const count =
+				typeof collection.totalItems === 'number'
+					? collection.totalItems
+					: parseInt(collection.totalItems, 10)
+			console.log(`[collectionCount] ${collectionUrl} → ${count} (${duration}ms)`)
+			return count
 		}
 
+		console.log(`[collectionCount] ${collectionUrl} → null (no totalItems) (${duration}ms)`)
 		return null
 	} catch (error) {
-		console.error('Error fetching remote follower count:', error)
+		const duration = Date.now() - startTime
+		console.log(
+			`[collectionCount] ${collectionUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
 		return null
+	}
+}
+
+export const fetchRemoteFollowerCount = fetchRemoteCollectionCount
+
+/**
+ * Fetches items from a remote collection (followers, following, etc)
+ * @param collectionUrl - URL of the collection
+ * @returns Array of items, or empty array if unable to fetch
+ */
+export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: string): Promise<T[]> {
+	const startTime = Date.now()
+	try {
+		const response = await safeFetch(collectionUrl, {
+			headers: {
+				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
+			},
+		})
+
+		const duration = Date.now() - startTime
+
+		if (!response.ok) {
+			console.log(`[collectionItems] ${collectionUrl} → ${response.status} (${duration}ms)`)
+			return []
+		}
+
+		const collection = (await response.json()) as {
+			orderedItems?: T[]
+			items?: T[]
+			first?: { orderedItems?: T[]; items?: T[] }
+			totalItems?: number
+		}
+
+		// Get items from the collection
+		let items = collection.orderedItems || collection.items || []
+
+		// If there's a 'first' page, fetch it (common for paged collections)
+		if (collection.first && items.length === 0) {
+			const firstUrl =
+				typeof collection.first === 'string'
+					? collection.first
+					: (collection.first as { id?: string }).id
+			if (firstUrl) {
+				const firstStartTime = Date.now()
+				const firstResponse = await safeFetch(firstUrl, {
+					headers: {
+						Accept: ContentType.ACTIVITY_JSON,
+					},
+				})
+				const firstDuration = Date.now() - firstStartTime
+				if (firstResponse.ok) {
+					const firstPage = (await firstResponse.json()) as {
+						orderedItems?: T[]
+						items?: T[]
+					}
+					items = firstPage.orderedItems || firstPage.items || []
+					console.log(
+						`[collectionItems] ${firstUrl} → ${items.length} items (${firstDuration}ms)`
+					)
+				} else {
+					console.log(
+						`[collectionItems] ${firstUrl} → ${firstResponse.status} (${firstDuration}ms)`
+					)
+				}
+			}
+		}
+
+		console.log(`[collectionItems] ${collectionUrl} → ${items.length} items (${duration}ms)`)
+		return items
+	} catch (error) {
+		const duration = Date.now() - startTime
+		console.log(
+			`[collectionItems] ${collectionUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
+		return []
 	}
 }
 
@@ -337,14 +500,14 @@ export async function cacheEventFromOutboxActivity(
 
 	// Optimization: Skip past events
 	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
-	const now = new Date()
-	const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
-	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
+	// const now = new Date()
+	// const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
+	// const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
 
 	// If the event ended before yesterday, skip it
-	if (end < yesterday) {
-		return
-	}
+	// if (end < yesterday) {
+	// 	return
+	// }
 	const eventDuration = eventObj.duration as string | undefined
 	const eventUrl = eventObj.url as string | undefined
 	const eventStatus = eventObj.eventStatus as string | undefined
@@ -373,6 +536,39 @@ export async function cacheEventFromOutboxActivity(
 
 	// Combine and deduplicate
 	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
+
+	// Determine primary attributedTo
+	// 1. If we have explicit organizers (from attributedTo or contacts), prioritize them.
+	// 2. If 'organizer' field exists (Mobilizon/schema.org style), it might be better but we parsed attributedTo/contacts above.
+	// Note: Mobilizon puts the actual organizer in 'organizer' or 'attributedTo', and the creator in 'attributedTo' sometimes.
+	// We want the PERSON who organized it, not just the creator.
+	// If rawAttributedTo has multiple, the first is usually the "Actor" (Person/Group).
+
+	// Better logic:
+	// If the event has an explicit attributedTo that is different from the outbox owner, trust the event.
+	// But if the event has NO attributedTo, we MUST fall back to the outbox owner (creator).
+
+	let primaryAttributedTo = userExternalActorUrl
+	if (rawAttributedTo.length > 0) {
+		primaryAttributedTo = rawAttributedTo[0]
+	}
+
+	// Mobilizon specific: 'organizer' field
+	// Some implementations use the 'organizer' property which is more semantic than attributedTo
+	const organizerObj = eventObj.organizer as Record<string, unknown> | string | undefined
+	if (organizerObj) {
+		if (typeof organizerObj === 'string') {
+			primaryAttributedTo = organizerObj
+			if (!organizerUrls.includes(organizerObj)) organizerUrls.unshift(organizerObj)
+		} else if (
+			typeof organizerObj === 'object' &&
+			'id' in organizerObj &&
+			typeof organizerObj.id === 'string'
+		) {
+			primaryAttributedTo = organizerObj.id
+			if (!organizerUrls.includes(organizerObj.id)) organizerUrls.unshift(organizerObj.id)
+		}
+	}
 
 	// Format for storage
 	const organizers = organizerUrls.map((url) => {
@@ -406,7 +602,7 @@ export async function cacheEventFromOutboxActivity(
 		eventAttendanceMode: eventAttendanceMode || null,
 		maximumAttendeeCapacity: eventMaxCapacity || null,
 		headerImage: eventAttachment?.[0]?.url || null,
-		attributedTo: userExternalActorUrl,
+		attributedTo: primaryAttributedTo,
 		organizers: organizers.length > 0 ? organizers : undefined,
 	}
 

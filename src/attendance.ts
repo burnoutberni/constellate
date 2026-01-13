@@ -101,14 +101,53 @@ function normalizeRecipientsField(value?: string | string[]) {
 	return Array.isArray(value) ? value : [value]
 }
 
-async function deliverNormalizedActivity(activity: Activity, userId: string) {
+async function deliverNormalizedActivity(
+	activity: Activity,
+	userId: string,
+	eventId: string,
+	status: AttendanceState,
+	isUndo: boolean = false
+) {
+	const startTime = Date.now()
 	const addressing = {
 		to: normalizeRecipientsField(activity.to),
 		cc: normalizeRecipientsField(activity.cc),
 		bcc: [] as string[],
 	}
 
-	await deliverActivity(activity, addressing, userId)
+	const toCount = addressing.to.length
+	const ccCount = addressing.cc.length
+
+	console.log(`[Attendance] Starting background activity delivery for user ${userId}`)
+	console.log(`[Attendance] Recipients: ${toCount} to, ${ccCount} cc`)
+
+	try {
+		if (!isUndo) {
+			const currentAttendance = await prisma.eventAttendance.findUnique({
+				where: { eventId_userId: { eventId, userId } },
+			})
+
+			if (!currentAttendance || currentAttendance.status !== status) {
+				console.log(
+					`[Attendance] Skipping delivery - status changed from ${status} to ${currentAttendance?.status ?? 'none'}`
+				)
+				return
+			}
+		}
+
+		await deliverActivity(activity, addressing, userId)
+		const duration = Date.now() - startTime
+		console.log(`[Attendance] Activity delivery completed in ${duration}ms`)
+	} catch (error) {
+		const duration = Date.now() - startTime
+		console.error(
+			`[Attendance] Activity delivery failed after ${duration}ms:`,
+			error instanceof Error ? error.message : 'Unknown error'
+		)
+		console.error(
+			`[Attendance] Admin alert: Failed to deliver ${activity.type} for event ${eventId}`
+		)
+	}
 }
 
 interface AttendanceContext {
@@ -179,12 +218,18 @@ const AttendanceSchema = z.object({
 // Set or update attendance status
 app.post('/:id/attend', moderateRateLimit, async (c) => {
 	try {
+		const requestStartTime = Date.now()
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
 		const body: unknown = await c.req.json()
 		const { status, reminderMinutesBeforeStart } = AttendanceSchema.parse(body)
 
+		console.log(
+			`[Attendance] POST /events/${id}/attend - User ${userId} setting status: ${status}`
+		)
+
+		const dbQueryStart = Date.now()
 		const event = requireResource(
 			(await prisma.event.findUnique({
 				where: { id },
@@ -193,9 +238,11 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'Event not found'
 		)
+		console.log(`[Attendance] DB query (event): ${Date.now() - dbQueryStart}ms`)
 
 		await ensureViewerCanAccess(event, userId)
 
+		const userQueryStart = Date.now()
 		const user = requireResource(
 			await prisma.user.findUnique({
 				where: { id: userId },
@@ -203,7 +250,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'User not found'
 		)
+		console.log(`[Attendance] DB query (user): ${Date.now() - userQueryStart}ms`)
 
+		const upsertStart = Date.now()
 		const attendance = await prisma.eventAttendance.upsert({
 			where: {
 				eventId_userId: {
@@ -220,13 +269,19 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 				status,
 			},
 		})
+		console.log(`[Attendance] DB upsert: ${Date.now() - upsertStart}ms`)
 
 		// Build and deliver activity
+		const activityBuildStart = Date.now()
 		const context = buildAttendanceContext(event, user)
 		const activity = buildAttendanceActivityForStatus(status, user, context)
-		await deliverNormalizedActivity(activity, userId)
+		console.log(`[Attendance] Activity build: ${Date.now() - activityBuildStart}ms`)
+
+		// Deliver activity in background (non-blocking)
+		deliverNormalizedActivity(activity, userId, id, status)
 
 		// Broadcast real-time update
+		const broadcastStart = Date.now()
 		broadcast({
 			type: 'attendance:updated',
 			data: {
@@ -237,6 +292,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 				name: user.name,
 			},
 		})
+		console.log(`[Attendance] Broadcast: ${Date.now() - broadcastStart}ms`)
 
 		// Handle reminder operations - distinguish validation errors from unexpected errors
 		try {
@@ -271,6 +327,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 			console.error(`Failed to update popularity score for event ${id}:`, err)
 		})
 
+		console.log(`[Attendance] Total request time: ${Date.now() - requestStartTime}ms`)
 		return c.json(attendance)
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -281,21 +338,25 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 		}
 		if (error instanceof AppError) {
 			return c.json(
-				{ error: error.code, message: error.message },
+				{ error: error.message, code: error.code },
 				error.statusCode as HttpErrorStatus
 			)
 		}
-		console.error('Error setting attendance:', error)
-		return c.json({ error: 'Internal server error' }, 500)
+		console.error('Unexpected error in POST /:id/attend:', error)
+		return c.json({ error: 'Internal server error' }, 500 as const)
 	}
 })
 
 // Remove attendance
 app.delete('/:id/attend', moderateRateLimit, async (c) => {
 	try {
+		const requestStartTime = Date.now()
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
+		console.log(`[Attendance] DELETE /events/${id}/attend - User ${userId} removing attendance`)
+
+		const dbQueryStart = Date.now()
 		const attendance = requireResource(
 			(await prisma.eventAttendance.findUnique({
 				where: {
@@ -312,9 +373,11 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'Attendance not found'
 		)
+		console.log(`[Attendance] DB query (attendance): ${Date.now() - dbQueryStart}ms`)
 
 		await ensureViewerCanAccess(attendance.event, userId)
 
+		const userQueryStart = Date.now()
 		const user = requireResource(
 			await prisma.user.findUnique({
 				where: { id: userId },
@@ -322,7 +385,9 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'User not found'
 		)
+		console.log(`[Attendance] DB query (user): ${Date.now() - userQueryStart}ms`)
 
+		const deleteStart = Date.now()
 		await prisma.eventAttendance.delete({
 			where: {
 				eventId_userId: {
@@ -331,7 +396,9 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 				},
 			},
 		})
+		console.log(`[Attendance] DB delete: ${Date.now() - deleteStart}ms`)
 
+		const activityBuildStart = Date.now()
 		const context = buildAttendanceContext(attendance.event, user)
 		const originalActivity = buildAttendanceActivityForStatus(
 			attendance.status as AttendanceState,
@@ -339,8 +406,18 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			context
 		)
 		const undoActivity = buildUndoActivity(user, originalActivity)
-		await deliverNormalizedActivity(undoActivity, userId)
+		console.log(`[Attendance] Activity build: ${Date.now() - activityBuildStart}ms`)
 
+		// Deliver activity in background (non-blocking, isUndo skips staleness check)
+		deliverNormalizedActivity(
+			undoActivity,
+			userId,
+			id,
+			attendance.status as AttendanceState,
+			true
+		)
+
+		const broadcastStart = Date.now()
 		broadcast({
 			type: 'attendance:removed',
 			data: {
@@ -350,6 +427,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 				name: user.name,
 			},
 		})
+		console.log(`[Attendance] Broadcast: ${Date.now() - broadcastStart}ms`)
 
 		// Handle reminder cancellation - don't fail attendance removal if reminder fails
 		try {
@@ -364,6 +442,7 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			console.error(`Failed to update popularity score for event ${id}:`, err)
 		})
 
+		console.log(`[Attendance] Total request time: ${Date.now() - requestStartTime}ms`)
 		return c.json({ success: true })
 	} catch (error) {
 		if (error instanceof HttpError) {

@@ -1,24 +1,19 @@
 import type { UserProfile } from '@/types'
 
-import { formatDate } from '../lib/formatUtils'
-
+import { FollowButton } from './FollowButton'
 import { Stack } from './layout'
 import { ReportButton } from './ReportButton'
-import { Avatar, Badge, Button, Card } from './ui'
+import { Avatar, Badge, Card } from './ui'
+import { SafeHTML } from './ui/SafeHTML'
 
 interface UserProfileHeaderProps {
 	user: UserProfile
 	isOwnProfile: boolean
-	isFollowing?: boolean
-	isFollowPending?: boolean
 	followerCount: number
 	followingCount: number
 	eventCount: number
-	onFollowClick?: () => void
-	onUnfollowClick?: () => void
 	onFollowersClick?: () => void
 	onFollowingClick?: () => void
-	isFollowLoading?: boolean
 	showFollowButton: boolean
 	headerImageUrl?: string | null
 	isAuthenticated?: boolean
@@ -31,16 +26,11 @@ interface UserProfileHeaderProps {
 export function UserProfileHeader({
 	user,
 	isOwnProfile,
-	isFollowing,
-	isFollowPending,
 	followerCount,
 	followingCount,
 	eventCount,
-	onFollowClick,
-	onUnfollowClick,
 	onFollowersClick,
 	onFollowingClick,
-	isFollowLoading,
 	showFollowButton,
 	headerImageUrl,
 	isAuthenticated,
@@ -112,9 +102,13 @@ export function UserProfileHeader({
 												Remote
 											</Badge>
 											{instanceHostname && (
-												<span className="text-text-tertiary text-xs">
+												<a
+													href={user.externalActorUrl || '#'}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="text-text-tertiary text-xs hover:underline hover:text-primary-600 transition-colors">
 													from {instanceHostname}
-												</span>
+												</a>
 											)}
 										</>
 									)}
@@ -124,27 +118,7 @@ export function UserProfileHeader({
 							<div className="flex flex-shrink-0 items-center gap-2">
 								{/* Follow Button */}
 								{!isOwnProfile && showFollowButton && (
-									<div>
-										{isFollowing ? (
-											<Button
-												variant="secondary"
-												size="md"
-												onClick={onUnfollowClick}
-												loading={isFollowLoading}
-												disabled={isFollowLoading}>
-												Unfollow
-											</Button>
-										) : (
-											<Button
-												variant="primary"
-												size="md"
-												onClick={onFollowClick}
-												loading={isFollowLoading}
-												disabled={isFollowLoading || isFollowPending}>
-												{isFollowPending ? 'Pending' : 'Follow'}
-											</Button>
-										)}
-									</div>
+									<FollowButton username={user.username} />
 								)}
 
 								{/* Report Button */}
@@ -162,51 +136,36 @@ export function UserProfileHeader({
 
 						{/* Bio - hide for private profiles if not owner */}
 						{user.bio && (!isPrivate || isOwnProfile) && (
-							<p className="text-text-primary mb-4 whitespace-pre-wrap">{user.bio}</p>
+							<div className="text-text-primary mb-4">
+								<SafeHTML html={user.bio} />
+							</div>
 						)}
 
 						{/* Stats - hide counts for private profiles if not owner */}
 						{(!isPrivate || isOwnProfile) && (
-							<Stack direction="row" gap="md" className="flex-wrap text-sm">
-								<div className="flex items-center gap-1.5">
-									<span className="font-semibold text-text-primary">
-										{eventCount}
-									</span>
-									<span className="text-text-secondary">
-										{eventCount === 1 ? 'Event' : 'Events'}
-									</span>
-								</div>
-								<Button
+							<div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+								<span className="text-text-primary">
+									<strong className="font-semibold">{eventCount}</strong>{' '}
+									<span className="text-text-secondary">{eventCount === 1 ? 'Event' : 'Events'}</span>
+								</span>
+								<button
+									type="button"
 									onClick={onFollowersClick}
-									variant="ghost"
-									size="sm"
-									className="flex items-center gap-1.5 hover:text-text-primary transition-colors h-auto p-0">
-									<span className="font-semibold text-text-primary">
-										{followerCount}
-									</span>
-									<span className="text-text-secondary">
-										{followerCount === 1 ? 'Follower' : 'Followers'}
-									</span>
-								</Button>
-								<Button
+									className="bg-transparent border-0 p-0 cursor-pointer text-left text-sm text-text-primary hover:text-primary-600 transition-colors">
+									<strong className="font-semibold">{followerCount}</strong>{' '}
+									<span className="text-text-secondary">{followerCount === 1 ? 'Follower' : 'Followers'}</span>
+								</button>
+								<button
+									type="button"
 									onClick={onFollowingClick}
-									variant="ghost"
-									size="sm"
-									className="flex items-center gap-1.5 hover:text-text-primary transition-colors h-auto p-0">
-									<span className="font-semibold text-text-primary">
-										{followingCount}
-									</span>
+									className="bg-transparent border-0 p-0 cursor-pointer text-left text-sm text-text-primary hover:text-primary-600 transition-colors">
+									<strong className="font-semibold">{followingCount}</strong>{' '}
 									<span className="text-text-secondary">Following</span>
-								</Button>
-							</Stack>
+								</button>
+							</div>
 						)}
 
-						{/* Join Date */}
-						{user.createdAt && (
-							<p className="text-xs text-text-tertiary mt-3">
-								Joined {formatDate(user.createdAt)}
-							</p>
-						)}
+
 					</div>
 				</Stack>
 			</Card>

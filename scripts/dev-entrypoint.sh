@@ -2,8 +2,6 @@
 set -e
 
 # Run migrations
-# If no migrations exist, this will create and apply the initial one
-# If migrations exist, this will apply any pending ones
 echo "Running database migrations..."
 if [ -z "$(ls -A /app/prisma/migrations 2>/dev/null | grep -v README)" ]; then
   echo "No migrations found, creating initial migration..."
@@ -12,6 +10,10 @@ else
   echo "Applying existing migrations..."
   npx prisma migrate deploy
 fi
+
+# Generate Prisma Client
+echo "Generating Prisma Client..."
+npx prisma generate
 
 echo "🚀 Starting Development Server..."
 "$@" &

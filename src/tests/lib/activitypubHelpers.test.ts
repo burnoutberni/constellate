@@ -16,7 +16,7 @@ import {
 import { prisma } from '../../lib/prisma.js'
 import { safeFetch } from '../../lib/ssrfProtection.js'
 import { ContentType } from '../../constants/activitypub.js'
-import type { Person } from '../../lib/activitypubSchemas.js'
+import type { Actor } from '../../lib/activitypubSchemas.js'
 
 // Mock dependencies
 vi.mock('../../lib/prisma.js', () => ({
@@ -146,7 +146,7 @@ describe('activitypubHelpers', () => {
 
 			vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-			const result = await cacheRemoteUser(mockActor as unknown as Person)
+			const result = await cacheRemoteUser(mockActor as Actor)
 			expect(result).toEqual(mockUser)
 			expect(prisma.user.upsert).toHaveBeenCalledWith({
 				where: { externalActorUrl: 'https://example.com/users/alice' },
@@ -194,7 +194,7 @@ describe('activitypubHelpers', () => {
 
 			vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-			const result = await cacheRemoteUser(mockActor as unknown as Person)
+			const result = await cacheRemoteUser(mockActor as Actor)
 			expect(result).toEqual(mockUser)
 			expect(prisma.user.upsert).toHaveBeenCalledWith({
 				where: { externalActorUrl: 'https://example.com/users/bob' },
@@ -240,7 +240,7 @@ describe('activitypubHelpers', () => {
 
 			vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
 
-			await cacheRemoteUser(mockActor as unknown as Person)
+			await cacheRemoteUser(mockActor as Actor)
 			expect(prisma.user.upsert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					create: expect.objectContaining({

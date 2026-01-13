@@ -228,6 +228,12 @@ export async function discoverPublicEndpoint(domain: string): Promise<string | n
 		}
 
 		// 4. Fallback: Check if there is an "instance actor" (e.g. Mastodon)
+		// Skip for known server types that don't use /actor
+		const knownNonMastodonDomains = ['constellate.social']
+		if (knownNonMastodonDomains.includes(domain)) {
+			return null
+		}
+
 		// Use http for local domains to support development
 		const protocol =
 			domain.endsWith('.local') || domain.includes('localhost') ? 'http' : 'https'

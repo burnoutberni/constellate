@@ -19,7 +19,7 @@ import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { normalizeTags } from './lib/tags.js'
-import type { Person } from './lib/activitypubSchemas.js'
+import type { Actor } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
 import { config } from './config.js'
@@ -35,6 +35,7 @@ import {
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { listEventRemindersForUser } from './services/reminders.js'
 import { buildEventFilter } from './lib/eventQueries.js'
+import { resolveAndCacheRemoteUser } from './userSearch.js'
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -69,6 +70,7 @@ const eventUserSummarySelect = {
 	displayColor: true,
 	profileImage: true,
 	isRemote: true,
+	externalActorUrl: true,
 } as const
 
 export const eventBaseInclude = {
@@ -117,28 +119,145 @@ export function buildEventInclude(userId?: string) {
 	return eventBaseInclude
 }
 
-export async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
-	events: T[]
-): Promise<T[]> {
-	return Promise.all(
-		events.map(async (event) => {
-			if (!event.user && event.attributedTo) {
-				const remoteUser = await prisma.user.findFirst({
-					where: { externalActorUrl: event.attributedTo },
-					select: eventUserSummarySelect,
-				})
-				if (remoteUser) {
-					return { ...event, user: remoteUser }
+// Helper to fetch and cache a remote user by actor URL
+async function fetchAndCacheRemoteUser(actorUrl: string) {
+	let user = await prisma.user.findFirst({
+		where: { externalActorUrl: actorUrl },
+		select: eventUserSummarySelect,
+	})
+
+	if (!user) {
+		const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
+		const actor = await fetchActor(actorUrl)
+		if (actor) {
+			user = await cacheRemoteUser(actor as Actor)
+			if (user) {
+				// Return with the select fields
+				return {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					displayColor: user.displayColor,
+					profileImage: user.profileImage,
+					isRemote: user.isRemote,
+					externalActorUrl: user.externalActorUrl,
 				}
 			}
-			return event
-		})
-	)
+		}
+	}
+	return user
+}
+
+// Hydrates both the main user (if missing but attributed) AND resolves organizers to DB users
+export async function hydrateEventUsers<
+	T extends {
+		user: unknown
+		attributedTo: string | null
+		organizers?: unknown
+	},
+>(events: T[]): Promise<T[]> {
+	// Collect all URLs to fetch (attributedTo + organizers)
+	const urlToEventMap = new Map<string, Array<T>>()
+	const allExternalUrls = new Set<string>()
+
+	for (const event of events) {
+		// 1. attributedTo (if user is missing)
+		if (!event.user && event.attributedTo) {
+			allExternalUrls.add(event.attributedTo)
+			const list = urlToEventMap.get(event.attributedTo) || []
+			list.push(event)
+			urlToEventMap.set(event.attributedTo, list)
+		}
+
+		// 2. Organizers
+		if (Array.isArray(event.organizers)) {
+			for (const org of event.organizers as Array<{ url?: string }>) {
+				if (org && typeof org === 'object' && org.url) {
+					allExternalUrls.add(org.url)
+				}
+			}
+		}
+	}
+
+	if (allExternalUrls.size === 0) {
+		return events
+	}
+
+	// Fetch all cached users from DB
+	const cachedUsers = await prisma.user.findMany({
+		where: { externalActorUrl: { in: Array.from(allExternalUrls) } },
+		select: eventUserSummarySelect,
+	})
+
+	const userMap = new Map(cachedUsers.map((u) => [u.externalActorUrl, u]))
+
+	// Find URLs that need to be fetched from remote
+	const uncachedUrls = Array.from(allExternalUrls).filter((url) => !userMap.has(url))
+
+	// Fetch and cache any missing users from remote
+	if (uncachedUrls.length > 0) {
+		await Promise.all(
+			uncachedUrls.map(async (url) => {
+				const user = await fetchAndCacheRemoteUser(url)
+				if (user) {
+					userMap.set(user.externalActorUrl, user)
+				}
+			})
+		)
+	}
+
+	return events.map((event) => {
+		let updatedEvent = { ...event }
+
+		// Hydrate 'user' from attributedTo if missing
+		if (!updatedEvent.user && updatedEvent.attributedTo) {
+			const remoteUser = userMap.get(updatedEvent.attributedTo)
+			if (remoteUser) {
+				updatedEvent = { ...updatedEvent, user: remoteUser }
+			}
+		}
+
+		// Hydrate 'organizers' with full profile data if found
+		if (Array.isArray(updatedEvent.organizers)) {
+			const hydratedOrganizers = (
+				updatedEvent.organizers as Array<{ url: string; username: string }>
+			).map((org) => {
+				// Normalize URL - remove trailing slash for consistent matching
+				const normalizedOrgUrl = org.url ? org.url.replace(/\/$/, '') : ''
+
+				// Try direct URL match
+				let dbUser = userMap.get(org.url)
+
+				// Try normalized URL match if direct failed
+				if (!dbUser && normalizedOrgUrl) {
+					for (const [key, user] of userMap.entries()) {
+						if (key && key.replace(/\/$/, '') === normalizedOrgUrl) {
+							dbUser = user
+							break
+						}
+					}
+				}
+
+				if (dbUser) {
+					return {
+						...org,
+						profileImage: dbUser.profileImage,
+						name: dbUser.name,
+						username: dbUser.username,
+					}
+				}
+				return org
+			})
+			updatedEvent = { ...updatedEvent, organizers: hydratedOrganizers }
+		}
+
+		return updatedEvent
+	})
 }
 
 // Transform sharedEvent to originalEventId for client compatibility
 // Also derives viewerStatus from attendance list if available
-function transformEventForClient<
+export function transformEventForClient<
 	T extends {
 		sharedEvent?: { id: string } | null
 		attendance?: Array<{ userId: string; status: string }>
@@ -978,7 +1097,7 @@ async function findOrCacheRemoteUser(actorUrl: string | undefined) {
 		const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
 		const actor = await fetchActor(actorUrl)
 		if (actor) {
-			user = await cacheRemoteUser(actor as unknown as Person)
+			user = await cacheRemoteUser(actor as Actor)
 		}
 	}
 
@@ -1157,7 +1276,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
 		const viewerId = c.get('userId') as string | undefined
 
 		const isRemote = username.includes('@')
-		const user = await prisma.user.findFirst({
+		let user = await prisma.user.findFirst({
 			where: { username, isRemote },
 			select: {
 				id: true,
@@ -1169,6 +1288,12 @@ app.get('/by-user/:username/:eventId', async (c) => {
 				isRemote: true,
 			},
 		})
+		if (!user && isRemote) {
+			const resolvedUser = await resolveAndCacheRemoteUser(username)
+			if (resolvedUser) {
+				user = resolvedUser
+			}
+		}
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
@@ -1182,6 +1307,44 @@ app.get('/by-user/:username/:eventId', async (c) => {
 			},
 			include: getEventFullInclude(),
 		})
+
+		// If event not found for remote user, try searching in organizers
+		if (!event && isRemote && user.externalActorUrl) {
+			const organizerEvents = await prisma.$queryRaw<any>`
+				SELECT id FROM "Event"
+				WHERE id = ${eventId}
+				AND organizers::text IS NOT NULL
+				AND organizers::text LIKE '%' || ${user.externalActorUrl} || '%'
+				LIMIT 1
+			`
+
+			if (organizerEvents.length > 0 && organizerEvents[0]?.id) {
+				const fullEvent = await prisma.event.findFirst({
+					where: { id: organizerEvents[0].id },
+					include: getEventFullInclude(),
+				})
+				if (fullEvent) {
+					// Temporarily override user for processing to show the organizer
+					const eventWithOrganizerUser = {
+						...fullEvent,
+						user: {
+							id: user.id,
+							username: user.username,
+							name: user.name,
+							displayColor: user.displayColor,
+							profileImage: user.profileImage,
+							externalActorUrl: user.externalActorUrl,
+							isRemote: user.isRemote,
+						},
+					}
+					const result = await processRemoteEvent(eventWithOrganizerUser, user, {
+						userHasShared: false,
+						viewerReminders: [],
+					})
+					return c.json(result)
+				}
+			}
+		}
 
 		if (!event) {
 			return c.json({ error: 'Event not found' }, 404)

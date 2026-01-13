@@ -33,6 +33,7 @@ export const ActivityType = {
 // Object Types
 export const ObjectType = {
 	PERSON: 'Person',
+	GROUP: 'Group',
 	EVENT: 'Event',
 	NOTE: 'Note',
 	PLACE: 'Place',

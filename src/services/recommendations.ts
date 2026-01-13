@@ -22,6 +22,23 @@ const eventInclude = {
 		},
 	},
 	tags: true,
+	attendance: {
+		select: {
+			status: true,
+			userId: true,
+			user: {
+				select: {
+					id: true,
+					username: true,
+					name: true,
+					displayColor: true,
+					profileImage: true,
+					externalActorUrl: true,
+					isRemote: true,
+				},
+			},
+		},
+	},
 	_count: {
 		select: {
 			attendance: true,
@@ -300,14 +317,6 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 			},
 		},
 	]
-
-	if (interestProfile.engagedEventIds.length > 0) {
-		filters.push({
-			id: {
-				notIn: interestProfile.engagedEventIds,
-			},
-		})
-	}
 
 	filters.push({
 		NOT: { userId },

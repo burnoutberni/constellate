@@ -144,7 +144,10 @@ export async function broadcastToUser(
 	userId: string,
 	event: { type: string; data: Record<string, unknown> }
 ) {
-	const { type, data } = event
+	const message = {
+		...event,
+		timestamp: new Date().toISOString(),
+	}
 
 	let count = 0
 	const promises = Array.from(clients.entries()).map(async ([clientId, client]) => {
@@ -153,8 +156,8 @@ export async function broadcastToUser(
 				// We can't easily type the stream write method without Hono's internal types
 				const stream = client.stream
 				await stream.writeSSE({
-					data: JSON.stringify(data),
-					event: type,
+					data: JSON.stringify(message),
+					event: event.type,
 					id: String(Date.now()),
 				})
 				count++

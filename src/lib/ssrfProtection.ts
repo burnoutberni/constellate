@@ -158,6 +158,11 @@ export async function safeFetch(
 	let currentUrl = url
 	let redirectCount = 0
 
+	const requestId = Math.random().toString(36).substring(2, 10)
+	const startTime = Date.now()
+
+	console.log(`[OUTGOING] ${requestId} GET ${url}`)
+
 	while (redirectCount <= maxRedirects) {
 		// Validate current URL
 		if (!(await isUrlSafe(currentUrl))) {
@@ -176,6 +181,23 @@ export async function safeFetch(
 			})
 			clearTimeout(timeoutId)
 
+			const duration = Date.now() - startTime
+
+			// Log response status for all requests
+			if (!response.ok) {
+				console.log(
+					`[OUTGOING] ${requestId} ${currentUrl} → ${response.status} (${duration}ms)`
+				)
+			} else if (duration > 1000) {
+				console.log(
+					`[OUTGOING] ${requestId} ${currentUrl} → ${response.status} (${duration}ms) [SLOW]`
+				)
+			} else {
+				console.log(
+					`[OUTGOING] ${requestId} ${currentUrl} → ${response.status} (${duration}ms)`
+				)
+			}
+
 			// Check for redirects
 			if (response.status >= 300 && response.status < 400) {
 				const location = response.headers.get('location')
@@ -188,7 +210,7 @@ export async function safeFetch(
 				redirectCount++
 
 				console.log(
-					`[SSRF] Following redirect ${redirectCount}/${maxRedirects}: ${currentUrl}`
+					`[OUTGOING] ${requestId} Following redirect ${redirectCount}/${maxRedirects}: ${currentUrl}`
 				)
 				continue
 			}
@@ -196,6 +218,11 @@ export async function safeFetch(
 			return response
 		} catch (error: unknown) {
 			clearTimeout(timeoutId)
+			const duration = Date.now() - startTime
+			console.log(
+				`[OUTGOING] ${requestId} ${currentUrl} → ERROR (${duration}ms)`,
+				error instanceof Error ? error.message : 'Unknown error'
+			)
 			if (error instanceof Error && error.name === 'AbortError') {
 				throw new Error(`Request timeout after ${timeoutMs}ms: ${currentUrl}`)
 			}

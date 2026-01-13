@@ -17,6 +17,9 @@ export interface User {
 	isAdmin?: boolean
 	autoAcceptFollowers?: boolean
 	isPublicProfile: boolean
+	isPending?: boolean // For pending follow requests
+	isFollowing?: boolean // For followers list - whether current user already follows this person
+	unfollowTarget?: string // For followers list - the username to use when unfollowing/canceling
 }
 
 export interface UserProfile extends User {

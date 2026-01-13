@@ -459,28 +459,100 @@ export function useRSVP(eventId: string) {
 				queryClient.setQueryData(queryKey, { ...feedData, pages: newPages })
 			})
 
-			// 3. Update Search Results and Event Lists
-			const listQueries = [
-				...queryClient.getQueriesData({ queryKey: ['search', 'events'] }),
-				...queryClient.getQueriesData({ queryKey: ['events', 'list'] }),
-			]
-
-			listQueries.forEach(([queryKey, data]) => {
-				const listData = data as EventsResponse // Both have similar structure { events: [], pagination: ... }
-				if (!listData || !listData.events) {
-					return
-				}
-				previousData.set(queryKey, listData)
-
-				const updatedEvents = listData.events.map((event) => {
-					if (event.id === eventId) {
-						return getUpdatedEvent(event)
+			// 4. Update ALL cache entries that contain this event
+			// This is a "global" optimistic update approach to ensure consistency
+			// irrespective of which specific query key is used (Trending, For You, Lists, etc.)
+			queryClient.setQueriesData<unknown>(
+				{
+					predicate: (query) =>
+						// Only target event-related queries
+						Array.isArray(query.queryKey) &&
+						(query.queryKey.includes('events') || query.queryKey.includes('activity')),
+				},
+				(oldData: unknown) => {
+					if (!oldData) {
+						return oldData
 					}
-					return event
-				})
 
-				queryClient.setQueryData(queryKey, { ...listData, events: updatedEvents })
-			})
+					// Handle EventsResponse { events: Event[], pagination: ... }
+					if (
+						typeof oldData === 'object' &&
+						'events' in oldData &&
+						Array.isArray((oldData as EventsResponse).events)
+					) {
+						return {
+							...oldData,
+							events: (oldData as EventsResponse).events.map((e) =>
+								e.id === eventId ? getUpdatedEvent(e) : e
+							),
+						}
+					}
+
+					// Handle RecommendationsResponse { recommendations: { event: Event }[] }
+					if (
+						typeof oldData === 'object' &&
+						'recommendations' in oldData &&
+						Array.isArray((oldData as RecommendationsResponse).recommendations)
+					) {
+						return {
+							...oldData,
+							recommendations: (oldData as RecommendationsResponse).recommendations.map((rec) =>
+								rec.event.id === eventId ? { ...rec, event: getUpdatedEvent(rec.event) } : rec
+							),
+						}
+					}
+
+					// Handle Single Event Detail (Event)
+					if (typeof oldData === 'object' && 'id' in oldData && (oldData as Event).id === eventId) {
+						// Double check it looks like an event
+						if ('title' in oldData && 'startTime' in oldData) {
+							return getUpdatedEvent(oldData as Event)
+						}
+					}
+
+					// Handle Feed/Infinite Query { pages: { items: { data: Event }[] }[] }
+					if (
+						typeof oldData === 'object' &&
+						'pages' in oldData &&
+						Array.isArray((oldData as { pages: unknown[] }).pages)
+					) {
+						const pagesData = oldData as { pages: Array<{ items: Array<{ type: string; data: unknown }> }> }
+						return {
+							...pagesData,
+							pages: pagesData.pages.map((page) => ({
+								...page,
+								items: page.items.map((item) => {
+									// Trending Event in Feed
+									if (
+										item.type === 'trending_event' &&
+										isTrendingEvent(item.data) &&
+										item.data.id === eventId
+									) {
+										return { ...item, data: getUpdatedEvent(item.data) }
+									}
+									// Activity in Feed
+									if (
+										item.type === 'activity' &&
+										isActivity(item.data) &&
+										item.data.event.id === eventId
+									) {
+										return {
+											...item,
+											data: {
+												...item.data,
+												event: getUpdatedEvent(item.data.event),
+											},
+										}
+									}
+									return item
+								}),
+							})),
+						}
+					}
+
+					return oldData
+				}
+			)
 
 			return { previousData }
 		},
@@ -503,6 +575,8 @@ export function useRSVP(eventId: string) {
 			queryClient.invalidateQueries({ queryKey: queryKeys.events.details() })
 			queryClient.invalidateQueries({ queryKey: ['search', 'events'] })
 			queryClient.invalidateQueries({ queryKey: ['events', 'list'] })
+			// Removed invalidation for trending and recommendations to prevent list reordering
+			// Optimistic updates handle the UI state changes
 		},
 	})
 }

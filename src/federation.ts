@@ -28,6 +28,7 @@ import type {
 	UndoActivity,
 	AnnounceActivity,
 	Person,
+	Actor,
 	Event as ActivityPubEvent,
 	Note as ActivityPubNote,
 } from './lib/activitypubSchemas.js'
@@ -152,7 +153,7 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
 		return
 	}
 
-	const actorPerson = actor as unknown as Person
+	const actorPerson = actor as Actor
 	const remoteUser = await cacheRemoteUser(actorPerson)
 
 	// Track instance
@@ -275,7 +276,7 @@ async function handleAcceptEvent(
 	const actor = await fetchActor(actorUrl)
 	if (!actor) return
 
-	const actorPerson = actor as unknown as Person
+	const actorPerson = actor as Actor
 	const remoteUser = await cacheRemoteUser(actorPerson)
 
 	const event = await prisma.event.findFirst({
@@ -411,9 +412,16 @@ async function handleAcceptFollow(
 		console.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
 	}
 
-	// Broadcast SSE event to notify the follower's clients
-	const targetUsername = targetUser?.username || actorUrl.split('/').pop() || 'unknown'
-	await broadcastToUser(localUser.id, {
+	// Construct the target username - for remote users it's username@domain
+	const targetUsername = targetUser?.username
+		? targetUser.username
+		: actorUrl.includes('/users/')
+			? `${actorUrl.split('/users/')[1].split('/')[0]}@${new URL(actorUrl).hostname}`
+			: actorUrl.split('/').pop() || 'unknown'
+
+	// Broadcast SSE event to notify clients
+	// Use broadcast (not broadcastToUser) so all connected clients viewing this profile get updated
+	await broadcast({
 		type: BroadcastEvents.FOLLOW_ACCEPTED,
 		data: {
 			username: targetUsername,
@@ -646,7 +654,7 @@ async function getActorInfo(actorUrl: string) {
 		console.log('Failed to fetch actor')
 		return null
 	}
-	const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+	const remoteUser = await cacheRemoteUser(actor as Actor)
 	await trackInstance(actorUrl)
 	return remoteUser
 }
@@ -755,7 +763,7 @@ async function handleCreateNote(
 	const actor = await fetchActor(actorUrl)
 	if (!actor) return
 
-	const actorPerson = actor as unknown as Person
+	const actorPerson = actor as Actor
 	const remoteUser = await cacheRemoteUser(actorPerson)
 
 	// Type guard for note properties
@@ -1065,7 +1073,7 @@ async function handleLike(activity: LikeActivity): Promise<void> {
 	const actor = await fetchActor(actorUrl)
 	if (!actor) return
 
-	const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+	const remoteUser = await cacheRemoteUser(actor as Actor)
 
 	// Find event
 	const event = await prisma.event.findFirst({
@@ -1375,7 +1383,7 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
 		return
 	}
 
-	const remoteUser = await cacheRemoteUser(actor as unknown as Person)
+	const remoteUser = await cacheRemoteUser(actor as Actor)
 	const originalEvent = await resolveSharedEventTarget(object)
 
 	if (!originalEvent) {
@@ -1464,7 +1472,7 @@ async function handleTentativeAccept(activity: Activity | Record<string, unknown
 	const actor = await fetchActor(actorUrl)
 	if (!actor) return
 
-	const actorPerson = actor as unknown as Person
+	const actorPerson = actor as Actor
 	const remoteUser = await cacheRemoteUser(actorPerson)
 
 	const event = await prisma.event.findFirst({
@@ -1574,7 +1582,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
 	const actor = await fetchActor(actorUrl)
 	if (!actor) return
 
-	const actorPerson = actor as unknown as Person
+	const actorPerson = actor as Actor
 	const remoteUser = await cacheRemoteUser(actorPerson)
 
 	if (isFollowRejectObject(object)) {

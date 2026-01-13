@@ -43,3 +43,5 @@ export { PageLoader, type PageLoaderProps } from './PageLoader'
 export { SafeHTML, type SafeHTMLProps } from './SafeHTML'
 export * from './icons'
 export * from './DropdownMenu'
+export * from './Tooltip'
+

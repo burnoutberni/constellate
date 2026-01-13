@@ -236,6 +236,8 @@ const SetupEventListenersSchema = {
 	followRemoved: z.object({
 		data: z.object({
 			username: z.string(),
+			actorUrl: z.string().optional(),
+			isFollowing: z.boolean().optional(),
 		}),
 	}),
 	followAccepted: z.object({
@@ -250,12 +252,13 @@ const SetupEventListenersSchema = {
 		data: z.object({
 			username: z.string(),
 			actorUrl: z.string().optional(),
-			isAccepted: z.boolean(),
+			isAccepted: z.boolean().optional(),
 		}),
 	}),
 	followRejected: z.object({
 		data: z.object({
 			username: z.string(),
+			actorUrl: z.string().optional(),
 		}),
 	}),
 	// Someone followed the user
@@ -686,6 +689,10 @@ const setupEventListeners = (
 					isFollowing: true,
 					isAccepted: false,
 				})
+				// Refresh followers list to show pending follower
+				queryClient.invalidateQueries({
+					queryKey: queryKeysParam.users.followers(data.username),
+				})
 			}
 		} catch (error) {
 			logger.error('Failed to parse follow:pending SSE data', { error: error as unknown, data: e.data as unknown })
@@ -699,6 +706,10 @@ const setupEventListeners = (
 				queryClient.setQueryData(queryKeysParam.users.followStatus(data.username), {
 					isFollowing: true,
 					isAccepted: true,
+				})
+				// Refresh followers list to move from pending to confirmed
+				queryClient.invalidateQueries({
+					queryKey: queryKeysParam.users.followers(data.username),
 				})
 				if (data.followerCount !== null && data.followerCount !== undefined) {
 					const profileData = queryClient.getQueryData(
@@ -730,6 +741,43 @@ const setupEventListeners = (
 			}
 		} catch (error) {
 			logger.error('Failed to parse follow:accepted SSE data', { error: error as unknown, data: e.data as unknown })
+		}
+	})
+
+	eventSource.addEventListener('follower:added', (e) => {
+		try {
+			const { data } = SetupEventListenersSchema.followerAdded.parse(JSON.parse(e.data))
+			if (data.username) {
+				if (data.followerCount !== null && data.followerCount !== undefined) {
+					const profileData = queryClient.getQueryData(
+						queryKeysParam.users.profile(data.username)
+					) as
+						| { user: { _count: { followers: number; following: number; events: number } } }
+						| undefined
+					if (profileData) {
+						queryClient.setQueryData(queryKeysParam.users.profile(data.username), {
+							...profileData,
+							user: {
+								...profileData.user,
+								_count: {
+									...profileData.user._count,
+									followers: data.followerCount,
+								},
+							},
+						})
+					} else {
+						queryClient.invalidateQueries({
+							queryKey: queryKeysParam.users.profile(data.username),
+						})
+					}
+				} else {
+					queryClient.invalidateQueries({
+						queryKey: queryKeysParam.users.profile(data.username),
+					})
+				}
+			}
+		} catch (error) {
+			logger.error('Failed to parse follower:added SSE data', { error: error as unknown, data: e.data as unknown })
 		}
 	})
 

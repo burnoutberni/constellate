@@ -100,6 +100,7 @@ export async function deliverToInbox(
 	user: { id?: string; username: string; privateKey: string | null },
 	recordFailure: boolean = false
 ): Promise<boolean> {
+	const deliveryStartTime = Date.now()
 	try {
 		if (!user.privateKey) {
 			const error: DeliveryError = {
@@ -163,12 +164,17 @@ export async function deliverToInbox(
 			body,
 		})
 
+		const duration = Date.now() - deliveryStartTime
+
 		if (!response.ok) {
 			const error: DeliveryError = {
 				message: `HTTP ${response.status}: ${response.statusText}`,
 				statusCode: response.status,
 			}
 			logFederationError('Delivery failed', inboxUrl, activity, error)
+			console.log(
+				`[Federation] Failed delivery to ${inboxUrl} in ${duration}ms: ${response.status}`
+			)
 
 			if (recordFailure && user.id) {
 				await addToDeadLetterQueue(activity, inboxUrl, user.id, error, 0)
@@ -177,6 +183,7 @@ export async function deliverToInbox(
 			return false
 		}
 
+		console.log(`[Federation] Delivered to ${inboxUrl} in ${duration}ms`)
 		return true
 	} catch (error) {
 		const deliveryError: DeliveryError = {
@@ -314,9 +321,24 @@ export async function deliverActivity(
 	}
 
 	// Resolve addressing to inbox URLs
+	const resolveStartTime = Date.now()
 	const inboxUrls = await resolveInboxes(addressing, userId)
+	const resolveDuration = Date.now() - resolveStartTime
+	console.log(`[Federation] Resolved ${inboxUrls.length} inbox URLs in ${resolveDuration}ms`)
 
+	if (inboxUrls.length > 0) {
+		console.log(
+			`[Federation] Delivering activity ${activity.type} to ${inboxUrls.length} inboxes`
+		)
+	}
+
+	const deliveryStartTime = Date.now()
 	await deliverToInboxes(activity, inboxUrls, user)
+	const deliveryDuration = Date.now() - deliveryStartTime
+
+	if (inboxUrls.length > 0) {
+		console.log(`[Federation] Delivered to all inboxes in ${deliveryDuration}ms`)
+	}
 }
 
 /**

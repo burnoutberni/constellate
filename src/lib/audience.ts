@@ -228,11 +228,18 @@ async function processRecipientsInBatches(
  * @returns Array of unique inbox URLs to deliver to
  */
 export async function resolveInboxes(addressing: Addressing, userId: string): Promise<string[]> {
+	const resolveStartTime = Date.now()
 	const inboxes = new Set<string>()
 
 	// Process 'to' and 'cc' recipients in batches
 	const toAndCc = [...addressing.to, ...addressing.cc]
+	console.log(
+		`[Audience] Resolving ${addressing.to.length} 'to' and ${addressing.cc.length} 'cc' recipients`
+	)
+
+	const processStartTime = Date.now()
 	await processRecipientsInBatches(toAndCc, userId, inboxes)
+	console.log(`[Audience] Processed to/cc recipients in ${Date.now() - processStartTime}ms`)
 
 	// Process 'bcc' recipients in batches (same as 'to' but not included in activity)
 	// Note: bcc is typically used for direct messages or private addressing
@@ -240,5 +247,7 @@ export async function resolveInboxes(addressing: Addressing, userId: string): Pr
 		await processRecipientsInBatches(addressing.bcc, userId, inboxes)
 	}
 
+	const totalDuration = Date.now() - resolveStartTime
+	console.log(`[Audience] Resolved ${inboxes.size} unique inboxes in ${totalDuration}ms`)
 	return Array.from(inboxes)
 }
