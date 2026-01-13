@@ -3,6 +3,8 @@ import {
 	getBaseUrl,
 	fetchActor,
 	cacheRemoteUser,
+	fetchRemoteCollectionCount,
+	fetchRemoteCollectionItems,
 	createOrderedCollection,
 	createOrderedCollectionPage,
 	parseActivityId,
@@ -12,6 +14,7 @@ import {
 	isUserBlocked,
 	isDomainBlocked,
 	cacheEventFromOutboxActivity,
+	extractLocationValue,
 } from '../../lib/activitypubHelpers.js'
 import { prisma } from '../../lib/prisma.js'
 import { safeFetch } from '../../lib/ssrfProtection.js'
@@ -22,6 +25,7 @@ import type { Actor } from '../../lib/activitypubSchemas.js'
 vi.mock('../../lib/prisma.js', () => ({
 	prisma: {
 		user: {
+			findUnique: vi.fn(),
 			upsert: vi.fn(),
 		},
 		processedActivity: {
@@ -519,7 +523,6 @@ describe('activitypubHelpers', () => {
 			}
 			const userExternalActorUrl = 'https://example.com/users/alice'
 
-			// Mock console.error to avoid successful test output pollution
 			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
 			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
@@ -542,6 +545,460 @@ describe('activitypubHelpers', () => {
 
 			expect(consoleSpy).toHaveBeenCalled()
 			consoleSpy.mockRestore()
+		})
+
+		it('should skip Announce activities', async () => {
+			const announceActivity = {
+				type: 'Create',
+				object: {
+					type: 'Announce',
+					id: 'https://example.com/activities/1',
+				},
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			await cacheEventFromOutboxActivity(announceActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).not.toHaveBeenCalled()
+		})
+
+		it('should skip activities that are not Create', async () => {
+			const updateActivity = {
+				type: 'Update',
+				object: mockEvent,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			await cacheEventFromOutboxActivity(updateActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).not.toHaveBeenCalled()
+		})
+
+		it('should use contacts as organizers', async () => {
+			const eventWithContacts = {
+				...mockEvent,
+				id: 'https://example.com/events/3',
+				contacts: 'https://example.com/users/bob',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithContacts,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: expect.arrayContaining([
+							expect.objectContaining({
+								url: 'https://example.com/users/bob',
+								username: 'bob',
+								host: 'example.com',
+							}),
+						]),
+					}),
+				})
+			)
+		})
+
+		it('should handle organizer as object with id', async () => {
+			const eventWithOrganizerObject = {
+				...mockEvent,
+				id: 'https://example.com/events/4',
+				organizer: {
+					id: 'https://example.com/users/carol',
+					type: 'Person',
+				},
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithOrganizerObject,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						attributedTo: 'https://example.com/users/carol',
+						organizers: expect.arrayContaining([
+							expect.objectContaining({
+								url: 'https://example.com/users/carol',
+								username: 'carol',
+							}),
+						]),
+					}),
+				})
+			)
+		})
+
+		it('should use event content as summary if summary is missing', async () => {
+			const eventWithContent = {
+				...mockEvent,
+				id: 'https://example.com/events/5',
+				summary: undefined,
+				content: 'Event content here',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithContent,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						summary: 'Event content here',
+					}),
+				})
+			)
+		})
+
+		it('should extract header image from attachment', async () => {
+			const eventWithAttachment = {
+				...mockEvent,
+				id: 'https://example.com/events/6',
+				attachment: [{ url: 'https://example.com/image.jpg' }],
+			}
+			const createActivity = {
+				type: 'Create',
+				object: eventWithAttachment,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						headerImage: 'https://example.com/image.jpg',
+					}),
+				})
+			)
+		})
+
+		it('should handle event without required fields gracefully', async () => {
+			const incompleteEvent = {
+				type: 'Event',
+				// Missing id, name, startTime
+			}
+			const createActivity = {
+				type: 'Create',
+				object: incompleteEvent,
+			}
+			const userExternalActorUrl = 'https://example.com/users/alice'
+
+			await cacheEventFromOutboxActivity(createActivity as any, userExternalActorUrl)
+
+			expect(prisma.event.upsert).not.toHaveBeenCalled()
+		})
+	})
+
+	describe('fetchRemoteCollectionCount', () => {
+		it('should return count from collection with totalItems as number', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					totalItems: 100,
+				}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionCount(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toBe(100)
+		})
+
+		it('should return count from collection with totalItems as string', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					totalItems: '250',
+				}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionCount(
+				'https://example.com/users/bob/following'
+			)
+
+			expect(result).toBe(250)
+		})
+
+		it('should return null when totalItems is missing', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionCount(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toBeNull()
+		})
+
+		it('should return null when response is not ok', async () => {
+			const mockResponse = {
+				ok: false,
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
+
+			const result = await fetchRemoteCollectionCount(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toBeNull()
+		})
+
+		it('should handle fetch errors gracefully', async () => {
+			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+
+			const result = await fetchRemoteCollectionCount(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('fetchRemoteCollectionItems', () => {
+		it('should return items from single page collection', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '1' }, { id: '2' }, { id: '3' }],
+				}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toHaveLength(3)
+			expect(result[0]).toEqual({ id: '1' })
+		})
+
+		it('should return items using items field when orderedItems is empty', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					items: [{ id: 'a' }, { id: 'b' }],
+				}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/following'
+			)
+
+			expect(result).toHaveLength(2)
+			expect(result[0]).toEqual({ id: 'a' })
+		})
+
+		it('should return empty array when collection is empty', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [],
+				}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toEqual([])
+		})
+
+		it('should return null when fetch fails', async () => {
+			const mockResponse = {
+				ok: false,
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toEqual([])
+		})
+
+		it('should handle fetch errors gracefully', async () => {
+			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toEqual([])
+		})
+
+		it('should paginate through multiple pages using next link', async () => {
+			const page1Fetch = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '1' }, { id: '2' }],
+					next: 'https://example.com/users/bob/followers?page=2',
+				}),
+			}
+			const page1Next = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					next: 'https://example.com/users/bob/followers?page=2',
+				}),
+			}
+			const page2Fetch = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '3' }, { id: '4' }],
+					next: 'https://example.com/users/bob/followers?page=3',
+				}),
+			}
+			const page2Next = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					next: 'https://example.com/users/bob/followers?page=3',
+				}),
+			}
+			const page3Fetch = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '5' }],
+				}),
+			}
+			const page3Next = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({}),
+			}
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce(page1Fetch as unknown as Response)
+				.mockResolvedValueOnce(page1Next as unknown as Response)
+				.mockResolvedValueOnce(page2Fetch as unknown as Response)
+				.mockResolvedValueOnce(page2Next as unknown as Response)
+				.mockResolvedValueOnce(page3Fetch as unknown as Response)
+				.mockResolvedValueOnce(page3Next as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers?page=1'
+			)
+
+			expect(result).toHaveLength(5)
+			expect(result).toEqual([
+				{ id: '1' },
+				{ id: '2' },
+				{ id: '3' },
+				{ id: '4' },
+				{ id: '5' },
+			])
+		})
+
+		it('should fetch first page when first link is present but items are empty', async () => {
+			const firstPageResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '1' }, { id: '2' }],
+				}),
+			}
+
+			vi.mocked(safeFetch).mockResolvedValue(firstPageResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toHaveLength(2)
+		})
+
+		it('should handle first as object with id property', async () => {
+			const firstPageResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '1' }],
+				}),
+			}
+
+			vi.mocked(safeFetch).mockResolvedValue(firstPageResponse as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toHaveLength(1)
+		})
+
+		it('should return empty array when first fetch fails', async () => {
+			const failResponse = {
+				ok: false,
+			}
+
+			vi.mocked(safeFetch).mockResolvedValue(failResponse as Response)
+
+			const result = await fetchRemoteCollectionItems<{ id: string }>(
+				'https://example.com/users/bob/followers'
+			)
+
+			expect(result).toEqual([])
+		})
+	})
+
+	describe('extractLocationValue', () => {
+		it('should return string location as-is', () => {
+			const result = extractLocationValue('Central Park')
+			expect(result).toBe('Central Park')
+		})
+
+		it('should extract name from object location', () => {
+			const result = extractLocationValue({ name: 'Conference Room A' })
+			expect(result).toBe('Conference Room A')
+		})
+
+		it('should return null for undefined', () => {
+			const result = extractLocationValue(undefined)
+			expect(result).toBeNull()
+		})
+
+		it('should return null for object without name', () => {
+			const result = extractLocationValue({ type: 'Place' })
+			expect(result).toBeNull()
+		})
+
+		it('should return null for null', () => {
+			const result = extractLocationValue(null as unknown as undefined)
+			expect(result).toBeNull()
 		})
 	})
 })

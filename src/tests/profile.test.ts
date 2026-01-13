@@ -1102,4 +1102,66 @@ describe('Profile API', () => {
 			expect(response.status).toBe(500)
 		})
 	})
+
+	describe('Background follow delivery', () => {
+		it('should deliver follow activity in background', async () => {
+			mockAuth(testUser)
+
+			const mockFollowActivity = {
+				type: 'Follow',
+				actor: `${baseUrl}/users/${testUser.username}`,
+				object: remoteUser.externalActorUrl,
+			}
+
+			vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(
+				mockFollowActivity as any
+			)
+
+			const mockDeliverToInbox = vi
+				.mocked(activityDelivery.deliverToInbox)
+				.mockResolvedValue(true)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/follow`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+
+			expect(response.status).toBe(200)
+
+			// Wait for background delivery
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			// Should deliver in background
+			expect(mockDeliverToInbox).toHaveBeenCalled()
+		})
+
+		it('should handle background delivery errors gracefully', async () => {
+			mockAuth(testUser)
+
+			const mockFollowActivity = {
+				type: 'Follow',
+				actor: `${baseUrl}/users/${testUser.username}`,
+				object: remoteUser.externalActorUrl,
+			}
+
+			vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue(
+				mockFollowActivity as any
+			)
+
+			vi.mocked(activityDelivery.deliverToInbox).mockRejectedValue(
+				new Error('Delivery failed')
+			)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/follow`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+
+			// Should still return success even if background delivery fails
+			expect(response.status).toBe(200)
+
+			const data = (await response.json()) as any
+			expect(data.success).toBe(true)
+		})
+	})
 })

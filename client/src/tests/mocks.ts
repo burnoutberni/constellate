@@ -21,6 +21,7 @@ vi.mock('../contexts/AuthContext', () => {
 })
 
 // Mock useAuth hook globally - this is what components actually use
+// Default returns null user, tests that need a user should mock this
 vi.mock('../hooks/useAuth', () => ({
 	useAuth: vi.fn(() => ({
 		user: null,
@@ -29,14 +30,6 @@ vi.mock('../hooks/useAuth', () => ({
 		signup: vi.fn(),
 		logout: vi.fn(),
 	})),
-}))
-
-// Mock FollowButton to prevent API calls - this prevents FollowButton from making real API calls
-// when rendered in components like ActivityFeedItem, Navbar, etc.
-// This mock is hoisted and applies to all tests
-// Path matches how components import it: './FollowButton' from components/
-vi.mock('../components/FollowButton', () => ({
-	FollowButton: () => null,
 }))
 
 // Mock follow hooks to prevent API calls

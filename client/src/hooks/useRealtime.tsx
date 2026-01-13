@@ -189,7 +189,14 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 		})
 
 		const handleEvent = (data: string) => {
-			const result = RealtimeEventSchema.safeParse(JSON.parse(data))
+			let parsed: unknown
+			try {
+				parsed = JSON.parse(data)
+			} catch {
+				logger.error('Failed to parse SSE event', { data })
+				return
+			}
+			const result = RealtimeEventSchema.safeParse(parsed)
 			if (result.success) {
 				const event = result.data
 				setLastEvent(event)
@@ -222,6 +229,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 		// Profile updates
 		eventSource.addEventListener('profile:updated', (e) => handleEvent(e.data))
 
+		eventSource.addEventListener('follow:added', (e) => handleEvent(e.data))
 		eventSource.addEventListener('follow:accepted', (e) => handleEvent(e.data))
 		eventSource.addEventListener('follower:added', (e) => handleEvent(e.data))
 		eventSource.addEventListener('follow:pending', (e) => handleEvent(e.data))
