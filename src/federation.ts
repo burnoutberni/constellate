@@ -406,8 +406,15 @@ async function handleAcceptFollow(
 	// Fetch remote follower count from the remote server
 	let remoteFollowerCount: number | null = null
 	try {
-		remoteFollowerCount = await fetchRemoteCollectionCount(actorUrl)
-		console.log(`[handleAcceptFollow] Fetched remote follower count: ${remoteFollowerCount}`)
+		const actor = await fetchActor(actorUrl)
+		if (actor && 'followers' in actor && typeof actor.followers === 'string') {
+			remoteFollowerCount = await fetchRemoteCollectionCount(actor.followers)
+			console.log(
+				`[handleAcceptFollow] Fetched remote follower count: ${remoteFollowerCount}`
+			)
+		} else {
+			console.log(`[handleAcceptFollow] Could not get followers collection URL from actor`)
+		}
 	} catch (error) {
 		console.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
 	}

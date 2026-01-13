@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import React from 'react'
 import { Link } from 'react-router-dom'
 
-import { queryKeys, useUnfollowUser } from '@/hooks/queries'
+import { queryKeys } from '@/hooks/queries'
 import { api } from '@/lib/api-client'
 import type { User } from '@/types'
 
@@ -11,72 +11,14 @@ import { useAuth } from '../hooks/useAuth'
 import { FollowButton } from './FollowButton'
 import { Modal, Button, Spinner, Avatar, Badge } from './ui'
 
-const CloseIcon = ({ className }: { className?: string }) => (
-	<svg
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		className={className}
-		aria-hidden="true">
-		<line x1="18" y1="6" x2="6" y2="18" />
-		<line x1="6" y1="6" x2="18" y2="18" />
-	</svg>
-)
-
-const CheckIcon = ({ className }: { className?: string }) => (
-	<svg
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		className={className}
-		aria-hidden="true">
-		<polyline points="20 6 9 17 4 12" />
-	</svg>
-)
-
 interface UserListItemProps {
 	user: User & { isPending?: boolean; isFollowing?: boolean }
 	onClose: () => void
 	currentUserId?: string
-	targetUsername?: string
 }
 
-export function UserListItem({ user, onClose, currentUserId, targetUsername }: Readonly<UserListItemProps>) {
-	const { user: authUser } = useAuth()
+export function UserListItem({ user, onClose, currentUserId }: Readonly<UserListItemProps>) {
 	const isSelf = user.id === currentUserId
-	let unfollowTarget: string
-	if (user.isPending && targetUsername && isSelf) {
-		unfollowTarget = targetUsername
-	} else {
-		unfollowTarget = user.unfollowTarget || user.username
-	}
-	const unfollowMutation = useUnfollowUser(unfollowTarget)
-
-	const handleActionClick = async () => {
-		if (unfollowMutation.isPending) {
-			return
-		}
-		try {
-			const currentUserData = authUser
-				? {
-						id: authUser.id,
-						username: authUser.username ?? undefined,
-						name: authUser.name ?? undefined,
-						profileImage: authUser.image ?? undefined,
-						isRemote: authUser.isRemote,
-					}
-				: undefined
-			await unfollowMutation.mutateAsync({ currentUser: currentUserData })
-		} catch (error) {
-			console.error('Failed to cancel/unfollow:', error)
-		}
-	}
 
 	let followStatus: { isFollowing: boolean; isAccepted: boolean } | null | undefined
 	if (user.isFollowing) {
@@ -129,19 +71,6 @@ export function UserListItem({ user, onClose, currentUserId, targetUsername }: R
 					/>
 				</div>
 			)}
-			{user.isFollowing && (
-				<div className="flex-shrink-0">
-					<Button
-						variant={user.isPending ? 'outline' : 'secondary'}
-						size="sm"
-						onClick={handleActionClick}
-						loading={unfollowMutation.isPending}
-						leftIcon={user.isPending ? <CloseIcon className="w-3.5 h-3.5" /> : <CheckIcon className="w-3.5 h-3.5" />}
-						className="whitespace-nowrap">
-						{user.isPending ? 'Cancel' : 'Unfollow'}
-					</Button>
-				</div>
-			)}
 			{isSelf && !user.isFollowing && (
 				<span className="text-xs text-text-tertiary flex-shrink-0">You</span>
 			)}
@@ -155,10 +84,9 @@ interface UserListSectionProps {
 	users: (User & { isPending?: boolean; isFollowing?: boolean })[]
 	onClose: () => void
 	currentUserId?: string
-	targetUsername?: string
 }
 
-export function UserListSection({ title, count, users, onClose, currentUserId, targetUsername }: Readonly<UserListSectionProps>) {
+export function UserListSection({ title, count, users, onClose, currentUserId }: Readonly<UserListSectionProps>) {
 	if (users.length === 0) {
 		return null
 	}
@@ -175,7 +103,6 @@ export function UserListSection({ title, count, users, onClose, currentUserId, t
 					user={user}
 					onClose={onClose}
 					currentUserId={currentUserId}
-					targetUsername={targetUsername}
 				/>
 			))}</div>
 		</div>
@@ -289,7 +216,6 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 							users={sortedLocalUsers}
 							onClose={onClose}
 							currentUserId={currentUser?.id}
-							targetUsername={username}
 						/>
 						<div className="border-t border-border-default my-4" />
 						<UserListSection
@@ -298,7 +224,6 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 							users={sortedRemoteUsers}
 							onClose={onClose}
 							currentUserId={currentUser?.id}
-							targetUsername={username}
 						/>
 					</div>
 				)}
@@ -309,7 +234,6 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 						users={sortedLocalUsers}
 						onClose={onClose}
 						currentUserId={currentUser?.id}
-						targetUsername={username}
 					/>
 				)}
 				{remoteUsers.length > 0 && localUsers.length === 0 && (
@@ -319,7 +243,6 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 						users={sortedRemoteUsers}
 						onClose={onClose}
 						currentUserId={currentUser?.id}
-						targetUsername={username}
 					/>
 				)}
 			</>
