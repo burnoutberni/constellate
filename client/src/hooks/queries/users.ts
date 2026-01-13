@@ -74,6 +74,14 @@ export function useSuggestedUsers(limit = 5, options?: { enabled?: boolean }) {
 	})
 }
 
+interface FollowMutationVariables {
+	currentUser?: Partial<User> | null
+}
+
+interface UnfollowMutationVariables {
+	currentUser?: Partial<User> | null
+}
+
 // Mutations
 export function useFollowUser(username: string) {
 	const queryClient = useQueryClient()
@@ -87,7 +95,7 @@ export function useFollowUser(username: string) {
 				undefined,
 				'Failed to follow user'
 			),
-		onMutate: async () => {
+		onMutate: async (variables?: FollowMutationVariables) => {
 			// Optimistic update - only for follow status, not for counts
 			// Counts will be updated via SSE when the follow is accepted
 			await queryClient.cancelQueries({
@@ -115,19 +123,9 @@ export function useFollowUser(username: string) {
 
 			let previousFollowersData = null
 			if (currentFollowersData?.followers) {
-				// Get current user from cache
-				const queries = queryClient.getQueriesData<UserProfile>({
-					queryKey: queryKeys.users.currentProfile(undefined),
-				})
-				const currentUserQuery = queries.find(([key]) => {
-					if (Array.isArray(key) && key.length >= 4 && key[1] === 'current' && key[2] === 'profile') {
-						return key[3] !== null
-					}
-					return false
-				})
-				const currentUser = currentUserQuery?.[1]
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache(queryClient)
 
-				if (currentUser && !currentUser.isRemote) {
+				if (currentUser && currentUser.id && currentUser.username && !currentUser.isRemote) {
 					previousFollowersData = currentFollowersData
 					// Add current user as pending follower at the top of the list
 					const optimisticCurrentUser: User & { isPending: true; isFollowing: false; isRemote: false } = {
@@ -135,10 +133,10 @@ export function useFollowUser(username: string) {
 						username: currentUser.username,
 						name: currentUser.name ?? undefined,
 						profileImage: currentUser.profileImage ?? undefined,
-						displayColor: currentUser.displayColor,
-						createdAt: currentUser.createdAt,
+						displayColor: currentUser.displayColor ?? '#3b82f6',
+						createdAt: currentUser.createdAt ?? new Date().toISOString(),
 						isRemote: false,
-						isPublicProfile: currentUser.isPublicProfile,
+						isPublicProfile: currentUser.isPublicProfile ?? true,
 						isPending: true,
 						isFollowing: false,
 					}
@@ -192,7 +190,7 @@ export function useUnfollowUser(username: string) {
 				undefined,
 				'Failed to unfollow user'
 			),
-		onMutate: async () => {
+		onMutate: async (variables?: UnfollowMutationVariables) => {
 			// Optimistic update
 			await queryClient.cancelQueries({
 				queryKey: queryKeys.users.profile(username),
@@ -243,19 +241,9 @@ export function useUnfollowUser(username: string) {
 
 			let previousFollowersData = null
 			if (currentFollowersData?.followers) {
-				// Get current user ID from the current user query
-				const queries = queryClient.getQueriesData<UserProfile>({
-					queryKey: queryKeys.users.currentProfile(undefined),
-				})
-				const currentUserQuery = queries.find(([key]) => {
-					if (Array.isArray(key) && key.length >= 4 && key[1] === 'current' && key[2] === 'profile') {
-						return key[3] !== null
-					}
-					return false
-				})
-				const currentUser = currentUserQuery?.[1]
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache(queryClient)
 
-				if (currentUser) {
+				if (currentUser?.id) {
 					previousFollowersData = currentFollowersData
 					// Remove current user from followers list if they were pending
 					const filteredFollowers = currentFollowersData.followers?.filter(
@@ -302,4 +290,17 @@ export function useUnfollowUser(username: string) {
 			queryClient.invalidateQueries({ queryKey: ['users', 'following', username] })
 		},
 	})
+}
+
+async function getCurrentUserFromCache(queryClient: ReturnType<typeof useQueryClient>): Promise<User | null> {
+	const queries = queryClient.getQueriesData<UserProfile>({
+		queryKey: queryKeys.users.currentProfile(undefined),
+	})
+	const currentUserQuery = queries.find(([key]) => {
+		if (Array.isArray(key) && key.length >= 4 && key[1] === 'current' && key[2] === 'profile') {
+			return key[3] !== null
+		}
+		return false
+	})
+	return (currentUserQuery?.[1] as User | null) ?? null
 }

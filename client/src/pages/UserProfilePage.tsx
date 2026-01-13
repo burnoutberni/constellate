@@ -80,7 +80,15 @@ export function UserProfilePage() {
 			return
 		}
 		try {
-			await followMutation.mutateAsync()
+			await followMutation.mutateAsync({
+				currentUser: {
+					id: currentUser.id,
+					username: currentUser.username ?? undefined,
+					name: currentUser.name ?? undefined,
+					profileImage: currentUser.image ?? undefined,
+					isRemote: currentUser.isRemote,
+				},
+			})
 		} catch (err) {
 			handleError(err, 'Failed to follow user', { context: 'UserProfilePage.handleFollow' })
 		}

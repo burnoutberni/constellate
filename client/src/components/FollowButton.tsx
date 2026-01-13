@@ -90,18 +90,26 @@ export function FollowButton({
 
 	const isLoading = statusLoading || followMutation.isPending || unfollowMutation.isPending
 
-	const handleClick = async () => {
+		const handleClick = async () => {
 		if (isLoading) {return}
 
 		setButtonState('loading')
 
+		const currentUserData = {
+			id: user.id,
+			username: user.username ?? undefined,
+			name: user.name ?? undefined,
+			profileImage: user.image ?? undefined,
+			isRemote: user.isRemote,
+		}
+
 		try {
 			if (isPending) {
-				await unfollowMutation.mutateAsync()
+				await unfollowMutation.mutateAsync({ currentUser: currentUserData })
 			} else if (isFollowing) {
-				await unfollowMutation.mutateAsync()
+				await unfollowMutation.mutateAsync({ currentUser: currentUserData })
 			} else {
-				await followMutation.mutateAsync()
+				await followMutation.mutateAsync({ currentUser: currentUserData })
 			}
 			setButtonState('success')
 			setTimeout(() => setButtonState('idle'), 1500)

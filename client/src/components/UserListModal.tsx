@@ -48,6 +48,7 @@ interface UserListItemProps {
 }
 
 export function UserListItem({ user, onClose, currentUserId, targetUsername }: Readonly<UserListItemProps>) {
+	const { user: authUser } = useAuth()
 	const isSelf = user.id === currentUserId
 	let unfollowTarget: string
 	if (user.isPending && targetUsername && isSelf) {
@@ -62,7 +63,16 @@ export function UserListItem({ user, onClose, currentUserId, targetUsername }: R
 			return
 		}
 		try {
-			await unfollowMutation.mutateAsync()
+			const currentUserData = authUser
+				? {
+						id: authUser.id,
+						username: authUser.username ?? undefined,
+						name: authUser.name ?? undefined,
+						profileImage: authUser.image ?? undefined,
+						isRemote: authUser.isRemote,
+					}
+				: undefined
+			await unfollowMutation.mutateAsync({ currentUser: currentUserData })
 		} catch (error) {
 			console.error('Failed to cancel/unfollow:', error)
 		}
