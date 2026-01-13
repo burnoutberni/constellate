@@ -8,7 +8,7 @@ import {
 	cacheRemoteUser,
 	fetchActor,
 	getBaseUrl,
-	fetchRemoteFollowerCount,
+	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
@@ -406,7 +406,7 @@ async function handleAcceptFollow(
 	// Fetch remote follower count from the remote server
 	let remoteFollowerCount: number | null = null
 	try {
-		remoteFollowerCount = await fetchRemoteFollowerCount(actorUrl)
+		remoteFollowerCount = await fetchRemoteCollectionCount(actorUrl)
 		console.log(`[handleAcceptFollow] Fetched remote follower count: ${remoteFollowerCount}`)
 	} catch (error) {
 		console.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
@@ -415,9 +415,15 @@ async function handleAcceptFollow(
 	// Construct the target username - for remote users it's username@domain
 	const targetUsername = targetUser?.username
 		? targetUser.username
-		: actorUrl.includes('/users/')
-			? `${actorUrl.split('/users/')[1].split('/')[0]}@${new URL(actorUrl).hostname}`
-			: actorUrl.split('/').pop() || 'unknown'
+		: extractTargetUsername(actorUrl)
+
+	function extractTargetUsername(url: string): string {
+		if (url.includes('/users/')) {
+			const parts = url.split('/users/')[1].split('/')
+			return `${parts[0]}@${new URL(url).hostname}`
+		}
+		return url.split('/').pop() || 'unknown'
+	}
 
 	// Broadcast SSE event to notify clients
 	// Use broadcast (not broadcastToUser) so all connected clients viewing this profile get updated

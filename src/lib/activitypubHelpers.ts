@@ -379,8 +379,6 @@ export async function fetchRemoteCollectionCount(collectionUrl: string): Promise
 	}
 }
 
-export const fetchRemoteFollowerCount = fetchRemoteCollectionCount
-
 /**
  * Fetches items from a remote collection (followers, following, etc)
  * @param collectionUrl - URL of the collection
@@ -456,9 +454,9 @@ export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: str
 }
 
 // Helper function to extract location value from event location
-export function extractLocationValue(
-	eventLocation: string | Record<string, unknown> | undefined
-): string | null {
+type EventLocationType = string | Record<string, unknown> | undefined
+
+export function extractLocationValue(eventLocation: EventLocationType): string | null {
 	if (!eventLocation) return null
 	if (typeof eventLocation === 'string') return eventLocation
 	if (typeof eventLocation === 'object' && 'name' in eventLocation) {
@@ -475,86 +473,85 @@ export async function cacheEventFromOutboxActivity(
 	const activityType = activityObj.type
 	const activityObject = activityObj.object as Record<string, unknown> | undefined
 
-	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+	if (!isValidEventCreateActivity(activityType, activityObject)) {
 		return
 	}
 
-	// Handle Announce activities separately or ignore them (usually they point to an existing object)
-	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
-		// For now we ignore Announce/Boosts in this helper,
-		// as we prefer processing the original Create activity or the object directly.
-		return
-	}
+	if (!activityObject) return
 
 	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
 	const eventId = eventObj.id as string | undefined
 	const eventName = eventObj.name as string | undefined
-	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
-	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 	const eventStartTime = eventObj.startTime as string | undefined
-	const eventEndTime = eventObj.endTime as string | undefined
 
 	if (!eventId || !eventName || !eventStartTime) {
 		return
 	}
 
-	// Optimization: Skip past events
-	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
-	// const now = new Date()
-	// const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
-	// const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
-
-	// If the event ended before yesterday, skip it
-	// if (end < yesterday) {
-	// 	return
-	// }
+	const eventEndTime = eventObj.endTime as string | undefined
 	const eventDuration = eventObj.duration as string | undefined
 	const eventUrl = eventObj.url as string | undefined
 	const eventStatus = eventObj.eventStatus as string | undefined
 	const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
 	const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
 	const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
+	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 
 	const locationValue = extractLocationValue(eventLocation)
 
-	// Extract organizers (attributedTo + contacts)
-	let rawAttributedTo: string[] = []
-	if (Array.isArray(eventObj.attributedTo)) {
-		rawAttributedTo = eventObj.attributedTo.filter(
-			(item): item is string => typeof item === 'string'
-		)
-	} else if (typeof eventObj.attributedTo === 'string') {
-		rawAttributedTo = [eventObj.attributedTo]
+	const organizerData = extractOrganizerData(eventObj, userExternalActorUrl)
+
+	const eventData = {
+		title: eventName,
+		summary: eventSummary || null,
+		location: locationValue,
+		startTime: new Date(eventStartTime),
+		endTime: eventEndTime ? new Date(eventEndTime) : null,
+		duration: eventDuration || null,
+		url: eventUrl || null,
+		eventStatus: eventStatus || null,
+		eventAttendanceMode: eventAttendanceMode || null,
+		maximumAttendeeCapacity: eventMaxCapacity || null,
+		headerImage: eventAttachment?.[0]?.url || null,
+		attributedTo: organizerData.primaryAttributedTo,
+		organizers: organizerData.organizers.length > 0 ? organizerData.organizers : undefined,
 	}
 
-	let rawContacts: string[] = []
-	if (Array.isArray(eventObj.contacts)) {
-		rawContacts = eventObj.contacts.filter((item): item is string => typeof item === 'string')
-	} else if (typeof eventObj.contacts === 'string') {
-		rawContacts = [eventObj.contacts]
-	}
+	await prisma.event.upsert({
+		where: { externalId: eventId },
+		update: eventData,
+		create: {
+			...eventData,
+			externalId: eventId,
+			userId: null,
+		},
+	})
+}
 
-	// Combine and deduplicate
+function isValidEventCreateActivity(
+	activityType: unknown,
+	activityObject: Record<string, unknown> | undefined
+): boolean {
+	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+		return false
+	}
+	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
+		return false
+	}
+	return true
+}
+
+function extractOrganizerData(eventObj: Record<string, unknown>, userExternalActorUrl: string) {
+	const rawAttributedTo = extractStringArray(eventObj.attributedTo)
+	const rawContacts = extractStringArray(eventObj.contacts)
 	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
-
-	// Determine primary attributedTo
-	// 1. If we have explicit organizers (from attributedTo or contacts), prioritize them.
-	// 2. If 'organizer' field exists (Mobilizon/schema.org style), it might be better but we parsed attributedTo/contacts above.
-	// Note: Mobilizon puts the actual organizer in 'organizer' or 'attributedTo', and the creator in 'attributedTo' sometimes.
-	// We want the PERSON who organized it, not just the creator.
-	// If rawAttributedTo has multiple, the first is usually the "Actor" (Person/Group).
-
-	// Better logic:
-	// If the event has an explicit attributedTo that is different from the outbox owner, trust the event.
-	// But if the event has NO attributedTo, we MUST fall back to the outbox owner (creator).
 
 	let primaryAttributedTo = userExternalActorUrl
 	if (rawAttributedTo.length > 0) {
 		primaryAttributedTo = rawAttributedTo[0]
 	}
 
-	// Mobilizon specific: 'organizer' field
-	// Some implementations use the 'organizer' property which is more semantic than attributedTo
 	const organizerObj = eventObj.organizer as Record<string, unknown> | string | undefined
 	if (organizerObj) {
 		if (typeof organizerObj === 'string') {
@@ -570,8 +567,23 @@ export async function cacheEventFromOutboxActivity(
 		}
 	}
 
-	// Format for storage
-	const organizers = organizerUrls.map((url) => {
+	const organizers = formatOrganizers(organizerUrls)
+
+	return { primaryAttributedTo, organizers }
+}
+
+function extractStringArray(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is string => typeof item === 'string')
+	}
+	if (typeof value === 'string') {
+		return [value]
+	}
+	return []
+}
+
+function formatOrganizers(organizerUrls: string[]) {
+	return organizerUrls.map((url) => {
 		try {
 			const u = new URL(url)
 			const pathParts = u.pathname.split('/').filter(Boolean)
@@ -588,31 +600,5 @@ export async function cacheEventFromOutboxActivity(
 			console.error(`Failed to parse organizer URL: ${url}`, error)
 			return { url, username: 'unknown', host: 'unknown', display: url }
 		}
-	})
-
-	const eventData = {
-		title: eventName,
-		summary: eventSummary || null,
-		location: locationValue,
-		startTime: new Date(eventStartTime),
-		endTime: eventEndTime ? new Date(eventEndTime) : null,
-		duration: eventDuration || null,
-		url: eventUrl || null,
-		eventStatus: eventStatus || null,
-		eventAttendanceMode: eventAttendanceMode || null,
-		maximumAttendeeCapacity: eventMaxCapacity || null,
-		headerImage: eventAttachment?.[0]?.url || null,
-		attributedTo: primaryAttributedTo,
-		organizers: organizers.length > 0 ? organizers : undefined,
-	}
-
-	await prisma.event.upsert({
-		where: { externalId: eventId },
-		update: eventData,
-		create: {
-			...eventData,
-			externalId: eventId,
-			userId: null,
-		},
 	})
 }

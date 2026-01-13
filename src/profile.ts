@@ -361,39 +361,9 @@ async function filterEventsByVisibility<
 app.get('/users/:username/profile', async (c) => {
 	try {
 		const { username } = c.req.param()
-		const currentUserId = c.get('userId') // Get current user from auth middleware
+		const currentUserId = c.get('userId')
 
-		const user = await prisma.user.findUnique({
-			where: { username },
-			select: {
-				id: true,
-				username: true,
-				name: true,
-				bio: true,
-				displayColor: true,
-				profileImage: true,
-				headerImage: true,
-				isRemote: true,
-				externalActorUrl: true,
-				isAdmin: true,
-				autoAcceptFollowers: true,
-				isPublicProfile: true,
-				timezone: true,
-				createdAt: true,
-				followersCount: true,
-				followingCount: true,
-				eventsCount: true,
-				lastCountsSync: true,
-				_count: {
-					select: {
-						events: true,
-						followers: true,
-						following: true,
-					},
-				},
-			},
-		})
-
+		const user = await getUserForProfile(username)
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
@@ -402,266 +372,24 @@ app.get('/users/:username/profile', async (c) => {
 			void trackInstance(user.externalActorUrl)
 		}
 
-		// Check if profile is private and viewer doesn't have access
 		const isOwnProfile = currentUserId === user.id
-		const canViewFullProfile =
-			isOwnProfile ||
-			(await canViewPrivateProfile({
-				viewerId: currentUserId,
-				profileUserId: user.id,
-				profileIsRemote: user.isRemote,
-				profileExternalActorUrl: user.externalActorUrl,
-				profileUsername: user.username,
-				profileIsPublic: user.isPublicProfile,
-			}))
+		const canViewFullProfile = await checkProfileVisibility(user, currentUserId, isOwnProfile)
 
-		// If private profile and viewer can't see it, return minimal data with consistent structure
 		if (!user.isPublicProfile && !canViewFullProfile) {
-			return c.json({
-				user: {
-					id: user.id,
-					username: user.username,
-					name: user.name,
-					profileImage: user.profileImage,
-					isRemote: user.isRemote,
-					isPublicProfile: false,
-					createdAt: user.createdAt.toISOString(),
-					displayColor: user.displayColor || '#3b82f6',
-					bio: null,
-					headerImage: null,
-					_count: {
-						events: 0,
-						followers: 0,
-						following: 0,
-					},
-				},
-				events: [],
-			})
+			return getLimitedProfileResponse(c, user)
 		}
 
-		// Calculate actual follower/following counts (only accepted)
-		// For remote users, we can't calculate counts from our local database
+		const counts = await getUserCounts(user)
+		const userWithCounts = buildUserWithCounts(user, counts, isOwnProfile)
 
-		// Calculate actual follower/following counts (only accepted)
-		// For remote users, use cached counts with TTL to avoid repeated external requests
-		let followerCount: number | null = null
-		let followingCount: number | null = null
-		let eventCount: number | null = null
-
-		if (user.isRemote && user.externalActorUrl) {
-			// Check if we have cached counts that are still fresh
-			const cacheExpiry = new Date(Date.now() - COUNTS_CACHE_TTL_MINUTES * 60 * 1000)
-			const hasFreshCache =
-				user.lastCountsSync &&
-				user.lastCountsSync > cacheExpiry &&
-				user.followersCount !== null
-
-			if (hasFreshCache) {
-				// Use cached counts - they're still fresh
-				followerCount = user.followersCount
-				followingCount = user.followingCount ?? null
-				eventCount = user.eventsCount ?? null
-				console.log(
-					`[profile] Using cached counts for ${user.username} (synced: ${user.lastCountsSync})`
-				)
-			} else {
-				// Cache is stale or missing - fetch fresh counts
-				console.log(
-					`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`
-				)
-				const { fetchRemoteCollectionCount, fetchActor, cacheEventFromOutboxActivity } =
-					await import('./lib/activitypubHelpers.js')
-
-				try {
-					// Fetch the actor object to get accurate collection URLs
-					const actor = await fetchActor(user.externalActorUrl)
-
-					if (actor) {
-						const getCollectionUrl = (val: unknown) => {
-							if (typeof val === 'string') return val
-							if (val && typeof val === 'object' && 'id' in val)
-								return (val as { id: string }).id
-							return null
-						}
-
-						const followersUrl = getCollectionUrl(actor.followers)
-						const followingUrl = getCollectionUrl(actor.following)
-						const outboxUrl = getCollectionUrl(actor.outbox)
-
-						// Fire off counts fetch in parallel
-						const [remoteFollowers, remoteFollowing, outboxResponse] =
-							await Promise.all([
-								followersUrl
-									? fetchRemoteCollectionCount(followersUrl)
-									: Promise.resolve(null),
-								followingUrl
-									? fetchRemoteCollectionCount(followingUrl)
-									: Promise.resolve(null),
-								outboxUrl
-									? safeFetch(outboxUrl, {
-											headers: { Accept: ContentType.ACTIVITY_JSON },
-										})
-									: Promise.resolve(null),
-							])
-
-						followerCount = remoteFollowers ?? user.followersCount ?? 0
-						followingCount = remoteFollowing ?? user.followingCount ?? null
-						eventCount = user.eventsCount ?? null
-
-						// Update cache
-						await prisma.user.update({
-							where: { id: user.id },
-							data: {
-								followersCount: followerCount,
-								followingCount: followingCount,
-								eventsCount: eventCount,
-								lastCountsSync: new Date(),
-							},
-						})
-						console.log(`[profile] Updated cached counts for ${user.username}`)
-
-						// Process outbox in background (don't wait)
-						if (outboxResponse?.ok) {
-							const outbox = (await outboxResponse.json()) as any
-							if (typeof outbox.totalItems === 'number') {
-								eventCount = outbox.totalItems
-							}
-							// Sync events from first page
-							let items: any[] = []
-							if (outbox.first) {
-								const firstPageUrl =
-									typeof outbox.first === 'string'
-										? outbox.first
-										: outbox.first.id
-								if (firstPageUrl) {
-									try {
-										const pageResponse = await safeFetch(firstPageUrl, {
-											headers: { Accept: ContentType.ACTIVITY_JSON },
-										})
-										if (pageResponse.ok) {
-											const page = (await pageResponse.json()) as any
-											items = page.orderedItems || page.items || []
-										}
-									} catch (e) {
-										console.error('Error fetching outbox page:', e)
-									}
-								} else if (typeof outbox.first === 'object') {
-									items = outbox.first.orderedItems || outbox.first.items || []
-								}
-							} else {
-								items = outbox.orderedItems || outbox.items || []
-							}
-							if (items.length > 0) {
-								await Promise.all(
-									items.map((item) =>
-										cacheEventFromOutboxActivity(
-											item,
-											user.externalActorUrl!
-										).catch((err) =>
-											console.error('Error caching remote event:', err)
-										)
-									)
-								)
-							}
-						}
-					} else {
-						// Actor fetch failed - use cached counts or fall back to local
-						followerCount = user.followersCount ?? 0
-						followingCount = user.followingCount ?? null
-						eventCount = user.eventsCount ?? null
-					}
-				} catch (e) {
-					console.error('Error fetching remote counts:', e)
-					// Use cached counts as fallback
-					followerCount = user.followersCount ?? 0
-					followingCount = user.followingCount ?? null
-					eventCount = user.eventsCount ?? null
-				}
-			}
-		} else {
-			// Local user - standard calculation
-		}
-
-		// Fallback to local counts if still null
-		if (followerCount === null) {
-			followerCount = await prisma.follower.count({
-				where: { userId: user.id, accepted: true },
-			})
-		}
-
-		if (followingCount === null) {
-			followingCount = await prisma.following.count({
-				where: { userId: user.id, accepted: true },
-			})
-		}
-
-		// Override _count with actual counts
-		const userWithCounts = {
-			...user,
-			isAdmin: isOwnProfile ? user.isAdmin : undefined,
-			autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
-			_count: {
-				events: user._count?.events || 0,
-				followers: followerCount,
-				following: followingCount,
-			},
-		}
-
-		// For remote users, we search by BOTH userId (if they are linked in DB)
-		// AND attributedTo (fallback for events not yet linked to the user record)
-		// AND organizers (if the user is listed as an organizer, e.g. a Group actor)
-		const whereClause = user.isRemote
-			? {
-					OR: [
-						{ userId: user.id },
-						{ attributedTo: user.externalActorUrl || undefined },
-						{
-							organizers: {
-								array_contains: [{ url: user.externalActorUrl }],
-							},
-						},
-					],
-				}
-			: { userId: user.id }
-
-		let events = await prisma.event.findMany({
-			where: whereClause,
-			include: {
-				user: {
-					select: {
-						id: true,
-						username: true,
-						name: true,
-						displayColor: true,
-						profileImage: true,
-					},
-				},
-				_count: {
-					select: {
-						attendance: true,
-						likes: true,
-						comments: true,
-					},
-				},
-			},
-			orderBy: { startTime: 'desc' },
-			take: 50,
-		})
-
-		// Filter events by visibility - only show events the viewer can see
-		events = await filterEventsByVisibility(events, currentUserId)
-
-		// Calculate event count if not fetched from remote
-		if (eventCount === null) {
-			eventCount = await prisma.event.count({ where: whereClause })
-		}
+		const events = await fetchUserEvents(user, currentUserId)
 
 		return c.json({
 			user: {
 				...userWithCounts,
 				_count: {
 					...userWithCounts._count,
-					events: eventCount,
+					events: counts.eventCount,
 				},
 			},
 			events,
@@ -671,6 +399,322 @@ app.get('/users/:username/profile', async (c) => {
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
+
+async function getUserForProfile(username: string) {
+	return prisma.user.findUnique({
+		where: { username },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			bio: true,
+			displayColor: true,
+			profileImage: true,
+			headerImage: true,
+			isRemote: true,
+			externalActorUrl: true,
+			isAdmin: true,
+			autoAcceptFollowers: true,
+			isPublicProfile: true,
+			timezone: true,
+			createdAt: true,
+			followersCount: true,
+			followingCount: true,
+			eventsCount: true,
+			lastCountsSync: true,
+			_count: {
+				select: {
+					events: true,
+					followers: true,
+					following: true,
+				},
+			},
+		},
+	})
+}
+
+async function checkProfileVisibility(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	currentUserId: string | undefined,
+	isOwnProfile: boolean
+) {
+	if (isOwnProfile) return true
+
+	return canViewPrivateProfile({
+		viewerId: currentUserId,
+		profileUserId: user.id,
+		profileIsRemote: user.isRemote,
+		profileExternalActorUrl: user.externalActorUrl,
+		profileUsername: user.username,
+		profileIsPublic: user.isPublicProfile,
+	})
+}
+
+function getLimitedProfileResponse(
+	c: import('hono').Context,
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>
+) {
+	return c.json({
+		user: {
+			id: user.id,
+			username: user.username,
+			name: user.name,
+			profileImage: user.profileImage,
+			isRemote: user.isRemote,
+			isPublicProfile: false,
+			createdAt: user.createdAt.toISOString(),
+			displayColor: user.displayColor || '#3b82f6',
+			bio: null,
+			headerImage: null,
+			_count: {
+				events: 0,
+				followers: 0,
+				following: 0,
+			},
+		},
+		events: [],
+	})
+}
+
+async function getUserCounts(user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>) {
+	let followerCount: number | null = null
+	let followingCount: number | null = null
+	let eventCount: number | null = null
+
+	if (user.isRemote && user.externalActorUrl) {
+		const counts = await fetchRemoteUserCounts(user)
+		followerCount = counts.followerCount
+		followingCount = counts.followingCount
+		eventCount = counts.eventCount
+	}
+
+	if (followerCount === null) {
+		followerCount = await prisma.follower.count({
+			where: { userId: user.id, accepted: true },
+		})
+	}
+
+	if (followingCount === null) {
+		followingCount = await prisma.following.count({
+			where: { userId: user.id, accepted: true },
+		})
+	}
+
+	if (eventCount === null) {
+		eventCount = await prisma.event.count({ where: buildEventsWhereClause(user) })
+	}
+
+	return { followerCount, followingCount, eventCount }
+}
+
+async function fetchRemoteUserCounts(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>
+) {
+	const cacheExpiry = new Date(Date.now() - COUNTS_CACHE_TTL_MINUTES * 60 * 1000)
+	const hasFreshCache =
+		user.lastCountsSync && user.lastCountsSync > cacheExpiry && user.followersCount !== null
+
+	if (hasFreshCache) {
+		console.log(
+			`[profile] Using cached counts for ${user.username} (synced: ${user.lastCountsSync})`
+		)
+		return {
+			followerCount: user.followersCount,
+			followingCount: user.followingCount ?? null,
+			eventCount: user.eventsCount ?? null,
+		}
+	}
+
+	console.log(`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`)
+	const { fetchRemoteCollectionCount, fetchActor, cacheEventFromOutboxActivity } =
+		await import('./lib/activitypubHelpers.js')
+
+	try {
+		const actorUrl = user.externalActorUrl
+		if (!actorUrl) {
+			return {
+				followerCount: user.followersCount ?? 0,
+				followingCount: user.followingCount ?? null,
+				eventCount: user.eventsCount ?? null,
+			}
+		}
+		const actor = await fetchActor(actorUrl)
+		if (!actor) {
+			return {
+				followerCount: user.followersCount ?? 0,
+				followingCount: user.followingCount ?? null,
+				eventCount: user.eventsCount ?? null,
+			}
+		}
+
+		const followersUrl = getCollectionUrl(actor.followers)
+		const followingUrl = getCollectionUrl(actor.following)
+		const outboxUrl = getCollectionUrl(actor.outbox)
+
+		const [remoteFollowers, remoteFollowing, outboxResponse] = await Promise.all([
+			followersUrl ? fetchRemoteCollectionCount(followersUrl) : Promise.resolve(null),
+			followingUrl ? fetchRemoteCollectionCount(followingUrl) : Promise.resolve(null),
+			outboxUrl
+				? safeFetch(outboxUrl, { headers: { Accept: ContentType.ACTIVITY_JSON } })
+				: Promise.resolve(null),
+		])
+
+		const followerCount = remoteFollowers ?? user.followersCount ?? 0
+		const followingCount = remoteFollowing ?? user.followingCount ?? null
+		let eventCount = user.eventsCount ?? null
+
+		await prisma.user.update({
+			where: { id: user.id },
+			data: {
+				followersCount: followerCount,
+				followingCount: followingCount,
+				eventsCount: eventCount,
+				lastCountsSync: new Date(),
+			},
+		})
+		console.log(`[profile] Updated cached counts for ${user.username}`)
+
+		if (outboxResponse?.ok) {
+			const outboxData = (await outboxResponse.json()) as {
+				totalItems?: number
+				first?: string | { id?: string; orderedItems?: unknown[]; items?: unknown[] }
+				orderedItems?: unknown[]
+				items?: unknown[]
+			}
+			if (typeof outboxData.totalItems === 'number') {
+				eventCount = outboxData.totalItems
+			}
+			const items = await fetchOutboxItems(outboxData)
+			if (items.length > 0) {
+				await Promise.all(
+					items.map((item) =>
+						cacheEventFromOutboxActivity(
+							item as Record<string, unknown>,
+							actorUrl
+						).catch((err) => console.error('Error caching remote event:', err))
+					)
+				)
+			}
+		}
+
+		return { followerCount, followingCount, eventCount }
+	} catch (e) {
+		console.error('Error fetching remote counts:', e)
+		return {
+			followerCount: user.followersCount ?? 0,
+			followingCount: user.followingCount ?? null,
+			eventCount: user.eventsCount ?? null,
+		}
+	}
+}
+
+function getCollectionUrl(val: unknown): string | null {
+	if (typeof val === 'string') return val
+	if (val && typeof val === 'object' && 'id' in val) return (val as { id: string }).id
+	return null
+}
+
+async function fetchOutboxItems(outboxData: {
+	first?: string | { id?: string; orderedItems?: unknown[]; items?: unknown[] }
+	orderedItems?: unknown[]
+	items?: unknown[]
+}): Promise<unknown[]> {
+	if (outboxData.first) {
+		const firstPageUrl =
+			typeof outboxData.first === 'string' ? outboxData.first : (outboxData.first?.id ?? null)
+		if (firstPageUrl) {
+			try {
+				const pageResponse = await safeFetch(firstPageUrl, {
+					headers: { Accept: ContentType.ACTIVITY_JSON },
+				})
+				if (pageResponse.ok) {
+					const page = (await pageResponse.json()) as {
+						orderedItems?: unknown[]
+						items?: unknown[]
+					}
+					return page.orderedItems || page.items || []
+				}
+			} catch (e) {
+				console.error('Error fetching outbox page:', e)
+			}
+		}
+		if (typeof outboxData.first === 'object') {
+			const firstObj = outboxData.first as { orderedItems?: unknown[]; items?: unknown[] }
+			return firstObj.orderedItems || firstObj.items || []
+		}
+	}
+	return outboxData.orderedItems || outboxData.items || []
+}
+
+function buildUserWithCounts(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	counts: {
+		followerCount: number | null
+		followingCount: number | null
+		eventCount: number | null
+	},
+	isOwnProfile: boolean
+) {
+	return {
+		...user,
+		isAdmin: isOwnProfile ? user.isAdmin : undefined,
+		autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
+		_count: {
+			events: user._count?.events || 0,
+			followers: counts.followerCount,
+			following: counts.followingCount,
+		},
+	}
+}
+
+function buildEventsWhereClause(user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>) {
+	return user.isRemote
+		? {
+				OR: [
+					{ userId: user.id },
+					{ attributedTo: user.externalActorUrl || undefined },
+					{
+						organizers: {
+							array_contains: [{ url: user.externalActorUrl }],
+						},
+					},
+				],
+			}
+		: { userId: user.id }
+}
+
+async function fetchUserEvents(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	currentUserId: string | undefined
+) {
+	const whereClause = buildEventsWhereClause(user)
+
+	const events = await prisma.event.findMany({
+		where: whereClause,
+		include: {
+			user: {
+				select: {
+					id: true,
+					username: true,
+					name: true,
+					displayColor: true,
+					profileImage: true,
+				},
+			},
+			_count: {
+				select: {
+					attendance: true,
+					likes: true,
+					comments: true,
+				},
+			},
+		},
+		orderBy: { startTime: 'desc' },
+		take: 50,
+	})
+
+	return filterEventsByVisibility(events, currentUserId)
+}
 
 // Update profile
 app.put('/profile', moderateRateLimit, async (c) => {
@@ -965,7 +1009,7 @@ async function deliverFollowActivityBackground(
 	followActivity: FollowActivity,
 	inboxUrl: string,
 	currentUserId: string,
-	targetUserId: string
+	_targetUserId: string
 ) {
 	try {
 		const following = await prisma.following.findUnique({
