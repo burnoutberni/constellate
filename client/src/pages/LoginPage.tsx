@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 
 import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
-import { Input, Button, Card, CardContent } from '@/components/ui'
+import { Input, PasswordInput, Button, Card, CardContent } from '@/components/ui'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { createLogger } from '@/lib/logger'
 
@@ -112,8 +112,7 @@ export function LoginPage() {
 							required
 						/>
 
-						<Input
-							type="password"
+						<PasswordInput
 							label="Password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}

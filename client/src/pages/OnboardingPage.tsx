@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { TermsOfServiceAgreement } from '@/components/TermsOfServiceAgreement'
-import { Input, Button } from '@/components/ui'
+import { Input, PasswordInput, Button } from '@/components/ui'
 import { api } from '@/lib/api-client'
 import { extractErrorMessage } from '@/lib/errorHandling'
 import { logger } from '@/lib/logger'
@@ -104,10 +104,9 @@ export function OnboardingPage() {
 							value={formData.email}
 							onChange={(e) => setFormData({ ...formData, email: e.target.value })}
 						/>
-						<Input
+						<PasswordInput
 							id="password"
 							name="password"
-							type="password"
 							label="Password"
 							autoComplete="new-password"
 							required

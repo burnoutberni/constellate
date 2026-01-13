@@ -10,7 +10,7 @@ import { useUIStore } from '@/stores'
 import { useAuth } from '../hooks/useAuth'
 
 import { Stack } from './layout'
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from './ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, PasswordInput } from './ui'
 
 interface AccountSettingsProps {
 	profile: {
@@ -174,8 +174,7 @@ if (!currentPassword) {
 							</div>
 						) : (
 							<Stack gap="md" className="bg-background-secondary p-4 rounded-lg">
-								<Input
-									type="password"
+								<PasswordInput
 									label="Current Password"
 									value={currentPassword}
 									onChange={(e) => setCurrentPassword(e.target.value)}
@@ -183,8 +182,7 @@ if (!currentPassword) {
 									autoComplete="current-password"
 								/>
 
-								<Input
-									type="password"
+								<PasswordInput
 									label="New Password"
 									value={newPassword}
 									onChange={(e) => setNewPassword(e.target.value)}
@@ -193,8 +191,7 @@ if (!currentPassword) {
 									helperText="Must be at least 8 characters"
 								/>
 
-								<Input
-									type="password"
+								<PasswordInput
 									label="Confirm New Password"
 									value={confirmPassword}
 									onChange={(e) => setConfirmPassword(e.target.value)}
