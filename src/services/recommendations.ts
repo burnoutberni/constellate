@@ -322,18 +322,32 @@ export async function getEventRecommendations(userId: string, limit?: number) {
 		NOT: { userId },
 	})
 
+	if (interestProfile.engagedEventIds.length > 0) {
+		filters.push({
+			id: { notIn: interestProfile.engagedEventIds },
+		})
+	}
+
 	const candidateWhere = filters.length === 1 ? filters[0] : { AND: filters }
 
 	let candidates = await fetchCandidateEvents(candidateWhere, candidateTake)
 
 	if (candidates.length === 0) {
-		candidates = await fetchCandidateEvents(
+		const fallbackFilters: Prisma.EventWhereInput[] = [
 			{
 				visibility: 'PUBLIC',
 				sharedEventId: null,
 				startTime: { gte: startTimeCutoff },
 				NOT: { userId },
 			},
+		]
+		if (interestProfile.engagedEventIds.length > 0) {
+			fallbackFilters.push({
+				id: { notIn: interestProfile.engagedEventIds },
+			})
+		}
+		candidates = await fetchCandidateEvents(
+			fallbackFilters.length === 1 ? fallbackFilters[0] : { AND: fallbackFilters },
 			safeLimit
 		)
 	}

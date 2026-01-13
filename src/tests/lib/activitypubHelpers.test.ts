@@ -81,15 +81,16 @@ describe('activitypubHelpers', () => {
 			}
 			const mockResponse = {
 				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
 				json: async () => mockActor,
 			}
-			vi.mocked(safeFetch).mockResolvedValue(mockResponse as Response)
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
 
 			const result = await fetchActor('https://example.com/users/alice')
 			expect(result).toEqual(mockActor)
 			expect(safeFetch).toHaveBeenCalledWith('https://example.com/users/alice', {
 				headers: {
-					Accept: ContentType.ACTIVITY_JSON,
+					Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
 				},
 			})
 		})
@@ -159,6 +160,7 @@ describe('activitypubHelpers', () => {
 					headerImage: 'https://example.com/header.jpg',
 					bio: 'Test user',
 					displayColor: '#3b82f6',
+					profileSync: expect.any(Date),
 				},
 				create: {
 					username: 'alice@example.com',
@@ -172,6 +174,7 @@ describe('activitypubHelpers', () => {
 					headerImage: 'https://example.com/header.jpg',
 					bio: 'Test user',
 					displayColor: '#3b82f6',
+					profileSync: expect.any(Date),
 				},
 			})
 		})
@@ -207,6 +210,7 @@ describe('activitypubHelpers', () => {
 					headerImage: null,
 					bio: null,
 					displayColor: '#3b82f6',
+					profileSync: expect.any(Date),
 				},
 				create: {
 					username: 'bob@example.com',
@@ -220,6 +224,7 @@ describe('activitypubHelpers', () => {
 					headerImage: null,
 					bio: null,
 					displayColor: '#3b82f6',
+					profileSync: expect.any(Date),
 				},
 			})
 		})
@@ -499,11 +504,7 @@ describe('activitypubHelpers', () => {
 
 			await cacheEventFromOutboxActivity(pastCreateActivity as any, userExternalActorUrl)
 
-			expect(prisma.event.upsert).not.toHaveBeenCalledWith(
-				expect.objectContaining({
-					where: { externalId: 'https://example.com/events/past' },
-				})
-			)
+			expect(prisma.event.upsert).not.toHaveBeenCalled()
 		})
 
 		it('should handle malformed organizer URLs gracefully', async () => {

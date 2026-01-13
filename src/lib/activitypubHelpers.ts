@@ -531,6 +531,14 @@ export async function cacheEventFromOutboxActivity(
 
 	const eventEndTime = eventObj.endTime as string | undefined
 	const eventDuration = eventObj.duration as string | undefined
+
+	const now = new Date()
+	const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
+	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
+
+	if (end < yesterday) {
+		return
+	}
 	const eventUrl = eventObj.url as string | undefined
 	const eventStatus = eventObj.eventStatus as string | undefined
 	const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined

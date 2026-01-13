@@ -11,6 +11,8 @@ import {
 import { resolveWebFinger } from '../lib/webfinger.js'
 import * as eventVisibility from '../lib/eventVisibility.js'
 import * as authModule from '../auth.js'
+import { safeFetch } from '../lib/ssrfProtection.js'
+import { ContentType } from '../constants/activitypub.js'
 
 // Mock dependencies
 vi.mock('../lib/prisma.js', () => ({
@@ -19,6 +21,7 @@ vi.mock('../lib/prisma.js', () => ({
 			findMany: vi.fn(),
 			findFirst: vi.fn(),
 			findUnique: vi.fn(),
+			update: vi.fn(() => Promise.resolve({})),
 		},
 		event: {
 			findMany: vi.fn(),
@@ -39,7 +42,8 @@ vi.mock('../lib/activitypubHelpers.js', () => ({
 	fetchActor: vi.fn(),
 	cacheRemoteUser: vi.fn(),
 	getBaseUrl: vi.fn(() => 'http://localhost:3000'),
-	cacheEventFromOutboxActivity: vi.fn(),
+	cacheEventFromOutboxActivity: vi.fn(() => Promise.resolve()),
+	fetchRemoteCollectionCount: vi.fn(() => Promise.resolve(null)),
 }))
 
 vi.mock('../lib/webfinger.js', () => ({
@@ -81,9 +85,6 @@ app.use('*', async (c, next) => {
 })
 
 app.route('/api/user-search', userSearchApp)
-
-// Mock global fetch for remote outbox fetching
-global.fetch = vi.fn()
 
 describe('UserSearch API', () => {
 	const mockLocalUser = {
@@ -430,32 +431,33 @@ describe('UserSearch API', () => {
 			}
 
 			vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
-			vi.mocked(prisma.event.findMany)
-				.mockResolvedValueOnce([]) // First call - no events
-				.mockResolvedValueOnce([
-					{
-						id: 'event_remote_1',
-						title: 'Remote Event',
-						user: null,
-						_count: {
-							attendance: 0,
-							likes: 0,
-							comments: 0,
-						},
-					},
-				] as any) // After caching
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
 			vi.mocked(prisma.event.count).mockResolvedValue(1)
 			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
-			vi.mocked(global.fetch).mockResolvedValue({
-				ok: true,
-				json: async () => mockOutbox,
-			} as Response)
+
+			vi.mocked(fetchActor).mockResolvedValue({
+				id: 'https://example.com/users/bob',
+				outbox: 'https://example.com/users/bob/outbox',
+				followers: 'https://example.com/users/bob/followers',
+				following: 'https://example.com/users/bob/following',
+			})
+
+			vi.mocked(safeFetch).mockImplementation((url: string) => {
+				if (url.includes('/outbox')) {
+					return Promise.resolve({
+						ok: true,
+						headers: new Map([['content-type', 'application/activity+json']]),
+						json: async () => mockOutbox,
+					} as unknown as Response)
+				}
+				return Promise.reject(new Error('Unexpected URL'))
+			})
 
 			const res = await app.request('/api/user-search/profile/bob@example.com')
 
 			expect(res.status).toBe(200)
-			expect(global.fetch).toHaveBeenCalledWith(
-				'https://example.com/users/bob/outbox?page=1',
+			expect(safeFetch).toHaveBeenCalledWith(
+				'https://example.com/users/bob/outbox',
 				expect.objectContaining({
 					headers: {
 						Accept: 'application/activity+json',
@@ -513,7 +515,22 @@ describe('UserSearch API', () => {
 
 			vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
 			vi.mocked(prisma.event.findMany).mockResolvedValueOnce([]) // No cached events
-			vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'))
+
+			vi.mocked(safeFetch).mockImplementation((url: string) => {
+				if (url.includes('/users/bob')) {
+					return Promise.resolve({
+						ok: true,
+						headers: new Map([['content-type', 'application/activity+json']]),
+						json: async () => ({
+							id: 'https://example.com/users/bob',
+							outbox: 'https://example.com/users/bob/outbox',
+							followers: 'https://example.com/users/bob/followers',
+							following: 'https://example.com/users/bob/following',
+						}),
+					} as unknown as Response)
+				}
+				return Promise.reject(new Error('Network error'))
+			})
 
 			const res = await app.request('/api/user-search/profile/bob@example.com')
 
@@ -701,12 +718,34 @@ describe('UserSearch API', () => {
 				},
 			}
 
+			const mockOutbox = {
+				orderedItems: [],
+			}
+
 			vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
 			vi.mocked(prisma.event.findMany).mockResolvedValueOnce([])
-			vi.mocked(global.fetch).mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ invalid: 'data' }), // Invalid outbox format
-			} as Response)
+			vi.mocked(safeFetch).mockImplementation((url: string) => {
+				if (url.includes('/outbox')) {
+					return Promise.resolve({
+						ok: true,
+						headers: new Map([['content-type', 'application/activity+json']]),
+						json: async () => mockOutbox,
+					} as unknown as Response)
+				}
+				if (url.includes('/users/bob')) {
+					return Promise.resolve({
+						ok: true,
+						headers: new Map([['content-type', 'application/activity+json']]),
+						json: async () => ({
+							id: 'https://example.com/users/bob',
+							outbox: 'https://example.com/users/bob/outbox',
+							followers: 'https://example.com/users/bob/followers',
+							following: 'https://example.com/users/bob/following',
+						}),
+					} as unknown as Response)
+				}
+				return Promise.reject(new Error('Unexpected URL'))
+			})
 
 			const res = await app.request('/api/user-search/profile/bob@example.com')
 
@@ -740,10 +779,16 @@ describe('UserSearch API', () => {
 
 			vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUserWithCount as any)
 			vi.mocked(prisma.event.findMany).mockResolvedValueOnce([])
-			vi.mocked(global.fetch).mockResolvedValueOnce({
-				ok: true,
-				json: async () => mockOutbox,
-			} as Response)
+			vi.mocked(safeFetch).mockImplementation((url: string) => {
+				if (url.includes('/outbox')) {
+					return Promise.resolve({
+						ok: true,
+						headers: new Map([['content-type', 'application/activity+json']]),
+						json: async () => mockOutbox,
+					} as unknown as Response)
+				}
+				return Promise.reject(new Error('Unexpected URL'))
+			})
 
 			const res = await app.request('/api/user-search/profile/bob@example.com')
 
