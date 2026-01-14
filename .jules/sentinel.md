@@ -1,0 +1,4 @@
+## 2026-01-14 - Stored XSS in ActivityPub Federation
+**Vulnerability:** Incoming ActivityPub objects (Events, Notes, Profiles) were being stored directly in the database without sanitization. Payloads like `<script>alert(1)</script>` in `name`, `summary`, or `content` fields were persisted.
+**Learning:** The federation layer (`src/federation.ts` and helpers) acts as an external input source similar to a user form, but was missing the standard sanitization pipeline used elsewhere. Backend trust in "federated" content was too high.
+**Prevention:** All external inputs, including those from other ActivityPub instances, must be treated as untrusted user input. Explicitly use `sanitizeText` (or equivalent HTML sanitizer) at the ingress point (`handleActivity` or data extraction helpers) before any DB write.
