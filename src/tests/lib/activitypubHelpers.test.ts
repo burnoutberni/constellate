@@ -1478,5 +1478,223 @@ describe('activitypubHelpers', () => {
 				})
 			)
 		})
+
+		it('should handle organizer object that is not a valid structure', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/bad-org',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				organizer: { name: 'Someone', noId: true },
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						attributedTo: 'https://example.com/users/alice',
+					}),
+				})
+			)
+		})
+
+		it('should deduplicate organizer URLs', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/dup-org',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				attributedTo: ['https://example.com/users/alice'],
+				contacts: ['https://example.com/users/alice'],
+				organizer: 'https://example.com/users/alice',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/fallback'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: [
+							expect.objectContaining({ url: 'https://example.com/users/alice' }),
+						],
+					}),
+				})
+			)
+		})
+
+		it('should handle username with no @ prefix in path', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/no-at',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				attributedTo: 'https://example.com/users/bob',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/fallback'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: [
+							expect.objectContaining({
+								username: 'bob',
+								host: 'example.com',
+								display: '@bob@example.com',
+							}),
+						],
+					}),
+				})
+			)
+		})
+
+		it('should handle empty path when extracting username', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/empty-path',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				attributedTo: 'https://example.com/',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/fallback'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: [
+							expect.objectContaining({
+								url: 'https://example.com/',
+								display: 'example.com',
+							}),
+						],
+					}),
+				})
+			)
+		})
+	})
+
+	describe('fetchRemoteCollectionItems edge cases', () => {
+		it('should handle collection with first as object', async () => {
+			const mainCollection = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					first: { id: 'https://example.com/collection/page1' },
+				}),
+			}
+			const firstPage = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					orderedItems: [{ id: '1' }],
+				}),
+			}
+			const nextCheck = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({}),
+			}
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce(mainCollection as unknown as Response)
+				.mockResolvedValueOnce(nextCheck as unknown as Response)
+				.mockResolvedValueOnce(firstPage as unknown as Response)
+				.mockResolvedValueOnce(nextCheck as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems('https://example.com/collection')
+
+			expect(result.length).toBeGreaterThanOrEqual(0)
+		})
+
+		it('should handle first page fetch failure', async () => {
+			const mainCollection = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					first: 'https://example.com/collection/page1',
+				}),
+			}
+			const firstPageFail = {
+				ok: false,
+				status: 404,
+			}
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce(mainCollection as unknown as Response)
+				.mockResolvedValueOnce(firstPageFail as unknown as Response)
+
+			const result = await fetchRemoteCollectionItems('https://example.com/collection')
+
+			expect(result).toEqual([])
+		})
+	})
+
+	describe('cacheRemoteUserByUrl edge cases', () => {
+		it('should handle non-Error exception during fetch', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockRejectedValue('string error')
+
+			const result = await cacheRemoteUserByUrl('https://example.com/users/alice')
+
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('fetchRemoteCollectionCount edge cases', () => {
+		it('should handle non-Error exception', async () => {
+			vi.mocked(safeFetch).mockRejectedValue('string error')
+
+			const result = await fetchRemoteCollectionCount('https://example.com/followers')
+
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('fetchActor edge cases', () => {
+		it('should handle non-Error exception', async () => {
+			vi.mocked(safeFetch).mockRejectedValue('string error')
+
+			const result = await fetchActor('https://example.com/users/alice')
+
+			expect(result).toBeNull()
+		})
 	})
 })

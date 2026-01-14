@@ -299,6 +299,34 @@ describe('SSRF Protection', () => {
 			expect(global.fetch).toHaveBeenCalled()
 		})
 
+		it('should handle non-Error exceptions', async () => {
+			global.fetch = vi.fn().mockRejectedValue('string error')
+
+			await expect(safeFetch('https://example.com')).rejects.toThrow('Unknown error')
+		})
+
+		it('should resolve relative redirect URLs', async () => {
+			const redirectResponse = {
+				status: 301,
+				headers: new Map([['location', '/new-path']]),
+			}
+			const finalResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({ success: true }),
+			}
+
+			global.fetch = vi
+				.fn()
+				.mockResolvedValueOnce(redirectResponse as unknown as Response)
+				.mockResolvedValueOnce(finalResponse as unknown as Response)
+
+			const response = await safeFetch('https://example.com/old-path')
+
+			expect(response).toBe(finalResponse)
+			expect(global.fetch).toHaveBeenCalledTimes(2)
+		})
+
 		it('should log slow requests', async () => {
 			const mockResponse = {
 				ok: true,
