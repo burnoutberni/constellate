@@ -628,8 +628,9 @@ describe('Attendance API', () => {
 			})
 
 			expect(res.status).toBe(400)
-			const body = (await res.json()) as { error: string; code: string; message: string }
-			expect(body.code).toBe('REMINDER_TOO_LATE')
+			const body = (await res.json()) as { error: string; message: string }
+			expect(body.error).toBe('REMINDER_TOO_LATE')
+			expect(body.message).toBe('Event already started')
 		})
 
 		it('should not surface non-reminder validation errors', async () => {

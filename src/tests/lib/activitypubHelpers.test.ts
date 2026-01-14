@@ -1128,4 +1128,355 @@ describe('activitypubHelpers', () => {
 			expect(result).toBeNull()
 		})
 	})
+
+	describe('fetchActor edge cases', () => {
+		it('should skip non-JSON content types', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'text/html']]),
+				json: async () => ({}),
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchActor('https://example.com/users/alice')
+			expect(result).toBeNull()
+		})
+
+		it('should handle ld+json content type', async () => {
+			const mockActor = { id: 'https://example.com/users/alice', type: 'Person' }
+			const mockResponse = {
+				ok: true,
+				headers: new Map([
+					[
+						'content-type',
+						'application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
+					],
+				]),
+				json: async () => mockActor,
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchActor('https://example.com/users/alice')
+			expect(result).toEqual(mockActor)
+		})
+
+		it('should handle plain json content type', async () => {
+			const mockActor = { id: 'https://example.com/users/alice', type: 'Person' }
+			const mockResponse = {
+				ok: true,
+				headers: new Map([['content-type', 'application/json']]),
+				json: async () => mockActor,
+			}
+			vi.mocked(safeFetch).mockResolvedValue(mockResponse as unknown as Response)
+
+			const result = await fetchActor('https://example.com/users/alice')
+			expect(result).toEqual(mockActor)
+		})
+	})
+
+	describe('cacheRemoteUser edge cases', () => {
+		it('should handle icon as string URL', async () => {
+			const mockActor = {
+				type: 'Person',
+				id: 'https://example.com/users/stringicon',
+				preferredUsername: 'stringicon',
+				inbox: 'https://example.com/users/stringicon/inbox',
+				outbox: 'https://example.com/users/stringicon/outbox',
+				icon: 'https://example.com/avatar-string.jpg',
+			}
+
+			vi.mocked(prisma.user.upsert).mockResolvedValue({ id: 'user_123' } as any)
+
+			await cacheRemoteUser(mockActor as unknown as Actor)
+
+			expect(prisma.user.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					update: expect.objectContaining({
+						profileImage: 'https://example.com/avatar-string.jpg',
+					}),
+				})
+			)
+		})
+
+		it('should handle icon.url as non-string', async () => {
+			const mockActor = {
+				type: 'Person',
+				id: 'https://example.com/users/badicon',
+				preferredUsername: 'badicon',
+				inbox: 'https://example.com/users/badicon/inbox',
+				outbox: 'https://example.com/users/badicon/outbox',
+				icon: { url: 12345 },
+			}
+
+			vi.mocked(prisma.user.upsert).mockResolvedValue({ id: 'user_123' } as any)
+
+			await cacheRemoteUser(mockActor as unknown as Actor)
+
+			expect(prisma.user.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					update: expect.objectContaining({
+						profileImage: null,
+					}),
+				})
+			)
+		})
+
+		it('should handle displayColor from actor', async () => {
+			const mockActor = {
+				type: 'Person',
+				id: 'https://example.com/users/colorful',
+				preferredUsername: 'colorful',
+				inbox: 'https://example.com/users/colorful/inbox',
+				outbox: 'https://example.com/users/colorful/outbox',
+				displayColor: '#ff0000',
+			}
+
+			vi.mocked(prisma.user.upsert).mockResolvedValue({ id: 'user_123' } as any)
+
+			await cacheRemoteUser(mockActor as Actor)
+
+			expect(prisma.user.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					update: expect.objectContaining({
+						displayColor: '#ff0000',
+					}),
+				})
+			)
+		})
+
+		it('should handle published date', async () => {
+			const mockActor = {
+				type: 'Person',
+				id: 'https://example.com/users/dated',
+				preferredUsername: 'dated',
+				inbox: 'https://example.com/users/dated/inbox',
+				outbox: 'https://example.com/users/dated/outbox',
+				published: '2023-01-01T00:00:00Z',
+			}
+
+			vi.mocked(prisma.user.upsert).mockResolvedValue({ id: 'user_123' } as any)
+
+			await cacheRemoteUser(mockActor as Actor)
+
+			expect(prisma.user.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					update: expect.objectContaining({
+						createdAt: new Date('2023-01-01T00:00:00Z'),
+					}),
+				})
+			)
+		})
+	})
+
+	describe('cacheEventFromOutboxActivity edge cases', () => {
+		it('should handle organizer as string URL', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/org-string',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				organizer: 'https://example.com/users/organizer',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						attributedTo: 'https://example.com/users/organizer',
+					}),
+				})
+			)
+		})
+
+		it('should handle attributedTo as array', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/multi-org',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				attributedTo: ['https://example.com/users/org1', 'https://example.com/users/org2'],
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						attributedTo: 'https://example.com/users/org1',
+						organizers: expect.arrayContaining([
+							expect.objectContaining({ url: 'https://example.com/users/org1' }),
+							expect.objectContaining({ url: 'https://example.com/users/org2' }),
+						]),
+					}),
+				})
+			)
+		})
+
+		it('should handle contacts as array', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/multi-contact',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				contacts: ['https://example.com/users/c1', 'https://example.com/users/c2'],
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: expect.arrayContaining([
+							expect.objectContaining({ url: 'https://example.com/users/c1' }),
+							expect.objectContaining({ url: 'https://example.com/users/c2' }),
+						]),
+					}),
+				})
+			)
+		})
+
+		it('should handle location as Place object', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/place-loc',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				location: { type: 'Place', name: 'Central Park' },
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						location: 'Central Park',
+					}),
+				})
+			)
+		})
+
+		it('should skip when activity object is undefined', async () => {
+			const activity = {
+				type: 'Create',
+			}
+
+			await cacheEventFromOutboxActivity(activity as any, 'https://example.com/users/alice')
+
+			expect(prisma.event.upsert).not.toHaveBeenCalled()
+		})
+
+		it('should handle @ prefixed username in URL', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/at-user',
+				type: 'Event',
+				name: 'Test Event',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				attributedTo: 'https://example.com/@alice',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/fallback'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						organizers: expect.arrayContaining([
+							expect.objectContaining({
+								url: 'https://example.com/@alice',
+								username: 'alice',
+							}),
+						]),
+					}),
+				})
+			)
+		})
+
+		it('should include all event metadata fields', async () => {
+			const mockEvent = {
+				id: 'https://example.com/events/full',
+				type: 'Event',
+				name: 'Full Event',
+				summary: 'Event summary',
+				startTime: new Date(Date.now() + 86400000).toISOString(),
+				endTime: new Date(Date.now() + 90000000).toISOString(),
+				duration: 'PT2H',
+				url: 'https://example.com/events/full',
+				eventStatus: 'EventScheduled',
+				eventAttendanceMode: 'OfflineEventAttendanceMode',
+				maximumAttendeeCapacity: 100,
+				location: 'Test Location',
+			}
+			const createActivity = {
+				type: 'Create',
+				object: mockEvent,
+			}
+
+			vi.mocked(prisma.event.upsert).mockResolvedValue({} as any)
+
+			await cacheEventFromOutboxActivity(
+				createActivity as any,
+				'https://example.com/users/alice'
+			)
+
+			expect(prisma.event.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					create: expect.objectContaining({
+						title: 'Full Event',
+						summary: 'Event summary',
+						duration: 'PT2H',
+						url: 'https://example.com/events/full',
+						eventStatus: 'EventScheduled',
+						eventAttendanceMode: 'OfflineEventAttendanceMode',
+						maximumAttendeeCapacity: 100,
+						location: 'Test Location',
+					}),
+				})
+			)
+		})
+	})
 })

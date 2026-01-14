@@ -338,7 +338,7 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 		}
 		if (error instanceof AppError) {
 			return c.json(
-				{ error: error.message, code: error.code },
+				{ error: error.code, message: error.message },
 				error.statusCode as HttpErrorStatus
 			)
 		}
