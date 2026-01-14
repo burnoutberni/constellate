@@ -119,6 +119,67 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			}
 		}, [isOpen])
 
+		// Focus trap
+		useEffect(() => {
+			if (!isOpen) return
+
+			const contentElement = contentRef.current
+			if (!contentElement) return
+
+			const previousActiveElement = document.activeElement as HTMLElement
+
+			function handleTab(e: KeyboardEvent) {
+				if (e.key !== 'Tab') return
+
+				// Query focusable elements dynamically to handle content changes
+				const focusableElements = contentElement!.querySelectorAll(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+				const firstElement = focusableElements[0] as HTMLElement
+				const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+				if (e.shiftKey) {
+					if (document.activeElement === firstElement) {
+						e.preventDefault()
+						lastElement?.focus()
+					}
+				} else {
+					if (document.activeElement === lastElement) {
+						e.preventDefault()
+						firstElement?.focus()
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTab)
+
+			// Initial focus management
+			const timer = setTimeout(() => {
+				// Re-query elements for initial focus
+				const focusableElements = contentElement.querySelectorAll(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+				const firstElement = focusableElements[0] as HTMLElement
+
+				if (!contentElement.contains(document.activeElement)) {
+					if (firstElement) {
+						firstElement.focus()
+					} else {
+						// Fallback if no focusable elements, focus the content container
+						contentElement.setAttribute('tabindex', '-1')
+						contentElement.focus()
+					}
+				}
+			}, 10)
+
+			return () => {
+				document.removeEventListener('keydown', handleTab)
+				clearTimeout(timer)
+				// Restore focus
+				previousActiveElement?.focus()
+			}
+		}, [isOpen])
+
 		if (!isOpen) {
 			return null
 		}
