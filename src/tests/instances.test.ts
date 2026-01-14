@@ -9,6 +9,10 @@ import {
 	trackInstance,
 	getKnownInstances,
 	searchInstances,
+	pollKnownActors,
+	fetchInstancePublicTimeline,
+	getInstanceStats,
+	discoverPublicEndpoint,
 } from '../lib/instanceHelpers.js'
 import { prisma } from '../lib/prisma.js'
 import * as webfinger from '../lib/webfinger.js'
@@ -40,6 +44,9 @@ vi.mock('../lib/prisma.js', () => ({
 		following: {
 			count: vi.fn(),
 			findMany: vi.fn(),
+		},
+		follower: {
+			count: vi.fn(),
 		},
 	},
 }))
@@ -605,6 +612,547 @@ describe('Instance Discovery', () => {
 			const metadata = await fetchInstanceMetadata('https://example.com')
 
 			expect(metadata).toBeNull()
+		})
+
+		it('should return null when NodeInfo endpoint returns error', async () => {
+			const { fetchInstanceMetadata } = await import('../lib/instanceHelpers.js')
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						links: [
+							{
+								rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
+								href: 'https://example.com/nodeinfo/2.0',
+							},
+						],
+					}),
+				} as any)
+				.mockResolvedValueOnce({ ok: false } as any)
+
+			const metadata = await fetchInstanceMetadata('https://example.com')
+			expect(metadata).toBeNull()
+		})
+	})
+
+	describe('pollKnownActors', () => {
+		it('should return outbox URLs for known remote users', async () => {
+			vi.mocked(prisma.user.findMany).mockResolvedValue([
+				{ externalActorUrl: 'https://mastodon.social/users/alice' },
+				{ externalActorUrl: 'https://mastodon.social/users/bob' },
+			] as any)
+
+			const result = await pollKnownActors('mastodon.social')
+
+			expect(result).toEqual([
+				'https://mastodon.social/users/alice/outbox',
+				'https://mastodon.social/users/bob/outbox',
+			])
+		})
+
+		it('should return empty array when no users found', async () => {
+			vi.mocked(prisma.user.findMany).mockResolvedValue([])
+
+			const result = await pollKnownActors('unknown.social')
+
+			expect(result).toEqual([])
+		})
+
+		it('should skip users without externalActorUrl', async () => {
+			vi.mocked(prisma.user.findMany).mockResolvedValue([
+				{ externalActorUrl: 'https://mastodon.social/users/alice' },
+				{ externalActorUrl: null },
+			] as any)
+
+			const result = await pollKnownActors('mastodon.social')
+
+			expect(result).toEqual(['https://mastodon.social/users/alice/outbox'])
+		})
+
+		it('should handle database errors', async () => {
+			vi.mocked(prisma.user.findMany).mockRejectedValue(new Error('DB error'))
+
+			const result = await pollKnownActors('mastodon.social')
+
+			expect(result).toEqual([])
+		})
+	})
+
+	describe('fetchInstancePublicTimeline', () => {
+		it('should fetch activities from outbox', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					type: 'OrderedCollection',
+					first: 'https://example.com/outbox?page=1',
+				}),
+			} as any)
+
+			vi.mocked(safeFetch).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					type: 'OrderedCollection',
+					first: 'https://example.com/outbox?page=1',
+				}),
+			} as any)
+
+			vi.mocked(safeFetch).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					type: 'OrderedCollectionPage',
+					orderedItems: [{ type: 'Create', id: 'act1' }],
+				}),
+			} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(1)
+		})
+
+		it('should handle pagination with next page', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						type: 'OrderedCollection',
+						first: 'https://example.com/outbox?page=1',
+					}),
+				} as any)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						type: 'OrderedCollectionPage',
+						orderedItems: [{ type: 'Create', id: 'act1' }],
+						next: 'https://example.com/outbox?page=2',
+					}),
+				} as any)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						type: 'OrderedCollectionPage',
+						orderedItems: [{ type: 'Create', id: 'act2' }],
+					}),
+				} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(2)
+			expect(result.lastPageUrl).toBe('https://example.com/outbox?page=2')
+		})
+
+		it('should handle items array instead of orderedItems', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					type: 'CollectionPage',
+					items: [{ type: 'Create', id: 'act1' }],
+				}),
+			} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(1)
+		})
+
+		it('should handle failed fetch', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockResolvedValue({ ok: false } as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toEqual([])
+		})
+
+		it('should handle fetch errors', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toEqual([])
+		})
+
+		it('should resume from a given URL', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					type: 'OrderedCollectionPage',
+					orderedItems: [{ type: 'Create', id: 'act3' }],
+				}),
+			} as any)
+
+			const result = await fetchInstancePublicTimeline(
+				'https://example.com/outbox',
+				'https://example.com/outbox?page=3'
+			)
+
+			expect(result.activities).toHaveLength(1)
+		})
+
+		it('should add page=true when initial fetch fails', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce({ ok: false } as any)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						orderedItems: [{ type: 'Create', id: 'act1' }],
+					}),
+				} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(1)
+		})
+
+		it('should handle next as object with id', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockImplementation((url: string) => {
+				if (url === 'https://example.com/outbox') {
+					return Promise.resolve({
+						ok: true,
+						json: async () => ({
+							orderedItems: [{ type: 'Create', id: 'act1' }],
+							next: { id: 'https://example.com/outbox?page=2' },
+						}),
+					} as any)
+				} else {
+					return Promise.resolve({
+						ok: true,
+						json: async () => ({
+							orderedItems: [{ type: 'Create', id: 'act2' }],
+						}),
+					} as any)
+				}
+			})
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(2)
+		})
+
+		it('should handle first as object with id', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						type: 'OrderedCollection',
+						first: { id: 'https://example.com/outbox?page=1' },
+					}),
+				} as any)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						orderedItems: [{ type: 'Create', id: 'act1' }],
+					}),
+				} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(1)
+		})
+
+		it('should stop when next equals current URL', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					orderedItems: [{ type: 'Create', id: 'act1' }],
+					next: 'https://example.com/outbox',
+				}),
+			} as any)
+
+			const result = await fetchInstancePublicTimeline('https://example.com/outbox')
+
+			expect(result.activities).toHaveLength(1)
+		})
+	})
+
+	describe('getInstanceStats', () => {
+		it('should return stats for a domain', async () => {
+			vi.mocked(prisma.user.count).mockResolvedValue(5)
+			vi.mocked(prisma.event.count).mockResolvedValue(10)
+			vi.mocked(prisma.following.count).mockResolvedValue(3)
+			vi.mocked(prisma.follower.count).mockResolvedValue(2)
+
+			const stats = await getInstanceStats('mastodon.social')
+
+			expect(stats).toEqual({
+				remoteUsers: 5,
+				remoteEvents: 10,
+				localFollowing: 3,
+				localFollowers: 2,
+			})
+		})
+	})
+
+	describe('discoverPublicEndpoint', () => {
+		it('should discover endpoint via WebFinger for relay account', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValueOnce(
+				'https://example.com/actor/relay'
+			)
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'https://example.com/relay/outbox' }),
+			} as any)
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBe('https://example.com/relay/outbox')
+		})
+
+		it('should try multiple accounts before instance actor', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger)
+				.mockResolvedValueOnce(null)
+				.mockResolvedValueOnce(null)
+				.mockResolvedValueOnce('https://example.com/actor/groups')
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'https://example.com/groups/outbox' }),
+			} as any)
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBe('https://example.com/groups/outbox')
+		})
+
+		it('should fallback to instance actor if WebFinger fails', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'https://example.com/outbox' }),
+			} as any)
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBe('https://example.com/outbox')
+		})
+
+		it('should return null for known non-Mastodon domains', async () => {
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+
+			const result = await discoverPublicEndpoint('constellate.social')
+
+			expect(result).toBeNull()
+		})
+
+		it('should return null when all discovery attempts fail', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockResolvedValue({ ok: false } as any)
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBeNull()
+		})
+
+		it('should handle errors gracefully', async () => {
+			vi.mocked(webfinger.resolveWebFinger).mockRejectedValue(new Error('Network error'))
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBeNull()
+		})
+
+		it('should use http for local domains', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ outbox: 'http://test.local/outbox' }),
+			} as any)
+
+			await discoverPublicEndpoint('test.local')
+
+			expect(safeFetch).toHaveBeenCalledWith('http://test.local/actor', expect.any(Object))
+		})
+
+		it('should skip actor without outbox', async () => {
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValueOnce(
+				'https://example.com/actor/relay'
+			)
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({}),
+			} as any)
+
+			vi.mocked(webfinger.resolveWebFinger).mockResolvedValue(null)
+
+			const result = await discoverPublicEndpoint('example.com')
+
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('getKnownInstances additional tests', () => {
+		it('should sort by created date', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+			await getKnownInstances({ sortBy: 'created' })
+
+			expect(prisma.instance.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					orderBy: { createdAt: 'desc' },
+				})
+			)
+		})
+
+		it('should include blocked instances when filterBlocked is false', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+			await getKnownInstances({ filterBlocked: false })
+
+			expect(prisma.instance.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: {},
+				})
+			)
+		})
+
+		it('should handle empty instances list', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+			const result = await getKnownInstances({})
+
+			expect(result.instances).toEqual([])
+			expect(prisma.user.findMany).not.toHaveBeenCalled()
+		})
+
+		it('should match instances with port in URL', async () => {
+			const mockInstances = [
+				{
+					id: 'instance-1',
+					domain: 'localhost:3000',
+					baseUrl: 'http://localhost:3000',
+					software: 'test',
+					isBlocked: false,
+					lastActivityAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
+			]
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue(mockInstances as any)
+			vi.mocked(prisma.instance.count).mockResolvedValue(1)
+			vi.mocked(prisma.user.findMany).mockResolvedValue([
+				{ externalActorUrl: 'http://localhost:3000/users/alice' },
+			] as any)
+			vi.mocked(prisma.event.findMany).mockResolvedValue([])
+			vi.mocked(prisma.following.findMany).mockResolvedValue([])
+
+			const result = await getKnownInstances({})
+
+			expect(result.instances[0].stats.remoteUsers).toBe(1)
+		})
+	})
+
+	describe('refreshInstanceMetadata additional tests', () => {
+		it('should return early when instance not found', async () => {
+			const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue(null)
+
+			await refreshInstanceMetadata('unknown.domain')
+
+			expect(prisma.instance.update).not.toHaveBeenCalled()
+		})
+
+		it('should update instance with successful metadata', async () => {
+			const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+			const { safeFetch } = await import('../lib/ssrfProtection.js')
+
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain: 'example.com',
+				baseUrl: 'https://example.com',
+			} as any)
+
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						links: [
+							{
+								rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
+								href: 'https://example.com/nodeinfo/2.0',
+							},
+						],
+					}),
+				} as any)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						software: { name: 'mastodon', version: '4.0.0' },
+						usage: { users: { total: 100 } },
+					}),
+				} as any)
+
+			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)
+
+			await refreshInstanceMetadata('example.com')
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'example.com' },
+					data: expect.objectContaining({
+						software: 'mastodon',
+						version: '4.0.0',
+						userCount: 100,
+						lastError: null,
+						lastErrorAt: null,
+					}),
+				})
+			)
+		})
+
+		it('should handle non-Error exceptions', async () => {
+			const { refreshInstanceMetadata } = await import('../lib/instanceHelpers.js')
+
+			vi.mocked(prisma.instance.findUnique).mockRejectedValue('string error')
+			vi.mocked(prisma.instance.update).mockResolvedValue({} as any)
+
+			await refreshInstanceMetadata('example.com')
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						lastError: 'Unknown error',
+					}),
+				})
+			)
 		})
 	})
 })

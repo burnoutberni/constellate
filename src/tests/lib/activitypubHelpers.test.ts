@@ -3,6 +3,7 @@ import {
 	getBaseUrl,
 	fetchActor,
 	cacheRemoteUser,
+	cacheRemoteUserByUrl,
 	fetchRemoteCollectionCount,
 	fetchRemoteCollectionItems,
 	createOrderedCollection,
@@ -257,6 +258,132 @@ describe('activitypubHelpers', () => {
 					}),
 				})
 			)
+		})
+
+		it('should handle actor with all optional fields', async () => {
+			const mockActor = {
+				type: 'Person',
+				id: 'https://example.com/users/dave',
+				preferredUsername: 'dave',
+				name: 'Dave Johnson',
+				inbox: 'https://example.com/users/dave/inbox',
+				outbox: 'https://example.com/users/dave/outbox',
+				endpoints: {
+					sharedInbox: 'https://example.com/shared inbox',
+				},
+				publicKey: {
+					id: 'https://example.com/users/dave#main-key',
+					owner: 'https://example.com/users/dave',
+					publicKeyPem: '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----',
+				},
+				icon: {
+					type: 'Image',
+					url: 'https://example.com/dave/avatar.jpg',
+				},
+				image: {
+					type: 'Image',
+					url: 'https://example.com/dave/header.jpg',
+				},
+				summary: 'Full featured user',
+				url: 'https://example.com/@dave',
+			}
+
+			const mockUser = {
+				id: 'user_dave',
+				username: 'dave@example.com',
+			}
+
+			vi.mocked(prisma.user.upsert).mockResolvedValue(mockUser as any)
+
+			const result = await cacheRemoteUser(mockActor as unknown as Actor)
+
+			expect(result).toEqual(mockUser)
+			expect(prisma.user.upsert).toHaveBeenCalledWith(
+				expect.objectContaining({
+					update: expect.objectContaining({
+						name: 'Dave Johnson',
+						publicKey: '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----',
+						profileImage: 'https://example.com/dave/avatar.jpg',
+						headerImage: 'https://example.com/dave/header.jpg',
+						bio: 'Full featured user',
+						displayColor: '#3b82f6',
+					}),
+				})
+			)
+		})
+	})
+
+	describe('cacheRemoteUserByUrl', () => {
+		it('should return cached user if already in database', async () => {
+			const cachedUser = {
+				id: 'user_123',
+				username: 'alice@example.com',
+				name: 'Alice',
+				profileImage: 'https://example.com/avatar.jpg',
+				displayColor: '#3b82f6',
+				isRemote: true,
+			}
+
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(cachedUser as any)
+
+			const result = await cacheRemoteUserByUrl('https://example.com/users/alice')
+
+			expect(result).toEqual(cachedUser)
+			expect(prisma.user.findUnique).toHaveBeenCalledWith({
+				where: { externalActorUrl: 'https://example.com/users/alice' },
+				select: expect.any(Object),
+			})
+			expect(safeFetch).not.toHaveBeenCalled()
+		})
+
+		it('should fetch and cache user if not in database', async () => {
+			const cachedUser = {
+				id: 'user_123',
+				username: 'alice@example.com',
+				name: 'Alice',
+				profileImage: null,
+				displayColor: '#3b82f6',
+				isRemote: true,
+			}
+
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockResolvedValue({
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					type: 'Person',
+					id: 'https://example.com/users/alice',
+					preferredUsername: 'alice',
+					name: 'Alice',
+					inbox: 'https://example.com/users/alice/inbox',
+					outbox: 'https://example.com/users/alice/outbox',
+				}),
+			} as unknown as Response)
+			vi.mocked(prisma.user.upsert).mockResolvedValue(cachedUser as any)
+
+			const result = await cacheRemoteUserByUrl('https://example.com/users/alice')
+
+			expect(result).toEqual(cachedUser)
+			expect(safeFetch).toHaveBeenCalled()
+			expect(prisma.user.upsert).toHaveBeenCalled()
+		})
+
+		it('should return null when actor fetch fails', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockResolvedValue({ ok: false } as Response)
+
+			const result = await cacheRemoteUserByUrl('https://example.com/users/alice')
+
+			expect(result).toBeNull()
+		})
+
+		it('should return null when fetch throws error', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+			vi.mocked(safeFetch).mockRejectedValue(new Error('Network error'))
+
+			const result = await cacheRemoteUserByUrl('https://example.com/users/alice')
+
+			expect(result).toBeNull()
 		})
 	})
 
