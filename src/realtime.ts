@@ -195,6 +195,15 @@ export function getUserClientCount(userId: string): number {
 	return count
 }
 
+// Test-only exports - do not use in production
+export function __addTestClient(client: Client): void {
+	clients.set(client.id, client)
+}
+
+export function __clearTestClients(): void {
+	clients.clear()
+}
+
 // Event type helpers for type safety
 export const BroadcastEvents = {
 	// Event updates

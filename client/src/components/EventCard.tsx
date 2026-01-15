@@ -22,6 +22,8 @@ import { AttendeeFacepile } from './AttendeeFacepile'
 import { CardOptionsMenu } from './CardOptionsMenu'
 import { RSVPButton } from './RSVPButton'
 
+const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000
+
 interface EventCardProps {
 	event: Event
 	variant?: 'full' | 'compact'
@@ -87,7 +89,7 @@ export function EventCard(props: EventCardProps) {
 	const start = new Date(event.startTime)
 	const end = event.endTime ? new Date(event.endTime) : null
 	// Event is ongoing if it started in the past AND (has an end time in future OR has no end time but started less than 2h ago)
-	const isOngoing = start <= now && (end ? end > now : (now.getTime() - start.getTime() < 2 * 60 * 60 * 1000))
+	const isOngoing = start <= now && (end ? end > now : (now.getTime() - start.getTime() < TWO_HOURS_IN_MS))
 
 	const renderOrganizers = () => {
 		// 1. Multiple Organizers OR Different Organizer (Remote priority)
@@ -113,8 +115,7 @@ export function EventCard(props: EventCardProps) {
 			// Also check if org.username is contained in event.user.username (e.g. 'julia' in 'julia@domain')
 			// This handles cases where one is short and one is full.
 			const isSameHandle = userHandle === orgHandle ||
-				userHandle.startsWith(`${org.username}@`) ||
-				orgHandle === userHandle
+				userHandle.startsWith(`${org.username}@`)
 
 			isOrganizerDifferent = !isSameHandle
 		} else if (hasOrganizers && !event.user) {

@@ -293,6 +293,14 @@ export function useUnfollowUser(username: string) {
 }
 
 async function getCurrentUserFromCache(queryClient: ReturnType<typeof useQueryClient>): Promise<User | null> {
+	// Note: This implementation relies on the internal structure of query keys.
+	// Specifically, it looks for keys matching ['users', 'current', 'profile', <userId>].
+	// This is fragile because if the query key structure changes in queryKeys.ts,
+	// this function will break silently.
+	//
+	// A more robust approach would be to use a shared context or Zustand store
+	// to access the current user data, but that would require more significant refactoring.
+	// For now, we access the cache directly to avoid duplicating user state.
 	const queries = queryClient.getQueriesData<UserProfile>({
 		queryKey: queryKeys.users.currentProfile(undefined),
 	})
