@@ -90,8 +90,8 @@ export function AttendeeFacepile({
 
         return (
             <div className="text-xs text-left">
-                {visibleItems.map((item) => (
-                    <div key={item.id}>{item.name}</div>
+                {visibleItems.map((item, index) => (
+                    <div key={index}>{item.name}</div>
                 ))}
                 {totalHiddenCount > 0 && (
                     <div className="text-gray-400 mt-1 italic">and {totalHiddenCount} others</div>
