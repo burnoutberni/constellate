@@ -9,7 +9,7 @@ import type { Event } from '@/types'
 export function AttendeeFacepile({
     attendance = [],
     counts: _counts,
-    alwaysShowCounts: _alwaysShowCounts = false,
+    alwaysShowCounts = false,
 }: {
     attendance?: Event['attendance']
     counts?: { attendance?: number }
@@ -48,7 +48,7 @@ export function AttendeeFacepile({
     const remainingSlots = Math.max(0, MAX_FACES - displayedGoing.length)
     const displayedMaybe = maybe.slice(0, remainingSlots)
 
-    if (goingCount === 0 && maybeCount === 0) {
+    if (goingCount === 0 && maybeCount === 0 && !alwaysShowCounts) {
         return (
             <span className="text-xs text-text-secondary italic">
                 Be the first to confirm your attendance
@@ -56,15 +56,19 @@ export function AttendeeFacepile({
         )
     }
 
-    // Prepare tooltip content
+    // Prepare tooltip content (only if there are attendees)
     const totalCount = _counts?.attendance || goingCount + maybeCount
     const displayedCount = going.length
 
-    // Calculate hidden count properly:
-    // If totalCount > displayedCount, there are others (private or just not fetched in this list)
-    // Plus if we truncated the list in the tooltip
-
     const getTooltipContent = () => {
+        if (goingCount === 0) {
+            return (
+                <div className="text-xs text-text-secondary">
+                    No attendees yet
+                </div>
+            )
+        }
+
         const items = going.map(a => {
             const u = getUserData(a)
             return {
@@ -174,16 +178,20 @@ export function AttendeeFacepile({
                 <div
                     className={'flex flex-col justify-center text-xs whitespace-nowrap transition-all duration-300 opacity-100 translate-x-0'}
                 >
-                    {goingCount > 0 && (
-                        <span className="font-medium text-text-primary hover:underline decoration-dotted cursor-help">
-                            {goingCount} going
-                        </span>
-                    )}
-                    {maybeCount > 0 && (
-                        <span className="text-text-secondary ml-1">
-                            {maybeCount} maybe
-                        </span>
-                    )}
+                    {goingCount > 0 ? (
+                        <>
+                            <span className="font-medium text-text-primary hover:underline decoration-dotted cursor-help">
+                                {goingCount} going
+                            </span>
+                            {maybeCount > 0 && (
+                                <span className="text-text-secondary ml-1">
+                                    {maybeCount} maybe
+                                </span>
+                            )}
+                        </>
+                    ) : alwaysShowCounts ? (
+                        <span className="text-text-secondary">0 going</span>
+                    ) : null}
                 </div>
             </Tooltip>
         </div>
