@@ -630,58 +630,146 @@ async function processFollowerUrls(
 	const baseUrl = getBaseUrl()
 	const validUrls = actorUrls.slice(0, limit)
 
-	const followerPromises = validUrls.map(async (actorUrl) => {
-		const isLocalUser = actorUrl.startsWith(baseUrl)
-		let userData: {
-			id: string
-			username: string
-			name: string | null
-			profileImage: string | null
-			displayColor: string | null
-		} | null = null
+	const isLocalUser = (url: string) => url.startsWith(baseUrl) && url.includes('/users/')
+	const usersRegex = /\/?users\/([^/]+)/
 
-		if (isLocalUser) {
-			const localUsername = actorUrl.split('/users/')?.[1]?.split('/')[0]
-			if (localUsername) {
-				userData = await prisma.user
-					.findFirst({
-						where: { username: localUsername, isRemote: false },
-						select: {
-							id: true,
-							username: true,
-							name: true,
-							profileImage: true,
-							displayColor: true,
-						},
-					})
-					.catch(() => null)
+	const localUrls = validUrls.filter(isLocalUser)
+	const remoteUrls = validUrls.filter((url) => !isLocalUser(url))
+
+	const localUsernames = localUrls
+		.map((url) => {
+			const match = usersRegex.exec(url)
+			return match?.[1] || null
+		})
+		.filter((u): u is string => u !== null)
+
+	const [localUsers, cachedRemoteUsers, followingRecords] = await Promise.all([
+		localUsernames.length > 0
+			? prisma.user.findMany({
+					where: { username: { in: localUsernames }, isRemote: false },
+					select: {
+						id: true,
+						username: true,
+						name: true,
+						profileImage: true,
+						displayColor: true,
+					},
+				})
+			: Promise.resolve([]),
+		remoteUrls.length > 0 ? batchFetchRemoteUsers(remoteUrls) : Promise.resolve([]),
+		currentUserId && validUrls.length > 0
+			? prisma.following.findMany({
+					where: {
+						userId: currentUserId,
+						actorUrl: { in: validUrls },
+					},
+				})
+			: Promise.resolve([]),
+	])
+
+	const localUserMap = new Map(localUsers.map((u) => [u.username, u]))
+	type RemoteUserData = {
+		id: string
+		username: string
+		name: string | null
+		profileImage: string | null
+		displayColor: string | null
+		externalActorUrl: string | null
+	}
+	const remoteUserMap = new Map(
+		(cachedRemoteUsers as RemoteUserData[])
+			.filter(
+				(u): u is RemoteUserData & { externalActorUrl: string } =>
+					u.externalActorUrl !== null
+			)
+			.map((u) => [u.externalActorUrl, u])
+	)
+	const followingMap = new Map(followingRecords.map((f) => [f.actorUrl, f]))
+
+	const results = await Promise.all(
+		validUrls.map(async (actorUrl) => {
+			const isLocal = isLocalUser(actorUrl)
+			let userData: (typeof localUsers)[number] | RemoteUserData | null = null
+
+			if (isLocal) {
+				const match = usersRegex.exec(actorUrl)
+				const username = match?.[1] || null
+				if (username) {
+					userData = localUserMap.get(username) || null
+				}
+			} else {
+				userData = remoteUserMap.get(actorUrl) || null
 			}
-		}
 
-		const [followingRecord, cachedRemoteUser] = await Promise.all([
-			currentUserId
-				? prisma.following.findUnique({
-						where: {
-							userId_actorUrl: {
-								userId: currentUserId,
-								actorUrl,
-							},
-						},
-					})
-				: Promise.resolve(null),
-			!isLocalUser ? cacheRemoteUserByUrl(actorUrl) : Promise.resolve(null),
-		])
+			const followingRecord = followingMap.get(actorUrl) || null
 
-		return processSingleFollower(
-			userData,
-			cachedRemoteUser,
-			followingRecord,
-			isLocalUser,
-			actorUrl
-		)
+			return processSingleFollower(
+				userData as {
+					id: string
+					username: string
+					name: string | null
+					profileImage: string | null
+					displayColor: string | null
+				} | null,
+				followingRecord,
+				isLocal,
+				actorUrl
+			)
+		})
+	)
+
+	return results
+}
+
+async function batchFetchRemoteUsers(actorUrls: string[]): Promise<
+	Array<{
+		id: string
+		username: string
+		name: string | null
+		profileImage: string | null
+		displayColor: string | null
+		externalActorUrl: string | null
+	}>
+> {
+	const cachedUsers = await prisma.user.findMany({
+		where: { externalActorUrl: { in: actorUrls }, isRemote: true },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			profileImage: true,
+			displayColor: true,
+			externalActorUrl: true,
+		},
 	})
 
-	return Promise.all(followerPromises)
+	const cachedUrls = new Set(
+		cachedUsers.map((u) => u.externalActorUrl).filter((u): u is string => u !== null)
+	)
+	const uncachedUrls = actorUrls.filter((url) => !cachedUrls.has(url))
+
+	if (uncachedUrls.length > 0) {
+		const fetchedUsers = await Promise.all(
+			uncachedUrls.map(async (url) => {
+				const user = await cacheRemoteUserByUrl(url)
+				if (user) {
+					return {
+						id: user.id,
+						username: user.username,
+						name: user.name,
+						profileImage: user.profileImage,
+						displayColor: user.displayColor,
+						externalActorUrl: url,
+					}
+				}
+				return null
+			})
+		)
+		const validFetched = fetchedUsers.filter((u): u is NonNullable<typeof u> => u !== null)
+		return [...cachedUsers, ...validFetched]
+	}
+
+	return cachedUsers
 }
 
 async function processSingleFollower(
@@ -692,7 +780,6 @@ async function processSingleFollower(
 		profileImage: string | null
 		displayColor: string | null
 	} | null,
-	cachedRemoteUser: Awaited<ReturnType<typeof cacheRemoteUserByUrl>> | null,
 	followingRecord: Awaited<ReturnType<typeof prisma.following.findUnique>> | null,
 	isLocalUser: boolean,
 	actorUrl: string
@@ -707,20 +794,7 @@ async function processSingleFollower(
 			name: userData.name,
 			profileImage: userData.profileImage,
 			displayColor: userData.displayColor,
-			isRemote: false,
-			isFollowing,
-			isPending,
-		}
-	}
-
-	if (cachedRemoteUser) {
-		return {
-			id: cachedRemoteUser.id,
-			username: cachedRemoteUser.username,
-			name: cachedRemoteUser.name,
-			profileImage: cachedRemoteUser.profileImage,
-			displayColor: cachedRemoteUser.displayColor,
-			isRemote: true,
+			isRemote: !isLocalUser,
 			isFollowing,
 			isPending,
 		}
