@@ -381,15 +381,21 @@ export async function fetchRemoteCollectionCount(collectionUrl: string): Promise
 
 /**
  * Fetches items from a remote collection (followers, following, etc)
- * Handles pagination by following the 'next' property until all items are fetched
+ * Handles pagination by following the 'next' property
+ * Stops once a sufficient number of items have been collected to avoid
+ * performance issues with large collections
  * @param collectionUrl - URL of the collection
+ * @param limit - Maximum number of items to fetch (default: 100)
  * @returns Array of items, or empty array if unable to fetch
  */
-export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: string): Promise<T[]> {
+export async function fetchRemoteCollectionItems<T = unknown>(
+	collectionUrl: string,
+	limit = 100
+): Promise<T[]> {
 	const startTime = Date.now()
 
 	try {
-		const allItems = await fetchAllPages<T>(collectionUrl, startTime)
+		const allItems = await fetchAllPages<T>(collectionUrl, startTime, limit)
 		return allItems
 	} catch (error) {
 		const duration = Date.now() - startTime
@@ -401,14 +407,21 @@ export async function fetchRemoteCollectionItems<T = unknown>(collectionUrl: str
 	}
 }
 
-async function fetchAllPages<T>(url: string, startTime: number): Promise<T[]> {
+async function fetchAllPages<T>(url: string, startTime: number, limit: number): Promise<T[]> {
 	const allItems: T[] = []
 	let nextUrl: string | null = url
 	let pageCount = 0
 
-	while (nextUrl) {
+	while (nextUrl && allItems.length < limit) {
 		const pageItems = await fetchSinglePage<T>(nextUrl)
 		if (pageItems === null) {
+			break
+		}
+
+		// Don't exceed the limit
+		const remaining = limit - allItems.length
+		if (pageItems.length > remaining) {
+			allItems.push(...pageItems.slice(0, remaining))
 			break
 		}
 
@@ -419,7 +432,7 @@ async function fetchAllPages<T>(url: string, startTime: number): Promise<T[]> {
 		nextUrl = getNextPageUrl(collection)
 	}
 
-	logCompletion(url, allItems.length, pageCount, startTime)
+	logCompletion(url, allItems.length, pageCount, startTime, limit)
 	return allItems
 }
 
@@ -488,10 +501,17 @@ function getNextPageUrl(collection: { next?: string } | null): string | null {
 	return collection?.next || null
 }
 
-function logCompletion(url: string, totalItems: number, pageCount: number, startTime: number) {
-	console.log(
-		`[collectionItems] ${url} → ${totalItems} items in ${pageCount} pages (${Date.now() - startTime}ms)`
-	)
+function logCompletion(
+	url: string,
+	totalItems: number,
+	pageCount: number,
+	startTime: number,
+	limit?: number
+) {
+	const message = limit
+		? `${url} → ${totalItems} items (limited to ${limit}) in ${pageCount} pages (${Date.now() - startTime}ms)`
+		: `${url} → ${totalItems} items in ${pageCount} pages (${Date.now() - startTime}ms)`
+	console.log(`[collectionItems] ${message}`)
 }
 
 // Helper function to extract location value from event location

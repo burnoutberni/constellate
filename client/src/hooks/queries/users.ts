@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
+import { getCurrentUser } from '@/lib/currentUserStore'
 import type { UserProfile, FollowStatus, Event, SuggestedUser, User } from '@/types'
 
 import { queryKeys } from './keys'
@@ -9,6 +10,25 @@ import { queryKeys } from './keys'
 interface UserProfileResponse {
 	user: UserProfile
 	events: Event[]
+}
+
+interface CurrentUserData {
+	id: string
+	username?: string | null
+	name?: string | null
+	profileImage?: string | null
+	displayColor?: string
+	createdAt?: string
+	isRemote?: boolean
+	isPublicProfile?: boolean
+}
+
+interface FollowMutationVariables {
+	currentUser?: Partial<User> | CurrentUserData | null
+}
+
+interface UnfollowMutationVariables {
+	currentUser?: Partial<User> | CurrentUserData | null
 }
 
 // Queries
@@ -75,11 +95,11 @@ export function useSuggestedUsers(limit = 5, options?: { enabled?: boolean }) {
 }
 
 interface FollowMutationVariables {
-	currentUser?: Partial<User> | null
+	currentUser?: Partial<User> | CurrentUserData | null
 }
 
 interface UnfollowMutationVariables {
-	currentUser?: Partial<User> | null
+	currentUser?: Partial<User> | CurrentUserData | null
 }
 
 // Mutations
@@ -123,7 +143,7 @@ export function useFollowUser(username: string) {
 
 			let previousFollowersData = null
 			if (currentFollowersData?.followers) {
-				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache(queryClient)
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache()
 
 				if (currentUser && currentUser.id && currentUser.username && !currentUser.isRemote) {
 					previousFollowersData = currentFollowersData
@@ -241,7 +261,7 @@ export function useUnfollowUser(username: string) {
 
 			let previousFollowersData = null
 			if (currentFollowersData?.followers) {
-				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache(queryClient)
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache()
 
 				if (currentUser?.id) {
 					previousFollowersData = currentFollowersData
@@ -292,24 +312,6 @@ export function useUnfollowUser(username: string) {
 	})
 }
 
-async function getCurrentUserFromCache(queryClient: ReturnType<typeof useQueryClient>): Promise<User | null> {
-	// Note: This implementation relies on the internal structure of query keys.
-	// Specifically, it looks for keys matching ['users', 'current', 'profile', <userId>].
-	// This is fragile because if the query key structure changes in queryKeys.ts,
-	// this function will break silently.
-	//
-	// A more robust approach would be to use a shared context or Zustand store
-	// to access the current user data, but that would require more significant refactoring.
-	// For now, we access the cache directly to avoid duplicating user state.
-	const queries = queryClient.getQueriesData<UserProfile>({
-		queryKey: ['users', 'current', 'profile'],
-		exact: false,
-	})
-	const currentUserQuery = queries.find(([key]) => {
-		if (Array.isArray(key) && key.length >= 4 && key[1] === 'current' && key[2] === 'profile') {
-			return key[3] !== null
-		}
-		return false
-	})
-	return (currentUserQuery?.[1] as User | null) ?? null
+async function getCurrentUserFromCache(): Promise<CurrentUserData | null> {
+	return getCurrentUser()
 }

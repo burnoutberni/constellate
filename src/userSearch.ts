@@ -581,7 +581,7 @@ async function fetchAndProcessRemoteFollowers(
 				id?: string
 				actor?: string | { id?: string }
 				object?: string | { id?: string }
-			}>(followersUrl),
+			}>(followersUrl, limit),
 			fetchRemoteCollectionCount(followersUrl),
 		])
 

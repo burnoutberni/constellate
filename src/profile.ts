@@ -588,7 +588,7 @@ async function fetchRemoteUserCounts(
 			if (typeof outboxData.totalItems === 'number') {
 				eventCount = outboxData.totalItems
 			}
-			const items = await fetchRemoteCollectionItems(outboxUrl!)
+			const items = await fetchRemoteCollectionItems(outboxUrl!, 20)
 			if (items.length > 0) {
 				await Promise.all(
 					items.map((item) =>
