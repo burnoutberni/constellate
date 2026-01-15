@@ -80,6 +80,14 @@ export function AttendeeFacepile({
             return a.name.localeCompare(b.name)
         })
 
+        // Generate unique keys by tracking seen ids with a counter
+        const seenIds = new Map<string, number>()
+        const getUniqueKey = (item: { id: string; name: string }) => {
+            const count = (seenIds.get(item.id) || 0) + 1
+            seenIds.set(item.id, count)
+            return `${item.id}-${count}`
+        }
+
         // We can list up to 10 names
         const visibleItems = items.slice(0, 10)
 
@@ -90,8 +98,8 @@ export function AttendeeFacepile({
 
         return (
             <div className="text-xs text-left">
-                {visibleItems.map((item, index) => (
-                    <div key={index}>{item.name}</div>
+                {visibleItems.map((item) => (
+                    <div key={getUniqueKey(item)}>{item.name}</div>
                 ))}
                 {totalHiddenCount > 0 && (
                     <div className="text-gray-400 mt-1 italic">and {totalHiddenCount} others</div>
