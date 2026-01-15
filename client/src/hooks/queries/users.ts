@@ -94,14 +94,6 @@ export function useSuggestedUsers(limit = 5, options?: { enabled?: boolean }) {
 	})
 }
 
-interface FollowMutationVariables {
-	currentUser?: Partial<User> | CurrentUserData | null
-}
-
-interface UnfollowMutationVariables {
-	currentUser?: Partial<User> | CurrentUserData | null
-}
-
 // Mutations
 export function useFollowUser(username: string) {
 	const queryClient = useQueryClient()

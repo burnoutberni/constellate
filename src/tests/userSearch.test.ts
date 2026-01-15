@@ -48,6 +48,13 @@ vi.mock('../lib/activitypubHelpers.js', () => ({
 	cacheRemoteUser: vi.fn(),
 	cacheRemoteUserByUrl: vi.fn(),
 	getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+	getCollectionUrl: vi.fn((val: unknown) => {
+		if (typeof val === 'string') return val
+		if (val && typeof val === 'object' && 'id' in val) {
+			return (val as { id: string }).id
+		}
+		return null
+	}),
 	cacheEventFromOutboxActivity: vi.fn(() => Promise.resolve()),
 	fetchRemoteCollectionCount: vi.fn(() => Promise.resolve(null)),
 	fetchRemoteCollectionItems: vi.fn(() => Promise.resolve([])),

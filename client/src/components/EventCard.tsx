@@ -13,7 +13,7 @@ import {
 	SafeHTML,
 } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
-import { cn, getInitials } from '@/lib/utils'
+import { cn, getInitials, normalizeHandleForComparison } from '@/lib/utils'
 import type { Event } from '@/types'
 
 import { formatTime, formatDate } from '../lib/formatUtils'
@@ -85,17 +85,6 @@ export function EventCard(props: EventCardProps) {
 		} catch {
 			return 'Remote User'
 		}
-	}
-
-	// Helper to normalize handles for comparison
-	// Extracts the local part (before @) from handles like 'julia@domain.com', '@julia', etc.
-	const normalizeHandleForComparison = (handle: string | null | undefined): string => {
-		if (!handle) { return '' }
-		// Remove leading @ if present
-		const cleaned = handle.replace(/^@/, '')
-		// If contains @, extract the local part (before @)
-		const localPart = cleaned.split('@')[0]
-		return localPart.toLowerCase()
 	}
 
 	const now = new Date()

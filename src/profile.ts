@@ -10,7 +10,8 @@ import {
 	buildRejectFollowActivity,
 } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
-import { getBaseUrl } from './lib/activitypubHelpers.js'
+import { getBaseUrl, getCollectionUrl } from './lib/activitypubHelpers.js'
+import { buildEventsWhereClause } from './lib/eventQueries.js'
 import { trackInstance } from './lib/instanceHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
@@ -82,6 +83,8 @@ app.get('/users/me/profile', async (c) => {
 				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
+				followersCount: true,
+				followingCount: true,
 				_count: {
 					select: {
 						events: true,
@@ -104,10 +107,10 @@ app.get('/users/me/profile', async (c) => {
 			// For remote users, attempt to fetch live counts from the remote instance
 			const { fetchRemoteCollectionCount } = await import('./lib/activitypubHelpers.js')
 
-			// Try to get actor details to find collection URLs
-			// We can default to standard /followers and /following if we can't fetch the actor
-			const followersUrl = `${user.externalActorUrl}/followers`
-			const followingUrl = `${user.externalActorUrl}/following`
+			// Use URL objects for safer URL construction
+			const baseActorUrl = new URL(user.externalActorUrl)
+			const followersUrl = new URL('/followers', baseActorUrl).toString()
+			const followingUrl = new URL('/following', baseActorUrl).toString()
 
 			try {
 				// Fire off counts fetch in parallel
@@ -122,23 +125,13 @@ app.get('/users/me/profile', async (c) => {
 				// If we got 0s, maybe the URLs are different?
 				// Fetch actor to be sure (optimization: could be cached)
 				if (remoteFollowers === null || remoteFollowing === null) {
-					// Fallback to local count if remote fetch fails
-					followerCount = await prisma.follower.count({
-						where: { userId: user.id, accepted: true },
-					})
-					followingCount = await prisma.following.count({
-						where: { userId: user.id, accepted: true },
-					})
+					followerCount = user.followersCount ?? 0
+					followingCount = user.followingCount ?? 0
 				}
 			} catch (e) {
 				console.error('Error fetching remote counts:', e)
-				// Fallback
-				followerCount = await prisma.follower.count({
-					where: { userId: user.id, accepted: true },
-				})
-				followingCount = await prisma.following.count({
-					where: { userId: user.id, accepted: true },
-				})
+				followerCount = user.followersCount ?? 0
+				followingCount = user.followingCount ?? 0
 			}
 		} else {
 			// Local user
@@ -489,19 +482,25 @@ async function getUserCounts(user: NonNullable<Awaited<ReturnType<typeof getUser
 	}
 
 	if (followerCount === null) {
-		followerCount = await prisma.follower.count({
-			where: { userId: user.id, accepted: true },
-		})
+		followerCount = user.isRemote
+			? (user.followersCount ?? 0)
+			: await prisma.follower.count({
+					where: { userId: user.id, accepted: true },
+				})
 	}
 
 	if (followingCount === null) {
-		followingCount = await prisma.following.count({
-			where: { userId: user.id, accepted: true },
-		})
+		followingCount = user.isRemote
+			? (user.followingCount ?? 0)
+			: await prisma.following.count({
+					where: { userId: user.id, accepted: true },
+				})
 	}
 
 	if (eventCount === null) {
-		eventCount = await prisma.event.count({ where: buildEventsWhereClause(user) })
+		eventCount = user.isRemote
+			? (user.eventsCount ?? 0)
+			: await prisma.event.count({ where: buildEventsWhereClause(user) })
 	}
 
 	return { followerCount, followingCount, eventCount }
@@ -555,7 +554,7 @@ async function fetchRemoteUserCounts(
 		const followingUrl = getCollectionUrl(actor.following)
 		const outboxUrl = getCollectionUrl(actor.outbox)
 
-		const [remoteFollowers, remoteFollowing, outboxResponse] = await Promise.all([
+		const [followersResult, followingResult, outboxResult] = await Promise.allSettled([
 			followersUrl ? fetchRemoteCollectionCount(followersUrl) : Promise.resolve(null),
 			followingUrl ? fetchRemoteCollectionCount(followingUrl) : Promise.resolve(null),
 			outboxUrl
@@ -563,8 +562,14 @@ async function fetchRemoteUserCounts(
 				: Promise.resolve(null),
 		])
 
+		const remoteFollowers =
+			followersResult.status === 'fulfilled' ? followersResult.value : null
+		const remoteFollowing =
+			followingResult.status === 'fulfilled' ? followingResult.value : null
+		const outboxResponse = outboxResult.status === 'fulfilled' ? outboxResult.value : null
+
 		const followerCount = remoteFollowers ?? user.followersCount ?? 0
-		const followingCount = remoteFollowing ?? user.followingCount ?? null
+		const followingCount = remoteFollowing ?? user.followingCount ?? 0
 		let eventCount = user.eventsCount ?? null
 
 		await prisma.user.update({
@@ -612,12 +617,6 @@ async function fetchRemoteUserCounts(
 	}
 }
 
-function getCollectionUrl(val: unknown): string | null {
-	if (typeof val === 'string') return val
-	if (val && typeof val === 'object' && 'id' in val) return (val as { id: string }).id
-	return null
-}
-
 function buildUserWithCounts(
 	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
 	counts: {
@@ -637,22 +636,6 @@ function buildUserWithCounts(
 			following: counts.followingCount,
 		},
 	}
-}
-
-function buildEventsWhereClause(user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>) {
-	return user.isRemote
-		? {
-				OR: [
-					{ userId: user.id },
-					{ attributedTo: user.externalActorUrl || undefined },
-					{
-						organizers: {
-							array_contains: [{ url: user.externalActorUrl }],
-						},
-					},
-				],
-			}
-		: { userId: user.id }
 }
 
 async function fetchUserEvents(

@@ -11,10 +11,12 @@ import {
 	cacheRemoteUser,
 	cacheRemoteUserByUrl,
 	getBaseUrl,
+	getCollectionUrl,
 	cacheEventFromOutboxActivity,
 	fetchRemoteCollectionCount,
 	fetchRemoteCollectionItems,
 } from './lib/activitypubHelpers.js'
+import { buildEventsWhereClause } from './lib/eventQueries.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { ContentType } from './constants/activitypub.js'
 import { trackInstance } from './lib/instanceHelpers.js'
@@ -26,14 +28,6 @@ import { requireAuth } from './middleware/auth.js'
 import { SuggestedUsersService } from './services/SuggestedUsersService.js'
 
 const FOLLOWERS_CACHE_TTL_MINUTES = 5
-
-function getCollectionUrl(val: unknown): string | null {
-	if (typeof val === 'string') return val
-	if (val && typeof val === 'object' && 'id' in val) {
-		return (val as { id: string }).id
-	}
-	return null
-}
 
 const app = new Hono()
 
@@ -1312,7 +1306,7 @@ async function getUserCounts(user: NonNullable<Awaited<ReturnType<typeof lookupU
 		eventCount = await prisma.event.count({ where: { userId: user.id } })
 	}
 
-	await updateCachedCounts(user, followerCount, followingCount)
+	await updateCachedCounts(user, followerCount ?? 0, followingCount ?? 0)
 
 	return { followerCount, followingCount, eventCount }
 }
@@ -1447,24 +1441,6 @@ async function updateCachedCounts(
 			})
 			.catch((e) => console.error('Failed to update profile cache:', e))
 	}
-}
-
-function buildEventsWhereClause(
-	user: NonNullable<Awaited<ReturnType<typeof lookupUser>>>
-): import('@prisma/client').Prisma.EventWhereInput {
-	return user.isRemote
-		? {
-				OR: [
-					{ userId: user.id },
-					{ attributedTo: user.externalActorUrl || undefined },
-					{
-						organizers: {
-							array_contains: [{ url: user.externalActorUrl }],
-						},
-					},
-				],
-			}
-		: { userId: user.id }
 }
 
 async function fetchUserEvents(

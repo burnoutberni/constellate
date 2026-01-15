@@ -264,7 +264,7 @@ function hydrateOrganizer(
 ) {
 	const normalizedOrgUrl = org.url ? org.url.replace(/\/$/, '') : ''
 
-	let dbUser = userMap.get(org.url)
+	let dbUser = normalizedOrgUrl ? userMap.get(normalizedOrgUrl) : undefined
 
 	if (!dbUser && normalizedOrgUrl) {
 		for (const [key, user] of userMap.entries()) {

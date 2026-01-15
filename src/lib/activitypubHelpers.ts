@@ -21,6 +21,20 @@ export function getBaseUrl(): string {
 	return config.baseUrl
 }
 
+/**
+ * Extracts a collection URL from various possible formats
+ * Handles both string URLs and ActivityPub object references with an 'id' property
+ * @param val - Either a string URL or an object with an 'id' property
+ * @returns The collection URL string, or null if not found
+ */
+export function getCollectionUrl(val: unknown): string | null {
+	if (typeof val === 'string') return val
+	if (val && typeof val === 'object' && 'id' in val) {
+		return (val as { id: string }).id
+	}
+	return null
+}
+
 // resolveWebFinger moved to ./webfinger.ts
 
 /**
