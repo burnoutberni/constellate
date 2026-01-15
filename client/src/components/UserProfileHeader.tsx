@@ -156,7 +156,7 @@ export function UserProfileHeader({
 
 						{/* Bio - hide for private profiles if not owner */}
 						{user.bio && (!isPrivate || isOwnProfile) && (
-							<div className="text-text-primary mb-4">
+							<div className="text-text-primary mb-4 whitespace-pre-wrap">
 								<SafeHTML html={user.bio} />
 							</div>
 						)}

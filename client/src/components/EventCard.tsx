@@ -92,16 +92,15 @@ export function EventCard(props: EventCardProps) {
 	const isOngoing = start <= now && (end ? end > now : (now.getTime() - start.getTime() < TWO_HOURS_IN_MS))
 
 	const renderOrganizers = () => {
-		// 1. Multiple Organizers OR Different Organizer (Remote priority)
-		// Check if we should use the organizers list
-		const hasOrganizers = event.organizers && event.organizers.length > 0
+		const { organizers } = event
+		const hasOrganizers = organizers && organizers.length > 0
 
 		// If we have a local user and explicit organizers, determine if they are effectively the same person.
 		// If they are the same, we prefer the "User" block (nicer UI).
 		// If they are different (e.g. event.user is 'julia' but organizer is 'sozial'), we MUST show organizers.
 		let isOrganizerDifferent = false
 		if (hasOrganizers && event.user) {
-			const org = event.organizers ? event.organizers[0] : null
+			const org = organizers[0]
 			if (!org) {
 				return null
 			}
@@ -122,11 +121,12 @@ export function EventCard(props: EventCardProps) {
 			isOrganizerDifferent = true
 		}
 
-		if (hasOrganizers && (event.organizers && (event.organizers.length > 1 || isOrganizerDifferent))) {
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		if (hasOrganizers && (event.organizers!.length > 1 || isOrganizerDifferent)) {
 			return (
 				<div className="pt-2 border-t border-border-default space-y-2">
 					<div className="text-xs text-text-secondary font-medium">Organized by</div>
-					{event.organizers.map((org) => {
+					{organizers.map((org) => {
                         const profileLink = org.username ? `/@${org.username}` : org.url;
                         const isExternal = !org.username || org.username === 'unknown';
                         
@@ -289,8 +289,8 @@ export function EventCard(props: EventCardProps) {
 						</div>
 					)}
 
-					{/* Attendance Facepile - Always show counts */}
-					{(event._count || (event.attendance && event.attendance.length > 0)) && (
+					{/* Attendance Facepile - Only show when there are attendees */}
+					{(event._count?.attendance ? event._count.attendance > 0 : (event.attendance && event.attendance.length > 0)) && (
 						<div className="pt-1 relative z-20">
 							<AttendeeFacepile attendance={event.attendance} counts={event._count} alwaysShowCounts />
 						</div>

@@ -1220,4 +1220,159 @@ describe('Profile API', () => {
 			expect(response.status).toBe(400)
 		})
 	})
+
+	describe('GET /users/me/reminders', () => {
+		it('should return empty reminders array when no reminders exist', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/users/me/reminders', {
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(200)
+			const body = (await response.json()) as any
+			expect(body).toHaveProperty('reminders')
+			expect(body.reminders).toEqual([])
+		})
+	})
+
+	describe('GET /followers/pending', () => {
+		it('should return pending follower requests', async () => {
+			mockAuth(testUser)
+
+			// Create a pending follower request
+			await prisma.follower.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: 'https://remote.example.com/users/pending-follower',
+					username: 'pending-follower',
+					inboxUrl: 'https://remote.example.com/users/pending-follower/inbox',
+					accepted: false,
+				},
+			})
+
+			const response = await app.request('/api/followers/pending', {
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(200)
+			const body = (await response.json()) as any
+			expect(body).toHaveProperty('followers')
+			expect(Array.isArray(body.followers)).toBe(true)
+		})
+
+		it('should return empty followers array when no pending requests', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/followers/pending', {
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(200)
+			const body = (await response.json()) as any
+			expect(body).toHaveProperty('followers')
+			expect(body.followers).toEqual([])
+		})
+	})
+
+	describe('POST /followers/:followerId/accept', () => {
+		beforeEach(() => {
+			vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(true)
+		})
+
+		it('should accept a pending follower', async () => {
+			mockAuth(testUser)
+
+			// Create a pending follower
+			const follower = await prisma.follower.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: 'https://remote.example.com/users/new-follower',
+					username: 'new-follower',
+					inboxUrl: 'https://remote.example.com/users/new-follower/inbox',
+					accepted: false,
+				},
+			})
+
+			const response = await app.request(`/api/followers/${follower.id}/accept`, {
+				method: 'POST',
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(200)
+
+			// Verify follower was accepted
+			const updated = await prisma.follower.findUnique({
+				where: { id: follower.id },
+			})
+			expect(updated?.accepted).toBe(true)
+		})
+
+		it('should return 404 for non-existent follower', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/followers/non-existent-id/accept', {
+				method: 'POST',
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(404)
+		})
+	})
+
+	describe('POST /followers/:followerId/reject', () => {
+		beforeEach(() => {
+			vi.mocked(activityDelivery.deliverToInbox).mockResolvedValue(true)
+		})
+
+		it('should reject a pending follower', async () => {
+			mockAuth(testUser)
+
+			// Create a pending follower
+			const follower = await prisma.follower.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: 'https://remote.example.com/users/rejected-follower',
+					username: 'rejected-follower',
+					inboxUrl: 'https://remote.example.com/users/rejected-follower/inbox',
+					accepted: false,
+				},
+			})
+
+			const response = await app.request(`/api/followers/${follower.id}/reject`, {
+				method: 'POST',
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(200)
+
+			// Verify follower was deleted (rejected followers are removed)
+			const deleted = await prisma.follower.findUnique({
+				where: { id: follower.id },
+			})
+			expect(deleted).toBeNull()
+		})
+
+		it('should return 404 for non-existent follower', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/followers/non-existent-id/reject', {
+				method: 'POST',
+				headers: { Cookie: 'better-auth.session_token=test-token' },
+			})
+
+			expect(response.status).toBe(404)
+		})
+	})
+
+	describe('GET /tos/version', () => {
+		it('should return current ToS version', async () => {
+			const response = await app.request('/api/tos/version')
+
+			expect(response.status).toBe(200)
+			const body = (await response.json()) as any
+			expect(body).toHaveProperty('version')
+			expect(typeof body.version).toBe('number')
+		})
+	})
 })
