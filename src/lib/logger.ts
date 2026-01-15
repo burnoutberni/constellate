@@ -11,12 +11,12 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 const CURRENT_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase() as LogLevel
 const MIN_LEVEL = LOG_LEVELS[CURRENT_LEVEL] ?? LOG_LEVELS.info
 
-function formatMessage(level: LogLevel, message: string): string {
+export function formatMessage(level: LogLevel, message: string): string {
 	const prefix = level === 'critical' ? 'CRITICAL' : level.toUpperCase()
 	return `[${prefix}] ${message}`
 }
 
-function shouldLog(level: LogLevel): boolean {
+export function shouldLog(level: LogLevel): boolean {
 	return LOG_LEVELS[level] >= MIN_LEVEL
 }
 

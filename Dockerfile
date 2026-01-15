@@ -28,7 +28,7 @@ COPY --from=deps /app/client/node_modules ./client/node_modules
 # Source code is provided via bind mount
 EXPOSE 3000
 
-# Prisma + dev server should run at container start, not build
+# Start dev server
 CMD ["npm", "run", "dev"]
 
 # =========================

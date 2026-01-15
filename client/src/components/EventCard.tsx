@@ -65,7 +65,9 @@ export function EventCard(props: EventCardProps) {
 		const primaryOrg = event.organizers[0]
 		if (primaryOrg.username && primaryOrg.username !== 'unknown') {
 			// If event.user is present, only override if organizer is different
-			if (!event.user || event.user.username !== primaryOrg.username) {
+			// Use explicit null/undefined checks to avoid comparing null with strings
+			const userUsername = event.user?.username
+			if (!userUsername || userUsername !== primaryOrg.username) {
 				eventLink = `/@${primaryOrg.username}/${event.id}`
 			}
 		}
@@ -85,13 +87,24 @@ export function EventCard(props: EventCardProps) {
 		}
 	}
 
+	// Helper to normalize handles for comparison
+	// Extracts the local part (before @) from handles like 'julia@domain.com', '@julia', etc.
+	const normalizeHandleForComparison = (handle: string | null | undefined): string => {
+		if (!handle) { return '' }
+		// Remove leading @ if present
+		const cleaned = handle.replace(/^@/, '')
+		// If contains @, extract the local part (before @)
+		const localPart = cleaned.split('@')[0]
+		return localPart.toLowerCase()
+	}
+
 	const now = new Date()
 	const start = new Date(event.startTime)
 	const end = event.endTime ? new Date(event.endTime) : null
 	// Event is ongoing if it started in the past AND (has an end time in future OR has no end time but started less than 2h ago)
 	const isOngoing = start <= now && (end ? end > now : (now.getTime() - start.getTime() < TWO_HOURS_IN_MS))
 
-	const renderOrganizers = () => {
+		const renderOrganizers = () => {
 		const { organizers } = event
 		const hasOrganizers = organizers && organizers.length > 0
 
@@ -104,25 +117,30 @@ export function EventCard(props: EventCardProps) {
 			if (!org) {
 				return null
 			}
-			// Check if username matches (ignoring leading @ for remote/local diffs)
+			// Normalize both handles for robust comparison
 			// event.user.username is like 'julia@domain' or 'julia'
 			// org.display is like '@julia@domain'
 			// org.username is 'julia'
 			const userHandle = event.user.username
 			const orgHandle = org.display.replace(/^@/, '')
 
-			// Also check if org.username is contained in event.user.username (e.g. 'julia' in 'julia@domain')
-			// This handles cases where one is short and one is full.
-			const isSameHandle = userHandle === orgHandle ||
-				userHandle.startsWith(`${org.username}@`)
+			// Normalize both to local parts for comparison
+			const normalizedUserHandle = normalizeHandleForComparison(userHandle)
+			const normalizedOrgHandle = normalizeHandleForComparison(orgHandle)
+			const normalizedOrgUsername = normalizeHandleForComparison(org.username)
+
+			// Handles match if either normalized handles match, or if org.username normalized matches userHandle
+			const isSameHandle =
+				normalizedUserHandle === normalizedOrgHandle ||
+				normalizedUserHandle === normalizedOrgUsername ||
+				normalizedOrgHandle === normalizedOrgUsername
 
 			isOrganizerDifferent = !isSameHandle
 		} else if (hasOrganizers && !event.user) {
 			isOrganizerDifferent = true
 		}
 
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		if (hasOrganizers && (event.organizers!.length > 1 || isOrganizerDifferent)) {
+		if (hasOrganizers && (organizers.length > 1 || isOrganizerDifferent)) {
 			return (
 				<div className="pt-2 border-t border-border-default space-y-2">
 					<div className="text-xs text-text-secondary font-medium">Organized by</div>

@@ -191,6 +191,8 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 	})
 
 	const emptyStateMessage = type === 'followers' ? 'No followers yet' : 'Not following anyone yet'
+	const userTypeLabel = type === 'followers' ? 'Followers' : 'Following'
+	const remoteUserTypeLabel = type === 'followers' ? 'Remote Followers' : 'Remote Following'
 
 	let modalContent: React.ReactNode
 	if (isLoading) {
@@ -229,7 +231,7 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 				)}
 				{localUsers.length > 0 && remoteUsers.length === 0 && (
 					<UserListSection
-						title="Followers"
+						title={userTypeLabel}
 						count={sortedLocalUsers.length}
 						users={sortedLocalUsers}
 						onClose={onClose}
@@ -238,7 +240,7 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 				)}
 				{remoteUsers.length > 0 && localUsers.length === 0 && (
 					<UserListSection
-						title="Remote Followers"
+						title={remoteUserTypeLabel}
 						count={sortedRemoteUsers.length}
 						users={sortedRemoteUsers}
 						onClose={onClose}

@@ -62,13 +62,13 @@ async function ensureViewerCanAccess(event: EventWithOwner, viewerId: string) {
 	}
 }
 
-function shouldNotifyFollowers(
+export function shouldNotifyFollowers(
 	visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' | null | undefined
 ) {
 	return visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
 }
 
-function resolveEventFollowersUrl(
+export function resolveEventFollowersUrl(
 	event: EventWithOwner,
 	baseUrl: string,
 	notifyFollowers: boolean
@@ -91,11 +91,11 @@ function resolveEventFollowersUrl(
 	return undefined
 }
 
-function getUserFollowersUrl(user: Pick<User, 'username'>, baseUrl: string) {
+export function getUserFollowersUrl(user: Pick<User, 'username'>, baseUrl: string) {
 	return `${baseUrl}/users/${user.username}/followers`
 }
 
-function normalizeRecipientsField(value?: string | string[]) {
+export function normalizeRecipientsField(value?: string | string[]) {
 	if (!value) {
 		return []
 	}
@@ -172,7 +172,7 @@ interface AttendanceContext {
 	isPublic: boolean
 }
 
-function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceContext {
+export function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceContext {
 	const baseUrl = getBaseUrl()
 	const eventAuthorUrl = event.attributedTo!
 	const notifyFollowers = shouldNotifyFollowers(event.visibility)
@@ -186,7 +186,7 @@ function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceCo
 	}
 }
 
-function buildAttendanceActivityForStatus(
+export function buildAttendanceActivityForStatus(
 	status: AttendanceState,
 	user: User,
 	context: AttendanceContext
