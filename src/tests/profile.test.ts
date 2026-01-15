@@ -1164,4 +1164,60 @@ describe('Profile API', () => {
 			expect(data.success).toBe(true)
 		})
 	})
+
+	describe('Profile validation', () => {
+		it('rejects unsafe profile image URLs (localhost)', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/profile', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ profileImage: 'http://localhost/image.png' }),
+			})
+
+			expect(response.status).toBe(400)
+			const body = (await response.json()) as any
+			expect(body.error).toBe('Validation failed')
+		})
+
+		it('rejects unsafe profile image URLs (private IP)', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/profile', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ profileImage: 'http://192.168.1.1/image.png' }),
+			})
+
+			expect(response.status).toBe(400)
+			const body = (await response.json()) as any
+			expect(body.error).toBe('Validation failed')
+		})
+
+		it('rejects unsafe header image URLs', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/profile', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ headerImage: 'http://127.0.0.1/image.png' }),
+			})
+
+			expect(response.status).toBe(400)
+			const body = (await response.json()) as any
+			expect(body.error).toBe('Validation failed')
+		})
+
+		it('rejects javascript: protocol in profile image', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request('/api/profile', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ profileImage: 'javascript:alert(1)' }),
+			})
+
+			expect(response.status).toBe(400)
+		})
+	})
 })
