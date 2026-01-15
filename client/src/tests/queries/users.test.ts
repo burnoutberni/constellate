@@ -143,35 +143,59 @@ describe('getCurrentUserFromCache key structure validation', () => {
 		expect(result?.username).toBe('testusername')
 	})
 
-	it('verifies the getCurrentUserFromCache function finds user with correct filtering', () => {
-		const queryClient = new QueryClient()
+		it('verifies getCurrentUserFromCache function finds user with correct filtering', () => {
+			const queryClient = new QueryClient()
 
-		const user1 = { id: 'user-1', username: 'user1' }
-		const user2 = { id: 'user-2', username: 'user2' }
-		const nullUser = { id: 'null-user', username: 'null' }
+			const user1 = { id: 'user-1', username: 'user1' }
+			const user2 = { id: 'user-2', username: 'user2' }
+			const nullUser = { id: 'null-user', username: 'null' }
 
-		queryClient.setQueryData(['users', 'current', 'profile', 'user-1'], user1)
-		queryClient.setQueryData(['users', 'current', 'profile', 'user-2'], user2)
-		queryClient.setQueryData(['users', 'current', 'profile', null], nullUser)
+			queryClient.setQueryData(['users', 'current', 'profile', 'user-1'], user1)
+			queryClient.setQueryData(['users', 'current', 'profile', 'user-2'], user2)
+			queryClient.setQueryData(['users', 'current', 'profile', null], nullUser)
 
-		const queries = queryClient.getQueriesData({
-			queryKey: queryKeys.users.currentProfile('user-1'),
+			const queries = queryClient.getQueriesData({
+				queryKey: queryKeys.users.currentProfile('user-1'),
+			})
+
+			const currentUserQuery = queries.find(([k]) => {
+				if (Array.isArray(k) && k.length >= 4 && k[1] === 'current' && k[2] === 'profile') {
+					return k[3] !== null
+				}
+				return false
+			})
+
+			const result = (currentUserQuery?.[1] as { id: string } | null) ?? null
+
+			expect(result).not.toBeNull()
+			expect(result?.id).toBe('user-1')
 		})
 
-		const currentUserQuery = queries.find(([k]) => {
-			if (Array.isArray(k) && k.length >= 4 && k[1] === 'current' && k[2] === 'profile') {
-				return k[3] !== null
-			}
-			return false
+		it('verifies using exact: false finds any current profile regardless of userId', () => {
+			const queryClient = new QueryClient()
+
+			const user1 = { id: 'user-1', username: 'user1' }
+			queryClient.setQueryData(['users', 'current', 'profile', 'user-1'], user1)
+
+			const queries = queryClient.getQueriesData({
+				queryKey: ['users', 'current', 'profile'],
+				exact: false,
+			})
+
+			const currentUserQuery = queries.find(([k]) => {
+				if (Array.isArray(k) && k.length >= 4 && k[1] === 'current' && k[2] === 'profile') {
+					return k[3] !== null
+				}
+				return false
+			})
+
+			const result = (currentUserQuery?.[1] as { id: string } | null) ?? null
+
+			expect(result).not.toBeNull()
+			expect(result?.id).toBe('user-1')
 		})
 
-		const result = (currentUserQuery?.[1] as { id: string } | null) ?? null
-
-		expect(result).not.toBeNull()
-		expect(result?.id).toBe('user-1')
-	})
-
-	it('handles empty cache gracefully', () => {
+		it('handles empty cache gracefully', () => {
 		const queryClient = new QueryClient()
 
 		const queries = queryClient.getQueriesData({

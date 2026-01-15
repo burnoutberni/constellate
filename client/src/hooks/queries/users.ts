@@ -302,7 +302,8 @@ async function getCurrentUserFromCache(queryClient: ReturnType<typeof useQueryCl
 	// to access the current user data, but that would require more significant refactoring.
 	// For now, we access the cache directly to avoid duplicating user state.
 	const queries = queryClient.getQueriesData<UserProfile>({
-		queryKey: queryKeys.users.currentProfile(undefined),
+		queryKey: ['users', 'current', 'profile'],
+		exact: false,
 	})
 	const currentUserQuery = queries.find(([key]) => {
 		if (Array.isArray(key) && key.length >= 4 && key[1] === 'current' && key[2] === 'profile') {
