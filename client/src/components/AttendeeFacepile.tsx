@@ -57,8 +57,6 @@ export function AttendeeFacepile({
     }
 
     // Prepare tooltip content (only if there are attendees)
-    const displayedCount = going.length
-
     const getTooltipContent = () => {
         if (goingCount === 0) {
             return (
@@ -95,17 +93,15 @@ export function AttendeeFacepile({
         const visibleItems = items.slice(0, 10)
 
         // Remaining count is (Total Attending) - (Names Shown in Tooltip)
-        const knownHiddenCount = Math.max(0, goingCount - displayedCount)
         const tooltipHiddenCount = Math.max(0, items.length - visibleItems.length)
-        const totalHiddenCount = knownHiddenCount + tooltipHiddenCount
 
         return (
             <div className="text-xs text-left">
                 {visibleItems.map((item) => (
                     <div key={getUniqueKey(item)}>{item.name}</div>
                 ))}
-                {totalHiddenCount > 0 && (
-                    <div className="text-gray-400 mt-1 italic">and {totalHiddenCount} others</div>
+                {tooltipHiddenCount > 0 && (
+                    <div className="text-gray-400 mt-1 italic">and {tooltipHiddenCount} others</div>
                 )}
             </div>
         )

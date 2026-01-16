@@ -17,6 +17,14 @@ interface UserEventListProps {
 	onEventClick: (eventId: string) => void
 }
 
+function isPast(event: Event): boolean {
+	const now = new Date()
+	const end = event.endTime ? new Date(event.endTime) : new Date(event.startTime)
+	if (!event.endTime) {
+		return new Date(event.startTime) < now
+	}
+	return end < now
+}
 /**
  * UserEventList component displays a list of events created by a user.
  */
@@ -34,21 +42,10 @@ export function UserEventList({ events, onEventClick }: UserEventListProps) {
 		)
 	}
 
-	return (
-		<div className="space-y-4">
-			{events.map((event, index) => {
-				const isPast = (e: Event) => {
-					const now = new Date()
-					const end = e.endTime ? new Date(e.endTime) : new Date(e.startTime)
-					// If no end time, we treat it as a point in time.
-					// If start time is past, it's past.
-					if (!e.endTime) {
-						return new Date(e.startTime) < now
-					}
-					return end < now
-				}
-
-				const currentIsPast = isPast(event)
+		return (
+			<div className="space-y-4">
+				{events.map((event, index) => {
+					const currentIsPast = isPast(event)
 				const prevIsPast = index > 0 ? isPast(events[index - 1]) : false
 				const showSeparator = index > 0 && currentIsPast && !prevIsPast
 
