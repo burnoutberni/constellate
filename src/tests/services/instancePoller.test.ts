@@ -371,12 +371,12 @@ describe('Instance Poller Service', () => {
 			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
 			vi.mocked(prisma.instance.count).mockResolvedValue(5)
 
-			const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			startInstancePoller()
 			await vi.advanceTimersByTimeAsync(11000)
 
-			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('up to date'))
+			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('up to date'), '')
 
 			consoleSpy.mockRestore()
 		})
@@ -428,7 +428,7 @@ describe('Instance Poller Service', () => {
 			await refreshInstance(domain)
 
 			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Failed to refresh user'),
+				expect.stringContaining('[WARN] Failed to refresh user'),
 				expect.any(Error)
 			)
 
@@ -490,7 +490,7 @@ describe('Instance Poller Service', () => {
 			await vi.advanceTimersByTimeAsync(11000)
 
 			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Error caching activity'),
+				expect.stringContaining('[WARN] Error caching activity'),
 				expect.any(Error)
 			)
 
@@ -655,7 +655,10 @@ describe('Instance Poller Service', () => {
 			startInstancePoller()
 			await vi.advanceTimersByTimeAsync(11000)
 
-			expect(consoleSpy).toHaveBeenCalledWith('Instance Poller Error:', expect.any(Error))
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[ERROR] Instance Poller Error:',
+				expect.any(Error)
+			)
 
 			consoleSpy.mockRestore()
 		})
@@ -756,7 +759,10 @@ describe('Instance Poller Service', () => {
 			startInstancePoller()
 			await vi.advanceTimersByTimeAsync(11000)
 
-			expect(consoleSpy).toHaveBeenCalledWith('Instance Poller Error:', expect.any(Error))
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[ERROR] Instance Poller Error:',
+				expect.any(Error)
+			)
 
 			consoleSpy.mockRestore()
 		})
@@ -1030,7 +1036,10 @@ describe('Instance Poller Service', () => {
 			startInstancePoller()
 			await vi.advanceTimersByTimeAsync(11000)
 
-			expect(consoleSpy).toHaveBeenCalledWith('Error caching activity:', expect.any(Error))
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[WARN] Error caching activity:',
+				expect.any(Error)
+			)
 			expect(prisma.instance.update).toHaveBeenCalled()
 
 			consoleSpy.mockRestore()

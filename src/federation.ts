@@ -16,6 +16,7 @@ import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { trackInstance } from './lib/instanceHelpers.js'
+import { logger } from './lib/logger.js'
 import type { Prisma, Event, User } from '@prisma/client'
 import type {
 	Activity,
@@ -62,7 +63,7 @@ export async function handleActivity(activity: Activity): Promise<void> {
 		} catch (error: unknown) {
 			// If the activity already exists (P2002 = unique constraint violation), skip processing
 			if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-				console.log(`Activity already processed: ${activity.id}`)
+				logger.debug(`Activity already processed: ${activity.id}`)
 				return
 			}
 			// Re-throw other errors
@@ -102,11 +103,11 @@ export async function handleActivity(activity: Activity): Promise<void> {
 				await handleReject(activity)
 				break
 			default:
-				console.log(`Unhandled activity type: ${activity.type}`)
+				logger.debug(`Unhandled activity type: ${activity.type}`)
 		}
 	} catch (error) {
 		// Structured error logging for federation issues
-		console.error('[Federation] Error handling activity:', {
+		logger.error('[Federation] Error handling activity:', {
 			timestamp: new Date().toISOString(),
 			activityId: activity.id,
 			activityType: activity.type,
@@ -132,7 +133,7 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
 	// Parse target username from object URL
 	const baseUrl = getBaseUrl()
 	if (!objectUrl.startsWith(baseUrl)) {
-		console.log('Follow target is not local')
+		logger.debug('Follow target is not local')
 		return
 	}
 
@@ -142,14 +143,14 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
 	})
 
 	if (!targetUser) {
-		console.log('Target user not found')
+		logger.debug('Target user not found')
 		return
 	}
 
 	// Fetch and cache remote actor
 	const actor = await fetchActor(actorUrl)
 	if (!actor) {
-		console.log('Failed to fetch actor')
+		logger.debug('Failed to fetch actor')
 		return
 	}
 
@@ -213,9 +214,9 @@ async function handleFollow(activity: FollowActivity): Promise<void> {
 		const acceptActivity = buildAcceptActivity(targetUser, activity)
 		const inboxUrl = actorPerson.endpoints?.sharedInbox || actorPerson.inbox
 		await deliverToInbox(acceptActivity, inboxUrl, targetUser)
-		console.log(`✅ Auto-accepted follow from ${actorUrl}`)
+		logger.info(`Auto-accepted follow from ${actorUrl}`)
 	} else {
-		console.log(`⏳ Follow request from ${actorUrl} pending approval`)
+		logger.info(`Follow request from ${actorUrl} pending approval`)
 	}
 }
 
@@ -226,15 +227,15 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 	const actorUrl = extractActorId(activity.actor)
 	const object = activity.object
 
-	console.log(`[handleAccept] Received Accept activity:`)
-	console.log(`  - actor: ${actorUrl}`)
-	console.log(`  - object type: ${typeof object}`)
-	console.log(`  - object: ${JSON.stringify(object, null, 2).substring(0, 500)}`)
+	logger.debug(`[handleAccept] Received Accept activity:`)
+	logger.debug(`  - actor: ${actorUrl}`)
+	logger.debug(`  - object type: ${typeof object}`)
+	logger.debug(`  - object: ${JSON.stringify(object, null, 2).substring(0, 500)}`)
 
 	// Handle Follow Accept FIRST - object must be an object with type FOLLOW
 	// This must be checked before Event Accept because Follow activities also have an 'id' field
 	if (isNonNullObject(object) && 'type' in object && object.type === ActivityType.FOLLOW) {
-		console.log(
+		logger.debug(
 			`[handleAccept] Processing Follow Accept: actor=${actorUrl}, object.type=${object.type}`
 		)
 		await handleAcceptFollow(activity, object)
@@ -248,15 +249,15 @@ async function handleAccept(activity: AcceptActivity): Promise<void> {
 			'type' in object &&
 			(object.type === ObjectType.EVENT || 'id' in object))
 	) {
-		console.log(`[handleAccept] Routing to handleAcceptEvent`)
+		logger.debug(`[handleAccept] Routing to handleAcceptEvent`)
 		await handleAcceptEvent(activity, object)
 		return
 	}
 
-	console.log(
+	logger.debug(
 		`[handleAccept] Unhandled Accept object: ${typeof object === 'string' ? object : object?.type || 'unknown'}`
 	)
-	console.log(`[handleAccept] Full object: ${JSON.stringify(object, null, 2)}`)
+	logger.debug(`[handleAccept] Full object: ${JSON.stringify(object, null, 2)}`)
 }
 
 async function handleAcceptEvent(
@@ -323,7 +324,7 @@ async function handleAcceptEvent(
 		// Don't set userId filter - send to all clients viewing this event
 	})
 
-	console.log(`✅ Attending from ${actorUrl}`)
+	logger.info(`Attending from ${actorUrl}`)
 }
 
 function extractActorId(actor: unknown): string {
@@ -349,33 +350,33 @@ async function handleAcceptFollow(
 
 	const baseUrl = getBaseUrl()
 
-	console.log(`[handleAcceptFollow] Processing Accept activity:`)
-	console.log(`  - activity.actor (accepter): ${actorUrl}`)
-	console.log(`  - followActivity.actor (follower): ${followerUrl}`)
-	console.log(`  - baseUrl: ${baseUrl}`)
+	logger.debug(`[handleAcceptFollow] Processing Accept activity:`)
+	logger.debug(`  - activity.actor (accepter): ${actorUrl}`)
+	logger.debug(`  - followActivity.actor (follower): ${followerUrl}`)
+	logger.debug(`  - baseUrl: ${baseUrl}`)
 
 	// Check if the follower is local
 	if (!followerUrl.startsWith(baseUrl)) {
-		console.log(
+		logger.debug(
 			`[handleAcceptFollow] Follower is not local: ${followerUrl} does not start with ${baseUrl}`
 		)
 		return
 	}
 
 	const username = followerUrl.split('/').pop()
-	console.log(`[handleAcceptFollow] Looking up local user: ${username}`)
+	logger.debug(`[handleAcceptFollow] Looking up local user: ${username}`)
 
 	const localUser = await prisma.user.findUnique({
 		where: { username, isRemote: false },
 	})
 
 	if (!localUser) {
-		console.log(`[handleAcceptFollow] Local user not found: ${username}`)
+		logger.debug(`[handleAcceptFollow] Local user not found: ${username}`)
 		return
 	}
 
-	console.log(`[handleAcceptFollow] Found local user: ${localUser.id}`)
-	console.log(
+	logger.debug(`[handleAcceptFollow] Found local user: ${localUser.id}`)
+	logger.debug(
 		`[handleAcceptFollow] Updating Following record: userId=${localUser.id}, actorUrl=${actorUrl}`
 	)
 
@@ -390,7 +391,7 @@ async function handleAcceptFollow(
 		},
 	})
 
-	console.log(`[handleAcceptFollow] Updated ${result.count} Following record(s)`)
+	logger.debug(`[handleAcceptFollow] Updated ${result.count} Following record(s)`)
 
 	// Get the target user (the one being followed) to get their username
 	const targetUser = await prisma.user.findFirst({
@@ -409,14 +410,14 @@ async function handleAcceptFollow(
 		const actor = await fetchActor(actorUrl)
 		if (actor && 'followers' in actor && typeof actor.followers === 'string') {
 			remoteFollowerCount = await fetchRemoteCollectionCount(actor.followers)
-			console.log(
+			logger.debug(
 				`[handleAcceptFollow] Fetched remote follower count: ${remoteFollowerCount}`
 			)
 		} else {
-			console.log(`[handleAcceptFollow] Could not get followers collection URL from actor`)
+			logger.debug(`[handleAcceptFollow] Could not get followers collection URL from actor`)
 		}
 	} catch (error) {
-		console.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
+		logger.error(`[handleAcceptFollow] Failed to fetch remote follower count:`, error)
 	}
 
 	// Construct the target username - for remote users it's username@domain
@@ -444,7 +445,7 @@ async function handleAcceptFollow(
 		},
 	})
 
-	console.log(`✅ Follow accepted by ${actorUrl}`)
+	logger.info(`Follow accepted by ${actorUrl}`)
 }
 
 /**
@@ -454,7 +455,7 @@ async function handleCreate(activity: CreateActivity): Promise<void> {
 	const object = activity.object
 
 	if (!object || !object.type) {
-		console.log('Create activity missing object')
+		logger.debug('Create activity missing object')
 		return
 	}
 
@@ -466,7 +467,7 @@ async function handleCreate(activity: CreateActivity): Promise<void> {
 			await handleCreateNote(activity, object)
 			break
 		default:
-			console.log(`Unhandled Create object type: ${object.type}`)
+			logger.debug(`Unhandled Create object type: ${object.type}`)
 	}
 }
 
@@ -605,7 +606,7 @@ async function fetchAndParseRemoteEvent(url: string) {
 	if (contentLength) {
 		const size = parseInt(contentLength, 10)
 		if (!Number.isNaN(size) && size > MAX_RESPONSE_SIZE) {
-			console.error('Response too large:', size, 'bytes')
+			logger.error(`Response too large: ${size} bytes`)
 			return null
 		}
 	}
@@ -616,13 +617,13 @@ async function fetchAndParseRemoteEvent(url: string) {
 
 	const text = await response.text()
 	if (text.length > MAX_RESPONSE_SIZE) {
-		console.error('Response body too large:', text.length, 'bytes')
+		logger.error(`Response body too large: ${text.length} bytes`)
 		return null
 	}
 	try {
 		return JSON.parse(text) as Record<string, unknown>
 	} catch (parseError) {
-		console.error('Error parsing JSON response:', parseError)
+		logger.error('Error parsing JSON response:', parseError)
 		return null
 	}
 }
@@ -639,7 +640,7 @@ async function resolveEventFromString(objectUrl: string) {
 			return upsertRemoteEventFromObject(payload)
 		}
 	} catch (error) {
-		console.error('Error fetching announced event object:', error)
+		logger.error('Error fetching announced event object:', error)
 	}
 
 	return null
@@ -664,7 +665,7 @@ async function resolveSharedEventTarget(object: string | Record<string, unknown>
 async function getActorInfo(actorUrl: string) {
 	const actor = await fetchActor(actorUrl)
 	if (!actor) {
-		console.log('Failed to fetch actor')
+		logger.debug('Failed to fetch actor')
 		return null
 	}
 	const remoteUser = await cacheRemoteUser(actor as Actor)
@@ -760,7 +761,7 @@ async function handleCreateEvent(
 	// Broadcast real-time update
 	await broadcastRemoteEventCreation(createdEvent, remoteUser)
 
-	console.log(`✅ Cached remote event: ${eventName}`)
+	logger.info(`Cached remote event: ${eventName}`)
 }
 
 /**
@@ -795,7 +796,7 @@ async function handleCreateNote(
 	})
 
 	if (!event) {
-		console.log('Event not found for comment')
+		logger.debug('Event not found for comment')
 		return
 	}
 
@@ -839,13 +840,13 @@ async function handleCreateNote(
 			},
 		},
 	}
-	console.log(`📡 Broadcasting comment:added for event ${event.id}`)
+	logger.debug(`📡 Broadcasting comment:added for event ${event.id}`)
 	await broadcast({
 		type: BroadcastEvents.COMMENT_ADDED,
 		data: broadcastData,
 	})
 
-	console.log(`✅ Created comment from ${actorUrl}`)
+	logger.info(`Created comment from ${actorUrl}`)
 }
 
 /**
@@ -873,7 +874,7 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 			await handleUpdatePerson(object)
 			break
 		default:
-			console.log(`Unhandled Update object type: ${object.type}`)
+			logger.debug(`Unhandled Update object type: ${object.type}`)
 	}
 }
 
@@ -924,7 +925,7 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		},
 	})
 
-	console.log(`✅ Updated remote event: ${eventName}`)
+	logger.info(`Updated remote event: ${eventName}`)
 }
 
 /**
@@ -962,7 +963,7 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 		},
 	})
 
-	console.log(`✅ Updated remote user profile: ${personPreferredUsername}`)
+	logger.info(`Updated remote user profile: ${personPreferredUsername}`)
 }
 
 /**
@@ -1032,7 +1033,7 @@ async function handleDeleteComment(objectId: string): Promise<boolean> {
 		data: { eventId: comment.eventId, commentId: comment.id },
 	})
 
-	console.log(`✅ Deleted remote comment: ${objectId}`)
+	logger.info(`Deleted remote comment: ${objectId}`)
 	return true
 }
 
@@ -1053,7 +1054,7 @@ async function handleDeleteEvent(objectId: string): Promise<boolean> {
 		})
 	}
 
-	console.log(`✅ Deleted ${deletedEvents.length} remote event(s): ${objectId}`)
+	logger.info(`Deleted ${deletedEvents.length} remote event(s): ${objectId}`)
 	return true
 }
 
@@ -1071,7 +1072,7 @@ async function handleDelete(activity: DeleteActivity): Promise<void> {
 	}
 
 	if (!(await handleDeleteEvent(objectId))) {
-		console.log(`⚠️  No event or comment found to delete: ${objectId}`)
+		logger.warn(`No event or comment found to delete: ${objectId}`)
 	}
 }
 
@@ -1122,7 +1123,7 @@ async function handleLike(activity: LikeActivity): Promise<void> {
 		},
 	})
 
-	console.log(`✅ Liked event from ${actorUrl}`)
+	logger.info(`Liked event from ${actorUrl}`)
 }
 
 /**
@@ -1177,7 +1178,7 @@ async function handleUndo(activity: UndoActivity): Promise<void> {
 			await handleUndoAttendance(activity, objectRecord)
 			break
 		default:
-			console.log(`Unhandled Undo object type: ${objectType}`)
+			logger.debug(`Unhandled Undo object type: ${objectType}`)
 	}
 }
 
@@ -1233,7 +1234,7 @@ async function handleUndoLike(
 		},
 	})
 
-	console.log(`✅ Unliked event from ${actorUrl}`)
+	logger.info(`Unliked event from ${actorUrl}`)
 }
 
 /**
@@ -1300,7 +1301,7 @@ async function handleUndoFollow(
 		},
 	})
 
-	console.log(`✅ Unfollowed by ${actorUrl}`)
+	logger.info(`Unfollowed by ${actorUrl}`)
 }
 
 /**
@@ -1375,7 +1376,7 @@ async function handleUndoAttendance(
 		},
 	})
 
-	console.log(`✅ Removed attendance from ${actorUrl}`)
+	logger.info(`Removed attendance from ${actorUrl}`)
 }
 
 /**
@@ -1386,13 +1387,13 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
 	const object = activity.object
 
 	if (!object) {
-		console.log('Announce missing object')
+		logger.debug('Announce missing object')
 		return
 	}
 
 	const actor = await fetchActor(actorUrl)
 	if (!actor) {
-		console.log('Failed to fetch announcer actor')
+		logger.debug('Failed to fetch announcer actor')
 		return
 	}
 
@@ -1400,7 +1401,7 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
 	const originalEvent = await resolveSharedEventTarget(object)
 
 	if (!originalEvent) {
-		console.log(
+		logger.debug(
 			`Announce original event not found: ${typeof object === 'string' ? object : 'inline object'}`
 		)
 		return
@@ -1422,7 +1423,7 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
 	})
 
 	if (existingShare) {
-		console.log('Announce already processed for this user and event')
+		logger.debug('Announce already processed for this user and event')
 		return
 	}
 
@@ -1458,7 +1459,7 @@ async function handleAnnounce(activity: AnnounceActivity): Promise<void> {
 		},
 	})
 
-	console.log(`✅ Processed Announce from ${actorUrl} for event ${originalEvent.id}`)
+	logger.info(`Processed Announce from ${actorUrl} for event ${originalEvent.id}`)
 }
 
 /**
@@ -1531,7 +1532,7 @@ async function handleTentativeAccept(activity: Activity | Record<string, unknown
 		},
 	})
 
-	console.log(`✅ Maybe attending from ${actorUrl}`)
+	logger.info(`Maybe attending from ${actorUrl}`)
 }
 
 /**
@@ -1581,7 +1582,7 @@ async function handleFollowReject(
 		},
 	})
 
-	console.log(`❌ Follow request rejected by ${actorUrl}`)
+	logger.info(`Follow request rejected by ${actorUrl}`)
 	return true
 }
 
@@ -1644,7 +1645,7 @@ async function handleReject(activity: Activity | Record<string, unknown>): Promi
 		},
 	})
 
-	console.log(`✅ Not attending from ${actorUrl}`)
+	logger.info(`Not attending from ${actorUrl}`)
 }
 
 /**

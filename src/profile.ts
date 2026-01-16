@@ -28,6 +28,7 @@ import type { FollowActivity, UndoActivity } from './lib/activitypubSchemas.js'
 import { AppError } from './lib/errors.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { isUrlSafe } from './lib/ssrfProtection.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -129,7 +130,7 @@ app.get('/users/me/profile', async (c) => {
 					followingCount = user.followingCount ?? 0
 				}
 			} catch (e) {
-				console.error('Error fetching remote counts:', e)
+				logger.error('Error fetching remote counts:', e)
 				followerCount = user.followersCount ?? 0
 				followingCount = user.followingCount ?? 0
 			}
@@ -157,7 +158,7 @@ app.get('/users/me/profile', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting own profile:', error)
+		logger.error('Error getting own profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -227,7 +228,7 @@ app.get('/users/me/reminders', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting user reminders:', error)
+		logger.error('Error getting user reminders:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -281,7 +282,7 @@ app.post('/users/me/export', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error creating export job:', error)
+		logger.error('Error creating export job:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -331,7 +332,7 @@ app.get('/users/me/export/:exportId', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting export:', error)
+		logger.error('Error getting export:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -388,7 +389,7 @@ app.get('/users/:username/profile', async (c) => {
 			events,
 		})
 	} catch (error) {
-		console.error('Error getting profile:', error)
+		logger.error('Error getting profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -514,7 +515,7 @@ async function fetchRemoteUserCounts(
 		user.lastCountsSync && user.lastCountsSync > cacheExpiry && user.followersCount !== null
 
 	if (hasFreshCache) {
-		console.log(
+		logger.debug(
 			`[profile] Using cached counts for ${user.username} (synced: ${user.lastCountsSync})`
 		)
 		return {
@@ -524,7 +525,7 @@ async function fetchRemoteUserCounts(
 		}
 	}
 
-	console.log(`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`)
+	logger.debug(`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`)
 	const {
 		fetchRemoteCollectionCount,
 		fetchActor,
@@ -581,7 +582,7 @@ async function fetchRemoteUserCounts(
 				lastCountsSync: new Date(),
 			},
 		})
-		console.log(`[profile] Updated cached counts for ${user.username}`)
+		logger.debug(`[profile] Updated cached counts for ${user.username}`)
 
 		if (outboxResponse?.ok) {
 			const outboxData = (await outboxResponse.json()) as {
@@ -600,7 +601,7 @@ async function fetchRemoteUserCounts(
 						cacheEventFromOutboxActivity(
 							item as Record<string, unknown>,
 							actorUrl
-						).catch((err) => console.error('Error caching remote event:', err))
+						).catch((err) => logger.error('Error caching remote event:', err))
 					)
 				)
 			}
@@ -608,7 +609,7 @@ async function fetchRemoteUserCounts(
 
 		return { followerCount, followingCount, eventCount }
 	} catch (e) {
-		console.error('Error fetching remote counts:', e)
+		logger.error('Error fetching remote counts:', e)
 		return {
 			followerCount: user.followersCount ?? 0,
 			followingCount: user.followingCount ?? null,
@@ -701,7 +702,7 @@ app.put('/profile', moderateRateLimit, async (c) => {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
-		console.error('Error updating profile:', error)
+		logger.error('Error updating profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -750,7 +751,7 @@ app.get('/users/:username/follow-status', async (c) => {
 			isAccepted: following?.accepted || false,
 		})
 	} catch (error) {
-		console.error('Error checking follow status:', error)
+		logger.error('Error checking follow status:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -792,7 +793,7 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
 		if (error instanceof Error && error.message === 'Authentication required') {
 			return c.json({ error: 'Unauthorized' }, 401)
 		}
-		console.error('Error following user:', error)
+		logger.error('Error following user:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -972,21 +973,21 @@ async function deliverFollowActivityBackground(
 		})
 
 		if (!following) {
-			console.log(`[Follow] Skipping delivery - follow was undone`)
+			logger.debug(`[Follow] Skipping delivery - follow was undone`)
 			return
 		}
 
 		const user = await prisma.user.findUnique({ where: { id: currentUserId } })
 		if (!user || !user.privateKey) {
-			console.error('[Follow] User not found or has no private key')
+			logger.error('[Follow] User not found or has no private key')
 			return
 		}
 
 		await deliverToInbox(followActivity, inboxUrl, user)
-		console.log(`[Follow] Successfully delivered to ${inboxUrl}`)
+		logger.debug(`[Follow] Successfully delivered to ${inboxUrl}`)
 	} catch (error) {
-		console.error('[Follow] Failed to deliver follow activity:', error)
-		console.error(`[Follow] Admin alert: Failed to deliver Follow to ${inboxUrl}`)
+		logger.error('[Follow] Failed to deliver follow activity:', error)
+		logger.error(`[Follow] Admin alert: Failed to deliver Follow to ${inboxUrl}`)
 	}
 }
 
@@ -1002,21 +1003,21 @@ async function deliverUndoFollowActivityBackground(
 		})
 
 		if (following) {
-			console.log(`[Follow] Skipping undo delivery - follow was re-established`)
+			logger.debug(`[Follow] Skipping undo delivery - follow was re-established`)
 			return
 		}
 
 		const user = await prisma.user.findUnique({ where: { id: currentUserId } })
 		if (!user || !user.privateKey) {
-			console.error('[Follow] User not found or has no private key for undo')
+			logger.error('[Follow] User not found or has no private key for undo')
 			return
 		}
 
 		await deliverToInbox(undoActivity, inboxUrl, user)
-		console.log(`[Follow] Successfully delivered Undo to ${inboxUrl}`)
+		logger.debug(`[Follow] Successfully delivered Undo to ${inboxUrl}`)
 	} catch (error) {
-		console.error('[Follow] Failed to deliver Undo follow activity:', error)
-		console.error(`[Follow] Admin alert: Failed to deliver Undo Follow to ${inboxUrl}`)
+		logger.error('[Follow] Failed to deliver Undo follow activity:', error)
+		logger.error(`[Follow] Admin alert: Failed to deliver Undo Follow to ${inboxUrl}`)
 	}
 }
 
@@ -1064,7 +1065,7 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 			},
 		})
 
-		console.log(
+		logger.debug(
 			`[unfollow] userId=${userId}, targetActorUrl=${targetActorUrl}, following=${
 				following ? following.id : 'null'
 			}`
@@ -1133,7 +1134,7 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 		if (error instanceof Error && error.message === 'Authentication required') {
 			return c.json({ error: 'Unauthorized' }, 401)
 		}
-		console.error('Error unfollowing user:', error)
+		logger.error('Error unfollowing user:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1208,7 +1209,7 @@ app.get('/followers/pending', async (c) => {
 
 		return c.json({ followers: followerUsers })
 	} catch (error) {
-		console.error('Error getting pending followers:', error)
+		logger.error('Error getting pending followers:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1256,7 +1257,7 @@ app.post('/followers/:followerId/accept', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true, message: 'Follower accepted' })
 	} catch (error) {
-		console.error('Error accepting follower:', error)
+		logger.error('Error accepting follower:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1299,7 +1300,7 @@ app.post('/followers/:followerId/reject', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true, message: 'Follower rejected' })
 	} catch (error) {
-		console.error('Error rejecting follower:', error)
+		logger.error('Error rejecting follower:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1337,7 +1338,7 @@ app.get('/tos/status', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting ToS status:', error)
+		logger.error('Error getting ToS status:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1364,7 +1365,7 @@ app.post('/tos/accept', moderateRateLimit, async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error accepting ToS:', error)
+		logger.error('Error accepting ToS:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

@@ -9,6 +9,7 @@ import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
 import { resolveWebFinger } from './webfinger.js'
 import type { Activity } from './activitypubSchemas.js'
+import { logger } from './logger.js'
 
 /**
  * Extract domain from actor URL
@@ -118,7 +119,7 @@ export async function fetchInstanceMetadata(baseUrl: string): Promise<{
 			contact: nodeInfo.metadata?.contact,
 		}
 	} catch (error) {
-		console.error('Error fetching instance metadata:', error)
+		logger.error('Error fetching instance metadata:', error)
 		return null
 	}
 }
@@ -198,7 +199,7 @@ export async function trackInstance(actorUrl: string): Promise<void> {
 					}
 				}
 			} catch (error) {
-				console.error(`Error during instance discovery for ${domain}:`, error)
+				logger.error(`Error during instance discovery for ${domain}:`, error)
 			} finally {
 				instanceDiscoveryLocks.delete(domain)
 			}
@@ -245,7 +246,7 @@ export async function discoverPublicEndpoint(domain: string): Promise<string | n
 
 		return null
 	} catch (error) {
-		console.error(`Error discovering endpoint for ${domain}:`, error)
+		logger.error(`Error discovering endpoint for ${domain}:`, error)
 		return null
 	}
 }
@@ -276,7 +277,7 @@ export async function pollKnownActors(domain: string): Promise<string[]> {
 		}
 		return outboxes
 	} catch (error) {
-		console.error(`Error polling known actors for ${domain}:`, error)
+		logger.error(`Error polling known actors for ${domain}:`, error)
 		return []
 	}
 }
@@ -355,7 +356,7 @@ export async function fetchInstancePublicTimeline(
 
 		return { activities, lastPageUrl }
 	} catch (error) {
-		console.error(`Error fetching timeline from ${outboxUrl}:`, error)
+		logger.error(`Error fetching timeline from ${outboxUrl}:`, error)
 		return { activities: [], lastPageUrl: undefined }
 	}
 }
@@ -369,7 +370,7 @@ async function fetchRemoteActor(url: string): Promise<{ outbox?: string } | null
 		if (!response.ok) return null
 		return (await response.json()) as { outbox?: string }
 	} catch (error) {
-		console.error(`Error fetching remote actor from ${url}:`, error)
+		logger.error(`Error fetching remote actor from ${url}:`, error)
 		return null
 	}
 }
@@ -417,7 +418,7 @@ export async function refreshInstanceMetadata(domain: string): Promise<void> {
 			})
 		}
 	} catch (error) {
-		console.error('Error refreshing instance metadata:', error)
+		logger.error('Error refreshing instance metadata:', error)
 		await prisma.instance.update({
 			where: { domain },
 			data: {

@@ -14,6 +14,7 @@ import { requireAuth } from './middleware/auth.js'
 import { buildEventFilter } from './lib/eventQueries.js'
 import { handleError } from './lib/errors.js'
 import { Prisma } from '@prisma/client'
+import { logger } from './lib/logger.js'
 
 type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -158,7 +159,7 @@ app.post('/subscriptions', async (c) => {
 			feedUrl,
 		})
 	} catch (error) {
-		console.error('Error creating subscription:', error)
+		logger.error('Error creating subscription:', error)
 		return handleError(error, c)
 	}
 })
@@ -281,7 +282,7 @@ app.get('/feed/:filename', async (c) => {
 			'Content-Disposition': `attachment; filename="${subscription.name.replace(/[^a-z0-9]/gi, '_')}.ics"`,
 		})
 	} catch (error) {
-		console.error('Error generating feed:', error)
+		logger.error('Error generating feed:', error)
 		return c.text('Internal server error', 500)
 	}
 })
@@ -359,7 +360,7 @@ app.get('/:id/export.ics', async (c) => {
 			'Content-Disposition': `attachment; filename="${event.title.replace(/[^a-z0-9]/gi, '_')}.ics"`,
 		})
 	} catch (error) {
-		console.error('Error exporting event:', error)
+		logger.error('Error exporting event:', error)
 		return c.text('Internal server error', 500)
 	}
 })
@@ -449,7 +450,7 @@ app.get('/user/:username/export.ics', async (c) => {
 			'Content-Disposition': `attachment; filename="${username}_calendar.ics"`,
 		})
 	} catch (error) {
-		console.error('Error exporting calendar:', error)
+		logger.error('Error exporting calendar:', error)
 		return c.text('Internal server error', 500)
 	}
 })
@@ -477,7 +478,7 @@ app.get('/:id/export/google', async (c) => {
 
 		return c.json({ url: googleLink })
 	} catch (error) {
-		console.error('Error generating Google Calendar link:', error)
+		logger.error('Error generating Google Calendar link:', error)
 		return c.text('Internal server error', 500)
 	}
 })
@@ -553,7 +554,7 @@ app.get('/feed.ics', async (c) => {
 			'Content-Type': 'text/calendar; charset=utf-8',
 		})
 	} catch (error) {
-		console.error('Error exporting feed:', error)
+		logger.error('Error exporting feed:', error)
 		return c.text('Internal server error', 500)
 	}
 })

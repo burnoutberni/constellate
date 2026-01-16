@@ -4,6 +4,7 @@
  */
 
 import { readFileSync, existsSync } from 'fs'
+import { logger } from './lib/logger.js'
 
 function getEnv(key: string, defaultValue: string, requiredInProduction: boolean = false): string {
 	const value = process.env[key]
@@ -163,16 +164,16 @@ if (config.encryptionKey.length !== 64) {
 // Log configuration status on startup (but not during tests)
 const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
 if (config.isDevelopment && !isTest) {
-	console.log('📋 Configuration loaded:')
-	console.log(`   Environment: ${config.nodeEnv}`)
-	console.log(`   Base URL: ${config.baseUrl}`)
-	console.log(`   Port: ${config.port}`)
+	logger.info('📋 Configuration loaded:')
+	logger.info('   Environment: ' + config.nodeEnv)
+	logger.info('   Base URL: ' + config.baseUrl)
+	logger.info('   Port: ' + config.port)
 	if (!process.env.ENCRYPTION_KEY) {
 		const keyFilePath = process.env.ENCRYPTION_KEY_FILE || '/app/.encryption-key'
 		if (existsSync(keyFilePath)) {
-			console.log(`   ✅ Using persisted encryption key from ${keyFilePath}`)
+			logger.info('   ✅ Using persisted encryption key from ' + keyFilePath)
 		} else {
-			console.log('   ⚠️  Using auto-generated encryption key (development only)')
+			logger.info('   ⚠️  Using auto-generated encryption key (development only)')
 		}
 	}
 }

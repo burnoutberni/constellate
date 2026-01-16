@@ -22,6 +22,7 @@ import {
 import { handleActivity } from './federation.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -80,7 +81,7 @@ app.get('/.well-known/webfinger', async (c) => {
 			],
 		})
 	} catch (error) {
-		console.error('WebFinger error:', error)
+		logger.error('WebFinger error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -156,7 +157,7 @@ app.get('/users/:username', async (c) => {
 
 			user.publicKey = publicKey
 			user.privateKey = encryptedPrivateKey
-			console.log(`✅ Generated and encrypted keys for user: ${username}`)
+			logger.info('✅ Generated and encrypted keys for user: ' + username)
 		}
 
 		const actorUrl = `${baseUrl}/users/${username}`
@@ -202,7 +203,7 @@ app.get('/users/:username', async (c) => {
 			'Content-Type': ContentType.ACTIVITY_JSON,
 		})
 	} catch (error) {
-		console.error('Actor endpoint error:', error)
+		logger.error('Actor endpoint error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -291,7 +292,7 @@ app.get('/users/:username/followers', async (c) => {
 			{ 'Content-Type': ContentType.ACTIVITY_JSON }
 		)
 	} catch (error) {
-		console.error('Followers collection error:', error)
+		logger.error('Followers collection error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -380,7 +381,7 @@ app.get('/users/:username/following', async (c) => {
 			{ 'Content-Type': ContentType.ACTIVITY_JSON }
 		)
 	} catch (error) {
-		console.error('Following collection error:', error)
+		logger.error('Following collection error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -491,7 +492,7 @@ app.get('/users/:username/outbox', async (c) => {
 			{ 'Content-Type': ContentType.ACTIVITY_JSON }
 		)
 	} catch (error) {
-		console.error('Outbox collection error:', error)
+		logger.error('Outbox collection error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -541,8 +542,12 @@ app.post(
 			if (headers['host'] && !headers['host'].includes(targetHost)) {
 				// Only log host details in development to avoid information disclosure
 				if (config.isDevelopment) {
-					console.log(
-						`[Inbox] Using target host: ${targetHost} (instead of ${headers['host']})`
+					logger.info(
+						'[Inbox] Using target host: ' +
+							targetHost +
+							' (instead of ' +
+							headers['host'] +
+							')'
 					)
 				}
 				headers['host'] = targetHost
@@ -550,10 +555,10 @@ app.post(
 
 			const isValid = await verifySignature(signature, method, path, headers)
 			if (!isValid) {
-				console.error(`[Inbox] Signature verification failed for ${method} ${path}`)
+				logger.error('[Inbox] Signature verification failed for ' + method + ' ' + path)
 				// Only log signature details in development to avoid information disclosure
 				if (config.isDevelopment) {
-					console.error(`[Inbox] Signature: ${signature.substring(0, 100)}...`)
+					logger.error('[Inbox] Signature: ' + signature.substring(0, 100) + '...')
 				}
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
@@ -565,9 +570,9 @@ app.post(
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
-					console.error('[Inbox] JSON parsing failed:', error)
+					logger.error('[Inbox] JSON parsing failed:', error)
 				} else {
-					console.error('[Inbox] JSON parsing failed')
+					logger.error('[Inbox] JSON parsing failed')
 				}
 				return c.json({ error: 'Invalid JSON payload' }, 400)
 			}
@@ -577,18 +582,18 @@ app.post(
 			try {
 				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
-				console.error('Activity validation failed:', error)
+				logger.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
 			handleActivity(validatedActivity).catch((error) => {
-				console.error('Error handling activity:', error)
+				logger.error('Error handling activity:', error)
 			})
 
 			return c.json({ status: 'accepted' }, 202)
 		} catch (error) {
-			console.error('Inbox error:', error)
+			logger.error('Inbox error:', error)
 			return c.json({ error: 'Internal server error' }, 500)
 		}
 	}
@@ -628,8 +633,12 @@ app.post(
 			if (headers['host'] && !headers['host'].includes(targetHost)) {
 				// Only log host details in development to avoid information disclosure
 				if (config.isDevelopment) {
-					console.log(
-						`[Shared Inbox] Using target host: ${targetHost} (instead of ${headers['host']})`
+					logger.info(
+						'[Shared Inbox] Using target host: ' +
+							targetHost +
+							' (instead of ' +
+							headers['host'] +
+							')'
 					)
 				}
 				headers['host'] = targetHost
@@ -637,10 +646,12 @@ app.post(
 
 			const isValid = await verifySignature(signature, method, path, headers)
 			if (!isValid) {
-				console.error(`[Shared Inbox] Signature verification failed for ${method} ${path}`)
+				logger.error(
+					'[Shared Inbox] Signature verification failed for ' + method + ' ' + path
+				)
 				// Only log signature details in development to avoid information disclosure
 				if (config.isDevelopment) {
-					console.error(`[Shared Inbox] Signature: ${signature.substring(0, 100)}...`)
+					logger.error('[Shared Inbox] Signature: ' + signature.substring(0, 100) + '...')
 				}
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
@@ -652,9 +663,9 @@ app.post(
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
-					console.error('[Shared Inbox] JSON parsing failed:', error)
+					logger.error('[Shared Inbox] JSON parsing failed:', error)
 				} else {
-					console.error('[Shared Inbox] JSON parsing failed')
+					logger.error('[Shared Inbox] JSON parsing failed')
 				}
 				return c.json({ error: 'Invalid JSON payload' }, 400)
 			}
@@ -664,18 +675,18 @@ app.post(
 			try {
 				validatedActivity = ActivitySchema.parse(activity)
 			} catch (error) {
-				console.error('Activity validation failed:', error)
+				logger.error('Activity validation failed:', error)
 				return c.json({ error: 'Invalid activity' }, 400)
 			}
 
 			// Handle activity asynchronously
 			handleActivity(validatedActivity).catch((error) => {
-				console.error('Error handling activity:', error)
+				logger.error('Error handling activity:', error)
 			})
 
 			return c.json({ status: 'accepted' }, 202)
 		} catch (error) {
-			console.error('Shared inbox error:', error)
+			logger.error('Shared inbox error:', error)
 			return c.json({ error: 'Internal server error' }, 500)
 		}
 	}
@@ -737,7 +748,7 @@ app.get('/events/:id', async (c) => {
 			'Content-Type': ContentType.ACTIVITY_JSON,
 		})
 	} catch (error) {
-		console.error('Event object error:', error)
+		logger.error('Event object error:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

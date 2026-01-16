@@ -3,6 +3,7 @@ import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { AppError } from './lib/errors.js'
 import { prisma } from './lib/prisma.js'
+import { logger } from './lib/logger.js'
 
 type JsonStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
 
@@ -48,7 +49,7 @@ app.get('/', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error fetching email preferences:', error)
+		logger.error('Error fetching email preferences:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -115,7 +116,7 @@ app.put('/', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error updating email preferences:', error)
+		logger.error('Error updating email preferences:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -143,7 +144,7 @@ app.post('/reset', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error resetting email preferences:', error)
+		logger.error('Error resetting email preferences:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -192,7 +193,7 @@ app.get('/deliveries', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error fetching email deliveries:', error)
+		logger.error('Error fetching email deliveries:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

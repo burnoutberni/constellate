@@ -9,6 +9,7 @@ import { createNotification } from './notifications.js'
 import { sendEmail } from '../lib/email.js'
 import { getBaseUrl } from '../lib/activitypubHelpers.js'
 import { Prisma, DataExportStatus } from '@prisma/client'
+import { logger } from '../lib/logger.js'
 
 const POLL_INTERVAL_MS = 30000 // Check every 30 seconds
 const PROCESSING_LIMIT = 5 // Process up to 5 exports per cycle
@@ -149,7 +150,10 @@ async function markExportAsFailedAfterMaxRetries(
 			},
 		})
 	} catch (updateError) {
-		console.error(`Failed to mark export ${exportId} as FAILED after max retries:`, updateError)
+		logger.error(
+			'Failed to mark export ' + exportId + ' as FAILED after max retries:',
+			updateError
+		)
 	}
 }
 
@@ -202,7 +206,7 @@ async function sendExportReadyNotifications(
 				text: `Your data export is ready for download.\n\nDownload: ${exportUrl}\n\nThe export will be available for 7 days.\n\n— Constellate`,
 			})
 		} catch (error) {
-			console.warn('Failed to send export ready email:', error)
+			logger.warn('Failed to send export ready email:', error)
 		}
 	}
 }
@@ -240,7 +244,7 @@ async function markExportAsFailed(exportId: string, errorMessage: string): Promi
 			},
 		})
 	} catch (updateError) {
-		console.error(`Failed to mark export ${exportId} as FAILED:`, updateError)
+		logger.error('Failed to mark export ' + exportId + ' as FAILED:', updateError)
 	}
 }
 
@@ -280,7 +284,7 @@ async function processExport(exportId: string) {
 
 		await sendExportReadyNotifications(exportId, dataExport.userId, dataExport.user.email)
 	} catch (error) {
-		console.error(`Error processing export ${exportId}:`, error)
+		logger.error('Error processing export ' + exportId + ':', error)
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 		await markExportAsFailed(exportId, errorMessage)
 	}
@@ -301,10 +305,10 @@ async function cleanupExpiredExports() {
 		})
 
 		if (result.count > 0) {
-			console.log(`🧹 Cleaned up ${result.count} expired data exports`)
+			logger.info('🧹 Cleaned up ' + result.count + ' expired data exports')
 		}
 	} catch (error) {
-		console.error('Error cleaning up expired exports:', error)
+		logger.error('Error cleaning up expired exports:', error)
 	}
 }
 
@@ -352,7 +356,7 @@ export async function runDataExportProcessorCycle(limit: number = PROCESSING_LIM
 		// Process exports concurrently
 		await Promise.allSettled(exportIds.map((exportId) => processExport(exportId)))
 	} catch (error) {
-		console.error('Data export processor error:', error)
+		logger.error('Data export processor error:', error)
 	} finally {
 		isProcessing = false
 	}
@@ -373,7 +377,7 @@ export function startDataExportProcessor() {
 
 	intervalHandle = setInterval(runCycle, POLL_INTERVAL_MS)
 	runCycle() // Run immediately on startup
-	console.log('📦 Data export processor started')
+	logger.info('📦 Data export processor started')
 }
 
 /**

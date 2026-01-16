@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto'
+import { logger } from './logger.js'
 
 const ALLOWED_PROTOCOLS = ['http:', 'https:']
 
@@ -59,7 +60,7 @@ async function resolveAndValidateDns(hostname: string): Promise<string | null> {
 			}
 		}
 	} catch (error) {
-		console.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
+		logger.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
 		return `[SSRF] DNS resolution failed for: ${hostname}`
 	}
 
@@ -123,14 +124,14 @@ export async function isUrlSafe(urlString: string): Promise<boolean> {
 
 		const privateReason = getPrivateHostnameReason(hostname)
 		if (privateReason) {
-			console.error(privateReason)
+			logger.error(privateReason)
 			return false
 		}
 
 		if (!shouldSkipDns(hostname)) {
 			const dnsBlockReason = await resolveAndValidateDns(hostname)
 			if (dnsBlockReason) {
-				console.error(dnsBlockReason)
+				logger.error(dnsBlockReason)
 				return false
 			}
 		}
@@ -163,7 +164,7 @@ export async function safeFetch(
 	const requestId = crypto.randomBytes(4).toString('hex')
 	const startTime = Date.now()
 
-	console.log(`[OUTGOING] ${requestId} GET ${url}`)
+	logger.debug(`[OUTGOING] ${requestId} GET ${url}`)
 
 	while (redirectCount <= maxRedirects) {
 		if (!(await isUrlSafe(currentUrl))) {
@@ -240,7 +241,7 @@ function handleRedirectIfNeeded(
 		const newUrl = new URL(location, currentUrl).toString()
 		const newCount = redirectCount + 1
 
-		console.log(
+		logger.debug(
 			`[OUTGOING] ${requestId} Following redirect ${newCount}/${maxRedirects}: ${newUrl}`
 		)
 
@@ -257,7 +258,7 @@ function handleFetchError(
 	timeoutMs: number
 ): Error {
 	const duration = Date.now() - startTime
-	console.log(
+	logger.debug(
 		`[OUTGOING] ${requestId} ${currentUrl} → ERROR (${duration}ms)`,
 		error instanceof Error ? error.message : 'Unknown error'
 	)
@@ -271,5 +272,5 @@ function logResponse(requestId: string, currentUrl: string, statusCode: number, 
 	const duration = Date.now() - startTime
 	const isSlow = duration > 1000
 	const logMessage = `[OUTGOING] ${requestId} ${currentUrl} → ${statusCode} (${duration}ms)${isSlow ? ' [SLOW]' : ''}`
-	console.log(logMessage)
+	logger.debug(logMessage)
 }

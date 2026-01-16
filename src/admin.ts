@@ -12,6 +12,7 @@ import { Prisma, FailedDeliveryStatus } from '@prisma/client'
 import { generateUserKeys } from './auth.js'
 import { createHash, randomBytes } from 'crypto'
 import { handleError } from './lib/errors.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -98,13 +99,11 @@ app.get('/users', async (c) => {
 		}
 
 		// Debug logging
-		console.log('[Admin] Listing users with filter:', JSON.stringify(where))
-		console.log('[Admin] Query params:', {
-			page,
-			limit,
-			search: query.search,
-			isBot: query.isBot,
-		})
+		logger.debug('[Admin] Listing users with filter: ' + JSON.stringify(where))
+		logger.debug(
+			'[Admin] Query params: ' +
+				JSON.stringify({ page, limit, search: query.search, isBot: query.isBot })
+		)
 
 		const [users, total] = await Promise.all([
 			prisma.user.findMany({
@@ -136,11 +135,8 @@ app.get('/users', async (c) => {
 			prisma.user.count({ where }),
 		])
 
-		console.log('[Admin] Returning users:', users.length, 'total:', total)
-		console.log(
-			'[Admin] User usernames:',
-			users.map((u) => u.username)
-		)
+		logger.debug('[Admin] Returning users: ' + users.length + ' total: ' + total)
+		logger.debug('[Admin] User usernames: ' + users.map((u) => u.username).join(', '))
 
 		return c.json(formatPaginationResponse(users, total, query.page, query.limit, 'users'))
 	} catch (error) {
@@ -721,7 +717,7 @@ function processDelivery(
 		// RETRYING status is not counted as either success or failure
 		domainStats.set(domain, stats)
 	} catch {
-		console.debug('Skipping delivery with invalid inbox URL:', delivery.inboxUrl)
+		logger.debug('Skipping delivery with invalid inbox URL: ' + delivery.inboxUrl)
 	}
 }
 

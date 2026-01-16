@@ -7,6 +7,7 @@ import { Context, Next } from 'hono'
 import { auth } from '../auth.js'
 import { prisma } from '../lib/prisma.js'
 import { Errors } from '../lib/errors.js'
+import { logger } from '../lib/logger.js'
 
 export async function authMiddleware(c: Context, next: Next) {
 	try {
@@ -19,7 +20,7 @@ export async function authMiddleware(c: Context, next: Next) {
 			c.set('userId', session.user.id)
 		}
 	} catch (e) {
-		console.error('[Middleware] Error checking session:', e)
+		logger.error('[Middleware] Error checking session:', e)
 	}
 
 	await next()

@@ -36,6 +36,7 @@ import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { listEventRemindersForUser } from './services/reminders.js'
 import { buildEventFilter } from './lib/eventQueries.js'
 import { resolveAndCacheRemoteUser } from './userSearch.js'
+import { logger } from './lib/logger.js'
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -462,7 +463,7 @@ function processTagsForCreation(tags: unknown): Array<{ tag: string }> | undefin
 			return normalizedTags.map((tag) => ({ tag }))
 		}
 	} catch (error) {
-		console.error('Error normalizing tags:', error)
+		logger.error('Error normalizing tags:', error)
 		throw error
 	}
 
@@ -753,7 +754,7 @@ app.post('/', moderateRateLimit, async (c) => {
 
 		return c.json(transformEventForClient(event, userId), 201)
 	} catch (error) {
-		console.error('Error creating event:', error)
+		logger.error('Error creating event:', error)
 		return handleError(error, c)
 	}
 })
@@ -875,7 +876,7 @@ app.get('/', async (c) => {
 			},
 		})
 	} catch (error) {
-		console.error('Error listing events:', error)
+		logger.error('Error listing events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1007,7 +1008,7 @@ app.get('/trending', lenientRateLimit, async (c) => {
 			generatedAt: now.toISOString(),
 		})
 	} catch (error) {
-		console.error('Error fetching trending events:', error)
+		logger.error('Error fetching trending events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1274,9 +1275,9 @@ async function cacheRemoteEventData(eventId: string, externalId: string) {
 			}
 		}
 
-		console.log(`✅ Cached attendance and likes for remote event ${eventId}`)
+		logger.debug(`✅ Cached attendance and likes for remote event ${eventId}`)
 	} catch (error) {
-		console.error('Error fetching remote event details:', error)
+		logger.error('Error fetching remote event details:', error)
 		// Continue with cached data
 	}
 }
@@ -1327,7 +1328,7 @@ app.get('/by-user/:username/:eventId', async (c) => {
 
 		return buildEventResponse(c, event, user, viewerId)
 	} catch (error) {
-		console.error('Error getting event by username:', error)
+		logger.error('Error getting event by username:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1560,7 +1561,7 @@ app.get('/:id', async (c) => {
 
 		return c.json({ ...event, userHasShared, viewerReminders })
 	} catch (error) {
-		console.error('Error getting event:', error)
+		logger.error('Error getting event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1698,7 +1699,7 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
 
 		return c.json({ share, alreadyShared: false }, 201)
 	} catch (error) {
-		console.error('Error sharing event:', error)
+		logger.error('Error sharing event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1771,7 +1772,7 @@ function normalizeTagsSafely(tags: unknown): string[] {
 	try {
 		return Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
 	} catch (error) {
-		console.error('Error normalizing tags in update:', error)
+		logger.error('Error normalizing tags in update:', error)
 		throw error
 	}
 }
@@ -1945,7 +1946,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 			const errorMessage = latError?.message || 'Validation failed'
 			return c.json({ error: errorMessage, details: error.issues }, 400 as const)
 		}
-		console.error('Error updating event:', error)
+		logger.error('Error updating event:', error)
 		const errorMessage = error instanceof Error ? error.message : String(error)
 		const errorStack = error instanceof Error ? error.stack : undefined
 		return c.json(
@@ -2053,7 +2054,7 @@ app.delete('/:id', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true })
 	} catch (error) {
-		console.error('Error deleting event:', error)
+		logger.error('Error deleting event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

@@ -36,6 +36,7 @@ import { securityHeaders } from './middleware/security.js'
 import { csrfProtection } from './middleware/csrf.js'
 import { strictRateLimit } from './middleware/rateLimit.js'
 import { handleError } from './lib/errors.js'
+import { logger as appLogger } from './lib/logger.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
 import {
@@ -175,7 +176,7 @@ app.get('/', async (c) => {
 				'Content-Type': 'text/html',
 			})
 		} catch (error) {
-			console.error('Error serving index.html:', error)
+			appLogger.error('Error serving index.html:', error)
 			return c.json({
 				name: 'Constellate',
 				version: '1.0.0',
@@ -312,7 +313,7 @@ if (process.env.NODE_ENV === 'production') {
 				}
 			} catch (error) {
 				// File doesn't exist, fall through to SPA routing
-				console.debug('Static file not found, falling back to SPA:', error)
+				appLogger.debug('Static file not found, falling back to SPA:', error)
 			}
 
 			// SPA routing: serve index.html for any non-API route
@@ -323,11 +324,11 @@ if (process.env.NODE_ENV === 'production') {
 					'Content-Type': 'text/html',
 				})
 			} catch (error) {
-				console.error('Error serving index.html:', error)
+				appLogger.error('Error serving index.html:', error)
 				return c.notFound()
 			}
 		} catch (error) {
-			console.error('Error serving static file:', error)
+			appLogger.error('Error serving static file:', error)
 			return c.notFound()
 		}
 	})
@@ -349,7 +350,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 
 	// Graceful shutdown handler
 	const shutdown = async () => {
-		console.log('🛑 Shutting down gracefully...')
+		appLogger.info('🛑 Shutting down gracefully...')
 
 		// Stop accepting new work
 		stopReminderDispatcher()
@@ -369,16 +370,16 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 		}
 
 		if (getIsProcessing() || getIsPopularityProcessing() || getIsExportProcessing()) {
-			console.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
+			appLogger.warn('⚠️  Shutdown timeout reached, some operations may be incomplete')
 		} else {
-			console.log('✅ All operations completed')
+			appLogger.info('✅ All operations completed')
 		}
 
 		// Close database connection
 		try {
 			await prisma.$disconnect()
 		} catch (error) {
-			console.error('Error disconnecting from database:', error)
+			appLogger.error('Error disconnecting from database:', error)
 		}
 
 		process.exit(0)
@@ -387,7 +388,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
 	process.on('SIGTERM', shutdown)
 	process.on('SIGINT', shutdown)
 
-	console.log(`🚀 Server starting on port ${config.port}`)
+	appLogger.info(`🚀 Server starting on port ${config.port}`)
 
 	serve({
 		fetch: app.fetch,

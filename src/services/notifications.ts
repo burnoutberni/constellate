@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { sanitizeText } from '../lib/sanitization.js'
 import { broadcastToUser, BroadcastEvents } from '../realtime.js'
 import { sendNotificationEmail } from '../lib/email.js'
+import { logger } from '../lib/logger.js'
 
 const actorSelect = {
 	id: true,
@@ -116,7 +117,7 @@ export async function createNotification(input: CreateNotificationInput) {
 		actorUrl: notification.actor ? `/@${notification.actor.username}` : undefined,
 		data: input.data as Record<string, unknown>,
 	}).catch((error) => {
-		console.error('Failed to send email notification:', error)
+		logger.error('Failed to send email notification:', error)
 		// Don't fail the notification creation if email fails
 	})
 

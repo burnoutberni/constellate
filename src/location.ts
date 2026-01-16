@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z, ZodError } from 'zod'
 import { lenientRateLimit, rateLimit } from './middleware/rateLimit.js'
 import { config } from './config.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -99,7 +100,7 @@ app.get('/search', async (c) => {
 			results = z.array(NominatimResultSchema).parse(body)
 		} catch (parseError) {
 			// Invalid response schema from Nominatim - treat as server error
-			console.error('Invalid response schema from Nominatim:', parseError)
+			logger.error('Invalid response schema from Nominatim:', parseError)
 			return c.json({ error: 'Unable to resolve location' }, 500)
 		}
 
@@ -125,7 +126,7 @@ app.get('/search', async (c) => {
 				400 as const
 			)
 		}
-		console.error('Error performing location search:', error)
+		logger.error('Error performing location search:', error)
 		return c.json({ error: 'Unable to resolve location' }, 500)
 	}
 })

@@ -3,6 +3,19 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+const debugCalls: string[] = []
+
+vi.mock('../../lib/logger.js', () => ({
+	logger: {
+		debug: (msg: string) => debugCalls.push(msg),
+		info: vi.fn(() => {}),
+		warn: vi.fn(() => {}),
+		error: vi.fn(() => {}),
+		critical: vi.fn(() => {}),
+	},
+}))
+
 import { isUrlSafe, safeFetch } from '../../lib/ssrfProtection.js'
 
 describe('SSRF Protection', () => {
@@ -328,6 +341,8 @@ describe('SSRF Protection', () => {
 		})
 
 		it('should log slow requests', async () => {
+			debugCalls.length = 0
+
 			const mockResponse = {
 				ok: true,
 				status: 200,
@@ -343,12 +358,10 @@ describe('SSRF Protection', () => {
 
 			global.fetch = slowFetch as unknown as typeof fetch
 
-			const consoleSpy = vi.spyOn(console, 'log')
-
 			await safeFetch('https://example.com', {}, 30000, 5)
 
-			expect(consoleSpy).toHaveBeenCalled()
-			const slowLogCall = consoleSpy.mock.calls.find((call) => call[0]?.includes('[SLOW]'))
+			expect(global.fetch).toHaveBeenCalled()
+			const slowLogCall = debugCalls.find((call) => call.includes('[SLOW]'))
 			expect(slowLogCall).toBeDefined()
 		})
 	})

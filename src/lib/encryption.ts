@@ -5,6 +5,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { config } from '../config.js'
+import { logger } from './logger.js'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
@@ -65,7 +66,7 @@ export function decryptPrivateKey(encryptedKey: string | null): string | null {
 
 		return decrypted
 	} catch (error) {
-		console.error('Error decrypting private key:', error)
+		logger.error('Error decrypting private key:', error)
 		throw new Error('Failed to decrypt private key')
 	}
 }

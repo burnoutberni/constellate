@@ -14,6 +14,7 @@ import { getBaseUrl } from './lib/activitypubHelpers.js'
 import { prisma } from './lib/prisma.js'
 import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { updateEventPopularityScore } from './services/popularityUpdater.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -129,12 +130,12 @@ app.post('/:id/like', moderateRateLimit, async (c) => {
 
 		// Update popularity score in background (non-blocking)
 		updateEventPopularityScore(id).catch((err) => {
-			console.error(`Failed to update popularity score for event ${id}:`, err)
+			logger.error(`Failed to update popularity score for event ${id}:`, err)
 		})
 
 		return c.json(like, 201)
 	} catch (error) {
-		console.error('Error liking event:', error)
+		logger.error('Error liking event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -234,12 +235,12 @@ app.delete('/:id/like', moderateRateLimit, async (c) => {
 
 		// Update popularity score in background (non-blocking)
 		updateEventPopularityScore(id).catch((err) => {
-			console.error(`Failed to update popularity score for event ${id}:`, err)
+			logger.error(`Failed to update popularity score for event ${id}:`, err)
 		})
 
 		return c.json({ success: true })
 	} catch (error) {
-		console.error('Error unliking event:', error)
+		logger.error('Error unliking event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -270,7 +271,7 @@ app.get('/:id/likes', async (c) => {
 			count: likes.length,
 		})
 	} catch (error) {
-		console.error('Error getting likes:', error)
+		logger.error('Error getting likes:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

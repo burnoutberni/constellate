@@ -612,12 +612,15 @@ describe('Data Export Processor', () => {
 		it('should start the processor', () => {
 			vi.useFakeTimers()
 			const setIntervalSpy = vi.spyOn(global, 'setInterval')
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			startDataExportProcessor()
 
 			expect(setIntervalSpy).toHaveBeenCalled()
-			expect(consoleLogSpy).toHaveBeenCalledWith('📦 Data export processor started')
+			expect(consoleLogSpy).toHaveBeenCalledWith(
+				'[INFO] 📦 Data export processor started',
+				''
+			)
 
 			stopDataExportProcessor()
 			setIntervalSpy.mockRestore()
@@ -627,7 +630,7 @@ describe('Data Export Processor', () => {
 		it('should not start if already started', () => {
 			vi.useFakeTimers()
 			const setIntervalSpy = vi.spyOn(global, 'setInterval')
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			startDataExportProcessor()
 			const firstCallCount = consoleLogSpy.mock.calls.length

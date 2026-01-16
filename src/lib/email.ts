@@ -3,6 +3,7 @@ import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import { type NotificationType } from '@prisma/client'
 import { htmlToText } from 'html-to-text'
+import { logger } from './logger.js'
 
 const transporter = nodemailer.createTransport({
 	host: config.smtp.host,
@@ -37,12 +38,12 @@ export async function sendEmail({
 	html?: string
 }) {
 	if (!config.smtp.host) {
-		console.log('⚠️ SMTP not configured, skipping email sending')
-		console.log(`To: ${to}`)
-		console.log(`Subject: ${subject}`)
-		console.log(`Text: ${text}`)
+		logger.warn('⚠️ SMTP not configured, skipping email sending')
+		logger.info('To: ' + to)
+		logger.info('Subject: ' + subject)
+		logger.info('Text: ' + text)
 		if (html) {
-			console.log(`HTML: ${html}`)
+			logger.info('HTML: ' + html)
 		}
 		return
 	}
@@ -55,10 +56,10 @@ export async function sendEmail({
 			text,
 			html,
 		})
-		console.log(`📧 Email sent: ${info.messageId}`)
+		logger.info('📧 Email sent: ' + info.messageId)
 		return info
 	} catch (error) {
-		console.error('❌ Error sending email:', error)
+		logger.error('❌ Error sending email:', error)
 		throw error
 	}
 }
@@ -82,7 +83,7 @@ export async function sendTemplatedEmail({
 	userId?: string
 }) {
 	// Log email sending for analytics and debugging
-	console.log(`📧 Sending email template: ${templateName} to ${to}`)
+	logger.info('📧 Sending email template: ' + templateName + ' to ' + to)
 
 	const htmlWithUrls = replaceEmailPlaceholders(html)
 
@@ -108,7 +109,7 @@ export async function sendTemplatedEmail({
 				},
 			})
 		} catch (error) {
-			console.error('⚠️ Failed to record email delivery:', error)
+			logger.error('⚠️ Failed to record email delivery:', error)
 			// Don't fail the email send if we can't record it
 		}
 	}
@@ -146,7 +147,7 @@ export async function getUserEmailPreference(
 		const preferences = user.emailNotifications as Record<string, boolean>
 		return preferences[type] !== false // Default to true unless explicitly disabled
 	} catch (error) {
-		console.error('Error checking email preferences:', error)
+		logger.error('Error checking email preferences:', error)
 		return true // Default to enabled on error
 	}
 }
@@ -176,7 +177,7 @@ export async function sendNotificationEmail({
 	// Check if user has this email notification type enabled
 	const isEnabled = await getUserEmailPreference(userId, type)
 	if (!isEnabled) {
-		console.log(`📧 Email notifications disabled for ${type}, skipping`)
+		logger.info('📧 Email notifications disabled for ' + type + ', skipping')
 		return
 	}
 
@@ -187,7 +188,7 @@ export async function sendNotificationEmail({
 	})
 
 	if (!user?.email) {
-		console.log(`📧 User ${userId} has no email address, skipping notification`)
+		logger.info('📧 User ' + userId + ' has no email address, skipping notification')
 		return
 	}
 
@@ -204,8 +205,8 @@ export async function sendNotificationEmail({
 		try {
 			return new URL(url, baseUrl).href
 		} catch (e) {
-			console.error(
-				`Failed to create absolute URL for path "${url}" with base "${baseUrl}"`,
+			logger.error(
+				'Failed to create absolute URL for path "' + url + '" with base "' + baseUrl + '"',
 				e
 			)
 			return url // Fallback on error
@@ -238,7 +239,7 @@ export async function sendNotificationEmail({
 			userId,
 		})
 	} catch (error) {
-		console.error('Failed to send email notification:', error)
+		logger.error('Failed to send email notification:', error)
 		// Don't re-throw - notification failures shouldn't break the app
 	}
 }

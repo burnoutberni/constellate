@@ -26,6 +26,7 @@ import { canViewPrivateProfile } from './lib/privacy.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 import { requireAuth } from './middleware/auth.js'
 import { SuggestedUsersService } from './services/SuggestedUsersService.js'
+import { logger } from './lib/logger.js'
 
 const FOLLOWERS_CACHE_TTL_MINUTES = 5
 
@@ -62,7 +63,7 @@ function parseHandle(input: string): { username: string; domain: string } | null
 		const normalized = normalizeHandleInput(input)
 		return parseSimpleHandle(normalized)
 	} catch (error) {
-		console.error('Error parsing handle:', error)
+		logger.error('Error parsing handle:', error)
 		return null
 	}
 }
@@ -253,7 +254,7 @@ app.get('/suggestions', async (c) => {
 
 		return c.json(suggestions)
 	} catch (error) {
-		console.error('Error getting user suggestions:', error)
+		logger.error('Error getting user suggestions:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -284,7 +285,7 @@ app.get('/', async (c) => {
 				400 as const
 			)
 		}
-		console.error('Error searching:', error)
+		logger.error('Error searching:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -391,7 +392,7 @@ app.post('/resolve', async (c) => {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Invalid request body', details: error.issues }, 400 as const)
 		}
-		console.error('Error resolving account:', error)
+		logger.error('Error resolving account:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -444,7 +445,7 @@ app.get('/profile/:username/followers', async (c) => {
 		const followers = await getLocalFollowers(user.id, limit)
 		return c.json({ followers, isRemote: false, remoteNote: null })
 	} catch (error) {
-		console.error('Error getting followers:', error)
+		logger.error('Error getting followers:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -505,7 +506,7 @@ async function getCachedFollowers(
 
 	if (!hasFreshCache) return null
 
-	console.log(`[followers] Using cached followers list for ${user.username}`)
+	logger.debug(`[followers] Using cached followers list for ${user.username}`)
 
 	const cachedFollowers = user.followersListCached as FollowerUser[] | null
 
@@ -558,7 +559,7 @@ async function fetchAndProcessRemoteFollowers(
 	currentUserId: string | undefined,
 	limit: number
 ) {
-	console.log(`[followers] Cache stale/missing for ${user.username}, fetching fresh data...`)
+	logger.debug(`[followers] Cache stale/missing for ${user.username}, fetching fresh data...`)
 
 	if (!user.externalActorUrl) return null
 
@@ -585,8 +586,8 @@ async function fetchAndProcessRemoteFollowers(
 		const result = await addPendingFollowerToRemote(user, currentUserId, remoteFollowers)
 		return result
 	} catch (e) {
-		console.error('Error fetching remote followers:', e)
-		console.error('Remote user:', user.username, 'actorUrl:', user.externalActorUrl)
+		logger.error('Error fetching remote followers:', e)
+		logger.error('Remote user:', { username: user.username, actorUrl: user.externalActorUrl })
 		return null
 	}
 }
@@ -1089,7 +1090,7 @@ app.get('/profile/:username/following', async (c) => {
 
 		return c.json({ following: followingUsers })
 	} catch (error) {
-		console.error('Error getting following:', error)
+		logger.error('Error getting following:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1102,7 +1103,7 @@ export async function resolveAndCacheRemoteUser(username: string) {
 		return null
 	}
 
-	console.log(`🔍 Attempting to resolve remote user: ${username}`)
+	logger.debug(`🔍 Attempting to resolve remote user: ${username}`)
 
 	// Resolve via WebFinger
 	const resource = `acct:${parsedHandle.username}@${parsedHandle.domain}`
@@ -1146,7 +1147,7 @@ export async function resolveAndCacheRemoteUser(username: string) {
 	})
 
 	if (refetchedUser) {
-		console.log(`✅ Resolved and cached remote user: ${username}`)
+		logger.debug(`✅ Resolved and cached remote user: ${username}`)
 		return refetchedUser
 	}
 
@@ -1177,7 +1178,7 @@ async function fetchAndCacheEventsFromOutbox(userExternalActorUrl: string) {
 			await cacheEventFromOutboxActivity(activityObj, userExternalActorUrl)
 		}
 	} catch (error) {
-		console.error('Error fetching events from outbox:', error)
+		logger.error('Error fetching events from outbox:', error)
 	}
 }
 
@@ -1374,7 +1375,7 @@ async function fetchRemoteCounts(
 						cacheEventFromOutboxActivity(
 							item as Record<string, unknown>,
 							user.externalActorUrl!
-						).catch((err) => console.error('Error caching remote event:', err))
+						).catch((err) => logger.error('Error caching remote event:', err))
 					)
 				)
 			}
@@ -1385,7 +1386,7 @@ async function fetchRemoteCounts(
 
 		return { followerCount, followingCount, eventCount }
 	} catch (e) {
-		console.error('Error fetching remote counts:', e)
+		logger.error('Error fetching remote counts:', e)
 		return {
 			followerCount: user.followersCount ?? null,
 			followingCount: user.followingCount ?? null,
@@ -1414,7 +1415,7 @@ async function fetchOutboxFirstPage(outbox: {
 					return page.orderedItems || page.items || []
 				}
 			} catch (e) {
-				console.error('Error fetching outbox page:', e)
+				logger.error('Error fetching outbox page:', e)
 			}
 		}
 		if (typeof outbox.first === 'object') {
@@ -1439,7 +1440,7 @@ async function updateCachedCounts(
 					followingCount: followingCount,
 				},
 			})
-			.catch((e) => console.error('Failed to update profile cache:', e))
+			.catch((e) => logger.error('Failed to update profile cache:', e))
 	}
 }
 
@@ -1655,7 +1656,7 @@ app.get('/profile/:username', async (c) => {
 		const currentUserId = c.get('userId') as string | undefined
 		const isRemote = username.includes('@')
 
-		console.log(`[userSearch] Looking up profile for: ${username} (isRemote: ${isRemote})`)
+		logger.debug(`[userSearch] Looking up profile for: ${username} (isRemote: ${isRemote})`)
 
 		const user = await lookupUser(username, isRemote)
 		if (!user) {
@@ -1678,7 +1679,7 @@ app.get('/profile/:username', async (c) => {
 
 		return c.json(buildProfileResponse(user, counts, events))
 	} catch (error) {
-		console.error('Error getting user profile:', error)
+		logger.error('Error getting user profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

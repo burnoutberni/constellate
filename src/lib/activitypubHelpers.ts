@@ -9,6 +9,7 @@ import { config } from '../config.js'
 import { prisma } from './prisma.js'
 import type { Actor } from './activitypubSchemas.js'
 import { trackInstance } from './instanceHelpers.js'
+import { logger } from './logger.js'
 
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
 const THIRTY_DAYS_IN_MS = 30 * ONE_DAY_IN_MS
@@ -54,7 +55,7 @@ export async function fetchActor(actorUrl: string): Promise<Record<string, unkno
 		const duration = Date.now() - startTime
 
 		if (!response.ok) {
-			console.log(`[fetchActor] ${actorUrl} → ${response.status} (${duration}ms)`)
+			logger.debug(`[fetchActor] ${actorUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
@@ -65,18 +66,18 @@ export async function fetchActor(actorUrl: string): Promise<Record<string, unkno
 			!contentType.includes('application/ld+json') &&
 			!contentType.includes('application/json')
 		) {
-			console.log(
+			logger.debug(
 				`[fetchActor] Skipping non-JSON response from ${actorUrl}: ${contentType} (${duration}ms)`
 			)
 			return null
 		}
 
 		const actor = (await response.json()) as Record<string, unknown>
-		console.log(`[fetchActor] ${actorUrl} → OK (${duration}ms)`)
+		logger.debug(`[fetchActor] ${actorUrl} → OK (${duration}ms)`)
 		return actor
 	} catch (error) {
 		const duration = Date.now() - startTime
-		console.log(
+		logger.debug(
 			`[fetchActor] ${actorUrl} → ERROR (${duration}ms)`,
 			error instanceof Error ? error.message : 'Unknown'
 		)
@@ -105,7 +106,7 @@ export async function cacheRemoteUser(actor: Actor) {
 	// Track the instance this user belongs to
 	// This runs in background to not block user interaction
 	trackInstance(actorUrl).catch((error) => {
-		console.error('Error tracking instance:', error)
+		logger.error('Error tracking instance:', error)
 	})
 
 	// Extract icon URL - handle both string and object formats
@@ -180,7 +181,7 @@ export async function cacheRemoteUserByUrl(actorUrl: string) {
 
 	if (cachedUser) {
 		const duration = Date.now() - startTime
-		console.log(`[cacheUser] ${actorUrl} → CACHED (${duration}ms) @${cachedUser.username}`)
+		logger.debug(`[cacheUser] ${actorUrl} → CACHED (${duration}ms) @${cachedUser.username}`)
 		return cachedUser
 	}
 
@@ -191,16 +192,16 @@ export async function cacheRemoteUserByUrl(actorUrl: string) {
 		if (actor) {
 			const cached = await cacheRemoteUser(actor as Actor)
 			const fetchDuration = Date.now() - fetchStartTime
-			console.log(
+			logger.debug(
 				`[cacheUser] ${actorUrl} → FETCHED (${fetchDuration}ms) @${cached.username}`
 			)
 			return cached
 		}
-		console.log(`[cacheUser] ${actorUrl} → NULL (no actor)`)
+		logger.debug(`[cacheUser] ${actorUrl} → NULL (no actor)`)
 		return null
 	} catch (error) {
 		const fetchDuration = Date.now() - fetchStartTime
-		console.log(
+		logger.debug(
 			`[cacheUser] ${actorUrl} → ERROR (${fetchDuration}ms)`,
 			error instanceof Error ? error.message : 'Unknown'
 		)
@@ -365,7 +366,7 @@ export async function fetchRemoteCollectionCount(collectionUrl: string): Promise
 		const duration = Date.now() - startTime
 
 		if (!response.ok) {
-			console.log(`[collectionCount] ${collectionUrl} → ${response.status} (${duration}ms)`)
+			logger.debug(`[collectionCount] ${collectionUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
@@ -377,15 +378,15 @@ export async function fetchRemoteCollectionCount(collectionUrl: string): Promise
 				typeof collection.totalItems === 'number'
 					? collection.totalItems
 					: parseInt(collection.totalItems, 10)
-			console.log(`[collectionCount] ${collectionUrl} → ${count} (${duration}ms)`)
+			logger.debug(`[collectionCount] ${collectionUrl} → ${count} (${duration}ms)`)
 			return count
 		}
 
-		console.log(`[collectionCount] ${collectionUrl} → null (no totalItems) (${duration}ms)`)
+		logger.debug(`[collectionCount] ${collectionUrl} → null (no totalItems) (${duration}ms)`)
 		return null
 	} catch (error) {
 		const duration = Date.now() - startTime
-		console.log(
+		logger.debug(
 			`[collectionCount] ${collectionUrl} → ERROR (${duration}ms)`,
 			error instanceof Error ? error.message : 'Unknown'
 		)
@@ -413,7 +414,7 @@ export async function fetchRemoteCollectionItems<T = unknown>(
 		return allItems
 	} catch (error) {
 		const duration = Date.now() - startTime
-		console.log(
+		logger.debug(
 			`[collectionItems] ${collectionUrl} → ERROR (${duration}ms)`,
 			error instanceof Error ? error.message : 'Unknown'
 		)
@@ -458,7 +459,7 @@ async function fetchSinglePage<T>(pageUrl: string): Promise<T[] | null> {
 	})
 
 	if (!response.ok) {
-		console.log(`[collectionItems] ${pageUrl} → ${response.status}`)
+		logger.debug(`[collectionItems] ${pageUrl} → ${response.status}`)
 		return null
 	}
 
@@ -525,7 +526,7 @@ function logCompletion(
 	const message = limit
 		? `${url} → ${totalItems} items (limited to ${limit}) in ${pageCount} pages (${Date.now() - startTime}ms)`
 		: `${url} → ${totalItems} items in ${pageCount} pages (${Date.now() - startTime}ms)`
-	console.log(`[collectionItems] ${message}`)
+	logger.debug(`[collectionItems] ${message}`)
 }
 
 // Helper function to extract location value from event location
@@ -680,7 +681,7 @@ function formatOrganizers(organizerUrls: string[]) {
 				display: username ? `@${username}@${u.hostname}` : u.hostname,
 			}
 		} catch (error) {
-			console.error(`Failed to parse organizer URL: ${url}`, error)
+			logger.error(`Failed to parse organizer URL: ${url}`, error)
 			return { url, username: 'unknown', host: 'unknown', display: url }
 		}
 	})
