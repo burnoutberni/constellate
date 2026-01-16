@@ -11,16 +11,19 @@ import * as activityBuilder from '../services/ActivityBuilder.js'
 import * as activityDelivery from '../services/ActivityDelivery.js'
 import * as realtime from '../realtime.js'
 import * as authModule from '../auth.js'
+import * as activitypubHelpers from '../lib/activitypubHelpers.js'
+import { getBaseUrl } from '../lib/activitypubHelpers.js'
 
 vi.mock('../services/ActivityBuilder.js')
 vi.mock('../services/ActivityDelivery.js')
 vi.mock('../realtime.js')
+vi.mock('../lib/activitypubHelpers.js')
 
 describe('Profile API', () => {
 	let testUser: any
 	let otherUser: any
 	let remoteUser: any
-	const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
+	const baseUrl = getBaseUrl()
 
 	const mockAuth = (user: any) => {
 		vi.spyOn(authModule.auth.api, 'getSession').mockResolvedValue({
@@ -1373,6 +1376,273 @@ describe('Profile API', () => {
 			const body = (await response.json()) as any
 			expect(body).toHaveProperty('version')
 			expect(typeof body.version).toBe('number')
+		})
+	})
+
+	describe('Profile - Remote user count fetching', () => {
+		it('should use cached counts when cache is fresh', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: `cached_${Date.now()}@example.com`,
+					name: 'Cached User',
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/cached',
+					followersCount: 500,
+					followingCount: 200,
+					lastCountsSync: new Date(),
+				},
+			})
+
+			mockAuth(testUser)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/profile`, {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+		})
+
+		it('should fetch fresh counts when cache is stale', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: `stale_${Date.now()}@example.com`,
+					name: 'Stale User',
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/stale',
+					followersCount: 100,
+					lastCountsSync: new Date(Date.now() - 10 * 60 * 1000),
+				},
+			})
+
+			mockAuth(testUser)
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue({
+				id: 'https://example.com/users/stale',
+				followers: 'https://example.com/users/stale/followers',
+				following: 'https://example.com/users/stale/following',
+			})
+			vi.mocked(activitypubHelpers.fetchRemoteCollectionCount).mockResolvedValue(150)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/profile`, {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+		})
+
+		it('should handle actor fetch failure gracefully', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: `fail_${Date.now()}@example.com`,
+					name: 'Fail User',
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/fail',
+					followersCount: 100,
+					lastCountsSync: new Date(Date.now() - 10 * 60 * 1000),
+				},
+			})
+
+			mockAuth(testUser)
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(null)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/profile`, {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+		})
+
+		it('should handle collection fetch errors gracefully', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: `error_${Date.now()}@example.com`,
+					name: 'Error User',
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/error',
+					followersCount: 100,
+					lastCountsSync: new Date(Date.now() - 10 * 60 * 1000),
+				},
+			})
+
+			mockAuth(testUser)
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue({
+				id: 'https://example.com/users/error',
+				followers: 'https://example.com/users/error/followers',
+			})
+			vi.mocked(activitypubHelpers.fetchRemoteCollectionCount).mockRejectedValue(
+				new Error('Network error')
+			)
+
+			const response = await app.request(`/api/users/${remoteUser.username}/profile`, {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+		})
+	})
+
+	describe('Profile - Follow edge cases', () => {
+		it('should handle follow when target user has no inbox', async () => {
+			const userWithoutInbox = await prisma.user.create({
+				data: {
+					username: `noinbox_${Date.now()}`,
+					email: `noinbox_${Date.now()}@test.com`,
+					name: 'No Inbox User',
+					isRemote: false,
+					inboxUrl: null,
+					sharedInboxUrl: null,
+				},
+			})
+
+			mockAuth(testUser)
+			vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+				type: 'Follow',
+				actor: `${baseUrl}/users/${testUser.username}`,
+				object: `${baseUrl}/users/${userWithoutInbox.username}`,
+			} as any)
+
+			const response = await app.request(`/api/users/${userWithoutInbox.username}/follow`, {
+				method: 'POST',
+			})
+
+			expect(response.status).toBe(200)
+			const data = (await response.json()) as any
+			expect(data.success).toBe(true)
+		})
+
+		it('should handle unfollow when target has no followers record', async () => {
+			mockAuth(testUser)
+
+			const response = await app.request(`/api/users/${otherUser.username}/follow`, {
+				method: 'DELETE',
+			})
+
+			expect(response.status).toBe(400)
+			const data = (await response.json()) as any
+			expect(data.error).toContain('Not following')
+		})
+
+		it('should not create duplicate following records', async () => {
+			mockAuth(testUser)
+
+			const targetActorUrl = `${baseUrl}/users/${otherUser.username}`
+
+			await prisma.following.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: targetActorUrl,
+					username: otherUser.username,
+					inboxUrl: `${baseUrl}/users/${otherUser.username}/inbox`,
+					accepted: true,
+				},
+			})
+
+			vi.mocked(activityBuilder.buildFollowActivity).mockReturnValue({
+				type: 'Follow',
+				actor: `${baseUrl}/users/${testUser.username}`,
+				object: targetActorUrl,
+			} as any)
+
+			const response = await app.request(`/api/users/${otherUser.username}/follow`, {
+				method: 'POST',
+			})
+
+			expect(response.status).toBe(400)
+			const data = (await response.json()) as any
+			expect(data.error).toContain('Already following')
+		})
+	})
+
+	describe('Profile - Pending followers edge cases', () => {
+		it('should resolve local pending follower to user object', async () => {
+			mockAuth(testUser)
+
+			const followerUsername = `follower_${Date.now()}`
+			const followerUser = await prisma.user.create({
+				data: {
+					username: followerUsername,
+					email: `${followerUsername}@test.com`,
+					name: 'Follower',
+					isRemote: false,
+				},
+			})
+
+			await prisma.follower.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: `${baseUrl}/users/${followerUsername}`,
+					username: followerUsername,
+					inboxUrl: `${baseUrl}/users/${followerUsername}/inbox`,
+					accepted: false,
+				},
+			})
+
+			const response = await app.request('/api/followers/pending', {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+			const data = (await response.json()) as any
+			expect(data.followers).toHaveLength(1)
+			expect(data.followers[0].username).toBe(followerUsername)
+		})
+
+		it('should include pending follower data even without cached user', async () => {
+			mockAuth(testUser)
+
+			const remoteUsername = `remote_pending_${Date.now()}`
+			await prisma.user.create({
+				data: {
+					username: remoteUsername,
+					name: 'Remote Pending Follower',
+					isRemote: true,
+					externalActorUrl: 'https://remote.example.com/users/pending',
+				},
+			})
+
+			await prisma.follower.create({
+				data: {
+					userId: testUser.id,
+					actorUrl: 'https://remote.example.com/users/pending',
+					username: 'pending',
+					inboxUrl: 'https://remote.example.com/users/pending/inbox',
+					accepted: false,
+				},
+			})
+
+			const response = await app.request('/api/followers/pending', {
+				method: 'GET',
+			})
+
+			expect(response.status).toBe(200)
+			const data = (await response.json()) as any
+			expect(data.followers).toHaveLength(1)
+			expect(data.followers[0].username).toBe(remoteUsername)
+			expect(data.followers[0].isRemote).toBe(true)
+		})
+	})
+
+	describe('Profile - Export edge cases', () => {
+		it('should handle concurrent export requests', async () => {
+			mockAuth(testUser)
+
+			const exportJob = await prisma.dataExport.create({
+				data: {
+					userId: testUser.id,
+					status: 'PROCESSING',
+				},
+			})
+
+			const response = await app.request('/api/users/me/export', {
+				method: 'POST',
+			})
+
+			expect(response.status).toBe(200)
+			const data = (await response.json()) as any
+			expect(data.exportId).toBe(exportJob.id)
+			expect(data.status).toBe('PROCESSING')
 		})
 	})
 })

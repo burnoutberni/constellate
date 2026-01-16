@@ -4,7 +4,9 @@ import {
 	buildAddressingFromActivity,
 	getBroadcastTarget,
 	transformEventsForClient,
+	transformEventForClient,
 	hydrateEventUsers,
+	buildEventInclude,
 } from '../events.js'
 import { prisma } from '../lib/prisma.js'
 
@@ -403,6 +405,78 @@ describe('events helper utilities', () => {
 			expect((result[0] as any).organizers[0]).toMatchObject({
 				username: 'charlie@example.com',
 			})
+		})
+	})
+
+	describe('buildEventInclude', () => {
+		it('should return base include when no userId provided', () => {
+			const include = buildEventInclude()
+			expect(include).toHaveProperty('user')
+			expect(include).not.toHaveProperty('attendance')
+			expect(include).not.toHaveProperty('likes')
+		})
+
+		it('should return full include when userId is provided', () => {
+			const include = buildEventInclude('user-123')
+			expect(include).toHaveProperty('user')
+			expect(include).toHaveProperty('attendance')
+			expect(include).toHaveProperty('likes')
+		})
+
+		it('should include correct fields in attendance', () => {
+			const include = buildEventInclude('user-123') as any
+			expect(include.attendance).toHaveProperty('select')
+			expect(include.attendance.select).toHaveProperty('status')
+			expect(include.attendance.select).toHaveProperty('userId')
+		})
+	})
+
+	describe('transformEventForClient', () => {
+		it('should transform sharedEvent to originalEventId', () => {
+			const event = {
+				id: 'event-1',
+				sharedEvent: { id: 'original-1' },
+				_count: { attendance: 5, likes: 10, comments: 3 },
+			}
+
+			const result = transformEventForClient(event as any)
+			expect(result.originalEventId).toBe('original-1')
+			expect(result.sharedEvent).toBeUndefined()
+		})
+
+		it('should derive viewerStatus from attendance', () => {
+			const event = {
+				id: 'event-1',
+				attendance: [
+					{ userId: 'user-123', status: 'attending' },
+					{ userId: 'other-user', status: 'maybe' },
+				],
+				_count: { attendance: 2, likes: 0, comments: 0 },
+			}
+
+			const result = transformEventForClient(event as any, 'user-123')
+			expect(result.viewerStatus).toBe('attending')
+		})
+
+		it('should return null viewerStatus when not attending', () => {
+			const event = {
+				id: 'event-1',
+				attendance: [{ userId: 'other-user', status: 'attending' }],
+				_count: { attendance: 1, likes: 0, comments: 0 },
+			}
+
+			const result = transformEventForClient(event as any, 'user-123')
+			expect(result.viewerStatus).toBeNull()
+		})
+
+		it('should handle missing _count gracefully', () => {
+			const event = {
+				id: 'event-1',
+				sharedEvent: null,
+			}
+
+			const result = transformEventForClient(event as any)
+			expect(result._count).toEqual({ attendance: 0, likes: 0, comments: 0 })
 		})
 	})
 })
