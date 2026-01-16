@@ -28,7 +28,9 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
-export function EventCard(props: EventCardProps) {
+// Bolt: Wrapped in React.memo to prevent unnecessary re-renders when parent component updates.
+// Effective usage requires that the 'event' prop reference is stable (memoized) in the parent.
+const EventCardComponent = (props: EventCardProps) => {
 	const { event, variant = 'full', isAuthenticated = false } = props
 	const { user } = useAuth()
 	const [isMenuOpen, setMenuOpen] = React.useState(false)
@@ -312,3 +314,5 @@ export function EventCard(props: EventCardProps) {
 		</div>
 	)
 }
+
+export const EventCard = React.memo(EventCardComponent)
