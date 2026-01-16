@@ -140,14 +140,14 @@ export function useFollowUser(username: string) {
 				if (currentUser && currentUser.id && currentUser.username && !currentUser.isRemote) {
 					previousFollowersData = currentFollowersData
 					// Add current user as pending follower at the top of the list
-					const optimisticCurrentUser: User & { isPending: true; isFollowing: false; isRemote: false } = {
+					const optimisticCurrentUser: User & { isPending: true; isFollowing: false; isRemote: boolean } = {
 						id: currentUser.id,
 						username: currentUser.username,
 						name: currentUser.name ?? undefined,
 						profileImage: currentUser.profileImage ?? undefined,
 						displayColor: currentUser.displayColor ?? '#3b82f6',
 						createdAt: currentUser.createdAt ?? new Date().toISOString(),
-						isRemote: false,
+						isRemote: currentUser.isRemote ?? false,
 						isPublicProfile: currentUser.isPublicProfile ?? true,
 						isPending: true,
 						isFollowing: false,

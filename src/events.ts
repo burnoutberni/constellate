@@ -173,6 +173,17 @@ export async function hydrateEventUsers<
 
 	const userMap = new Map(cachedUsers.map((u) => [u.externalActorUrl, u]))
 
+	const normalizedUserMap = new Map<
+		string,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>()
+	for (const [key, user] of userMap.entries()) {
+		if (key) {
+			const normalizedKey = key.replace(/\/$/, '')
+			normalizedUserMap.set(normalizedKey, user)
+		}
+	}
+
 	const uncachedUrls = Array.from(allExternalUrls).filter((url) => !userMap.has(url))
 
 	if (uncachedUrls.length > 0) {
@@ -181,6 +192,10 @@ export async function hydrateEventUsers<
 				const user = await fetchAndCacheRemoteUser(url)
 				if (user) {
 					userMap.set(user.externalActorUrl, user)
+					const normalizedKey = user.externalActorUrl?.replace(/\/$/, '')
+					if (normalizedKey) {
+						normalizedUserMap.set(normalizedKey, user)
+					}
 				}
 			})
 		)
@@ -193,6 +208,7 @@ export async function hydrateEventUsers<
 				string | null,
 				{ profileImage?: string | null; name?: string | null; username?: string | null }
 			>,
+			normalizedUserMap,
 			urlToEventMap
 		)
 	)
@@ -227,6 +243,10 @@ function hydrateSingleEventUser<
 		string | null,
 		{ profileImage?: string | null; name?: string | null; username?: string | null }
 	>,
+	normalizedUserMap: Map<
+		string,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>,
 	_urlToEventMap: Map<string, Array<T>>
 ): T {
 	let updatedEvent = { ...event }
@@ -241,15 +261,7 @@ function hydrateSingleEventUser<
 	if (Array.isArray(updatedEvent.organizers)) {
 		const hydratedOrganizers = (
 			updatedEvent.organizers as Array<{ url: string; username: string }>
-		).map((org) =>
-			hydrateOrganizer(
-				org,
-				userMap as Map<
-					string | null,
-					{ profileImage?: string | null; name?: string | null; username?: string | null }
-				>
-			)
-		)
+		).map((org) => hydrateOrganizer(org, normalizedUserMap))
 		updatedEvent = { ...updatedEvent, organizers: hydratedOrganizers }
 	}
 
@@ -258,23 +270,14 @@ function hydrateSingleEventUser<
 
 function hydrateOrganizer(
 	org: { url: string; username: string },
-	userMap: Map<
-		string | null,
+	normalizedUserMap: Map<
+		string,
 		{ profileImage?: string | null; name?: string | null; username?: string | null }
 	>
 ) {
 	const normalizedOrgUrl = org.url ? org.url.replace(/\/$/, '') : ''
 
-	let dbUser = normalizedOrgUrl ? userMap.get(normalizedOrgUrl) : undefined
-
-	if (!dbUser && normalizedOrgUrl) {
-		for (const [key, user] of userMap.entries()) {
-			if (key && key.replace(/\/$/, '') === normalizedOrgUrl) {
-				dbUser = user
-				break
-			}
-		}
-	}
+	const dbUser = normalizedOrgUrl ? normalizedUserMap.get(normalizedOrgUrl) : undefined
 
 	if (dbUser) {
 		return {

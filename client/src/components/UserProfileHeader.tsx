@@ -17,11 +17,6 @@ interface UserProfileHeaderProps {
 	showFollowButton: boolean
 	headerImageUrl?: string | null
 	isAuthenticated?: boolean
-	isFollowing?: boolean
-	isFollowPending?: boolean
-	isFollowLoading?: boolean
-	onFollowClick?: () => void
-	onUnfollowClick?: () => void
 }
 
 /**
@@ -39,11 +34,6 @@ export function UserProfileHeader({
 	showFollowButton,
 	headerImageUrl,
 	isAuthenticated,
-	isFollowing,
-	isFollowPending,
-	isFollowLoading,
-	onFollowClick,
-	onUnfollowClick,
 }: UserProfileHeaderProps) {
 	// Extract instance hostname from external actor URL
 	const getInstanceHostname = () => {
@@ -128,17 +118,7 @@ export function UserProfileHeader({
 							<div className="flex flex-shrink-0 items-center gap-2">
 								{/* Follow Button */}
 								{!isOwnProfile && showFollowButton && (
-									<FollowButton
-										username={user.username}
-										followStatus={
-											typeof isFollowing === 'boolean'
-												? { isFollowing, isAccepted: !isFollowPending }
-												: undefined
-										}
-										isPending={isFollowPending}
-										onClick={isFollowing ? onUnfollowClick : onFollowClick}
-										isLoading={isFollowLoading}
-									/>
+									<FollowButton username={user.username} />
 								)}
 
 								{/* Report Button */}
