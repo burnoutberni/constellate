@@ -141,31 +141,7 @@ function UserListModal({ isOpen, onClose, title, username, type }: Readonly<User
 
 	const { user: currentUser } = useAuth()
 
-	const users = type === 'followers' ? data?.followers : data?.following
-
-	if (!users) {
-		return (
-			<Modal isOpen={isOpen} onClose={onClose} maxWidth="md">
-				<div className="flex items-center justify-between p-6 pb-2">
-					<h2 className="text-xl font-bold text-text-primary">{title}</h2>
-					<Button
-						onClick={onClose}
-						variant="ghost"
-						size="sm"
-						className="text-text-secondary hover:text-text-primary text-2xl h-8 w-8 p-0 flex items-center justify-center -mr-2">
-						×
-					</Button>
-				</div>
-				<div className="flex-1 overflow-y-auto p-6 pt-2">
-					{isLoading && (
-						<div className="flex items-center justify-center py-8">
-							<Spinner size="md" />
-						</div>
-					)}
-				</div>
-			</Modal>
-		)
-	}
+	const users = (type === 'followers' ? data?.followers : data?.following) || []
 
 	const localUsers: (User & { isPending?: boolean; isFollowing?: boolean })[] = []
 	const remoteUsers: (User & { isPending?: boolean; isFollowing?: boolean })[] = []

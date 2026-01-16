@@ -57,7 +57,6 @@ export function AttendeeFacepile({
     }
 
     // Prepare tooltip content (only if there are attendees)
-    const totalCount = _counts?.attendance || goingCount + maybeCount
     const displayedCount = going.length
 
     const getTooltipContent = () => {
@@ -96,7 +95,7 @@ export function AttendeeFacepile({
         const visibleItems = items.slice(0, 10)
 
         // Remaining count is (Total Attending) - (Names Shown in Tooltip)
-        const knownHiddenCount = Math.max(0, totalCount - displayedCount)
+        const knownHiddenCount = Math.max(0, goingCount - displayedCount)
         const tooltipHiddenCount = Math.max(0, items.length - visibleItems.length)
         const totalHiddenCount = knownHiddenCount + tooltipHiddenCount
 
