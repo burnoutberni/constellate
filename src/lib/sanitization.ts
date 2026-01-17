@@ -16,3 +16,32 @@ export function sanitizeText(input: string): string {
 		ALLOWED_ATTR: [],
 	})
 }
+
+/**
+ * Sanitizes HTML content (allows safe tags)
+ * @param input - Raw HTML content
+ * @returns Sanitized HTML with only safe tags/attributes
+ */
+export function sanitizeHtml(input: string): string {
+	return DOMPurify.sanitize(input, {
+		ALLOWED_TAGS: [
+			'p',
+			'br',
+			'b',
+			'i',
+			'strong',
+			'em',
+			'u',
+			'a',
+			'ul',
+			'ol',
+			'li',
+			'blockquote',
+			'code',
+			'pre',
+            'span',
+            'div'
+		],
+		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'title', 'alt'],
+	})
+}

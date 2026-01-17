@@ -1,0 +1,4 @@
+## 2026-01-17 - Stored XSS in ActivityPub Federation
+**Vulnerability:** Incoming ActivityPub events from remote instances were processed and stored in the database without sanitization of the `name` (title), `summary`, and `content` fields. This allowed Stored XSS if a malicious instance sent an event with `<script>` tags, which could then be rendered by the frontend.
+**Learning:** The `extractEventProperties` function in `src/federation.ts` and `cacheEventFromOutboxActivity` in `src/lib/activitypubHelpers.ts` assumed incoming data was safe or would be sanitized at display time. However, treating the database as a trusted source for "raw" data that might be HTML-rendered is risky.
+**Prevention:** Explicitly use `sanitizeText` from `src/lib/sanitization.ts` on all free-text fields (name, summary, content) at the ingress point (federation handlers) before storing them in Prisma.
