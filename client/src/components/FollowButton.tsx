@@ -115,9 +115,7 @@ export function FollowButton({
 		}
 
 		try {
-			if (isPending) {
-				await unfollowMutation.mutateAsync({ currentUser: currentUserData })
-			} else if (isFollowing) {
+			if (isPending || isFollowing) {
 				await unfollowMutation.mutateAsync({ currentUser: currentUserData })
 			} else {
 				await followMutation.mutateAsync({ currentUser: currentUserData })
