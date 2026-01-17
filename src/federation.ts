@@ -11,6 +11,7 @@ import {
 	fetchRemoteFollowerCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -484,12 +485,21 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
+	const getSanitizedString = (val: unknown) => {
+		const str = getString(val)
+		return str ? sanitizeText(str) : null
+	}
+
+    const getSanitizedHtml = (val: unknown) => {
+        const str = getString(val)
+        return str ? sanitizeHtml(str) : null
+    }
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
+		eventName: getSanitizedString(eventObj.name) || '',
+		eventSummary: getSanitizedHtml(eventObj.summary),
+		eventContent: getSanitizedHtml(eventObj.content),
 		locationValue: getLocationValue(eventObj.location),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),

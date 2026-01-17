@@ -4,6 +4,7 @@
  */
 
 import { safeFetch } from './ssrfProtection.js'
+import { sanitizeText, sanitizeHtml } from './sanitization.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
@@ -325,8 +326,9 @@ export async function cacheEventFromOutboxActivity(
 
 	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
 	const eventId = eventObj.id as string | undefined
-	const eventName = eventObj.name as string | undefined
-	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventName = eventObj.name ? sanitizeText(eventObj.name as string) : undefined
+	const rawSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventSummary = rawSummary ? sanitizeHtml(rawSummary) : undefined
 	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 	const eventStartTime = eventObj.startTime as string | undefined
 	const eventEndTime = eventObj.endTime as string | undefined
