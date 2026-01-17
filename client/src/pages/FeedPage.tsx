@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -58,6 +58,42 @@ export function FeedPage() {
 	const loadMoreRef = useRef<HTMLDivElement>(null)
 
 	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
+
+	// Bolt: Memoize feed content to avoid re-running Zod validation on every render.
+	// This also ensures that we pass stable object references to child components like EventCard,
+	// allowing React.memo to work effectively.
+	const feedContent = useMemo(() => {
+		const items = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
+
+		return items.map((item: FeedItem) => {
+			const key = `${item.type}-${item.id}`
+
+			switch (item.type) {
+				case 'header': {
+					const validated = getValidatedData(HeaderSchema, item.data, 'header')
+					return validated ? { type: 'header' as const, key, data: validated } : null
+				}
+				case 'onboarding': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					return validated ? { type: 'onboarding' as const, key, data: validated } : null
+				}
+				case 'suggested_users': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					return validated ? { type: 'suggested_users' as const, key, data: validated } : null
+				}
+				case 'trending_event': {
+					const validated = getValidatedData(EventSchema, item.data, 'trending_event')
+					return validated ? { type: 'trending_event' as const, key, data: validated } : null
+				}
+				case 'activity': {
+					const validated = getValidatedData(ActivitySchema, item.data, 'activity')
+					return validated ? { type: 'activity' as const, key, data: validated } : null
+				}
+				default:
+					return null
+			}
+		}).filter((item): item is NonNullable<typeof item> => item !== null)
+	}, [data])
 
 	useEffect(() => {
 		if (!hasNextPage || isFetchingNextPage) { return }
@@ -119,8 +155,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -152,70 +186,48 @@ export function FeedPage() {
 							</div>
 						)}
 
-						{allItems.length === 0 ? (
+						{feedContent.length === 0 ? (
 							<Card variant="default" padding="lg" className="text-center">
 								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
-
+							feedContent.map((item) => {
 								switch (item.type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
+										const { title } = item.data
+										return (
+											<div key={item.key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{title}
+												</h2>
+											</div>
+										)
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
+										return <OnboardingHero key={item.key} suggestions={item.data.suggestions} />
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
+										return <SuggestedUsersCard key={item.key} users={item.data.suggestions} />
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={item.key} className="h-full">
+												<EventCard event={item.data} isAuthenticated={Boolean(user)} />
+											</div>
+										)
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
+										// For "Smart Agenda", we show the Event itself
+										return (
+											<div key={item.key} className="h-full">
+												{item.data.event && <EventCard event={item.data.event} isAuthenticated={Boolean(user)} />}
+											</div>
+										)
 									}
 
 									default:
@@ -232,7 +244,7 @@ export function FeedPage() {
 						</div>
 					)}
 
-					{!hasNextPage && allItems.length > 0 && (
+					{!hasNextPage && feedContent.length > 0 && (
 						<p className="text-center text-sm text-text-tertiary mt-8 mb-8">
 							You&apos;ve reached the end of your agenda.
 						</p>

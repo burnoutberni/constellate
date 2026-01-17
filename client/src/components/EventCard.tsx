@@ -28,7 +28,8 @@ interface EventCardProps {
 	isAuthenticated?: boolean
 }
 
-export function EventCard(props: EventCardProps) {
+// Bolt: Memoized to prevent re-renders when parent (like FeedPage) updates but event data is unchanged
+export const EventCard = React.memo((props: EventCardProps) => {
 	const { event, variant = 'full', isAuthenticated = false } = props
 	const { user } = useAuth()
 	const [isMenuOpen, setMenuOpen] = React.useState(false)
@@ -311,4 +312,4 @@ export function EventCard(props: EventCardProps) {
 			)}
 		</div>
 	)
-}
+})
