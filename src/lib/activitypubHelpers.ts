@@ -428,30 +428,33 @@ async function fetchAllPages<T>(url: string, startTime: number, limit: number): 
 	let pageCount = 0
 
 	while (nextUrl && allItems.length < limit) {
-		const pageItems = await fetchSinglePage<T>(nextUrl)
-		if (pageItems === null) {
+		const pageResult: { items: T[]; nextUrl: string | null } | null =
+			await fetchSinglePage<T>(nextUrl)
+		if (pageResult === null) {
 			break
 		}
 
-		// Don't exceed the limit
+		const { items, nextUrl: nextPageUrl }: { items: T[]; nextUrl: string | null } = pageResult
+
 		const remaining = limit - allItems.length
-		if (pageItems.length > remaining) {
-			allItems.push(...pageItems.slice(0, remaining))
+		if (items.length > remaining) {
+			allItems.push(...items.slice(0, remaining))
 			break
 		}
 
-		allItems.push(...pageItems)
+		allItems.push(...items)
 		pageCount++
 
-		const collection = await getCollectionFromPage(nextUrl)
-		nextUrl = getNextPageUrl(collection)
+		nextUrl = nextPageUrl
 	}
 
 	logCompletion(url, allItems.length, pageCount, startTime, limit)
 	return allItems
 }
 
-async function fetchSinglePage<T>(pageUrl: string): Promise<T[] | null> {
+async function fetchSinglePage<T>(
+	pageUrl: string
+): Promise<{ items: T[]; nextUrl: string | null } | null> {
 	const response = await safeFetch(pageUrl, {
 		headers: {
 			Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
@@ -471,9 +474,10 @@ async function fetchSinglePage<T>(pageUrl: string): Promise<T[] | null> {
 	}
 
 	const items = collection.orderedItems || collection.items || []
+	const nextUrl = collection.next || null
 
 	if (items.length > 0) {
-		return items
+		return { items, nextUrl }
 	}
 
 	if (collection.first) {
@@ -489,31 +493,17 @@ async function fetchSinglePage<T>(pageUrl: string): Promise<T[] | null> {
 				const firstPage = (await firstResponse.json()) as {
 					orderedItems?: T[]
 					items?: T[]
+					next?: string
 				}
-				return firstPage.orderedItems || firstPage.items || []
+				return {
+					items: firstPage.orderedItems || firstPage.items || [],
+					nextUrl: firstPage.next || null,
+				}
 			}
 		}
 	}
 
-	return []
-}
-
-async function getCollectionFromPage(pageUrl: string): Promise<{ next?: string } | null> {
-	const response = await safeFetch(pageUrl, {
-		headers: {
-			Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
-		},
-	})
-
-	if (!response.ok) {
-		return null
-	}
-
-	return (await response.json()) as { next?: string }
-}
-
-function getNextPageUrl(collection: { next?: string } | null): string | null {
-	return collection?.next || null
+	return { items: [], nextUrl }
 }
 
 function logCompletion(

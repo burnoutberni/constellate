@@ -604,6 +604,9 @@ async function fetchRemoteUserCounts(
 						).catch((err) => logger.error('Error caching remote event:', err))
 					)
 				)
+				if (eventCount === null && items.length > 0) {
+					eventCount = items.length
+				}
 			}
 		}
 
