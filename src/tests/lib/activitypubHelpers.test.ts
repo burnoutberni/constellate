@@ -994,25 +994,11 @@ describe('activitypubHelpers', () => {
 					next: 'https://example.com/users/bob/followers?page=2',
 				}),
 			}
-			const page1Next = {
-				ok: true,
-				headers: new Map([['content-type', 'application/activity+json']]),
-				json: async () => ({
-					next: 'https://example.com/users/bob/followers?page=2',
-				}),
-			}
 			const page2Fetch = {
 				ok: true,
 				headers: new Map([['content-type', 'application/activity+json']]),
 				json: async () => ({
 					orderedItems: [{ id: '3' }, { id: '4' }],
-					next: 'https://example.com/users/bob/followers?page=3',
-				}),
-			}
-			const page2Next = {
-				ok: true,
-				headers: new Map([['content-type', 'application/activity+json']]),
-				json: async () => ({
 					next: 'https://example.com/users/bob/followers?page=3',
 				}),
 			}
@@ -1023,19 +1009,11 @@ describe('activitypubHelpers', () => {
 					orderedItems: [{ id: '5' }],
 				}),
 			}
-			const page3Next = {
-				ok: true,
-				headers: new Map([['content-type', 'application/activity+json']]),
-				json: async () => ({}),
-			}
 
 			vi.mocked(safeFetch)
 				.mockResolvedValueOnce(page1Fetch as unknown as Response)
-				.mockResolvedValueOnce(page1Next as unknown as Response)
 				.mockResolvedValueOnce(page2Fetch as unknown as Response)
-				.mockResolvedValueOnce(page2Next as unknown as Response)
 				.mockResolvedValueOnce(page3Fetch as unknown as Response)
-				.mockResolvedValueOnce(page3Next as unknown as Response)
 
 			const result = await fetchRemoteCollectionItems<{ id: string }>(
 				'https://example.com/users/bob/followers?page=1'
@@ -1052,6 +1030,13 @@ describe('activitypubHelpers', () => {
 		})
 
 		it('should fetch first page when first link is present but items are empty', async () => {
+			const collectionWithFirst = {
+				ok: true,
+				headers: new Map([['content-type', 'application/activity+json']]),
+				json: async () => ({
+					first: 'https://example.com/users/bob/followers?page=1',
+				}),
+			}
 			const firstPageResponse = {
 				ok: true,
 				headers: new Map([['content-type', 'application/activity+json']]),
@@ -1060,7 +1045,9 @@ describe('activitypubHelpers', () => {
 				}),
 			}
 
-			vi.mocked(safeFetch).mockResolvedValue(firstPageResponse as unknown as Response)
+			vi.mocked(safeFetch)
+				.mockResolvedValueOnce(collectionWithFirst as unknown as Response)
+				.mockResolvedValueOnce(firstPageResponse as unknown as Response)
 
 			const result = await fetchRemoteCollectionItems<{ id: string }>(
 				'https://example.com/users/bob/followers'
@@ -1627,17 +1614,10 @@ describe('activitypubHelpers', () => {
 					orderedItems: [{ id: '1' }],
 				}),
 			}
-			const nextCheck = {
-				ok: true,
-				headers: new Map([['content-type', 'application/activity+json']]),
-				json: async () => ({}),
-			}
 
 			vi.mocked(safeFetch)
 				.mockResolvedValueOnce(mainCollection as unknown as Response)
-				.mockResolvedValueOnce(nextCheck as unknown as Response)
 				.mockResolvedValueOnce(firstPage as unknown as Response)
-				.mockResolvedValueOnce(nextCheck as unknown as Response)
 
 			const result = await fetchRemoteCollectionItems('https://example.com/collection')
 
@@ -1659,6 +1639,7 @@ describe('activitypubHelpers', () => {
 
 			vi.mocked(safeFetch)
 				.mockResolvedValueOnce(mainCollection as unknown as Response)
+				.mockResolvedValueOnce(firstPageFail as unknown as Response)
 				.mockResolvedValueOnce(firstPageFail as unknown as Response)
 
 			const result = await fetchRemoteCollectionItems('https://example.com/collection')
