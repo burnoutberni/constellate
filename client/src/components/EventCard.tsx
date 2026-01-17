@@ -58,7 +58,7 @@ export function EventCard(props: EventCardProps) {
 	if (event.user?.username) {
 		eventLink = `/@${event.user.username}/${event.id}`
 	}
-	
+
 	// If we have organizers, try to construct a better link
 	if (event.organizers && event.organizers.length > 0) {
 		// Prefer the first organizer if they have a valid username (not 'unknown')
@@ -93,7 +93,7 @@ export function EventCard(props: EventCardProps) {
 	// Event is ongoing if it started in the past AND (has an end time in future OR has no end time but started less than 2h ago)
 	const isOngoing = start <= now && (end ? end > now : (now.getTime() - start.getTime() < TWO_HOURS_IN_MS))
 
-		const renderOrganizers = () => {
+	const renderOrganizers = () => {
 		const { organizers } = event
 		const hasOrganizers = organizers && organizers.length > 0
 
@@ -121,8 +121,7 @@ export function EventCard(props: EventCardProps) {
 			// Handles match if either normalized handles match, or if org.username normalized matches userHandle
 			const isSameHandle =
 				normalizedUserHandle === normalizedOrgHandle ||
-				normalizedUserHandle === normalizedOrgUsername ||
-				normalizedOrgHandle === normalizedOrgUsername
+				normalizedUserHandle === normalizedOrgUsername
 
 			isOrganizerDifferent = !isSameHandle
 		} else if (hasOrganizers && !event.user) {
@@ -134,86 +133,86 @@ export function EventCard(props: EventCardProps) {
 				<div className="pt-2 border-t border-border-default space-y-2">
 					<div className="text-xs text-text-secondary font-medium">Organized by</div>
 					{organizers.map((org) => {
-                        const profileLink = org.username ? `/@${org.username}` : org.url;
-                        const isExternal = !org.username || org.username === 'unknown';
-                        
-                        const Content = (
-                            <div className="flex items-center gap-2">
-                                <Avatar
-                                    src={org.profileImage || undefined}
-                                    fallback={getInitials(org.name || org.display, org.username)}
-                                    alt={org.name || org.display}
-                                    size="sm"
-                                    className="w-6 h-6 text-xs"
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-text-primary truncate">
-                                        {org.name || org.display}
-                                    </div>
-                                    {org.name && (
-                                        <div className="text-xs text-text-secondary truncate">
-                                            {org.display}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )
+						const profileLink = org.username ? `/@${org.username}` : org.url;
+						const isExternal = !org.username || org.username === 'unknown';
 
-                        // If we have a username, it's a local or properly resolved remote user -> internal link
-                        if (!isExternal) {
-                            return (
-                                <Link key={org.url || org.username} to={profileLink} className="block hover:underline decoration-text-primary relative z-20">
-                                    {Content}
-                                </Link>
-                            )
-                        }
+						const Content = (
+							<div className="flex items-center gap-2">
+								<Avatar
+									src={org.profileImage || undefined}
+									fallback={getInitials(org.name || org.display, org.username)}
+									alt={org.name || org.display}
+									size="sm"
+									className="w-6 h-6 text-xs"
+								/>
+								<div className="flex-1 min-w-0">
+									<div className="text-sm text-text-primary truncate">
+										{org.name || org.display}
+									</div>
+									{org.name && (
+										<div className="text-xs text-text-secondary truncate">
+											{org.display}
+										</div>
+									)}
+								</div>
+							</div>
+						)
 
-                        // Otherwise it's an external URL
-                        return (
-                            <a 
-                                key={org.url || org.username} 
-                                href={profileLink} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="block hover:underline decoration-text-primary relative z-20"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {Content}
-                            </a>
-                        )
-                    })}
+						// If we have a username, it's a local or properly resolved remote user -> internal link
+						if (!isExternal) {
+							return (
+								<Link key={org.url || org.username} to={profileLink} className="block hover:underline decoration-text-primary relative z-20">
+									{Content}
+								</Link>
+							)
+						}
+
+						// Otherwise it's an external URL
+						return (
+							<a
+								key={org.url || org.username}
+								href={profileLink}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="block hover:underline decoration-text-primary relative z-20"
+								onClick={(e) => e.stopPropagation()}
+							>
+								{Content}
+							</a>
+						)
+					})}
 				</div>
 			)
 		}
 
 		// 2. Local User
 		if (event.user) {
-            const profileLink = `/@${event.user.username}`
+			const profileLink = `/@${event.user.username}`
 			return (
-                <div className="pt-2 border-t border-border-default">
-                    <Link to={profileLink} className="flex items-center gap-2 hover:underline decoration-text-primary relative z-20">
-                        <Avatar
-                            src={event.user.profileImage || undefined}
-                            fallback={getInitials(event.user.name, event.user.username)}
-                            size="sm"
-                        />
-                        <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-text-primary truncate">
-                                {event.user.name || event.user.username}
-                            </div>
-                            <div className="text-xs text-text-secondary truncate">
-                                @{event.user.username}
-                            </div>
-                        </div>
-                    </Link>
-                </div>
+				<div className="pt-2 border-t border-border-default">
+					<Link to={profileLink} className="flex items-center gap-2 hover:underline decoration-text-primary relative z-20">
+						<Avatar
+							src={event.user.profileImage || undefined}
+							fallback={getInitials(event.user.name, event.user.username)}
+							size="sm"
+						/>
+						<div className="flex-1 min-w-0">
+							<div className="text-sm font-medium text-text-primary truncate">
+								{event.user.name || event.user.username}
+							</div>
+							<div className="text-xs text-text-secondary truncate">
+								@{event.user.username}
+							</div>
+						</div>
+					</Link>
+				</div>
 			)
 		}
 
 		// 3. Fallback to attributedTo
 		if (event.attributedTo) {
-            // Try to make this a link if it looks like a profile URL
-            const isUrl = event.attributedTo.startsWith('http');
+			// Try to make this a link if it looks like a profile URL
+			const isUrl = event.attributedTo.startsWith('http');
 			return (
 				<div className="flex items-center gap-2 pt-2 border-t border-border-default">
 					<Avatar
@@ -222,19 +221,19 @@ export function EventCard(props: EventCardProps) {
 					/>
 					<div className="flex-1 min-w-0">
 						<div className="text-sm font-medium text-text-primary truncate">
-                            {isUrl ? (
-                                <a 
-                                    href={event.attributedTo}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:underline decoration-text-primary relative z-20"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-							        {getAttributedToName(event.attributedTo)}
-                                </a>
-                            ) : (
-                                <span>{getAttributedToName(event.attributedTo)}</span>
-                            )}
+							{isUrl ? (
+								<a
+									href={event.attributedTo}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="hover:underline decoration-text-primary relative z-20"
+									onClick={(e) => e.stopPropagation()}
+								>
+									{getAttributedToName(event.attributedTo)}
+								</a>
+							) : (
+								<span>{getAttributedToName(event.attributedTo)}</span>
+							)}
 						</div>
 						<div className="text-xs text-text-secondary truncate opacity-70">
 							Remote Source
