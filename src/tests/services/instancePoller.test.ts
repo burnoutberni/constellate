@@ -14,7 +14,11 @@ import {
 	fetchInstancePublicTimeline,
 	pollKnownActors,
 } from '../../lib/instanceHelpers.js'
-import { cacheEventFromOutboxActivity, fetchActor } from '../../lib/activitypubHelpers.js'
+import {
+	cacheEventFromOutboxActivity,
+	fetchActor,
+	cacheRemoteUser,
+} from '../../lib/activitypubHelpers.js'
 
 // Mock dependencies
 vi.mock('../../lib/prisma.js', () => ({
@@ -23,6 +27,7 @@ vi.mock('../../lib/prisma.js', () => ({
 			findMany: vi.fn(),
 			update: vi.fn(),
 			findUnique: vi.fn(),
+			count: vi.fn(),
 		},
 		user: {
 			findMany: vi.fn(),
@@ -330,30 +335,749 @@ describe('Instance Poller Service', () => {
 				mockActivity,
 				'https://caching.me/users/carl'
 			)
-			// Should log success (console log not checked but execution path covered)
 		})
-	})
 
-	it('should skip users without externalActorUrl', async () => {
-		const domain = 'example.com'
-		const mockUsers = [
-			{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
-			{ username: 'invalid', externalActorUrl: null }, // Should be skipped
-		]
+		it('should skip users without externalActorUrl', async () => {
+			const domain = 'example.com'
+			const mockUsers = [
+				{ username: 'valid', externalActorUrl: 'https://example.com/u/valid' },
+				{ username: 'invalid', externalActorUrl: null },
+			]
 
-		vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
-		vi.mocked(prisma.instance.findUnique).mockResolvedValue({
-			id: 'inst-1',
-			domain,
-			lastPageUrl: null,
-		} as any)
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				lastPageUrl: null,
+			} as any)
 
-		await refreshInstance(domain)
+			await refreshInstance(domain)
 
-		// Verification:
-		// fetchActor should be called for valid user
-		expect(fetchActor).toHaveBeenCalledWith('https://example.com/u/valid')
-		// fetchActor should NOT be called for invalid user (null url)
-		expect(fetchActor).toHaveBeenCalledTimes(1)
+			expect(fetchActor).toHaveBeenCalledWith('https://example.com/u/valid')
+			expect(fetchActor).toHaveBeenCalledTimes(1)
+		})
+
+		it('should handle empty instances list with no tracked instances', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			vi.mocked(prisma.instance.count).mockResolvedValue(0)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.count).toHaveBeenCalled()
+		})
+
+		it('should log message when all instances are up to date', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			vi.mocked(prisma.instance.count).mockResolvedValue(5)
+
+			const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('up to date'), '')
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should update instance without lastPageUrl when activities are cached', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'test.com',
+				baseUrl: 'https://test.com',
+				publicEventsUrl: 'https://test.com/outbox',
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [{ id: 'act1', type: 'Create' }] as unknown as any[],
+				lastPageUrl: null as string | null,
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						lastFetchedAt: expect.any(Date),
+						lastError: null,
+						lastErrorAt: null,
+					}),
+				})
+			)
+		})
+
+		it('should handle user refresh errors gracefully', async () => {
+			const domain = 'error.com'
+			const mockUsers = [{ username: 'user1', externalActorUrl: 'https://error.com/u/user1' }]
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				lastPageUrl: null,
+			} as any)
+			vi.mocked(fetchActor).mockRejectedValue(new Error('Network error'))
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
+
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+			await refreshInstance(domain)
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining('[WARN] Failed to refresh user'),
+				expect.any(Error)
+			)
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should update instance with error when processing fails', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fail.com',
+				baseUrl: 'https://fail.com',
+				publicEventsUrl: 'https://fail.com/outbox',
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockRejectedValue(new Error('Processing failed'))
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'fail.com' },
+					data: expect.objectContaining({
+						lastError: 'Processing failed',
+						lastErrorAt: expect.any(Date),
+					}),
+				})
+			)
+		})
+
+		it('should handle caching errors gracefully', async () => {
+			const mockInstance = {
+				id: 'instance-cache-err',
+				domain: 'cacheerr.com',
+				baseUrl: 'https://cacheerr.com',
+				publicEventsUrl: 'https://cacheerr.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://cacheerr.com/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+				actor: 'https://cacheerr.com/users/actor',
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: 'https://cacheerr.com/outbox?page=2',
+			})
+			vi.mocked(cacheEventFromOutboxActivity).mockRejectedValue(new Error('Cache error'))
+
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining('[WARN] Error caching activity'),
+				expect.any(Error)
+			)
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should use both actor and attributedTo for events', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'test.com',
+				baseUrl: 'https://test.com',
+				publicEventsUrl: 'https://test.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://test.com/activities/1',
+				type: 'Create',
+				actor: 'https://test.com/users/actor1',
+				attributedTo: 'https://test.com/users/actor2',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity],
+				lastPageUrl: null,
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://test.com/users/actor1'
+			)
+		})
+
+		it('should fallback to derived actor when activity has no actor', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'test.com',
+				baseUrl: 'https://test.com',
+				publicEventsUrl: 'https://test.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://test.com/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: null as string | null,
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://test.com/outbox'.replace(/\/outbox$/, '')
+			)
+		})
+
+		it('should process fallback known actors with attributedTo fallback', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback.net',
+				baseUrl: 'https://fallback.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue([
+				'https://fallback.net/users/alice/outbox',
+			])
+
+			const mockActivity = {
+				id: 'https://fallback.net/activities/1',
+				type: 'Create',
+				attributedTo: 'https://fallback.net/users/attributed',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://fallback.net/users/attributed'
+			)
+		})
+
+		it('should process fallback known actors with derived actor URL fallback', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback.net',
+				baseUrl: 'https://fallback.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue(['https://fallback.net/users/bob/outbox'])
+
+			const mockActivity = {
+				id: 'https://fallback.net/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://fallback.net/users/bob'
+			)
+		})
+
+		it('should cache remote user when actor is returned', async () => {
+			const domain = 'actor-test.com'
+			const mockUsers = [
+				{ username: 'user1', externalActorUrl: 'https://actor-test.com/u/user1' },
+			]
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				lastPageUrl: null,
+			} as any)
+
+			const mockActor = { id: 'https://actor-test.com/u/user1', name: 'Test User' }
+			vi.mocked(fetchActor).mockResolvedValue(mockActor as any)
+
+			await refreshInstance(domain)
+
+			expect(cacheRemoteUser).toHaveBeenCalledWith(mockActor)
+		})
+
+		it('should handle pollInstances error gracefully', async () => {
+			vi.mocked(prisma.instance.findMany).mockRejectedValue(new Error('Database error'))
+
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[ERROR] Instance Poller Error:',
+				expect.any(Error)
+			)
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should process fallback known actors with attributedTo fallback', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback.net',
+				baseUrl: 'https://fallback.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue([
+				'https://fallback.net/users/alice/outbox',
+			])
+
+			const mockActivity = {
+				id: 'https://fallback.net/activities/1',
+				type: 'Create',
+				attributedTo: 'https://fallback.net/users/attributed',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://fallback.net/users/attributed'
+			)
+		})
+
+		it('should process fallback known actors with derived actor URL fallback', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback.net',
+				baseUrl: 'https://fallback.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue(['https://fallback.net/users/bob/outbox'])
+
+			const mockActivity = {
+				id: 'https://fallback.net/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://fallback.net/users/bob'
+			)
+		})
+
+		it('should cache remote user when actor is returned', async () => {
+			const domain = 'actor-test.com'
+			const mockUsers = [
+				{ username: 'user1', externalActorUrl: 'https://actor-test.com/u/user1' },
+			]
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+			vi.mocked(prisma.instance.findUnique).mockResolvedValue({
+				id: 'inst-1',
+				domain,
+				lastPageUrl: null,
+			} as any)
+
+			const mockActor = { id: 'https://actor-test.com/u/user1', name: 'Test User' }
+			vi.mocked(fetchActor).mockResolvedValue(mockActor as any)
+
+			await refreshInstance(domain)
+
+			expect(cacheRemoteUser).toHaveBeenCalledWith(mockActor)
+		})
+
+		it('should handle pollInstances error gracefully', async () => {
+			vi.mocked(prisma.instance.findMany).mockRejectedValue(new Error('Database error'))
+
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[ERROR] Instance Poller Error:',
+				expect.any(Error)
+			)
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should use attributedTo when actor is not present', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'test.com',
+				baseUrl: 'https://test.com',
+				publicEventsUrl: 'https://test.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://test.com/activities/1',
+				type: 'Create',
+				attributedTo: 'https://test.com/users/attributed',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: null as string | null,
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://test.com/users/attributed'
+			)
+		})
+
+		it('should process fallback known actors for activities', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback.net',
+				baseUrl: 'https://fallback.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue([
+				'https://fallback.net/users/alice/outbox',
+			])
+
+			const mockActivity = {
+				id: 'https://fallback.net/activities/1',
+				type: 'Create',
+				actor: 'https://fallback.net/users/alice',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://fallback.net/users/alice'
+			)
+		})
+
+		it('should not start poller twice', async () => {
+			startInstancePoller()
+			startInstancePoller()
+
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.findMany).toHaveBeenCalledTimes(1)
+		})
+
+		it('should stop poller correctly', async () => {
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([])
+			startInstancePoller()
+
+			await vi.advanceTimersByTimeAsync(11000)
+			expect(prisma.instance.findMany).toHaveBeenCalled()
+
+			stopInstancePoller()
+			stopInstancePoller()
+
+			vi.mocked(prisma.instance.findMany).mockClear()
+
+			await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 1000)
+
+			expect(prisma.instance.findMany).not.toHaveBeenCalled()
+		})
+
+		it('should update instance with lastPageUrl when provided', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'paged.com',
+				baseUrl: 'https://paged.com',
+				publicEventsUrl: 'https://paged.com/outbox',
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [{ id: 'act1', type: 'Create' }] as unknown as any[],
+				lastPageUrl: 'https://paged.com/outbox?page=2',
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						lastPageUrl: 'https://paged.com/outbox?page=2',
+					}),
+				})
+			)
+		})
+
+		it('should process instances in batches', async () => {
+			const mockInstances = Array.from({ length: 15 }, (_, i) => ({
+				id: `instance-${i}`,
+				domain: `domain${i}.com`,
+				baseUrl: `https://domain${i}.com`,
+				publicEventsUrl: `https://domain${i}.com/outbox`,
+				lastPageUrl: null,
+			}))
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue(mockInstances as any)
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [],
+			} as any)
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.findMany).toHaveBeenCalled()
+		})
+
+		it('should handle non-Error exceptions when processing', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'nonError.com',
+				baseUrl: 'https://nonError.com',
+				publicEventsUrl: 'https://nonError.com/outbox',
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockRejectedValue('String error')
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { domain: 'nonError.com' },
+					data: expect.objectContaining({
+						lastError: 'Unknown polling error',
+					}),
+				})
+			)
+		})
+
+		it('should update instance after fallback polling', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback-update.net',
+				baseUrl: 'https://fallback-update.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue([])
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 'instance-1' },
+					data: expect.objectContaining({
+						lastFetchedAt: expect.any(Date),
+						lastError: null,
+						lastErrorAt: null,
+					}),
+				})
+			)
+		})
+
+		it('should use instanceBaseUrl as last fallback for actor', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'test.com',
+				baseUrl: 'https://test.com',
+				publicEventsUrl: 'https://test.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://test.com/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: undefined,
+			})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(cacheEventFromOutboxActivity).toHaveBeenCalledWith(
+				mockActivity,
+				'https://test.com'
+			)
+		})
+
+		it('should handle pollFallbackKnownActors returning empty array', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'fallback-empty.net',
+				baseUrl: 'https://fallback-empty.net',
+				publicEventsUrl: null,
+				lastPageUrl: null,
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(discoverPublicEndpoint).mockResolvedValue(null)
+			vi.mocked(pollKnownActors).mockResolvedValue([])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({ activities: [] })
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(fetchInstancePublicTimeline).not.toHaveBeenCalled()
+		})
+
+		it('should handle cacheEventFromOutboxActivity throwing error gracefully', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'cache-error.com',
+				baseUrl: 'https://cache-error.com',
+				publicEventsUrl: 'https://cache-error.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://cache-error.com/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: undefined,
+			})
+			vi.mocked(cacheEventFromOutboxActivity).mockRejectedValue(new Error('Cache failed'))
+
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				'[WARN] Error caching activity:',
+				expect.any(Error)
+			)
+			expect(prisma.instance.update).toHaveBeenCalled()
+
+			consoleSpy.mockRestore()
+		})
+
+		it('should update instance lastFetchedAt even when no activities cached', async () => {
+			const mockInstance = {
+				id: 'instance-1',
+				domain: 'no-activities.com',
+				baseUrl: 'https://no-activities.com',
+				publicEventsUrl: 'https://no-activities.com/outbox',
+				lastPageUrl: null,
+			}
+
+			const mockActivity = {
+				id: 'https://no-activities.com/activities/1',
+				type: 'Create',
+				object: { type: 'Event' },
+			}
+
+			vi.mocked(prisma.instance.findMany).mockResolvedValue([mockInstance as any])
+			vi.mocked(fetchInstancePublicTimeline).mockResolvedValue({
+				activities: [mockActivity] as unknown as any[],
+				lastPageUrl: undefined,
+			})
+			vi.mocked(cacheEventFromOutboxActivity).mockRejectedValue(new Error('Cache failed'))
+
+			startInstancePoller()
+			await vi.advanceTimersByTimeAsync(11000)
+
+			expect(prisma.instance.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 'instance-1' },
+					data: expect.objectContaining({
+						lastFetchedAt: expect.any(Date),
+					}),
+				})
+			)
+		})
 	})
 })

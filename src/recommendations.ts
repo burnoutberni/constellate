@@ -3,6 +3,8 @@ import { requireAuth } from './middleware/auth.js'
 import { lenientRateLimit } from './middleware/rateLimit.js'
 import { AppError } from './lib/errors.js'
 import { getEventRecommendations } from './services/recommendations.js'
+import { transformEventForClient } from './events.js'
+import { logger } from './lib/logger.js'
 
 type JsonStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 429 | 500
 
@@ -28,7 +30,15 @@ app.get('/', lenientRateLimit, async (c) => {
 
 		const result = await getEventRecommendations(userId, limit)
 
-		return c.json(result)
+		const recommendations = result.recommendations.map((rec) => ({
+			...rec,
+			event: transformEventForClient(rec.event, userId),
+		}))
+
+		return c.json({
+			...result,
+			recommendations,
+		})
 	} catch (error) {
 		if (error instanceof AppError) {
 			return c.json(
@@ -36,7 +46,7 @@ app.get('/', lenientRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error getting recommendations:', error)
+		logger.error('Error getting recommendations:', error)
 		return c.json(
 			{ error: 'INTERNAL_ERROR', message: 'Unable to generate recommendations' },
 			500

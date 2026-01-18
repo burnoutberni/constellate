@@ -29,6 +29,7 @@ import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { scheduleReminderForEvent, cancelReminderForEvent } from './services/reminders.js'
 import { AppError } from './lib/errors.js'
 import { updateEventPopularityScore } from './services/popularityUpdater.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -61,13 +62,13 @@ async function ensureViewerCanAccess(event: EventWithOwner, viewerId: string) {
 	}
 }
 
-function shouldNotifyFollowers(
+export function shouldNotifyFollowers(
 	visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE' | 'UNLISTED' | null | undefined
 ) {
 	return visibility === 'PUBLIC' || visibility === 'FOLLOWERS'
 }
 
-function resolveEventFollowersUrl(
+export function resolveEventFollowersUrl(
 	event: EventWithOwner,
 	baseUrl: string,
 	notifyFollowers: boolean
@@ -90,25 +91,77 @@ function resolveEventFollowersUrl(
 	return undefined
 }
 
-function getUserFollowersUrl(user: Pick<User, 'username'>, baseUrl: string) {
+export function getUserFollowersUrl(user: Pick<User, 'username'>, baseUrl: string) {
 	return `${baseUrl}/users/${user.username}/followers`
 }
 
-function normalizeRecipientsField(value?: string | string[]) {
+export function normalizeRecipientsField(value?: string | string[]) {
 	if (!value) {
 		return []
 	}
 	return Array.isArray(value) ? value : [value]
 }
 
-async function deliverNormalizedActivity(activity: Activity, userId: string) {
+async function deliverNormalizedActivity(
+	activity: Activity,
+	userId: string,
+	eventId: string,
+	status: AttendanceState,
+	isUndo: boolean = false
+) {
+	const startTime = Date.now()
 	const addressing = {
 		to: normalizeRecipientsField(activity.to),
 		cc: normalizeRecipientsField(activity.cc),
 		bcc: [] as string[],
 	}
 
-	await deliverActivity(activity, addressing, userId)
+	const toCount = addressing.to.length
+	const ccCount = addressing.cc.length
+
+	logger.debug(`Starting background activity delivery for user ${userId}`, {
+		eventId,
+		status,
+		isUndo,
+		toCount,
+		ccCount,
+	})
+
+	try {
+		if (!isUndo) {
+			const currentAttendance = await prisma.eventAttendance.findUnique({
+				where: { eventId_userId: { eventId, userId } },
+			})
+
+			if (!currentAttendance || currentAttendance.status !== status) {
+				logger.debug(
+					`Skipping delivery - status changed from ${status} to ${currentAttendance?.status ?? 'none'}`,
+					{
+						eventId,
+						userId,
+					}
+				)
+				return
+			}
+		}
+
+		await deliverActivity(activity, addressing, userId)
+		const duration = Date.now() - startTime
+		logger.info(`Activity delivery completed`, { eventId, userId, durationMs: duration })
+	} catch (error) {
+		const duration = Date.now() - startTime
+		logger.error(`Activity delivery failed`, {
+			eventId,
+			userId,
+			durationMs: duration,
+			error: error instanceof Error ? error.message : 'Unknown error',
+		})
+		logger.critical(`Admin alert: Failed to deliver ${activity.type} for event ${eventId}`, {
+			eventId,
+			userId,
+			activityType: activity.type,
+		})
+	}
 }
 
 interface AttendanceContext {
@@ -119,7 +172,7 @@ interface AttendanceContext {
 	isPublic: boolean
 }
 
-function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceContext {
+export function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceContext {
 	const baseUrl = getBaseUrl()
 	const eventAuthorUrl = event.attributedTo!
 	const notifyFollowers = shouldNotifyFollowers(event.visibility)
@@ -133,7 +186,7 @@ function buildAttendanceContext(event: EventWithOwner, user: User): AttendanceCo
 	}
 }
 
-function buildAttendanceActivityForStatus(
+export function buildAttendanceActivityForStatus(
 	status: AttendanceState,
 	user: User,
 	context: AttendanceContext
@@ -176,6 +229,25 @@ const AttendanceSchema = z.object({
 	reminderMinutesBeforeStart: z.number().int().optional().nullable(),
 })
 
+async function handleReminderForAttendance(
+	event: EventWithOwner,
+	userId: string,
+	status: string,
+	reminderMinutesBeforeStart: number | null | undefined
+): Promise<void> {
+	const shouldCancel =
+		status === AttendanceStatus.NOT_ATTENDING || reminderMinutesBeforeStart === null
+
+	if (shouldCancel) {
+		await cancelReminderForEvent(event.id, userId)
+		return
+	}
+
+	if (typeof reminderMinutesBeforeStart === 'number') {
+		await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
+	}
+}
+
 // Set or update attendance status
 app.post('/:id/attend', moderateRateLimit, async (c) => {
 	try {
@@ -185,6 +257,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 		const body: unknown = await c.req.json()
 		const { status, reminderMinutesBeforeStart } = AttendanceSchema.parse(body)
 
+		logger.info(`Setting attendance status`, { eventId: id, status })
+
+		const dbQueryStart = Date.now()
 		const event = requireResource(
 			(await prisma.event.findUnique({
 				where: { id },
@@ -193,9 +268,11 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'Event not found'
 		)
+		logger.debug(`DB query (event)`, { eventId: id, durationMs: Date.now() - dbQueryStart })
 
 		await ensureViewerCanAccess(event, userId)
 
+		const userQueryStart = Date.now()
 		const user = requireResource(
 			await prisma.user.findUnique({
 				where: { id: userId },
@@ -203,7 +280,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'User not found'
 		)
+		logger.debug(`DB query (user)`, { userId, durationMs: Date.now() - userQueryStart })
 
+		const upsertStart = Date.now()
 		const attendance = await prisma.eventAttendance.upsert({
 			where: {
 				eventId_userId: {
@@ -220,13 +299,23 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 				status,
 			},
 		})
+		logger.debug(`DB upsert`, { eventId: id, userId, durationMs: Date.now() - upsertStart })
 
 		// Build and deliver activity
+		const activityBuildStart = Date.now()
 		const context = buildAttendanceContext(event, user)
 		const activity = buildAttendanceActivityForStatus(status, user, context)
-		await deliverNormalizedActivity(activity, userId)
+		logger.debug(`Activity build`, {
+			eventId: id,
+			status,
+			durationMs: Date.now() - activityBuildStart,
+		})
+
+		// Deliver activity in background (non-blocking)
+		deliverNormalizedActivity(activity, userId, id, status)
 
 		// Broadcast real-time update
+		const broadcastStart = Date.now()
 		broadcast({
 			type: 'attendance:updated',
 			data: {
@@ -237,40 +326,38 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 				name: user.name,
 			},
 		})
+		logger.debug(`Broadcast`, { eventId: id, durationMs: Date.now() - broadcastStart })
 
-		// Handle reminder operations - distinguish validation errors from unexpected errors
+		// Handle reminder operations
 		try {
-			if (status === AttendanceStatus.NOT_ATTENDING) {
-				await cancelReminderForEvent(id, userId)
-			} else if (reminderMinutesBeforeStart === null) {
-				await cancelReminderForEvent(id, userId)
-			} else if (typeof reminderMinutesBeforeStart === 'number') {
-				await scheduleReminderForEvent(event, userId, reminderMinutesBeforeStart)
-			}
+			await handleReminderForAttendance(event, userId, status, reminderMinutesBeforeStart)
 		} catch (reminderError) {
 			// Only surface reminder-specific validation errors to the user
-			// Check for reminder error codes to ensure we're not catching unrelated validation errors
-			if (
+			const isReminderValidationError =
 				reminderError instanceof AppError &&
 				reminderError.statusCode === 400 &&
 				typeof reminderError.code === 'string' &&
 				reminderError.code.startsWith('REMINDER_')
-			) {
-				// Re-throw reminder-specific validation errors so they're returned to the client
+
+			if (isReminderValidationError) {
 				throw reminderError
 			}
+
 			// Log unexpected errors but allow attendance update to succeed
-			console.error(
-				'Unexpected reminder operation error during attendance update:',
-				reminderError
-			)
+			logger.warn(`Reminder operation error during attendance update`, {
+				eventId: id,
+				userId,
+				error: reminderError instanceof Error ? reminderError.message : 'Unknown error',
+			})
 		}
 
 		// Update popularity score in background (non-blocking)
-		updateEventPopularityScore(id).catch((err) => {
-			console.error(`Failed to update popularity score for event ${id}:`, err)
+		updateEventPopularityScore(id).catch((err: unknown) => {
+			const errMessage = err instanceof Error ? err.message : 'Unknown error'
+			logger.error(`Failed to update popularity score`, { eventId: id, error: errMessage })
 		})
 
+		logger.info(`Attendance updated successfully`, { eventId: id, userId, status })
 		return c.json(attendance)
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -285,8 +372,9 @@ app.post('/:id/attend', moderateRateLimit, async (c) => {
 				error.statusCode as HttpErrorStatus
 			)
 		}
-		console.error('Error setting attendance:', error)
-		return c.json({ error: 'Internal server error' }, 500)
+		const errMessage = error instanceof Error ? error.message : 'Unknown error'
+		logger.error('Unexpected error in POST /:id/attend', { error: errMessage })
+		return c.json({ error: 'Internal server error' }, 500 as const)
 	}
 })
 
@@ -296,6 +384,9 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 		const { id } = c.req.param()
 		const userId = requireAuth(c)
 
+		logger.info(`Removing attendance`, { eventId: id })
+
+		const dbQueryStart = Date.now()
 		const attendance = requireResource(
 			(await prisma.eventAttendance.findUnique({
 				where: {
@@ -312,9 +403,14 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'Attendance not found'
 		)
+		logger.debug(`DB query (attendance)`, {
+			eventId: id,
+			durationMs: Date.now() - dbQueryStart,
+		})
 
 		await ensureViewerCanAccess(attendance.event, userId)
 
+		const userQueryStart = Date.now()
 		const user = requireResource(
 			await prisma.user.findUnique({
 				where: { id: userId },
@@ -322,7 +418,9 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			404,
 			'User not found'
 		)
+		logger.debug(`DB query (user)`, { userId, durationMs: Date.now() - userQueryStart })
 
+		const deleteStart = Date.now()
 		await prisma.eventAttendance.delete({
 			where: {
 				eventId_userId: {
@@ -331,7 +429,9 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 				},
 			},
 		})
+		logger.debug(`DB delete`, { eventId: id, durationMs: Date.now() - deleteStart })
 
+		const activityBuildStart = Date.now()
 		const context = buildAttendanceContext(attendance.event, user)
 		const originalActivity = buildAttendanceActivityForStatus(
 			attendance.status as AttendanceState,
@@ -339,8 +439,18 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 			context
 		)
 		const undoActivity = buildUndoActivity(user, originalActivity)
-		await deliverNormalizedActivity(undoActivity, userId)
+		logger.debug(`Activity build`, { eventId: id, durationMs: Date.now() - activityBuildStart })
 
+		// Deliver activity in background (non-blocking, isUndo skips staleness check)
+		deliverNormalizedActivity(
+			undoActivity,
+			userId,
+			id,
+			attendance.status as AttendanceState,
+			true
+		)
+
+		const broadcastStart = Date.now()
 		broadcast({
 			type: 'attendance:removed',
 			data: {
@@ -350,20 +460,27 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 				name: user.name,
 			},
 		})
+		logger.debug(`Broadcast`, { eventId: id, durationMs: Date.now() - broadcastStart })
 
 		// Handle reminder cancellation - don't fail attendance removal if reminder fails
 		try {
 			await cancelReminderForEvent(id, userId)
 		} catch (reminderError) {
 			// Log reminder error but allow attendance removal to succeed
-			console.error('Reminder cancellation failed during attendance removal:', reminderError)
+			logger.warn(`Reminder cancellation failed during attendance removal`, {
+				eventId: id,
+				userId,
+				error: reminderError instanceof Error ? reminderError.message : 'Unknown error',
+			})
 		}
 
 		// Update popularity score in background (non-blocking)
-		updateEventPopularityScore(id).catch((err) => {
-			console.error(`Failed to update popularity score for event ${id}:`, err)
+		updateEventPopularityScore(id).catch((err: unknown) => {
+			const errMessage = err instanceof Error ? err.message : 'Unknown error'
+			logger.error(`Failed to update popularity score`, { eventId: id, error: errMessage })
 		})
 
+		logger.info(`Attendance removed successfully`, { eventId: id, userId })
 		return c.json({ success: true })
 	} catch (error) {
 		if (error instanceof HttpError) {
@@ -375,16 +492,15 @@ app.delete('/:id/attend', moderateRateLimit, async (c) => {
 				error.statusCode as HttpErrorStatus
 			)
 		}
-		console.error('Error removing attendance:', error)
+		logger.error('Error removing attendance', { error })
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
 
 // Get attendees
 app.get('/:id/attendees', async (c) => {
+	const { id } = c.req.param()
 	try {
-		const { id } = c.req.param()
-
 		const attendees = await prisma.eventAttendance.findMany({
 			where: { eventId: id },
 			include: {
@@ -417,7 +533,7 @@ app.get('/:id/attendees', async (c) => {
 			},
 		})
 	} catch (error) {
-		console.error('Error getting attendees:', error)
+		logger.error('Error getting attendees', { eventId: id, error })
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

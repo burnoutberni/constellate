@@ -58,6 +58,19 @@ model User {
   autoAcceptFollowers Boolean @default(true) // Automatically accept follow requests
   isPublicProfile     Boolean @default(true) // Profile visibility: true = public, false = private (followers only)
 
+  // Cached counts for remote users (to avoid repeated external requests)
+  followersCount Int? // Cached follower count
+  followingCount Int? // Cached following count
+  eventsCount    Int? // Cached event count
+  lastCountsSync DateTime? // When counts were last synced from remote
+
+  // Cached followers list (to avoid repeated external requests)
+  followersListCached Json? // Cached followers list with user data
+  followersListSync   DateTime? // When followers list was last synced
+
+  // Cached profile data (to avoid repeated external requests)
+  profileSync DateTime? // When profile was last synced from remote
+
   // Email notification preferences (JSON object with notification types as keys)
   emailNotifications Json? // e.g., {"FOLLOW": true, "COMMENT": false, "LIKE": true, ...}
 

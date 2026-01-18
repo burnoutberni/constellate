@@ -57,6 +57,40 @@ export const PersonSchema = z.object({
 		})
 		.optional(),
 	displayColor: z.string().optional(),
+	published: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(),
+})
+
+// Group (Actor) schema - similar to Person but for groups
+export const GroupSchema = z.object({
+	'@context': z.union([z.string(), z.array(z.unknown())]).optional(),
+	type: z.literal(ObjectType.GROUP),
+	id: z.url({ message: 'Invalid URL' }),
+	preferredUsername: z.string(),
+	name: z.string().optional(),
+	summary: z.string().optional(),
+	inbox: z.url({ message: 'Invalid URL' }),
+	outbox: z.url({ message: 'Invalid URL' }).optional(),
+	followers: z.url({ message: 'Invalid URL' }).optional(),
+	publicKey: PublicKeySchema.optional(),
+	icon: ImageSchema.optional(),
+	image: ImageSchema.optional(),
+	endpoints: z
+		.object({
+			sharedInbox: z.url({ message: 'Invalid URL' }).optional(),
+		})
+		.optional(),
+	displayColor: z.string().optional(),
+	published: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, {
+			message: 'Invalid datetime string',
+		})
+		.optional(),
 })
 
 // Event schema
@@ -304,6 +338,8 @@ export const WebFingerSchema = z.object({
 
 // Type exports
 export type Person = z.infer<typeof PersonSchema>
+export type Group = z.infer<typeof GroupSchema>
+export type Actor = Person | Group
 export type Event = z.infer<typeof EventSchema>
 export type Note = z.infer<typeof NoteSchema>
 export type Activity = z.infer<typeof ActivitySchema>

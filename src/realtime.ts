@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { moderateRateLimit } from './middleware/rateLimit.js'
 import { requireAuth } from './middleware/auth.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -43,7 +44,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
 		}
 		clients.set(clientId, client)
 
-		console.log(`✅ SSE client connected: ${clientId} (user: ${userId})`)
+		logger.info(`✅ SSE client connected: ${clientId} (user: ${userId})`)
 
 		// Send initial connection message
 		await stream.writeSSE({
@@ -63,7 +64,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
 					event: 'heartbeat',
 				})
 			} catch {
-				console.log(`❌ Heartbeat failed for client ${clientId}`)
+				logger.warn(`❌ Heartbeat failed for client ${clientId}`)
 				clearInterval(heartbeatInterval)
 				clients.delete(clientId)
 			}
@@ -71,7 +72,7 @@ app.get('/stream', moderateRateLimit, async (c) => {
 
 		// Handle client disconnect
 		c.req.raw.signal.addEventListener('abort', () => {
-			console.log(`❌ SSE client disconnected: ${clientId}`)
+			logger.info(`❌ SSE client disconnected: ${clientId}`)
 			clearInterval(heartbeatInterval)
 			clients.delete(clientId)
 		})
@@ -98,7 +99,7 @@ export async function broadcast(event: {
 	}
 
 	const totalClients = clients.size
-	console.log(`📡 Broadcasting ${event.type} to ${totalClients} connected clients`)
+	logger.info(`📡 Broadcasting ${event.type} to ${totalClients} connected clients`)
 
 	let successCount = 0
 	let failCount = 0
@@ -115,12 +116,12 @@ export async function broadcast(event: {
 				})
 				successCount++
 			} else {
-				console.log(
+				logger.debug(
 					`⏭️  Skipping client ${id} (userId: ${client.userId}, targetUserId: ${event.targetUserId})`
 				)
 			}
 		} catch (error) {
-			console.error(`Failed to send to client ${id}:`, error)
+			logger.error(`Failed to send to client ${id}:`, error)
 			clients.delete(id)
 			failCount++
 		}
@@ -129,11 +130,11 @@ export async function broadcast(event: {
 	await Promise.all(promises)
 
 	if (successCount > 0 || failCount > 0) {
-		console.log(
+		logger.info(
 			`📡 Broadcast ${event.type}: ${successCount} sent, ${failCount} failed (${totalClients} total clients)`
 		)
 	} else if (totalClients === 0) {
-		console.log(`⚠️  No clients connected to receive ${event.type}`)
+		logger.warn(`⚠️  No clients connected to receive ${event.type}`)
 	}
 }
 
@@ -144,7 +145,10 @@ export async function broadcastToUser(
 	userId: string,
 	event: { type: string; data: Record<string, unknown> }
 ) {
-	const { type, data } = event
+	const message = {
+		...event,
+		timestamp: new Date().toISOString(),
+	}
 
 	let count = 0
 	const promises = Array.from(clients.entries()).map(async ([clientId, client]) => {
@@ -153,13 +157,13 @@ export async function broadcastToUser(
 				// We can't easily type the stream write method without Hono's internal types
 				const stream = client.stream
 				await stream.writeSSE({
-					data: JSON.stringify(data),
-					event: type,
+					data: JSON.stringify(message),
+					event: event.type,
 					id: String(Date.now()),
 				})
 				count++
 			} catch (error) {
-				console.error(`Failed to send to client ${clientId}:`, error)
+				logger.error(`Failed to send to client ${clientId}:`, error)
 				clients.delete(clientId)
 			}
 		}
@@ -168,7 +172,7 @@ export async function broadcastToUser(
 	await Promise.all(promises)
 
 	if (count > 0) {
-		console.log(`📡 Broadcast to user ${userId}: ${count} clients`)
+		logger.info(`📡 Broadcast to user ${userId}: ${count} clients`)
 	}
 }
 
@@ -190,6 +194,15 @@ export function getUserClientCount(userId: string): number {
 		}
 	})
 	return count
+}
+
+// Test-only exports - do not use in production
+export function __addTestClient(client: Client): void {
+	clients.set(client.id, client)
+}
+
+export function __clearTestClients(): void {
+	clients.clear()
 }
 
 // Event type helpers for type safety

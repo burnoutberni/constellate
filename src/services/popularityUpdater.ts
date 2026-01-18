@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // Update interval: run every 5 minutes
 const UPDATE_INTERVAL_MS = 5 * 60 * 1000
@@ -111,9 +112,9 @@ export async function runPopularityUpdateCycle() {
 		}
 
 		const duration = Date.now() - startTime
-		console.log(`✅ Popularity scores updated: ${totalUpdated} events in ${duration}ms`)
+		logger.info(`✅ Popularity scores updated: ${totalUpdated} events in ${duration}ms`)
 	} catch (error) {
-		console.error('Error updating popularity scores:', error)
+		logger.error('Error updating popularity scores:', error)
 	} finally {
 		isProcessing = false
 	}
@@ -134,7 +135,7 @@ export function startPopularityUpdater() {
 
 	intervalHandle = setInterval(runCycle, UPDATE_INTERVAL_MS)
 	runCycle() // Run immediately on startup
-	console.log('📊 Popularity updater started')
+	logger.info('📊 Popularity updater started')
 }
 
 /**
@@ -166,6 +167,6 @@ export async function updateEventPopularityScore(eventId: string) {
 			data: { popularityScore },
 		})
 	} catch (error) {
-		console.error(`Error updating popularity score for event ${eventId}:`, error)
+		logger.error(`Error updating popularity score for event ${eventId}:`, error)
 	}
 }

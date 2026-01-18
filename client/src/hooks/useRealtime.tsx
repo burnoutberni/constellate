@@ -104,6 +104,23 @@ const FollowAcceptedSchema = BaseEventSchema.extend({
 	}),
 })
 
+const FollowPendingSchema = BaseEventSchema.extend({
+	type: z.literal('follow:pending'),
+	data: z.object({
+		username: z.string(),
+		actorUrl: z.string(),
+	}),
+})
+
+const FollowRemovedSchema = BaseEventSchema.extend({
+	type: z.literal('follow:removed'),
+	data: z.object({
+		username: z.string(),
+		actorUrl: z.string(),
+		isFollowing: z.boolean(),
+	}),
+})
+
 const RealtimeEventSchema = z.discriminatedUnion('type', [
 	EventCreatedSchema,
 	EventUpdatedSchema,
@@ -120,6 +137,8 @@ const RealtimeEventSchema = z.discriminatedUnion('type', [
 	FollowAddedSchema,
 	FollowerAddedSchema,
 	FollowAcceptedSchema,
+	FollowPendingSchema,
+	FollowRemovedSchema,
 ])
 
 export type RealtimeEvent = z.infer<typeof RealtimeEventSchema>
@@ -170,7 +189,14 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 		})
 
 		const handleEvent = (data: string) => {
-			const result = RealtimeEventSchema.safeParse(JSON.parse(data))
+			let parsed: unknown
+			try {
+				parsed = JSON.parse(data)
+			} catch {
+				logger.error('Failed to parse SSE event', { data })
+				return
+			}
+			const result = RealtimeEventSchema.safeParse(parsed)
 			if (result.success) {
 				const event = result.data
 				setLastEvent(event)
@@ -203,8 +229,11 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 		// Profile updates
 		eventSource.addEventListener('profile:updated', (e) => handleEvent(e.data))
 
+		eventSource.addEventListener('follow:added', (e) => handleEvent(e.data))
 		eventSource.addEventListener('follow:accepted', (e) => handleEvent(e.data))
 		eventSource.addEventListener('follower:added', (e) => handleEvent(e.data))
+		eventSource.addEventListener('follow:pending', (e) => handleEvent(e.data))
+		eventSource.addEventListener('follow:removed', (e) => handleEvent(e.data))
 
 		// Error handling
 		eventSource.onerror = (error) => {

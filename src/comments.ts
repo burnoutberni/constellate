@@ -20,6 +20,7 @@ import { canUserViewEvent, isPublicVisibility } from './lib/eventVisibility.js'
 import { AppError } from './lib/errors.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { resolveMentions } from './lib/mentions.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -57,7 +58,7 @@ function getEventOwnerHandle(event: EventWithOwner): string {
 				return `${username}@${actorUrl.hostname}`
 			}
 		} catch (error) {
-			console.warn('Unable to derive event owner handle:', error)
+			logger.warn('Unable to derive event owner handle:', error)
 		}
 	}
 
@@ -329,7 +330,7 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 
 		const broadcastData = buildCommentBroadcastData(commentWithRelations, id)
 		await broadcast({ type: BroadcastEvents.COMMENT_ADDED, data: broadcastData })
-		console.log(`📡 Broadcasting comment:added for event ${id}`)
+		logger.debug(`📡 Broadcasting comment:added for event ${id}`)
 
 		await broadcastMentionNotifications(
 			mentionTargets,
@@ -347,7 +348,7 @@ app.post('/:id/comments', moderateRateLimit, async (c) => {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
-		console.error('Error creating comment:', error)
+		logger.error('Error creating comment:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -393,7 +394,7 @@ app.get('/:id/comments', async (c) => {
 			count: comments.length,
 		})
 	} catch (error) {
-		console.error('Error getting comments:', error)
+		logger.error('Error getting comments:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -489,7 +490,7 @@ app.delete('/comments/:commentId', moderateRateLimit, async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error deleting comment:', error)
+		logger.error('Error deleting comment:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

@@ -2,13 +2,33 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useMutationErrorHandler } from '@/hooks/useErrorHandler'
 import { api } from '@/lib/api-client'
-import type { UserProfile, FollowStatus, Event, SuggestedUser } from '@/types'
+import { getCurrentUser } from '@/lib/currentUserStore'
+import type { UserProfile, FollowStatus, Event, SuggestedUser, User } from '@/types'
 
 import { queryKeys } from './keys'
 
 interface UserProfileResponse {
 	user: UserProfile
 	events: Event[]
+}
+
+interface CurrentUserData {
+	id: string
+	username?: string | null
+	name?: string | null
+	profileImage?: string | null
+	displayColor?: string
+	createdAt?: string
+	isRemote?: boolean
+	isPublicProfile?: boolean
+}
+
+interface FollowMutationVariables {
+	currentUser?: Partial<User> | CurrentUserData | null
+}
+
+interface UnfollowMutationVariables {
+	currentUser?: Partial<User> | CurrentUserData | null
 }
 
 // Queries
@@ -54,6 +74,7 @@ export function useFollowStatus(username: string) {
 				undefined,
 				'Failed to fetch follow status'
 			),
+		staleTime: 1000 * 60 * 5,
 		enabled: Boolean(username),
 	})
 }
@@ -86,36 +107,16 @@ export function useFollowUser(username: string) {
 				undefined,
 				'Failed to follow user'
 			),
-		onMutate: async () => {
-			// Optimistic update
-			await queryClient.cancelQueries({
-				queryKey: queryKeys.users.profile(username),
-			})
+		onMutate: async (variables?: FollowMutationVariables) => {
+			// Optimistic update - only for follow status, not for counts
+			// Counts will be updated via SSE when the follow is accepted
 			await queryClient.cancelQueries({
 				queryKey: queryKeys.users.followStatus(username),
 			})
 
-			const previousProfile = queryClient.getQueryData<UserProfileResponse>(
-				queryKeys.users.profile(username)
-			)
 			const previousStatus = queryClient.getQueryData<FollowStatus>(
 				queryKeys.users.followStatus(username)
 			)
-
-			// Only optimistically update follower count for local users
-			// For remote users, we'll get the accurate count from the SSE event
-			if (previousProfile && !previousProfile.user.isRemote && previousProfile.user._count) {
-				queryClient.setQueryData<UserProfileResponse>(queryKeys.users.profile(username), {
-					...previousProfile,
-					user: {
-						...previousProfile.user,
-						_count: {
-							...previousProfile.user._count,
-							followers: (previousProfile.user._count.followers || 0) + 1,
-						},
-					},
-				})
-			}
 
 			// Optimistically update follow status to pending
 			queryClient.setQueryData<FollowStatus>(queryKeys.users.followStatus(username), {
@@ -123,30 +124,69 @@ export function useFollowUser(username: string) {
 				isAccepted: false,
 			})
 
-			return { previousProfile, previousStatus }
+			// Optimistically add current user to the target's followers list
+			const followersQueryKey = queryKeys.users.followers(username)
+			const currentFollowersData = queryClient.getQueryData<{
+				followers?: (User & { isPending?: boolean; isFollowing?: boolean })[]
+				following?: User[]
+				isRemote?: boolean
+				remoteNote?: string | null
+			}>(followersQueryKey)
+
+			let previousFollowersData = null
+			if (currentFollowersData?.followers) {
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache()
+
+				if (currentUser && currentUser.id && currentUser.username && !currentUser.isRemote) {
+					previousFollowersData = currentFollowersData
+					// Add current user as pending follower at the top of the list
+					const optimisticCurrentUser: User & { isPending: true; isFollowing: false; isRemote: boolean } = {
+						id: currentUser.id,
+						username: currentUser.username,
+						name: currentUser.name ?? undefined,
+						profileImage: currentUser.profileImage ?? undefined,
+						displayColor: currentUser.displayColor ?? '#3b82f6',
+						createdAt: currentUser.createdAt ?? new Date().toISOString(),
+						isRemote: currentUser.isRemote ?? false,
+						isPublicProfile: currentUser.isPublicProfile ?? true,
+						isPending: true,
+						isFollowing: false,
+					}
+					queryClient.setQueryData(followersQueryKey, {
+						...currentFollowersData,
+						followers: [optimisticCurrentUser, ...(currentFollowersData.followers || [])],
+					})
+				}
+			}
+
+			return { previousStatus, previousFollowersData }
 		},
 		onError: (error, _variables, context) => {
 			// Rollback on error
-			if (context?.previousProfile) {
-				queryClient.setQueryData(queryKeys.users.profile(username), context.previousProfile)
-			}
 			if (context?.previousStatus) {
 				queryClient.setQueryData(
 					queryKeys.users.followStatus(username),
 					context.previousStatus
 				)
 			}
+			// Rollback followers list
+			if (context?.previousFollowersData) {
+				queryClient.setQueryData(
+					queryKeys.users.followers(username),
+					context.previousFollowersData
+				)
+			}
 			// Handle error with user-friendly message
 			handleMutationError(error, 'Failed to follow user')
 		},
 		onSuccess: () => {
-			// Invalidate to get fresh data
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.users.profile(username),
-			})
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.users.followStatus(username),
-			})
+			// Invalidate to get fresh data (SSE will also update cache, but invalidation ensures consistency)
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.profile(username) })
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.followStatus(username) })
+			// Invalidate followers list to show the pending follower
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.followers(username) })
+			// Also invalidate suggestions to remove the followed user
+			queryClient.invalidateQueries({ queryKey: ['users', 'suggestions'] })
 		},
 	})
 }
@@ -162,7 +202,7 @@ export function useUnfollowUser(username: string) {
 				undefined,
 				'Failed to unfollow user'
 			),
-		onMutate: async () => {
+		onMutate: async (variables?: UnfollowMutationVariables) => {
 			// Optimistic update
 			await queryClient.cancelQueries({
 				queryKey: queryKeys.users.profile(username),
@@ -202,7 +242,33 @@ export function useUnfollowUser(username: string) {
 				isAccepted: false,
 			})
 
-			return { previousProfile, previousStatus }
+			// Optimistically remove current user from the target's followers list if pending
+			const followersQueryKey = queryKeys.users.followers(username)
+			const currentFollowersData = queryClient.getQueryData<{
+				followers?: (User & { isPending?: boolean; isFollowing?: boolean })[]
+				following?: User[]
+				isRemote?: boolean
+				remoteNote?: string | null
+			}>(followersQueryKey)
+
+			let previousFollowersData = null
+			if (currentFollowersData?.followers) {
+				const currentUser = variables?.currentUser ?? await getCurrentUserFromCache()
+
+				if (currentUser?.id) {
+					previousFollowersData = currentFollowersData
+					// Remove current user from followers list if they were pending
+					const filteredFollowers = currentFollowersData.followers?.filter(
+						(f) => f.id !== currentUser.id
+					)
+					queryClient.setQueryData(followersQueryKey, {
+						...currentFollowersData,
+						followers: filteredFollowers,
+					})
+				}
+			}
+
+			return { previousProfile, previousStatus, previousFollowersData }
 		},
 		onError: (error, _variables, context) => {
 			// Rollback on error
@@ -215,17 +281,29 @@ export function useUnfollowUser(username: string) {
 					context.previousStatus
 				)
 			}
+			// Rollback followers list
+			if (context?.previousFollowersData) {
+				queryClient.setQueryData(
+					queryKeys.users.followers(username),
+					context.previousFollowersData
+				)
+			}
 			// Handle error with user-friendly message
 			handleMutationError(error, 'Failed to unfollow user')
 		},
 		onSuccess: () => {
-			// Invalidate to get fresh data
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.users.profile(username),
-			})
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.users.followStatus(username),
-			})
+			// Invalidate to ensure UI updates
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.profile(username) })
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.followStatus(username) })
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.followers(username) })
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.following(username) })
+			// Also invalidate user-search queries used by FollowersModal/FollowingModal
+			queryClient.invalidateQueries({ queryKey: ['users', 'followers', username] })
+			queryClient.invalidateQueries({ queryKey: ['users', 'following', username] })
 		},
 	})
+}
+
+async function getCurrentUserFromCache(): Promise<CurrentUserData | null> {
+	return getCurrentUser()
 }

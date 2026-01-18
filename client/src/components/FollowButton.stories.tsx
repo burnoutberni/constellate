@@ -110,9 +110,32 @@ export const Large: Story = {
 	},
 }
 
-export const WithStatus: Story = {
+export const Following: Story = {
 	args: {
 		username: 'johndoe',
-		showStatus: true,
 	},
+	decorators: [
+		(Story) => {
+			queryClient.setQueryData(queryKeys.users.followStatus('johndoe'), {
+				isFollowing: true,
+				isAccepted: true,
+			})
+			return <Story />
+		},
+	],
+}
+
+export const Pending: Story = {
+	args: {
+		username: 'johndoe',
+	},
+	decorators: [
+		(Story) => {
+			queryClient.setQueryData(queryKeys.users.followStatus('johndoe'), {
+				isFollowing: true,
+				isAccepted: false,
+			})
+			return <Story />
+		},
+	],
 }

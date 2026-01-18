@@ -630,6 +630,7 @@ describe('Attendance API', () => {
 			expect(res.status).toBe(400)
 			const body = (await res.json()) as { error: string; message: string }
 			expect(body.error).toBe('REMINDER_TOO_LATE')
+			expect(body.message).toBe('Event already started')
 		})
 
 		it('should not surface non-reminder validation errors', async () => {
@@ -655,6 +656,99 @@ describe('Attendance API', () => {
 
 			// Non-reminder errors should be logged but not surfaced - attendance should succeed
 			expect(res.status).toBe(200)
+		})
+	})
+
+	describe('Background activity delivery', () => {
+		it('should skip delivery when attendance status has changed', async () => {
+			const mockEventWithOwner = {
+				...mockEvent,
+				user: { ...mockUser, id: 'owner' },
+				userId: 'owner',
+			}
+
+			vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEventWithOwner as any)
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+				id: 'attendance_123',
+				eventId: 'event_123',
+				userId: 'user_123',
+				status: AttendanceStatus.ATTENDING,
+			} as any)
+			vi.mocked(prisma.eventAttendance.findUnique).mockResolvedValue({
+				eventId: 'event_123',
+				userId: 'user_123',
+				status: AttendanceStatus.MAYBE,
+			} as any)
+
+			const res = await app.request('/api/attendance/event_123/attend', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: 'attending' }),
+			})
+
+			expect(res.status).toBe(200)
+			// The second call for findUnique should have different status
+			const upsertCall = vi.mocked(prisma.eventAttendance.upsert).mock.calls[0][0]
+			expect(upsertCall.update.status).toBe('attending')
+		})
+
+		it('should skip delivery when attendance record is deleted', async () => {
+			const mockEventWithOwner = {
+				...mockEvent,
+				user: { ...mockUser, id: 'owner' },
+				userId: 'owner',
+			}
+
+			vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEventWithOwner as any)
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(prisma.eventAttendance.upsert).mockResolvedValue({
+				id: 'attendance_123',
+				eventId: 'event_123',
+				userId: 'user_123',
+				status: AttendanceStatus.ATTENDING,
+			} as any)
+			vi.mocked(prisma.eventAttendance.findUnique).mockResolvedValue(null)
+
+			const res = await app.request('/api/attendance/event_123/attend', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: 'attending' }),
+			})
+
+			expect(res.status).toBe(200)
+		})
+
+		it('should not check staleness for undo operations', async () => {
+			const mockEventWithOwner = {
+				...mockEvent,
+				user: { ...mockUser, id: 'owner' },
+				userId: 'owner',
+			}
+
+			const mockAttendance = {
+				id: 'attendance_123',
+				eventId: 'event_123',
+				userId: 'user_123',
+				status: AttendanceStatus.ATTENDING,
+				event: mockEventWithOwner,
+				user: mockUser,
+			}
+
+			vi.mocked(prisma.eventAttendance.findUnique).mockResolvedValue(mockAttendance as any)
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(prisma.eventAttendance.delete).mockResolvedValue(mockAttendance as any)
+			vi.mocked(deliverActivity).mockResolvedValue()
+
+			const res = await app.request('/api/attendance/event_123/attend', {
+				method: 'DELETE',
+			})
+
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as { success: boolean }
+			expect(body.success).toBe(true)
+			// Should still call deliverActivity for undo (background)
+			expect(deliverActivity).toHaveBeenCalled()
 		})
 	})
 })

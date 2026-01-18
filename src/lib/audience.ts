@@ -6,6 +6,7 @@
 import { PUBLIC_COLLECTION } from '../constants/activitypub.js'
 import { getBaseUrl } from './activitypubHelpers.js'
 import { prisma } from './prisma.js'
+import { logger } from './logger.js'
 
 export interface Addressing {
 	to: string[]
@@ -207,7 +208,7 @@ async function processRecipientsInBatches(
 		// Log any failures but continue processing
 		results.forEach((result, index) => {
 			if (result.status === 'rejected') {
-				console.error(`Failed to process recipient ${batch[index]}:`, result.reason)
+				logger.error(`Failed to process recipient ${batch[index]}:`, result.reason)
 			}
 		})
 	}
@@ -228,11 +229,18 @@ async function processRecipientsInBatches(
  * @returns Array of unique inbox URLs to deliver to
  */
 export async function resolveInboxes(addressing: Addressing, userId: string): Promise<string[]> {
+	const resolveStartTime = Date.now()
 	const inboxes = new Set<string>()
 
 	// Process 'to' and 'cc' recipients in batches
 	const toAndCc = [...addressing.to, ...addressing.cc]
+	logger.debug(
+		`[Audience] Resolving ${addressing.to.length} 'to' and ${addressing.cc.length} 'cc' recipients`
+	)
+
+	const processStartTime = Date.now()
 	await processRecipientsInBatches(toAndCc, userId, inboxes)
+	logger.debug(`[Audience] Processed to/cc recipients in ${Date.now() - processStartTime}ms`)
 
 	// Process 'bcc' recipients in batches (same as 'to' but not included in activity)
 	// Note: bcc is typically used for direct messages or private addressing
@@ -240,5 +248,7 @@ export async function resolveInboxes(addressing: Addressing, userId: string): Pr
 		await processRecipientsInBatches(addressing.bcc, userId, inboxes)
 	}
 
+	const totalDuration = Date.now() - resolveStartTime
+	logger.debug(`[Audience] Resolved ${inboxes.size} unique inboxes in ${totalDuration}ms`)
 	return Array.from(inboxes)
 }

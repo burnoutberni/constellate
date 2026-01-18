@@ -8,6 +8,7 @@ import { CursorPaginationSchema } from './lib/pagination.js'
 import { prisma } from './lib/prisma.js'
 import { FeedService } from './services/FeedService.js'
 import { EventVisibility } from '@prisma/client'
+import { logger } from './lib/logger.js'
 
 // Re-export type for FeedService usage if needed
 
@@ -70,11 +71,11 @@ app.get('/activity/home', async (c) => {
 			return c.json({ items: [] })
 		}
 
-		console.log(`Fetching home feed for ${userId}, cursor: ${cursor}`)
+		logger.debug(`Fetching home feed for ${userId}, cursor: ${cursor}`)
 		const result = await FeedService.getHomeFeed(userId, cursor)
 		return c.json(result)
 	} catch (error) {
-		console.error('Error getting home feed:', error)
+		logger.error('Error getting home feed:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -97,7 +98,7 @@ app.get('/activity/feed', async (c) => {
 		const result = await FeedService.getFeed(userId, query.cursor, query.limit)
 		return c.json(result)
 	} catch (error) {
-		console.error('Error getting activity feed:', error)
+		logger.error('Error getting activity feed:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -140,7 +141,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
 				unacceptedFollowing: allFollowing.filter((f) => !f.accepted),
 			})
 		} catch (error) {
-			console.error('Error in debug endpoint:', error)
+			logger.error('Error in debug endpoint:', error)
 			return c.json({ error: 'Internal server error' }, 500)
 		}
 	})

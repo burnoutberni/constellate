@@ -9,9 +9,10 @@ import {
 	fetchActor,
 	cacheRemoteUser,
 } from '../lib/activitypubHelpers.js'
-import type { Person } from '../lib/activitypubSchemas.js'
+import type { Actor } from '../lib/activitypubSchemas.js'
 
 import { config } from '../config.js'
+import { logger } from '../lib/logger.js'
 
 const POLL_INTERVAL = config.instancePollIntervalMs
 const BATCH_SIZE = config.instancePollBatchSize
@@ -25,7 +26,7 @@ let isPolling = false
 export function startInstancePoller() {
 	if (pollInterval) return
 
-	console.log('🚀 Starting Instance Poller service...')
+	logger.info('🚀 Starting Instance Poller service...')
 
 	// Initial poll after short delay
 	setTimeout(() => void pollInstances(), 10000)
@@ -43,7 +44,7 @@ export function stopInstancePoller() {
 	if (pollInterval) {
 		clearInterval(pollInterval)
 		pollInterval = null
-		console.log('🛑 Stopped Instance Poller service')
+		logger.info('🛑 Stopped Instance Poller service')
 	}
 }
 
@@ -52,7 +53,7 @@ export function stopInstancePoller() {
  * Resets pagination to start from the beginning and refreshes user profiles
  */
 export async function refreshInstance(domain: string) {
-	console.log(`Force refreshing instance: ${domain}`)
+	logger.info(`Force refreshing instance: ${domain}`)
 	const instance = await prisma.instance.findUnique({
 		where: { domain },
 	})
@@ -92,7 +93,7 @@ async function refreshInstanceUsers(domain: string) {
 		},
 	})
 
-	console.log(`  Refreshing ${users.length} users from ${domain}...`)
+	logger.debug(`  Refreshing ${users.length} users from ${domain}...`)
 
 	// Refresh each user's profile
 	for (const user of users) {
@@ -101,14 +102,14 @@ async function refreshInstanceUsers(domain: string) {
 		try {
 			const actor = await fetchActor(user.externalActorUrl)
 			if (actor) {
-				await cacheRemoteUser(actor as unknown as Person)
+				await cacheRemoteUser(actor as Actor)
 			}
 		} catch (error) {
-			console.warn(`Failed to refresh user ${user.username}:`, error)
+			logger.warn(`Failed to refresh user ${user.username}:`, error)
 		}
 	}
 
-	console.log(`  ✅ Refreshed ${users.length} user profiles from ${domain}`)
+	logger.info(`  ✅ Refreshed ${users.length} user profiles from ${domain}`)
 }
 
 /**
@@ -119,7 +120,7 @@ async function pollInstances() {
 	isPolling = true
 
 	try {
-		console.log('🔄 Instance Poller: Starting poll cycle...')
+		logger.info('🔄 Instance Poller: Starting poll cycle...')
 
 		// Find instances that need polling
 		// Criteria: Not blocked, and (never fetched OR fetched longer than interval ago)
@@ -143,16 +144,16 @@ async function pollInstances() {
 			})
 
 			if (totalInstances > 0) {
-				console.log(
+				logger.info(
 					`Instance Poller: All ${totalInstances} instances are up to date (next poll due later).`
 				)
 			} else {
-				console.log('Instance Poller: No instances tracked.')
+				logger.info('Instance Poller: No instances tracked.')
 			}
 			return
 		}
 
-		console.log(`Instance Poller: Processing ${instances.length} instances...`)
+		logger.info(`Instance Poller: Processing ${instances.length} instances...`)
 
 		// Process in batches
 		for (let i = 0; i < instances.length; i += BATCH_SIZE) {
@@ -160,9 +161,9 @@ async function pollInstances() {
 			await Promise.all(batch.map(processInstance))
 		}
 
-		console.log('✅ Instance Poller: Cycle complete.')
+		logger.info('✅ Instance Poller: Cycle complete.')
 	} catch (error) {
-		console.error('Instance Poller Error:', error)
+		logger.error('Instance Poller Error:', error)
 	} finally {
 		isPolling = false
 	}
@@ -203,7 +204,7 @@ async function processInstance(instance: {
 			if (activities.length > 0) {
 				const cachedCount = await cacheActivities(activities, publicUrl, instance.baseUrl)
 
-				console.log(
+				logger.debug(
 					`  Fetched ${activities.length} activities for ${instance.domain}, cached ${cachedCount} events.`
 				)
 
@@ -242,7 +243,7 @@ async function processInstance(instance: {
 			})
 		}
 	} catch (error) {
-		console.error(`Error polling ${instance.domain}:`, error)
+		logger.error(`Error polling ${instance.domain}:`, error)
 		await prisma.instance.update({
 			where: { domain: instance.domain },
 			data: {
@@ -277,7 +278,7 @@ async function cacheActivities(
 			cachedCount++
 		} catch (err) {
 			// Ignore individual errors
-			console.warn(`Error caching activity:`, err)
+			logger.warn(`Error caching activity:`, err)
 		}
 	}
 	return cachedCount

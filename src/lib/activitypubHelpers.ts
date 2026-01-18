@@ -7,8 +7,9 @@ import { safeFetch } from './ssrfProtection.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
-import type { Person } from './activitypubSchemas.js'
+import type { Actor } from './activitypubSchemas.js'
 import { trackInstance } from './instanceHelpers.js'
+import { logger } from './logger.js'
 
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
 const THIRTY_DAYS_IN_MS = 30 * ONE_DAY_IN_MS
@@ -21,6 +22,20 @@ export function getBaseUrl(): string {
 	return config.baseUrl
 }
 
+/**
+ * Extracts a collection URL from various possible formats
+ * Handles both string URLs and ActivityPub object references with an 'id' property
+ * @param val - Either a string URL or an object with an 'id' property
+ * @returns The collection URL string, or null if not found
+ */
+export function getCollectionUrl(val: unknown): string | null {
+	if (typeof val === 'string') return val
+	if (val && typeof val === 'object' && 'id' in val) {
+		return (val as { id: string }).id
+	}
+	return null
+}
+
 // resolveWebFinger moved to ./webfinger.ts
 
 /**
@@ -29,20 +44,43 @@ export function getBaseUrl(): string {
  * @returns Actor object
  */
 export async function fetchActor(actorUrl: string): Promise<Record<string, unknown> | null> {
+	const startTime = Date.now()
 	try {
 		const response = await safeFetch(actorUrl, {
 			headers: {
-				Accept: ContentType.ACTIVITY_JSON,
+				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
 			},
 		})
 
+		const duration = Date.now() - startTime
+
 		if (!response.ok) {
+			logger.debug(`[fetchActor] ${actorUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
-		return (await response.json()) as Record<string, unknown>
+		// Check content-type before parsing
+		const contentType = response.headers.get('content-type') || ''
+		if (
+			!contentType.includes('application/activity+json') &&
+			!contentType.includes('application/ld+json') &&
+			!contentType.includes('application/json')
+		) {
+			logger.debug(
+				`[fetchActor] Skipping non-JSON response from ${actorUrl}: ${contentType} (${duration}ms)`
+			)
+			return null
+		}
+
+		const actor = (await response.json()) as Record<string, unknown>
+		logger.debug(`[fetchActor] ${actorUrl} → OK (${duration}ms)`)
+		return actor
 	} catch (error) {
-		console.error('Error fetching actor:', error)
+		const duration = Date.now() - startTime
+		logger.debug(
+			`[fetchActor] ${actorUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
 		return null
 	}
 }
@@ -52,7 +90,7 @@ export async function fetchActor(actorUrl: string): Promise<Record<string, unkno
  * @param actor - Actor object from remote instance
  * @returns User record
  */
-export async function cacheRemoteUser(actor: Person) {
+export async function cacheRemoteUser(actor: Actor) {
 	const actorUrl = actor.id
 
 	// Extract username from actor URL or preferredUsername
@@ -68,7 +106,7 @@ export async function cacheRemoteUser(actor: Person) {
 	// Track the instance this user belongs to
 	// This runs in background to not block user interaction
 	trackInstance(actorUrl).catch((error) => {
-		console.error('Error tracking instance:', error)
+		logger.error('Error tracking instance:', error)
 	})
 
 	// Extract icon URL - handle both string and object formats
@@ -86,6 +124,8 @@ export async function cacheRemoteUser(actor: Person) {
 	const profileImageUrl = getIconUrl(actor.icon)
 	const headerImageUrl = getIconUrl(actor.image)
 
+	const createdAt = actor.published ? new Date(actor.published) : undefined
+
 	// Upsert user
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
@@ -98,6 +138,8 @@ export async function cacheRemoteUser(actor: Person) {
 			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
+			createdAt: createdAt,
+			profileSync: new Date(),
 		},
 		create: {
 			username: `${username}@${new URL(actorUrl).hostname}`,
@@ -111,8 +153,60 @@ export async function cacheRemoteUser(actor: Person) {
 			headerImage: headerImageUrl,
 			bio: actor.summary || null,
 			displayColor: actor.displayColor || '#3b82f6',
+			createdAt: createdAt || undefined,
+			profileSync: new Date(),
 		},
 	})
+}
+
+/**
+ * Caches a remote user by URL - checks cache first before fetching
+ * @param actorUrl - URL of the remote actor
+ * @returns User record or null if unable to fetch
+ */
+export async function cacheRemoteUserByUrl(actorUrl: string) {
+	// First check if user is already cached in our database
+	const startTime = Date.now()
+	const cachedUser = await prisma.user.findUnique({
+		where: { externalActorUrl: actorUrl },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			profileImage: true,
+			displayColor: true,
+			isRemote: true,
+		},
+	})
+
+	if (cachedUser) {
+		const duration = Date.now() - startTime
+		logger.debug(`[cacheUser] ${actorUrl} → CACHED (${duration}ms) @${cachedUser.username}`)
+		return cachedUser
+	}
+
+	// If not cached, fetch from remote and cache
+	const fetchStartTime = Date.now()
+	try {
+		const actor = await fetchActor(actorUrl)
+		if (actor) {
+			const cached = await cacheRemoteUser(actor as Actor)
+			const fetchDuration = Date.now() - fetchStartTime
+			logger.debug(
+				`[cacheUser] ${actorUrl} → FETCHED (${fetchDuration}ms) @${cached.username}`
+			)
+			return cached
+		}
+		logger.debug(`[cacheUser] ${actorUrl} → NULL (no actor)`)
+		return null
+	} catch (error) {
+		const fetchDuration = Date.now() - fetchStartTime
+		logger.debug(
+			`[cacheUser] ${actorUrl} → ERROR (${fetchDuration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
+		return null
+	}
 }
 
 /**
@@ -256,23 +350,23 @@ export async function isDomainBlocked(domain: string): Promise<boolean> {
 }
 
 /**
- * Fetches follower count from a remote user's ActivityPub followers collection
- * @param actorUrl - Remote user's actor URL
- * @returns Follower count, or null if unable to fetch
+ * Fetches the count of items in a remote collection
+ * @param collectionUrl - URL of the collection
+ * @returns Count, or null if unable to fetch
  */
-export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number | null> {
+export async function fetchRemoteCollectionCount(collectionUrl: string): Promise<number | null> {
+	const startTime = Date.now()
 	try {
-		// Construct followers collection URL
-		const followersUrl = `${actorUrl}/followers`
-
-		const response = await safeFetch(followersUrl, {
+		const response = await safeFetch(collectionUrl, {
 			headers: {
-				Accept: ContentType.ACTIVITY_JSON,
+				Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
 			},
 		})
 
+		const duration = Date.now() - startTime
+
 		if (!response.ok) {
-			console.error(`Failed to fetch followers collection: ${response.status}`)
+			logger.debug(`[collectionCount] ${collectionUrl} → ${response.status} (${duration}ms)`)
 			return null
 		}
 
@@ -280,22 +374,155 @@ export async function fetchRemoteFollowerCount(actorUrl: string): Promise<number
 
 		// Extract totalItems from the collection
 		if (collection.totalItems !== undefined) {
-			return typeof collection.totalItems === 'number'
-				? collection.totalItems
-				: parseInt(collection.totalItems, 10)
+			const count =
+				typeof collection.totalItems === 'number'
+					? collection.totalItems
+					: parseInt(collection.totalItems, 10)
+			logger.debug(`[collectionCount] ${collectionUrl} → ${count} (${duration}ms)`)
+			return count
 		}
 
+		logger.debug(`[collectionCount] ${collectionUrl} → null (no totalItems) (${duration}ms)`)
 		return null
 	} catch (error) {
-		console.error('Error fetching remote follower count:', error)
+		const duration = Date.now() - startTime
+		logger.debug(
+			`[collectionCount] ${collectionUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
 		return null
 	}
 }
 
+/**
+ * Fetches items from a remote collection (followers, following, etc)
+ * Handles pagination by following the 'next' property
+ * Stops once a sufficient number of items have been collected to avoid
+ * performance issues with large collections
+ * @param collectionUrl - URL of the collection
+ * @param limit - Maximum number of items to fetch (default: 100)
+ * @returns Array of items, or empty array if unable to fetch
+ */
+export async function fetchRemoteCollectionItems<T = unknown>(
+	collectionUrl: string,
+	limit = 100
+): Promise<T[]> {
+	const startTime = Date.now()
+
+	try {
+		const allItems = await fetchAllPages<T>(collectionUrl, startTime, limit)
+		return allItems
+	} catch (error) {
+		const duration = Date.now() - startTime
+		logger.debug(
+			`[collectionItems] ${collectionUrl} → ERROR (${duration}ms)`,
+			error instanceof Error ? error.message : 'Unknown'
+		)
+		return []
+	}
+}
+
+async function fetchAllPages<T>(url: string, startTime: number, limit: number): Promise<T[]> {
+	const allItems: T[] = []
+	let nextUrl: string | null = url
+	let pageCount = 0
+
+	while (nextUrl && allItems.length < limit) {
+		const pageResult: { items: T[]; nextUrl: string | null } | null =
+			await fetchSinglePage<T>(nextUrl)
+		if (pageResult === null) {
+			break
+		}
+
+		const { items, nextUrl: nextPageUrl }: { items: T[]; nextUrl: string | null } = pageResult
+
+		const remaining = limit - allItems.length
+		if (items.length > remaining) {
+			allItems.push(...items.slice(0, remaining))
+			break
+		}
+
+		allItems.push(...items)
+		pageCount++
+
+		nextUrl = nextPageUrl
+	}
+
+	logCompletion(url, allItems.length, pageCount, startTime, limit)
+	return allItems
+}
+
+async function fetchSinglePage<T>(
+	pageUrl: string
+): Promise<{ items: T[]; nextUrl: string | null } | null> {
+	const response = await safeFetch(pageUrl, {
+		headers: {
+			Accept: `${ContentType.ACTIVITY_JSON}, ${ContentType.LD_JSON}, application/json`,
+		},
+	})
+
+	if (!response.ok) {
+		logger.debug(`[collectionItems] ${pageUrl} → ${response.status}`)
+		return null
+	}
+
+	const collection = (await response.json()) as {
+		orderedItems?: T[]
+		items?: T[]
+		first?: string | { id?: string }
+		next?: string
+	}
+
+	const items = collection.orderedItems || collection.items || []
+	const nextUrl = collection.next || null
+
+	if (items.length > 0) {
+		return { items, nextUrl }
+	}
+
+	if (collection.first) {
+		const firstUrl =
+			typeof collection.first === 'string'
+				? collection.first
+				: (collection.first as { id?: string }).id
+		if (firstUrl && firstUrl !== pageUrl) {
+			const firstResponse = await safeFetch(firstUrl, {
+				headers: { Accept: ContentType.ACTIVITY_JSON },
+			})
+			if (firstResponse.ok) {
+				const firstPage = (await firstResponse.json()) as {
+					orderedItems?: T[]
+					items?: T[]
+					next?: string
+				}
+				return {
+					items: firstPage.orderedItems || firstPage.items || [],
+					nextUrl: firstPage.next || null,
+				}
+			}
+		}
+	}
+
+	return { items: [], nextUrl }
+}
+
+function logCompletion(
+	url: string,
+	totalItems: number,
+	pageCount: number,
+	startTime: number,
+	limit?: number
+) {
+	const message = limit
+		? `${url} → ${totalItems} items (limited to ${limit}) in ${pageCount} pages (${Date.now() - startTime}ms)`
+		: `${url} → ${totalItems} items in ${pageCount} pages (${Date.now() - startTime}ms)`
+	logger.debug(`[collectionItems] ${message}`)
+}
+
 // Helper function to extract location value from event location
-export function extractLocationValue(
-	eventLocation: string | Record<string, unknown> | undefined
-): string | null {
+type EventLocationType = string | Record<string, unknown> | undefined
+
+export function extractLocationValue(eventLocation: EventLocationType): string | null {
 	if (!eventLocation) return null
 	if (typeof eventLocation === 'string') return eventLocation
 	if (typeof eventLocation === 'object' && 'name' in eventLocation) {
@@ -312,87 +539,42 @@ export async function cacheEventFromOutboxActivity(
 	const activityType = activityObj.type
 	const activityObject = activityObj.object as Record<string, unknown> | undefined
 
-	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+	if (!isValidEventCreateActivity(activityType, activityObject)) {
 		return
 	}
 
-	// Handle Announce activities separately or ignore them (usually they point to an existing object)
-	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
-		// For now we ignore Announce/Boosts in this helper,
-		// as we prefer processing the original Create activity or the object directly.
-		return
-	}
+	if (!activityObject) return
 
 	const eventObj = (activityObject.object || activityObject) as Record<string, unknown>
 	const eventId = eventObj.id as string | undefined
 	const eventName = eventObj.name as string | undefined
-	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
-	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 	const eventStartTime = eventObj.startTime as string | undefined
-	const eventEndTime = eventObj.endTime as string | undefined
 
 	if (!eventId || !eventName || !eventStartTime) {
 		return
 	}
 
-	// Optimization: Skip past events
-	// Allow a small buffer (e.g. 24h) for recent events, but otherwise ignore history
+	const eventEndTime = eventObj.endTime as string | undefined
+	const eventDuration = eventObj.duration as string | undefined
+
 	const now = new Date()
 	const yesterday = new Date(now.getTime() - ONE_DAY_IN_MS)
 	const end = eventEndTime ? new Date(eventEndTime) : new Date(eventStartTime)
 
-	// If the event ended before yesterday, skip it
 	if (end < yesterday) {
 		return
 	}
-	const eventDuration = eventObj.duration as string | undefined
 	const eventUrl = eventObj.url as string | undefined
 	const eventStatus = eventObj.eventStatus as string | undefined
 	const eventAttendanceMode = eventObj.eventAttendanceMode as string | undefined
 	const eventMaxCapacity = eventObj.maximumAttendeeCapacity as number | undefined
 	const eventAttachment = eventObj.attachment as Array<{ url?: string }> | undefined
+	const eventSummary = (eventObj.summary || eventObj.content) as string | undefined
+	const eventLocation = eventObj.location as string | Record<string, unknown> | undefined
 
 	const locationValue = extractLocationValue(eventLocation)
 
-	// Extract organizers (attributedTo + contacts)
-	let rawAttributedTo: string[] = []
-	if (Array.isArray(eventObj.attributedTo)) {
-		rawAttributedTo = eventObj.attributedTo.filter(
-			(item): item is string => typeof item === 'string'
-		)
-	} else if (typeof eventObj.attributedTo === 'string') {
-		rawAttributedTo = [eventObj.attributedTo]
-	}
-
-	let rawContacts: string[] = []
-	if (Array.isArray(eventObj.contacts)) {
-		rawContacts = eventObj.contacts.filter((item): item is string => typeof item === 'string')
-	} else if (typeof eventObj.contacts === 'string') {
-		rawContacts = [eventObj.contacts]
-	}
-
-	// Combine and deduplicate
-	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
-
-	// Format for storage
-	const organizers = organizerUrls.map((url) => {
-		try {
-			const u = new URL(url)
-			const pathParts = u.pathname.split('/').filter(Boolean)
-			const username =
-				pathParts.find((p) => p.startsWith('@'))?.replace('@', '') ||
-				pathParts[pathParts.length - 1]
-			return {
-				url,
-				username: username || 'unknown',
-				host: u.hostname,
-				display: username ? `@${username}@${u.hostname}` : u.hostname,
-			}
-		} catch (error) {
-			console.error(`Failed to parse organizer URL: ${url}`, error)
-			return { url, username: 'unknown', host: 'unknown', display: url }
-		}
-	})
+	const organizerData = extractOrganizerData(eventObj, userExternalActorUrl)
 
 	const eventData = {
 		title: eventName,
@@ -406,8 +588,8 @@ export async function cacheEventFromOutboxActivity(
 		eventAttendanceMode: eventAttendanceMode || null,
 		maximumAttendeeCapacity: eventMaxCapacity || null,
 		headerImage: eventAttachment?.[0]?.url || null,
-		attributedTo: userExternalActorUrl,
-		organizers: organizers.length > 0 ? organizers : undefined,
+		attributedTo: organizerData.primaryAttributedTo,
+		organizers: organizerData.organizers.length > 0 ? organizerData.organizers : undefined,
 	}
 
 	await prisma.event.upsert({
@@ -418,5 +600,79 @@ export async function cacheEventFromOutboxActivity(
 			externalId: eventId,
 			userId: null,
 		},
+	})
+}
+
+function isValidEventCreateActivity(
+	activityType: unknown,
+	activityObject: Record<string, unknown> | undefined
+): boolean {
+	if (activityType !== 'Create' || !activityObject || activityObject.type !== 'Event') {
+		return false
+	}
+	if ((activityObject as unknown as { type?: unknown }).type === 'Announce') {
+		return false
+	}
+	return true
+}
+
+function extractOrganizerData(eventObj: Record<string, unknown>, userExternalActorUrl: string) {
+	const rawAttributedTo = extractStringArray(eventObj.attributedTo)
+	const rawContacts = extractStringArray(eventObj.contacts)
+	const organizerUrls = [...new Set([...rawAttributedTo, ...rawContacts])] as string[]
+
+	let primaryAttributedTo = userExternalActorUrl
+	if (rawAttributedTo.length > 0) {
+		primaryAttributedTo = rawAttributedTo[0]
+	}
+
+	const organizerObj = eventObj.organizer as Record<string, unknown> | string | undefined
+	if (organizerObj) {
+		if (typeof organizerObj === 'string') {
+			primaryAttributedTo = organizerObj
+			if (!organizerUrls.includes(organizerObj)) organizerUrls.unshift(organizerObj)
+		} else if (
+			typeof organizerObj === 'object' &&
+			'id' in organizerObj &&
+			typeof organizerObj.id === 'string'
+		) {
+			primaryAttributedTo = organizerObj.id
+			if (!organizerUrls.includes(organizerObj.id)) organizerUrls.unshift(organizerObj.id)
+		}
+	}
+
+	const organizers = formatOrganizers(organizerUrls)
+
+	return { primaryAttributedTo, organizers }
+}
+
+function extractStringArray(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is string => typeof item === 'string')
+	}
+	if (typeof value === 'string') {
+		return [value]
+	}
+	return []
+}
+
+function formatOrganizers(organizerUrls: string[]) {
+	return organizerUrls.map((url) => {
+		try {
+			const u = new URL(url)
+			const pathParts = u.pathname.split('/').filter(Boolean)
+			const username =
+				pathParts.find((p) => p.startsWith('@'))?.replace('@', '') ||
+				pathParts[pathParts.length - 1]
+			return {
+				url,
+				username: username || 'unknown',
+				host: u.hostname,
+				display: username ? `@${username}@${u.hostname}` : u.hostname,
+			}
+		} catch (error) {
+			logger.error(`Failed to parse organizer URL: ${url}`, error)
+			return { url, username: 'unknown', host: 'unknown', display: url }
+		}
 	})
 }

@@ -3,6 +3,9 @@
  * Validates URLs to prevent Server-Side Request Forgery attacks
  */
 
+import crypto from 'crypto'
+import { logger } from './logger.js'
+
 const ALLOWED_PROTOCOLS = ['http:', 'https:']
 
 function isAllowedProtocol(url: URL) {
@@ -57,7 +60,7 @@ async function resolveAndValidateDns(hostname: string): Promise<string | null> {
 			}
 		}
 	} catch (error) {
-		console.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
+		logger.error(`[SSRF] DNS resolution failed for: ${hostname}`, error)
 		return `[SSRF] DNS resolution failed for: ${hostname}`
 	}
 
@@ -121,14 +124,14 @@ export async function isUrlSafe(urlString: string): Promise<boolean> {
 
 		const privateReason = getPrivateHostnameReason(hostname)
 		if (privateReason) {
-			console.error(privateReason)
+			logger.error(privateReason)
 			return false
 		}
 
 		if (!shouldSkipDns(hostname)) {
 			const dnsBlockReason = await resolveAndValidateDns(hostname)
 			if (dnsBlockReason) {
-				console.error(dnsBlockReason)
+				logger.error(dnsBlockReason)
 				return false
 			}
 		}
@@ -152,56 +155,122 @@ export async function isUrlSafe(urlString: string): Promise<boolean> {
 export async function safeFetch(
 	url: string,
 	options?: RequestInit,
-	timeoutMs: number = 30000, // 30 seconds default
+	timeoutMs: number = 30000,
 	maxRedirects: number = 5
 ): Promise<Response> {
 	let currentUrl = url
 	let redirectCount = 0
 
+	const requestId = crypto.randomBytes(4).toString('hex')
+	const startTime = Date.now()
+
+	logger.debug(`[OUTGOING] ${requestId} GET ${url}`)
+
 	while (redirectCount <= maxRedirects) {
-		// Validate current URL
 		if (!(await isUrlSafe(currentUrl))) {
 			throw new Error(`URL is not safe to fetch: ${currentUrl}`)
 		}
 
-		// Create AbortController for timeout
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+		const response = await executeFetchWithTimeout(
+			currentUrl,
+			options,
+			timeoutMs,
+			requestId,
+			startTime
+		)
 
-		try {
-			const response = await fetch(currentUrl, {
-				...options,
-				signal: controller.signal,
-				redirect: 'manual', // Handle redirects manually
-			})
-			clearTimeout(timeoutId)
-
-			// Check for redirects
-			if (response.status >= 300 && response.status < 400) {
-				const location = response.headers.get('location')
-				if (!location) {
-					throw new Error('Redirect without location header')
-				}
-
-				// Resolve relative URLs
-				currentUrl = new URL(location, currentUrl).toString()
-				redirectCount++
-
-				console.log(
-					`[SSRF] Following redirect ${redirectCount}/${maxRedirects}: ${currentUrl}`
-				)
-				continue
-			}
-
-			return response
-		} catch (error: unknown) {
-			clearTimeout(timeoutId)
-			if (error instanceof Error && error.name === 'AbortError') {
-				throw new Error(`Request timeout after ${timeoutMs}ms: ${currentUrl}`)
-			}
-			throw error
+		const redirectResponse = handleRedirectIfNeeded(
+			response,
+			currentUrl,
+			redirectCount,
+			maxRedirects,
+			requestId
+		)
+		if (redirectResponse) {
+			currentUrl = redirectResponse.url
+			redirectCount = redirectResponse.count
+			continue
 		}
+
+		return response
 	}
 
 	throw new Error(`Too many redirects (max ${maxRedirects})`)
+}
+
+async function executeFetchWithTimeout(
+	currentUrl: string,
+	options: RequestInit | undefined,
+	timeoutMs: number,
+	requestId: string,
+	startTime: number
+): Promise<Response> {
+	const controller = new AbortController()
+	const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+	try {
+		const response = await fetch(currentUrl, {
+			...options,
+			signal: controller.signal,
+			redirect: 'manual',
+		})
+		clearTimeout(timeoutId)
+
+		logResponse(requestId, currentUrl, response.status, startTime)
+
+		return response
+	} catch (error: unknown) {
+		clearTimeout(timeoutId)
+		throw handleFetchError(error, requestId, currentUrl, startTime, timeoutMs)
+	}
+}
+
+function handleRedirectIfNeeded(
+	response: Response,
+	currentUrl: string,
+	redirectCount: number,
+	maxRedirects: number,
+	requestId: string
+): { url: string; count: number } | null {
+	if (response.status >= 300 && response.status < 400) {
+		const location = response.headers.get('location')
+		if (!location) {
+			throw new Error('Redirect without location header')
+		}
+
+		const newUrl = new URL(location, currentUrl).toString()
+		const newCount = redirectCount + 1
+
+		logger.debug(
+			`[OUTGOING] ${requestId} Following redirect ${newCount}/${maxRedirects}: ${newUrl}`
+		)
+
+		return { url: newUrl, count: newCount }
+	}
+	return null
+}
+
+function handleFetchError(
+	error: unknown,
+	requestId: string,
+	currentUrl: string,
+	startTime: number,
+	timeoutMs: number
+): Error {
+	const duration = Date.now() - startTime
+	logger.debug(
+		`[OUTGOING] ${requestId} ${currentUrl} → ERROR (${duration}ms)`,
+		error instanceof Error ? error.message : 'Unknown error'
+	)
+	if (error instanceof Error && error.name === 'AbortError') {
+		return new Error(`Request timeout after ${timeoutMs}ms: ${currentUrl}`)
+	}
+	return error instanceof Error ? error : new Error('Unknown error')
+}
+
+function logResponse(requestId: string, currentUrl: string, statusCode: number, startTime: number) {
+	const duration = Date.now() - startTime
+	const isSlow = duration > 1000
+	const logMessage = `[OUTGOING] ${requestId} ${currentUrl} → ${statusCode} (${duration}ms)${isSlow ? ' [SLOW]' : ''}`
+	logger.debug(logMessage)
 }

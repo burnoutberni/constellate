@@ -1,8 +1,38 @@
 import type { Prisma } from '@prisma/client'
 
+interface UserWithRemoteInfo {
+	id: string
+	isRemote: boolean
+	externalActorUrl: string | null
+}
+
 interface EventFilterOptions {
 	onlyMine?: boolean
 	userId?: string
+}
+
+/**
+ * Builds a Prisma where clause for filtering events by user (local or remote).
+ * For remote users, includes events where they are the organizer via:
+ * - Direct userId match
+ * - attributedTo match (ActivityPub actor URL)
+ * - organizers array containment match
+ * For local users, simply filters by userId.
+ */
+export function buildEventsWhereClause(user: UserWithRemoteInfo): Prisma.EventWhereInput {
+	return user.isRemote
+		? {
+				OR: [
+					{ userId: user.id },
+					{ attributedTo: user.externalActorUrl || undefined },
+					{
+						organizers: {
+							array_contains: [{ url: user.externalActorUrl }],
+						},
+					},
+				],
+			}
+		: { userId: user.id }
 }
 
 /**

@@ -11,8 +11,19 @@ import {
 	getClientCount,
 	getUserClientCount,
 	BroadcastEvents,
+	__addTestClient,
+	__clearTestClients,
 } from '../realtime.js'
 import realtimeApp from '../realtime.js'
+
+interface MockClient {
+	id: string
+	userId: string
+	stream: {
+		writeSSE: ReturnType<typeof vi.fn>
+		sleep: ReturnType<typeof vi.fn>
+	}
+}
 
 // Mock Hono SSE streaming
 vi.mock('hono/streaming', () => ({
@@ -28,6 +39,7 @@ describe('Real-time Updates (SSE)', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks()
+		__clearTestClients()
 
 		mockWriteSSE = vi.fn().mockResolvedValue(undefined)
 		mockSleep = vi.fn().mockResolvedValue(undefined)
@@ -60,22 +72,26 @@ describe('Real-time Updates (SSE)', () => {
 
 	afterEach(() => {
 		vi.clearAllMocks()
+		__clearTestClients()
 	})
+
+	function createMockClient(id: string, userId: string): MockClient {
+		const writeSSE = vi.fn().mockResolvedValue(undefined)
+		const sleep = vi.fn().mockResolvedValue(undefined)
+		return {
+			id,
+			userId,
+			stream: { writeSSE, sleep },
+		}
+	}
 
 	describe('Broadcast Function', () => {
 		it('should broadcast to all connected clients', async () => {
-			const event = {
-				type: 'test-event',
-				data: { message: 'test' },
-			}
+			const client1 = createMockClient('client-1', 'user-1')
+			const client2 = createMockClient('client-2', 'user-2')
+			__addTestClient(client1 as any)
+			__addTestClient(client2 as any)
 
-			// First, we need to have some clients connected
-			// Since we can't directly access the clients Map, we'll test
-			// the broadcast function by checking it doesn't throw
-			await expect(broadcast(event)).resolves.not.toThrow()
-		})
-
-		it('should include timestamp in broadcast message', async () => {
 			const event = {
 				type: 'test-event',
 				data: { message: 'test' },
@@ -83,19 +99,48 @@ describe('Real-time Updates (SSE)', () => {
 
 			await broadcast(event)
 
-			// Broadcast should complete without error
-			// The timestamp is added internally
-			expect(true).toBe(true) // Placeholder - we can't easily verify the timestamp
+			expect(client1.stream.writeSSE).toHaveBeenCalled()
+			expect(client2.stream.writeSSE).toHaveBeenCalled()
 		})
 
-		it('should filter by targetUserId when specified', async () => {
+		it('should include timestamp in broadcast message', async () => {
+			const client = createMockClient('client-1', 'user-1')
+			__addTestClient(client as any)
+
 			const event = {
 				type: 'test-event',
 				data: { message: 'test' },
-				targetUserId: 'user-123',
 			}
 
-			await expect(broadcast(event)).resolves.not.toThrow()
+			const beforeTime = Date.now()
+			await broadcast(event)
+			const afterTime = Date.now()
+
+			expect(client.stream.writeSSE).toHaveBeenCalled()
+			const callArg = client.stream.writeSSE.mock.calls[0][0]
+			const data = JSON.parse(callArg.data)
+			expect(data.timestamp).toBeDefined()
+			const timestamp = new Date(data.timestamp).getTime()
+			expect(timestamp).toBeGreaterThanOrEqual(beforeTime)
+			expect(timestamp).toBeLessThanOrEqual(afterTime)
+		})
+
+		it('should filter by targetUserId when specified', async () => {
+			const client1 = createMockClient('client-1', 'user-1')
+			const client2 = createMockClient('client-2', 'user-2')
+			__addTestClient(client1 as any)
+			__addTestClient(client2 as any)
+
+			const event = {
+				type: 'test-event',
+				data: { message: 'test' },
+				targetUserId: 'user-1',
+			}
+
+			await broadcast(event)
+
+			expect(client1.stream.writeSSE).toHaveBeenCalled()
+			expect(client2.stream.writeSSE).not.toHaveBeenCalled()
 		})
 
 		it('should handle broadcast to zero clients', async () => {
@@ -108,567 +153,329 @@ describe('Real-time Updates (SSE)', () => {
 		})
 
 		it('should handle broadcast errors gracefully', async () => {
+			const failingClient = createMockClient('failing-client', 'user-1')
+			failingClient.stream.writeSSE.mockRejectedValueOnce(new Error('Connection lost'))
+			__addTestClient(failingClient as any)
+
 			const event = {
 				type: 'test-event',
 				data: { message: 'test' },
 			}
 
-			// Even if there are errors sending to clients,
-			// broadcast should not throw
 			await expect(broadcast(event)).resolves.not.toThrow()
 		})
-	})
 
-	describe('broadcastToUser Function', () => {
-		it('should broadcast to specific user', async () => {
-			const userId = 'user-123'
+		it('should log "Broadcasting" when sending to clients', async () => {
+			process.env.LOG_LEVEL = 'debug'
+
+			const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+			const client = createMockClient('client-1', 'user-1')
+			__addTestClient(client as any)
+
 			const event = {
 				type: 'test-event',
 				data: { message: 'test' },
 			}
 
-			await expect(broadcastToUser(userId, event)).resolves.not.toThrow()
-		})
+			await broadcast(event)
 
-		it('should include timestamp in user broadcast', async () => {
-			const userId = 'user-123'
-			const event = {
-				type: 'test-event',
-				data: { message: 'test' },
-			}
+			// Check that at least one info call contains the Broadcasting message
+			const broadcastLogCall = consoleSpy.mock.calls.find(
+				(call) => typeof call[0] === 'string' && call[0].includes('📡 Broadcasting')
+			)
+			expect(broadcastLogCall).toBeDefined()
 
-			await expect(broadcastToUser(userId, event)).resolves.not.toThrow()
-		})
+			consoleSpy.mockRestore()
 
-		it('should handle user with no connected clients', async () => {
-			const userId = 'user-123'
-			const event = {
-				type: 'test-event',
-				data: { message: 'test' },
-			}
-
-			await expect(broadcastToUser(userId, event)).resolves.not.toThrow()
-		})
-	})
-
-	describe('getClientCount Function', () => {
-		it('should return number of connected clients', () => {
-			const count = getClientCount()
-			expect(typeof count).toBe('number')
-			expect(count).toBeGreaterThanOrEqual(0)
-		})
-
-		it('should return zero when no clients connected', () => {
-			// Clear any existing clients by checking count
-			const count = getClientCount()
-			// We can't easily clear the clients Map, but we can verify
-			// the function works
-			expect(typeof count).toBe('number')
-		})
-	})
-
-	describe('getUserClientCount Function', () => {
-		it('should return number of clients for a user', () => {
-			const userId = 'user-123'
-			const count = getUserClientCount(userId)
-			expect(typeof count).toBe('number')
-			expect(count).toBeGreaterThanOrEqual(0)
-		})
-
-		it('should return zero for user with no connected clients', () => {
-			const userId = 'nonexistent-user'
-			const count = getUserClientCount(userId)
-			expect(count).toBe(0)
-		})
-	})
-
-	describe('BroadcastEvents Constants', () => {
-		it('should export event type constants', () => {
-			expect(BroadcastEvents.EVENT_CREATED).toBe('event:created')
-			expect(BroadcastEvents.EVENT_UPDATED).toBe('event:updated')
-			expect(BroadcastEvents.EVENT_DELETED).toBe('event:deleted')
-			expect(BroadcastEvents.ATTENDANCE_ADDED).toBe('attendance:added')
-			expect(BroadcastEvents.ATTENDANCE_UPDATED).toBe('attendance:updated')
-			expect(BroadcastEvents.ATTENDANCE_REMOVED).toBe('attendance:removed')
-			expect(BroadcastEvents.LIKE_ADDED).toBe('like:added')
-			expect(BroadcastEvents.LIKE_REMOVED).toBe('like:removed')
-			expect(BroadcastEvents.COMMENT_ADDED).toBe('comment:added')
-			expect(BroadcastEvents.COMMENT_DELETED).toBe('comment:deleted')
-			expect(BroadcastEvents.PROFILE_UPDATED).toBe('profile:updated')
-			expect(BroadcastEvents.FOLLOW_ADDED).toBe('follow:added')
-			expect(BroadcastEvents.FOLLOW_REMOVED).toBe('follow:removed')
-			expect(BroadcastEvents.FOLLOW_ACCEPTED).toBe('follow:accepted')
-			expect(BroadcastEvents.FOLLOW_PENDING).toBe('follow:pending')
-			expect(BroadcastEvents.FOLLOW_REJECTED).toBe('follow:rejected')
-			expect(BroadcastEvents.FOLLOWER_ADDED).toBe('follower:added')
-			expect(BroadcastEvents.FOLLOWER_REMOVED).toBe('follower:removed')
-		})
-
-		it('should have all event types as const', () => {
-			// Verify they're all strings
-			Object.values(BroadcastEvents).forEach((eventType) => {
-				expect(typeof eventType).toBe('string')
-			})
-		})
-	})
-
-	describe('SSE Connection Edge Cases', () => {
-		it('should handle heartbeat failures gracefully', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			// Create a mock stream that fails on writeSSE
-			let heartbeatCallCount = 0
-			const mockStream = {
-				writeSSE: vi.fn().mockImplementation(async () => {
-					heartbeatCallCount++
-					if (heartbeatCallCount > 1) {
-						throw new Error('Stream closed')
-					}
-				}),
-				sleep: vi.fn().mockResolvedValue(undefined),
-			}
-
-			// Mock the streamSSE function
-			const { streamSSE } = await import('hono/streaming')
-			const originalStreamSSE = streamSSE
-
-			// We can't easily test the heartbeat interval without mocking time,
-			// but we can verify the error handling path exists
-			expect(mockStream.writeSSE).toBeDefined()
-		})
-
-		it('should handle client disconnect during heartbeat', async () => {
-			// Test that disconnect handler clears interval
-			// This is tested indirectly through the abort signal handler
-			const mockAbortController = new AbortController()
-
-			// Simulate abort
-			mockAbortController.abort()
-
-			expect(mockAbortController.signal.aborted).toBe(true)
-		})
-
-		it('should keep stream open with sleep loop', async () => {
-			// Test that the stream sleep loop works
-			const mockStream = {
-				sleep: vi.fn().mockResolvedValue(undefined),
-			}
-
-			// Simulate the loop
-			let iterations = 0
-			const maxIterations = 3
-			const mockSignal = { aborted: false }
-
-			while (!mockSignal.aborted && iterations < maxIterations) {
-				await mockStream.sleep(1000)
-				iterations++
-			}
-
-			expect(iterations).toBe(maxIterations)
-			expect(mockStream.sleep).toHaveBeenCalledTimes(maxIterations)
-		})
-	})
-
-	describe('Broadcast Function Edge Cases', () => {
-		it('should handle broadcast with targetUserId filtering', async () => {
-			const { broadcast, getClientCount } = await import('../realtime.js')
-
-			// Clear existing clients
-			const initialCount = getClientCount()
-
-			// Broadcast with targetUserId
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-				targetUserId: 'nonexistent-user',
-			})
-
-			// Should not throw
-			expect(true).toBe(true)
-		})
-
-		it('should handle broadcast when no clients are connected', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			// Broadcast with no clients
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			// Should not throw
-			expect(true).toBe(true)
-		})
-
-		it('should handle broadcast failures gracefully', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			// Broadcast should handle errors when clients fail
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			// Should not throw even if clients fail
-			expect(true).toBe(true)
-		})
-
-		it('should include timestamp in broadcast message', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			const beforeTime = new Date().toISOString()
-
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			const afterTime = new Date().toISOString()
-
-			// Timestamp should be between before and after
-			expect(beforeTime <= afterTime).toBe(true)
+			delete process.env.LOG_LEVEL
 		})
 
 		it('should log when skipping clients due to targetUserId', async () => {
-			const { broadcast } = await import('../realtime.js')
+			const debugCalls: string[] = []
+			vi.doMock('../lib/logger.js', () => ({
+				logger: {
+					debug: (msg: string) => debugCalls.push(msg),
+					info: () => {},
+					warn: () => {},
+					error: () => {},
+					critical: () => {},
+				},
+			}))
 
-			// This tests the logging path when targetUserId doesn't match
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-				targetUserId: 'specific-user',
-			})
+			vi.resetModules()
+			const {
+				broadcast,
+				__addTestClient: addClient,
+				__clearTestClients,
+			} = await import('../realtime.js')
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
-	})
+			const client1 = createMockClient('client-1', 'user-1')
+			const client2 = createMockClient('client-2', 'user-2')
+			addClient(client1 as any)
+			addClient(client2 as any)
 
-	describe('BroadcastToUser Function', () => {
-		it('should broadcast to specific user only', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			// Should not throw
-			expect(true).toBe(true)
-		})
-
-		it('should handle errors when sending to user clients', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			// Should handle errors gracefully
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			// Should not throw
-			expect(true).toBe(true)
-		})
-
-		it('should include timestamp in user broadcast message', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			const beforeTime = new Date().toISOString()
-
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
-			})
-
-			const afterTime = new Date().toISOString()
-
-			// Timestamp should be between before and after
-			expect(beforeTime <= afterTime).toBe(true)
-		})
-	})
-
-	describe('Client Count Functions', () => {
-		it('should return correct client count', async () => {
-			const { getClientCount } = await import('../realtime.js')
-
-			const count = getClientCount()
-			expect(typeof count).toBe('number')
-			expect(count).toBeGreaterThanOrEqual(0)
-		})
-
-		it('should return correct user client count', async () => {
-			const { getUserClientCount } = await import('../realtime.js')
-
-			const count = getUserClientCount('test-user-id')
-			expect(typeof count).toBe('number')
-			expect(count).toBeGreaterThanOrEqual(0)
-		})
-
-		it('should return zero for non-existent user', async () => {
-			const { getUserClientCount } = await import('../realtime.js')
-
-			const count = getUserClientCount('nonexistent-user-id')
-			expect(count).toBe(0)
-		})
-	})
-
-	describe('SSE Stream Heartbeat', () => {
-		it('should send heartbeat messages periodically', async () => {
-			// This tests the heartbeat interval functionality
-			// We can't easily test the actual interval without mocking time,
-			// but we can verify the heartbeat logic exists
-			const mockStream = {
-				writeSSE: vi.fn().mockResolvedValue(undefined),
-				sleep: vi.fn().mockResolvedValue(undefined),
+			const event = {
+				type: 'test-event',
+				data: { message: 'test' },
+				targetUserId: 'user-1',
 			}
 
-			// Simulate heartbeat
-			const heartbeatData = JSON.stringify({ type: 'heartbeat' })
-			await mockStream.writeSSE({
-				data: heartbeatData,
-				event: 'heartbeat',
-			})
+			await broadcast(event)
 
-			expect(mockStream.writeSSE).toHaveBeenCalledWith({
-				data: heartbeatData,
-				event: 'heartbeat',
-			})
+			const skipLogCall = debugCalls.find((call) => call.includes('⏭️'))
+			expect(skipLogCall).toBeDefined()
+
+			addClient(client1 as any)
+			addClient(client2 as any)
+
+			vi.doUnmock('../lib/logger.js')
 		})
 
-		it('should handle heartbeat failures and clean up', async () => {
-			// Test that heartbeat errors are caught and client is removed
-			const mockStream = {
-				writeSSE: vi.fn().mockRejectedValue(new Error('Stream closed')),
-				sleep: vi.fn().mockResolvedValue(undefined),
-			}
+		describe('broadcastToUser Function', () => {
+			it('should broadcast to specific user', async () => {
+				const client1 = createMockClient('client-1', 'user-123')
+				const client2 = createMockClient('client-2', 'user-456')
+				__addTestClient(client1 as any)
+				__addTestClient(client2 as any)
 
-			// Simulate heartbeat failure
-			try {
-				await mockStream.writeSSE({
-					data: JSON.stringify({ type: 'heartbeat' }),
-					event: 'heartbeat',
-				})
-			} catch (error) {
-				// Error should be caught and handled
-				expect(error).toBeDefined()
-			}
-		})
-	})
-
-	describe('SSE Stream Disconnect', () => {
-		it('should handle client disconnect', async () => {
-			// Test that abort signal handler works
-			const mockAbortController = new AbortController()
-
-			// Simulate abort
-			mockAbortController.abort()
-
-			expect(mockAbortController.signal.aborted).toBe(true)
-		})
-
-		it('should clean up client on disconnect', async () => {
-			// Test that client is removed from registry on disconnect
-			const { getClientCount } = await import('../realtime.js')
-
-			const initialCount = getClientCount()
-
-			// Simulate disconnect by checking count doesn't increase
-			expect(typeof initialCount).toBe('number')
-		})
-	})
-
-	describe('SSE Stream Sleep Loop', () => {
-		it('should keep stream alive with sleep loop', async () => {
-			const mockStream = {
-				sleep: vi.fn().mockResolvedValue(undefined),
-			}
-
-			// Simulate the loop
-			let iterations = 0
-			const maxIterations = 3
-			const mockSignal = { aborted: false }
-
-			while (!mockSignal.aborted && iterations < maxIterations) {
-				await mockStream.sleep(1000)
-				iterations++
-			}
-
-			expect(iterations).toBe(maxIterations)
-			expect(mockStream.sleep).toHaveBeenCalledTimes(maxIterations)
-		})
-
-		it('should exit loop when signal is aborted', async () => {
-			const mockStream = {
-				sleep: vi.fn().mockResolvedValue(undefined),
-			}
-
-			let iterations = 0
-			const mockSignal = { aborted: false }
-
-			// Simulate abort after first iteration
-			while (!mockSignal.aborted && iterations < 5) {
-				await mockStream.sleep(1000)
-				iterations++
-				if (iterations === 1) {
-					mockSignal.aborted = true
+				const userId = 'user-123'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
 				}
-			}
 
-			expect(iterations).toBe(1)
-		})
-	})
+				await broadcastToUser(userId, event)
 
-	describe('Broadcast Function Detailed Tests', () => {
-		it('should broadcast to all clients when targetUserId is not specified', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			// Broadcast without targetUserId
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
+				expect(client1.stream.writeSSE).toHaveBeenCalled()
+				expect(client2.stream.writeSSE).not.toHaveBeenCalled()
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
+			it('should include timestamp in user broadcast', async () => {
+				const client = createMockClient('client-1', 'user-123')
+				__addTestClient(client as any)
 
-		it('should filter by targetUserId when specified', async () => {
-			const { broadcast } = await import('../realtime.js')
+				const userId = 'user-123'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
+				}
 
-			// Broadcast with targetUserId
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-				targetUserId: 'specific-user-id',
+				await broadcastToUser(userId, event)
+
+				expect(client.stream.writeSSE).toHaveBeenCalled()
+				const callArg = client.stream.writeSSE.mock.calls[0][0]
+				const data = JSON.parse(callArg.data)
+				expect(data.timestamp).toBeDefined()
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
+			it('should handle user with no connected clients', async () => {
+				const userId = 'user-123'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
+				}
 
-		it('should handle broadcast errors gracefully', async () => {
-			const { broadcast } = await import('../realtime.js')
-
-			// Broadcast should handle errors when clients fail
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
+				await expect(broadcastToUser(userId, event)).resolves.not.toThrow()
 			})
 
-			// Should not throw even if clients fail
-			expect(true).toBe(true)
-		})
+			it('should log when user has clients', async () => {
+				const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+				const client = createMockClient('client-1', 'user-123')
+				__addTestClient(client as any)
 
-		it('should log when skipping clients due to targetUserId mismatch', async () => {
-			const { broadcast } = await import('../realtime.js')
+				const userId = 'user-123'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
+				}
 
-			// This tests the logging path when targetUserId doesn't match
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
-				targetUserId: 'specific-user-id',
+				await broadcastToUser(userId, event)
+
+				expect(consoleSpy).toHaveBeenCalledWith(
+					expect.stringContaining('[INFO] 📡 Broadcast to user'),
+					''
+				)
+
+				consoleSpy.mockRestore()
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
+			it('should not log when user has no clients', async () => {
+				const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-		it('should log when no clients are connected', async () => {
-			const { broadcast } = await import('../realtime.js')
+				const userId = 'nonexistent-user'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
+				}
 
-			// Broadcast with no clients
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
+				await broadcastToUser(userId, event)
+
+				expect(consoleSpy).not.toHaveBeenCalledWith(
+					expect.stringContaining('Broadcast to user')
+				)
+
+				consoleSpy.mockRestore()
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
+			it('should handle errors when sending to user clients', async () => {
+				const failingClient = createMockClient('failing-client', 'user-123')
+				failingClient.stream.writeSSE.mockRejectedValueOnce(new Error('Connection lost'))
+				__addTestClient(failingClient as any)
+
+				const userId = 'user-123'
+				const event = {
+					type: 'test-event',
+					data: { message: 'test' },
+				}
+
+				await expect(broadcastToUser(userId, event)).resolves.not.toThrow()
+			})
 		})
 
-		it('should include timestamp in broadcast message', async () => {
-			const { broadcast } = await import('../realtime.js')
+		describe('getClientCount Function', () => {
+			it('should return number of connected clients', () => {
+				const client1 = createMockClient('client-1', 'user-1')
+				const client2 = createMockClient('client-2', 'user-2')
+				__addTestClient(client1 as any)
+				__addTestClient(client2 as any)
 
-			const beforeTime = new Date().toISOString()
-
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
+				const count = getClientCount()
+				expect(count).toBe(2)
 			})
 
-			const afterTime = new Date().toISOString()
+			it('should return zero when no clients connected', () => {
+				__clearTestClients()
+				const count = getClientCount()
+				expect(count).toBe(0)
+			})
 
-			// Timestamp should be between before and after
-			expect(beforeTime <= afterTime).toBe(true)
+			it('should return correct count after clients added and removed', () => {
+				__clearTestClients()
+				const client1 = createMockClient('client-1', 'user-1')
+				__addTestClient(client1 as any)
+				expect(getClientCount()).toBe(1)
+
+				const client2 = createMockClient('client-2', 'user-2')
+				__addTestClient(client2 as any)
+				expect(getClientCount()).toBe(2)
+			})
 		})
 
-		it('should track success and failure counts', async () => {
-			const { broadcast } = await import('../realtime.js')
+		describe('getUserClientCount Function', () => {
+			it('should return number of clients for a user', () => {
+				__clearTestClients()
+				const client1 = createMockClient('client-1', 'user-123')
+				const client2 = createMockClient('client-2', 'user-123')
+				const client3 = createMockClient('client-3', 'user-456')
+				__addTestClient(client1 as any)
+				__addTestClient(client2 as any)
+				__addTestClient(client3 as any)
 
-			// Broadcast should track counts
-			await broadcast({
-				type: 'test:event',
-				data: { test: true },
+				const count = getUserClientCount('user-123')
+				expect(count).toBe(2)
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
-	})
-
-	describe('BroadcastToUser Function Detailed Tests', () => {
-		it('should broadcast only to specific user clients', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
+			it('should return zero for user with no connected clients', () => {
+				__clearTestClients()
+				const count = getUserClientCount('nonexistent-user')
+				expect(count).toBe(0)
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
-		})
+			it('should return zero for user with no clients after clearing', () => {
+				const client = createMockClient('client-1', 'user-123')
+				__addTestClient(client as any)
+				expect(getUserClientCount('user-123')).toBe(1)
 
-		it('should handle errors when sending to user clients', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			// Should handle errors gracefully
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
+				__clearTestClients()
+				expect(getUserClientCount('user-123')).toBe(0)
 			})
-
-			// Should not throw
-			expect(true).toBe(true)
 		})
 
-		it('should include timestamp in user broadcast message', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
-
-			const beforeTime = new Date().toISOString()
-
-			await broadcastToUser('test-user-id', {
-				type: 'test:event',
-				data: { test: true },
+		describe('BroadcastEvents Constants', () => {
+			it('should export event type constants', () => {
+				expect(BroadcastEvents.EVENT_CREATED).toBe('event:created')
+				expect(BroadcastEvents.EVENT_UPDATED).toBe('event:updated')
+				expect(BroadcastEvents.EVENT_DELETED).toBe('event:deleted')
+				expect(BroadcastEvents.ATTENDANCE_ADDED).toBe('attendance:added')
+				expect(BroadcastEvents.ATTENDANCE_UPDATED).toBe('attendance:updated')
+				expect(BroadcastEvents.ATTENDANCE_REMOVED).toBe('attendance:removed')
+				expect(BroadcastEvents.LIKE_ADDED).toBe('like:added')
+				expect(BroadcastEvents.LIKE_REMOVED).toBe('like:removed')
+				expect(BroadcastEvents.COMMENT_ADDED).toBe('comment:added')
+				expect(BroadcastEvents.COMMENT_DELETED).toBe('comment:deleted')
+				expect(BroadcastEvents.PROFILE_UPDATED).toBe('profile:updated')
+				expect(BroadcastEvents.FOLLOW_ADDED).toBe('follow:added')
+				expect(BroadcastEvents.FOLLOW_REMOVED).toBe('follow:removed')
+				expect(BroadcastEvents.FOLLOW_ACCEPTED).toBe('follow:accepted')
+				expect(BroadcastEvents.FOLLOW_PENDING).toBe('follow:pending')
+				expect(BroadcastEvents.FOLLOW_REJECTED).toBe('follow:rejected')
+				expect(BroadcastEvents.FOLLOWER_ADDED).toBe('follower:added')
+				expect(BroadcastEvents.FOLLOWER_REMOVED).toBe('follower:removed')
 			})
 
-			const afterTime = new Date().toISOString()
-
-			// Timestamp should be between before and after
-			expect(beforeTime <= afterTime).toBe(true)
+			it('should have all event types as const', () => {
+				// Verify they're all strings
+				Object.values(BroadcastEvents).forEach((eventType) => {
+					expect(typeof eventType).toBe('string')
+				})
+			})
 		})
 
-		it('should log when user has no connected clients', async () => {
-			const { broadcastToUser } = await import('../realtime.js')
+		describe('SSE Connection Edge Cases', () => {
+			it('should handle heartbeat failures gracefully', async () => {
+				const { broadcast } = await import('../realtime.js')
 
-			// Broadcast to user with no clients
-			await broadcastToUser('nonexistent-user-id', {
-				type: 'test:event',
-				data: { test: true },
+				// Create a mock stream that fails on writeSSE
+				let heartbeatCallCount = 0
+				const mockStream = {
+					writeSSE: vi.fn().mockImplementation(async () => {
+						heartbeatCallCount++
+						if (heartbeatCallCount > 1) {
+							throw new Error('Stream closed')
+						}
+					}),
+					sleep: vi.fn().mockResolvedValue(undefined),
+				}
+
+				// Mock the streamSSE function
+				const { streamSSE } = await import('hono/streaming')
+				const originalStreamSSE = streamSSE
+
+				// We can't easily test the heartbeat interval without mocking time,
+				// but we can verify the error handling path exists
+				expect(mockStream.writeSSE).toBeDefined()
 			})
 
-			// Should not throw
-			expect(true).toBe(true)
+			it('should handle client disconnect during heartbeat', async () => {
+				// Test that disconnect handler clears interval
+				// This is tested indirectly through the abort signal handler
+				const mockAbortController = new AbortController()
+
+				// Simulate abort
+				mockAbortController.abort()
+
+				expect(mockAbortController.signal.aborted).toBe(true)
+			})
+
+			it('should keep stream open with sleep loop', async () => {
+				// Test that the stream sleep loop works
+				const mockStream = {
+					sleep: vi.fn().mockResolvedValue(undefined),
+				}
+
+				// Simulate the loop
+				let iterations = 0
+				const maxIterations = 3
+				const mockSignal = { aborted: false }
+
+				while (!mockSignal.aborted && iterations < maxIterations) {
+					await mockStream.sleep(1000)
+					iterations++
+				}
+
+				expect(iterations).toBe(maxIterations)
+				expect(mockStream.sleep).toHaveBeenCalledTimes(maxIterations)
+			})
 		})
 	})
 })

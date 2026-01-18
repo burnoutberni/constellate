@@ -1,5 +1,6 @@
 import { safeFetch } from './ssrfProtection.js'
 import { ContentType } from '../constants/activitypub.js'
+import { logger } from './logger.js'
 
 /**
  * Resolves a WebFinger resource
@@ -42,7 +43,7 @@ export async function resolveWebFinger(resource: string): Promise<string | null>
 
 		return apLink?.href || null
 	} catch (error) {
-		console.error('WebFinger resolution error:', error)
+		logger.error('WebFinger resolution error:', error)
 		return null
 	}
 }

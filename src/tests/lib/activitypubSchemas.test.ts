@@ -9,6 +9,7 @@ import {
 	PlaceSchema,
 	PublicKeySchema,
 	PersonSchema,
+	GroupSchema,
 	EventSchema,
 	NoteSchema,
 	TombstoneSchema,
@@ -171,6 +172,74 @@ describe('ActivityPub Schemas', () => {
 			}
 
 			expect(() => PersonSchema.parse(person)).toThrow()
+		})
+	})
+
+	describe('GroupSchema', () => {
+		it('should validate valid group object', () => {
+			const group = {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'Group',
+				id: 'https://example.com/groups/developers',
+				preferredUsername: 'developers',
+				name: 'Developer Group',
+				inbox: 'https://example.com/groups/developers/inbox',
+			}
+
+			expect(() => GroupSchema.parse(group)).not.toThrow()
+		})
+
+		it('should validate group with all optional fields', () => {
+			const group = {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'Group',
+				id: 'https://example.com/groups/developers',
+				preferredUsername: 'developers',
+				name: 'Developer Group',
+				summary: 'A group for developers',
+				inbox: 'https://example.com/groups/developers/inbox',
+				outbox: 'https://example.com/groups/developers/outbox',
+				followers: 'https://example.com/groups/developers/followers',
+				publicKey: {
+					id: 'https://example.com/groups/developers#main-key',
+					owner: 'https://example.com/groups/developers',
+					publicKeyPem: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+				},
+				icon: {
+					type: 'Image',
+					url: 'https://example.com/group-icon.jpg',
+				},
+				image: {
+					type: 'Image',
+					url: 'https://example.com/group-header.jpg',
+				},
+				endpoints: {
+					sharedInbox: 'https://example.com/inbox',
+				},
+				displayColor: '#10b981',
+			}
+
+			expect(() => GroupSchema.parse(group)).not.toThrow()
+		})
+
+		it('should reject group with wrong type', () => {
+			const group = {
+				type: 'Person',
+				id: 'https://example.com/groups/developers',
+				preferredUsername: 'developers',
+				inbox: 'https://example.com/groups/developers/inbox',
+			}
+
+			expect(() => GroupSchema.parse(group)).toThrow()
+		})
+
+		it('should reject group without required fields', () => {
+			const group = {
+				type: 'Group',
+				// Missing id, preferredUsername, inbox
+			}
+
+			expect(() => GroupSchema.parse(group)).toThrow()
 		})
 	})
 

@@ -10,7 +10,8 @@ import {
 	buildRejectFollowActivity,
 } from './services/ActivityBuilder.js'
 import { deliverToFollowers, deliverToInbox } from './services/ActivityDelivery.js'
-import { getBaseUrl } from './lib/activitypubHelpers.js'
+import { getBaseUrl, getCollectionUrl } from './lib/activitypubHelpers.js'
+import { buildEventsWhereClause } from './lib/eventQueries.js'
 import { trackInstance } from './lib/instanceHelpers.js'
 import { requireAuth } from './middleware/auth.js'
 import { config } from './config.js'
@@ -18,10 +19,16 @@ import { moderateRateLimit } from './middleware/rateLimit.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
 import { broadcastToUser, BroadcastEvents } from './realtime.js'
 import { sanitizeText } from './lib/sanitization.js'
-import type { FollowActivity } from './lib/activitypubSchemas.js'
+import { ContentType } from './constants/activitypub.js'
+import { safeFetch } from './lib/ssrfProtection.js'
+
+const COUNTS_CACHE_TTL_MINUTES = 5 // How long to cache follower/following/event counts
+
+import type { FollowActivity, UndoActivity } from './lib/activitypubSchemas.js'
 import { AppError } from './lib/errors.js'
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { isUrlSafe } from './lib/ssrfProtection.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -77,6 +84,8 @@ app.get('/users/me/profile', async (c) => {
 				isPublicProfile: true,
 				timezone: true,
 				createdAt: true,
+				followersCount: true,
+				followingCount: true,
 				_count: {
 					select: {
 						events: true,
@@ -90,22 +99,49 @@ app.get('/users/me/profile', async (c) => {
 		}
 
 		// Calculate actual follower/following counts
+
+		// Calculate actual follower/following counts
 		let followerCount = 0
 		let followingCount = 0
 
-		if (!user.isRemote) {
+		if (user.isRemote && user.externalActorUrl) {
+			// For remote users, attempt to fetch live counts from the remote instance
+			const { fetchRemoteCollectionCount } = await import('./lib/activitypubHelpers.js')
+
+			// Use URL objects for safer URL construction
+			const baseActorUrl = new URL(user.externalActorUrl)
+			const followersUrl = new URL('/followers', baseActorUrl).toString()
+			const followingUrl = new URL('/following', baseActorUrl).toString()
+
+			try {
+				// Fire off counts fetch in parallel
+				const [remoteFollowers, remoteFollowing] = await Promise.all([
+					fetchRemoteCollectionCount(followersUrl),
+					fetchRemoteCollectionCount(followingUrl),
+				])
+
+				followerCount = remoteFollowers ?? 0
+				followingCount = remoteFollowing ?? 0
+
+				// If we got 0s, maybe the URLs are different?
+				// Fetch actor to be sure (optimization: could be cached)
+				if (remoteFollowers === null || remoteFollowing === null) {
+					followerCount = user.followersCount ?? 0
+					followingCount = user.followingCount ?? 0
+				}
+			} catch (e) {
+				logger.error('Error fetching remote counts:', e)
+				followerCount = user.followersCount ?? 0
+				followingCount = user.followingCount ?? 0
+			}
+		} else {
+			// Local user
 			followerCount = await prisma.follower.count({
-				where: {
-					userId: user.id,
-					accepted: true,
-				},
+				where: { userId: user.id, accepted: true },
 			})
 
 			followingCount = await prisma.following.count({
-				where: {
-					userId: user.id,
-					accepted: true,
-				},
+				where: { userId: user.id, accepted: true },
 			})
 		}
 
@@ -122,7 +158,7 @@ app.get('/users/me/profile', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting own profile:', error)
+		logger.error('Error getting own profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -192,7 +228,7 @@ app.get('/users/me/reminders', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting user reminders:', error)
+		logger.error('Error getting user reminders:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -246,7 +282,7 @@ app.post('/users/me/export', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error creating export job:', error)
+		logger.error('Error creating export job:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -296,7 +332,7 @@ app.get('/users/me/export/:exportId', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting export:', error)
+		logger.error('Error getting export:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -319,35 +355,9 @@ async function filterEventsByVisibility<
 app.get('/users/:username/profile', async (c) => {
 	try {
 		const { username } = c.req.param()
-		const currentUserId = c.get('userId') // Get current user from auth middleware
+		const currentUserId = c.get('userId')
 
-		const user = await prisma.user.findUnique({
-			where: { username },
-			select: {
-				id: true,
-				username: true,
-				name: true,
-				bio: true,
-				displayColor: true,
-				profileImage: true,
-				headerImage: true,
-				isRemote: true,
-				externalActorUrl: true,
-				isAdmin: true,
-				autoAcceptFollowers: true,
-				isPublicProfile: true,
-				timezone: true,
-				createdAt: true,
-				_count: {
-					select: {
-						events: true,
-						followers: true,
-						following: true,
-					},
-				},
-			},
-		})
-
+		const user = await getUserForProfile(username)
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
@@ -356,129 +366,314 @@ app.get('/users/:username/profile', async (c) => {
 			void trackInstance(user.externalActorUrl)
 		}
 
-		// Check if profile is private and viewer doesn't have access
 		const isOwnProfile = currentUserId === user.id
-		const canViewFullProfile =
-			isOwnProfile ||
-			(await canViewPrivateProfile({
-				viewerId: currentUserId,
-				profileUserId: user.id,
-				profileIsRemote: user.isRemote,
-				profileExternalActorUrl: user.externalActorUrl,
-				profileUsername: user.username,
-				profileIsPublic: user.isPublicProfile,
-			}))
+		const canViewFullProfile = await checkProfileVisibility(user, currentUserId, isOwnProfile)
 
-		// If private profile and viewer can't see it, return minimal data with consistent structure
 		if (!user.isPublicProfile && !canViewFullProfile) {
-			return c.json({
-				user: {
-					id: user.id,
-					username: user.username,
-					name: user.name,
-					profileImage: user.profileImage,
-					isRemote: user.isRemote,
-					isPublicProfile: false,
-					createdAt: user.createdAt.toISOString(),
-					displayColor: user.displayColor || '#3b82f6',
-					bio: null,
-					headerImage: null,
-					_count: {
-						events: 0,
-						followers: 0,
-						following: 0,
-					},
-				},
-				events: [],
-			})
+			return getLimitedProfileResponse(c, user)
 		}
 
-		// Calculate actual follower/following counts (only accepted)
-		// For remote users, we can't calculate counts from our local database
-		let followerCount = 0
-		let followingCount = 0
+		const counts = await getUserCounts(user)
+		const userWithCounts = buildUserWithCounts(user, counts, isOwnProfile)
 
-		if (!user.isRemote) {
-			// Only calculate for local users
-			followerCount = await prisma.follower.count({
-				where: {
-					userId: user.id,
-					accepted: true,
-				},
-			})
-
-			followingCount = await prisma.following.count({
-				where: {
-					userId: user.id,
-					accepted: true,
-				},
-			})
-		}
-
-		// Override _count with actual counts
-		const userWithCounts = {
-			...user,
-			isAdmin: isOwnProfile ? user.isAdmin : undefined,
-			autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
-			_count: {
-				events: user._count?.events || 0,
-				followers: followerCount,
-				following: followingCount,
-			},
-		}
-
-		// Get user's events - filter by visibility
-		let events = await prisma.event.findMany({
-			where: user.isRemote
-				? { attributedTo: user.externalActorUrl || undefined }
-				: { userId: user.id },
-			include: {
-				user: {
-					select: {
-						id: true,
-						username: true,
-						name: true,
-						displayColor: true,
-						profileImage: true,
-					},
-				},
-				_count: {
-					select: {
-						attendance: true,
-						likes: true,
-						comments: true,
-					},
-				},
-			},
-			orderBy: { startTime: 'desc' },
-			take: 50,
-		})
-
-		// Filter events by visibility - only show events the viewer can see
-		events = await filterEventsByVisibility(events, currentUserId)
-
-		// Manually count events for proper display
-		const eventCount = user.isRemote
-			? await prisma.event.count({
-					where: { attributedTo: user.externalActorUrl || undefined },
-				})
-			: await prisma.event.count({ where: { userId: user.id } })
+		const events = await fetchUserEvents(user, currentUserId)
 
 		return c.json({
 			user: {
 				...userWithCounts,
 				_count: {
 					...userWithCounts._count,
-					events: eventCount,
+					events: counts.eventCount,
 				},
 			},
 			events,
 		})
 	} catch (error) {
-		console.error('Error getting profile:', error)
+		logger.error('Error getting profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
+
+async function getUserForProfile(username: string) {
+	return prisma.user.findUnique({
+		where: { username },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			bio: true,
+			displayColor: true,
+			profileImage: true,
+			headerImage: true,
+			isRemote: true,
+			externalActorUrl: true,
+			isAdmin: true,
+			autoAcceptFollowers: true,
+			isPublicProfile: true,
+			timezone: true,
+			createdAt: true,
+			followersCount: true,
+			followingCount: true,
+			eventsCount: true,
+			lastCountsSync: true,
+			_count: {
+				select: {
+					events: true,
+					followers: true,
+					following: true,
+				},
+			},
+		},
+	})
+}
+
+async function checkProfileVisibility(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	currentUserId: string | undefined,
+	isOwnProfile: boolean
+) {
+	if (isOwnProfile) return true
+
+	return canViewPrivateProfile({
+		viewerId: currentUserId,
+		profileUserId: user.id,
+		profileIsRemote: user.isRemote,
+		profileExternalActorUrl: user.externalActorUrl,
+		profileUsername: user.username,
+		profileIsPublic: user.isPublicProfile,
+	})
+}
+
+function getLimitedProfileResponse(
+	c: import('hono').Context,
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>
+) {
+	return c.json({
+		user: {
+			id: user.id,
+			username: user.username,
+			name: user.name,
+			profileImage: user.profileImage,
+			isRemote: user.isRemote,
+			isPublicProfile: false,
+			createdAt: user.createdAt.toISOString(),
+			displayColor: user.displayColor || '#3b82f6',
+			bio: null,
+			headerImage: null,
+			_count: {
+				events: 0,
+				followers: 0,
+				following: 0,
+			},
+		},
+		events: [],
+	})
+}
+
+async function getUserCounts(user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>) {
+	let followerCount: number | null = null
+	let followingCount: number | null = null
+	let eventCount: number | null = null
+
+	if (user.isRemote && user.externalActorUrl) {
+		const counts = await fetchRemoteUserCounts(user)
+		followerCount = counts.followerCount
+		followingCount = counts.followingCount
+		eventCount = counts.eventCount
+	}
+
+	if (followerCount === null) {
+		followerCount = user.isRemote
+			? (user.followersCount ?? 0)
+			: await prisma.follower.count({
+					where: { userId: user.id, accepted: true },
+				})
+	}
+
+	if (followingCount === null) {
+		followingCount = user.isRemote
+			? (user.followingCount ?? 0)
+			: await prisma.following.count({
+					where: { userId: user.id, accepted: true },
+				})
+	}
+
+	if (eventCount === null) {
+		eventCount = user.isRemote
+			? (user.eventsCount ?? 0)
+			: await prisma.event.count({ where: buildEventsWhereClause(user) })
+	}
+
+	return { followerCount, followingCount, eventCount }
+}
+
+async function fetchRemoteUserCounts(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>
+) {
+	const cacheExpiry = new Date(Date.now() - COUNTS_CACHE_TTL_MINUTES * 60 * 1000)
+	const hasFreshCache =
+		user.lastCountsSync && user.lastCountsSync > cacheExpiry && user.followersCount !== null
+
+	if (hasFreshCache) {
+		logger.debug(
+			`[profile] Using cached counts for ${user.username} (synced: ${user.lastCountsSync})`
+		)
+		return {
+			followerCount: user.followersCount,
+			followingCount: user.followingCount ?? null,
+			eventCount: user.eventsCount ?? null,
+		}
+	}
+
+	logger.debug(`[profile] Cache stale/missing for ${user.username}, fetching fresh counts...`)
+	const {
+		fetchRemoteCollectionCount,
+		fetchActor,
+		cacheEventFromOutboxActivity,
+		fetchRemoteCollectionItems,
+	} = await import('./lib/activitypubHelpers.js')
+
+	try {
+		const actorUrl = user.externalActorUrl
+		if (!actorUrl) {
+			return {
+				followerCount: user.followersCount ?? 0,
+				followingCount: user.followingCount ?? null,
+				eventCount: user.eventsCount ?? null,
+			}
+		}
+		const actor = await fetchActor(actorUrl)
+		if (!actor) {
+			return {
+				followerCount: user.followersCount ?? 0,
+				followingCount: user.followingCount ?? null,
+				eventCount: user.eventsCount ?? null,
+			}
+		}
+
+		const followersUrl = getCollectionUrl(actor.followers)
+		const followingUrl = getCollectionUrl(actor.following)
+		const outboxUrl = getCollectionUrl(actor.outbox)
+
+		const [followersResult, followingResult, outboxResult] = await Promise.allSettled([
+			followersUrl ? fetchRemoteCollectionCount(followersUrl) : Promise.resolve(null),
+			followingUrl ? fetchRemoteCollectionCount(followingUrl) : Promise.resolve(null),
+			outboxUrl
+				? safeFetch(outboxUrl, { headers: { Accept: ContentType.ACTIVITY_JSON } })
+				: Promise.resolve(null),
+		])
+
+		const remoteFollowers =
+			followersResult.status === 'fulfilled' ? followersResult.value : null
+		const remoteFollowing =
+			followingResult.status === 'fulfilled' ? followingResult.value : null
+		const outboxResponse = outboxResult.status === 'fulfilled' ? outboxResult.value : null
+
+		const followerCount = remoteFollowers ?? user.followersCount ?? 0
+		const followingCount = remoteFollowing ?? user.followingCount ?? 0
+		let eventCount = user.eventsCount ?? null
+
+		await prisma.user.update({
+			where: { id: user.id },
+			data: {
+				followersCount: followerCount,
+				followingCount: followingCount,
+				eventsCount: eventCount,
+				lastCountsSync: new Date(),
+			},
+		})
+		logger.debug(`[profile] Updated cached counts for ${user.username}`)
+
+		if (outboxResponse?.ok) {
+			const outboxData = (await outboxResponse.json()) as {
+				totalItems?: number
+				first?: string | { id?: string; orderedItems?: unknown[]; items?: unknown[] }
+				orderedItems?: unknown[]
+				items?: unknown[]
+			}
+			if (typeof outboxData.totalItems === 'number') {
+				eventCount = outboxData.totalItems
+			}
+			const items = await fetchRemoteCollectionItems(outboxUrl!, 20)
+			if (items.length > 0) {
+				await Promise.all(
+					items.map((item) =>
+						cacheEventFromOutboxActivity(
+							item as Record<string, unknown>,
+							actorUrl
+						).catch((err) => logger.error('Error caching remote event:', err))
+					)
+				)
+				if (eventCount === null && items.length > 0) {
+					eventCount = items.length
+				}
+			}
+		}
+
+		return { followerCount, followingCount, eventCount }
+	} catch (e) {
+		logger.error('Error fetching remote counts:', e)
+		return {
+			followerCount: user.followersCount ?? 0,
+			followingCount: user.followingCount ?? null,
+			eventCount: user.eventsCount ?? null,
+		}
+	}
+}
+
+function buildUserWithCounts(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	counts: {
+		followerCount: number | null
+		followingCount: number | null
+		eventCount: number | null
+	},
+	isOwnProfile: boolean
+) {
+	return {
+		...user,
+		isAdmin: isOwnProfile ? user.isAdmin : undefined,
+		autoAcceptFollowers: isOwnProfile ? user.autoAcceptFollowers : undefined,
+		_count: {
+			events: user._count?.events || 0,
+			followers: counts.followerCount,
+			following: counts.followingCount,
+		},
+	}
+}
+
+async function fetchUserEvents(
+	user: NonNullable<Awaited<ReturnType<typeof getUserForProfile>>>,
+	currentUserId: string | undefined
+) {
+	const whereClause = buildEventsWhereClause(user)
+
+	const events = await prisma.event.findMany({
+		where: whereClause,
+		include: {
+			user: {
+				select: {
+					id: true,
+					username: true,
+					name: true,
+					displayColor: true,
+					profileImage: true,
+				},
+			},
+			_count: {
+				select: {
+					attendance: true,
+					likes: true,
+					comments: true,
+				},
+			},
+		},
+		orderBy: { startTime: 'desc' },
+		take: 50,
+	})
+
+	return filterEventsByVisibility(events, currentUserId)
+}
 
 // Update profile
 app.put('/profile', moderateRateLimit, async (c) => {
@@ -510,7 +705,7 @@ app.put('/profile', moderateRateLimit, async (c) => {
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
-		console.error('Error updating profile:', error)
+		logger.error('Error updating profile:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -559,7 +754,7 @@ app.get('/users/:username/follow-status', async (c) => {
 			isAccepted: following?.accepted || false,
 		})
 	} catch (error) {
-		console.error('Error checking follow status:', error)
+		logger.error('Error checking follow status:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -601,7 +796,7 @@ app.post('/users/:username/follow', moderateRateLimit, async (c) => {
 		if (error instanceof Error && error.message === 'Authentication required') {
 			return c.json({ error: 'Unauthorized' }, 401)
 		}
-		console.error('Error following user:', error)
+		logger.error('Error following user:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -733,6 +928,7 @@ async function handleRemoteFollow(
 		privateKey: string | null
 	},
 	targetUser: {
+		id: string
 		username: string
 		profileImage: string | null
 		inboxUrl: string | null
@@ -755,11 +951,8 @@ async function handleRemoteFollow(
 
 	const inboxUrl = targetUser.sharedInboxUrl || targetUser.inboxUrl
 	if (inboxUrl) {
-		await deliverToInbox(followActivity, inboxUrl, {
-			id: currentUser.id,
-			username: currentUser.username,
-			privateKey: currentUser.privateKey,
-		})
+		// Deliver in background (non-blocking)
+		deliverFollowActivityBackground(followActivity, inboxUrl, currentUser.id, targetUser.id)
 	}
 
 	await broadcastToUser(currentUser.id, {
@@ -767,9 +960,68 @@ async function handleRemoteFollow(
 		data: {
 			username: targetUser.username,
 			actorUrl: targetActorUrl,
-			isAccepted: false,
 		},
 	})
+}
+
+async function deliverFollowActivityBackground(
+	followActivity: FollowActivity,
+	inboxUrl: string,
+	currentUserId: string,
+	_targetUserId: string
+) {
+	try {
+		const following = await prisma.following.findUnique({
+			where: { userId_actorUrl: { userId: currentUserId, actorUrl: followActivity.object } },
+		})
+
+		if (!following) {
+			logger.debug(`[Follow] Skipping delivery - follow was undone`)
+			return
+		}
+
+		const user = await prisma.user.findUnique({ where: { id: currentUserId } })
+		if (!user || !user.privateKey) {
+			logger.error('[Follow] User not found or has no private key')
+			return
+		}
+
+		await deliverToInbox(followActivity, inboxUrl, user)
+		logger.debug(`[Follow] Successfully delivered to ${inboxUrl}`)
+	} catch (error) {
+		logger.error('[Follow] Failed to deliver follow activity:', error)
+		logger.error(`[Follow] Admin alert: Failed to deliver Follow to ${inboxUrl}`)
+	}
+}
+
+async function deliverUndoFollowActivityBackground(
+	undoActivity: UndoActivity,
+	inboxUrl: string,
+	currentUserId: string,
+	targetActorUrl: string
+) {
+	try {
+		const following = await prisma.following.findUnique({
+			where: { userId_actorUrl: { userId: currentUserId, actorUrl: targetActorUrl } },
+		})
+
+		if (following) {
+			logger.debug(`[Follow] Skipping undo delivery - follow was re-established`)
+			return
+		}
+
+		const user = await prisma.user.findUnique({ where: { id: currentUserId } })
+		if (!user || !user.privateKey) {
+			logger.error('[Follow] User not found or has no private key for undo')
+			return
+		}
+
+		await deliverToInbox(undoActivity, inboxUrl, user)
+		logger.debug(`[Follow] Successfully delivered Undo to ${inboxUrl}`)
+	} catch (error) {
+		logger.error('[Follow] Failed to deliver Undo follow activity:', error)
+		logger.error(`[Follow] Admin alert: Failed to deliver Undo Follow to ${inboxUrl}`)
+	}
 }
 
 // Unfollow user
@@ -816,6 +1068,12 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 			},
 		})
 
+		logger.debug(
+			`[unfollow] userId=${userId}, targetActorUrl=${targetActorUrl}, following=${
+				following ? following.id : 'null'
+			}`
+		)
+
 		if (!following) {
 			return c.json({ error: 'Not following' }, 400)
 		}
@@ -845,13 +1103,23 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 			})
 		}
 
-		// Deliver Undo(Follow) activity
+		// Deliver Undo(Follow) activity in background (non-blocking)
 		if (targetUser.isRemote && targetUser.inboxUrl) {
 			const inboxUrl = targetUser.sharedInboxUrl || targetUser.inboxUrl
-			await deliverToInbox(undoActivity, inboxUrl, currentUser)
+			deliverUndoFollowActivityBackground(
+				undoActivity,
+				inboxUrl,
+				currentUser.id,
+				targetActorUrl
+			)
 		} else if (!targetUser.isRemote) {
 			const inboxUrl = `${baseUrl}/users/${targetUser.username}/inbox`
-			await deliverToInbox(undoActivity, inboxUrl, currentUser)
+			deliverUndoFollowActivityBackground(
+				undoActivity,
+				inboxUrl,
+				currentUser.id,
+				targetActorUrl
+			)
 		}
 
 		// Broadcast FOLLOW_REMOVED to the unfollower's clients (Alice)
@@ -869,7 +1137,7 @@ app.delete('/users/:username/follow', moderateRateLimit, async (c) => {
 		if (error instanceof Error && error.message === 'Authentication required') {
 			return c.json({ error: 'Unauthorized' }, 401)
 		}
-		console.error('Error unfollowing user:', error)
+		logger.error('Error unfollowing user:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -944,7 +1212,7 @@ app.get('/followers/pending', async (c) => {
 
 		return c.json({ followers: followerUsers })
 	} catch (error) {
-		console.error('Error getting pending followers:', error)
+		logger.error('Error getting pending followers:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -992,7 +1260,7 @@ app.post('/followers/:followerId/accept', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true, message: 'Follower accepted' })
 	} catch (error) {
-		console.error('Error accepting follower:', error)
+		logger.error('Error accepting follower:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1035,7 +1303,7 @@ app.post('/followers/:followerId/reject', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true, message: 'Follower rejected' })
 	} catch (error) {
-		console.error('Error rejecting follower:', error)
+		logger.error('Error rejecting follower:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1073,7 +1341,7 @@ app.get('/tos/status', async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error getting ToS status:', error)
+		logger.error('Error getting ToS status:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1100,7 +1368,7 @@ app.post('/tos/accept', moderateRateLimit, async (c) => {
 		if (error instanceof AppError) {
 			throw error
 		}
-		console.error('Error accepting ToS:', error)
+		logger.error('Error accepting ToS:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

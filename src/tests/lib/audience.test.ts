@@ -328,6 +328,21 @@ describe('audience helpers', () => {
 	})
 
 	describe('resolveInboxes', () => {
+		it('should handle failed recipient processing gracefully', async () => {
+			const userId = 'user-123'
+			const addressing = {
+				to: ['https://example.com/users/alice'],
+				cc: [],
+				bcc: [],
+			}
+
+			mockUserFind.mockRejectedValue(new Error('Database error'))
+
+			const inboxes = await resolveInboxes(addressing, userId)
+
+			expect(inboxes).toEqual([])
+		})
+
 		it('aggregates inboxes from public, followers, and direct recipients', async () => {
 			mockFollowerFind
 				.mockResolvedValueOnce([{ inboxUrl: 'sender-follow', sharedInboxUrl: null }])
@@ -537,6 +552,68 @@ describe('audience helpers', () => {
 
 			// Should not resolve non-local URLs
 			const inboxes = await resolveInboxes(addressing, userId)
+
+			expect(inboxes).toEqual([])
+		})
+
+		it('should handle large numbers of recipients in batches', async () => {
+			const userId = 'user-123'
+			const manyRecipients = Array.from(
+				{ length: 25 },
+				(_, i) => `https://example.com/users/user${i}`
+			)
+			const addressing = {
+				to: manyRecipients,
+				cc: [],
+				bcc: [],
+			}
+
+			mockUserFind.mockResolvedValue({
+				id: 'user-1',
+				inboxUrl: 'https://example.com/inbox',
+				sharedInboxUrl: null,
+				isRemote: true,
+			} as any)
+
+			const inboxes = await resolveInboxes(addressing, userId)
+
+			expect(inboxes.length).toBeGreaterThan(0)
+		})
+
+		it('should handle local followers collection when target user not found', async () => {
+			const userId = 'user-123'
+			const addressing = {
+				to: ['http://localhost:3000/users/nonexistent/followers'],
+				cc: [],
+				bcc: [],
+			}
+
+			mockUserFind.mockResolvedValue(null)
+
+			const inboxes = await resolveInboxes(addressing, userId)
+
+			expect(inboxes).toEqual([])
+		})
+	})
+
+	describe('getActorInboxes edge cases', () => {
+		it('should skip actors without inbox URL', async () => {
+			const actorUrls = ['https://example.com/users/alice']
+
+			mockUserFind.mockResolvedValue({
+				id: 'user-1',
+				inboxUrl: null,
+				sharedInboxUrl: null,
+				isRemote: true,
+			} as any)
+
+			const inboxes = await getActorInboxes(actorUrls)
+
+			expect(inboxes).toEqual([])
+		})
+
+		it('should handle empty actor URLs array', async () => {
+			const inboxes = await getActorInboxes([])
 
 			expect(inboxes).toEqual([])
 		})

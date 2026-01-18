@@ -6,6 +6,7 @@
 import { createSign, createVerify } from 'crypto'
 import { safeFetch } from './ssrfProtection.js'
 import { config } from '../config.js'
+import { logger } from './logger.js'
 
 // Cache for public keys to reduce fetches
 const publicKeyCache = new Map<string, { key: string; timestamp: number }>()
@@ -79,7 +80,7 @@ export async function verifySignature(
 	try {
 		const sigParams = parseSignatureHeader(signature)
 		if (!sigParams) {
-			console.error('[Signature] Failed to parse signature header')
+			logger.error('[Signature] Failed to parse signature header')
 			return false
 		}
 
@@ -93,7 +94,7 @@ export async function verifySignature(
 
 		const publicKey = await fetchPublicKey(sigParams.keyId)
 		if (!publicKey) {
-			console.error(`[Signature] Failed to fetch public key from: ${sigParams.keyId}`)
+			logger.error(`[Signature] Failed to fetch public key from: ${sigParams.keyId}`)
 			return false
 		}
 
@@ -115,14 +116,14 @@ export async function verifySignature(
 
 		return verified
 	} catch (error) {
-		console.error('[Signature] Verification error:', error)
+		logger.error('[Signature] Verification error:', error)
 		return false
 	}
 }
 
 function isSupportedAlgorithm(algorithm: string) {
 	if (algorithm !== 'rsa-sha256') {
-		console.error(`[Signature] Unsupported algorithm: ${algorithm}`)
+		logger.error(`[Signature] Unsupported algorithm: ${algorithm}`)
 		return false
 	}
 	return true
@@ -130,7 +131,7 @@ function isSupportedAlgorithm(algorithm: string) {
 
 function isRequestDateValid(dateHeader?: string) {
 	if (!dateHeader) {
-		console.error('[Signature] Missing Date header')
+		logger.error('[Signature] Missing Date header')
 		return false
 	}
 
@@ -139,8 +140,8 @@ function isRequestDateValid(dateHeader?: string) {
 	const diff = Math.abs(now.getTime() - requestDate.getTime())
 
 	if (diff > 5 * 60 * 1000) {
-		console.error('[Signature] Request too old or too far in future')
-		console.error(
+		logger.error('[Signature] Request too old or too far in future')
+		logger.error(
 			`[Signature] Request date: ${dateHeader}, Current: ${now.toISOString()}, Diff: ${diff}ms`
 		)
 		return false
@@ -172,7 +173,7 @@ function buildSignatureString(
 
 		const headerValue = findHeaderValue(headers, header)
 		if (!headerValue) {
-			console.error(`[Signature] Missing header: ${header}`)
+			logger.error(`[Signature] Missing header: ${header}`)
 			return null
 		}
 
@@ -195,7 +196,7 @@ async function verifyWithOptionalRefresh(
 
 	if (isValid) return true
 
-	console.log('[Signature] Verification failed, refreshing public key and retrying')
+	logger.debug('[Signature] Verification failed, refreshing public key and retrying')
 	publicKeyCache.delete(keyId)
 
 	const freshKey = await fetchPublicKey(keyId)
@@ -206,7 +207,7 @@ async function verifyWithOptionalRefresh(
 		isValid = retryVerify.verify(freshKey, sig, 'base64')
 
 		if (isValid) {
-			console.log('[Signature] Verification succeeded with fresh key')
+			logger.info('[Signature] Verification succeeded with fresh key')
 			return true
 		}
 	}
@@ -220,13 +221,13 @@ function logVerificationFailure(
 	path: string,
 	signatureString: string
 ) {
-	console.error(`[Signature] Verification failed for keyId: ${sigParams.keyId}`)
-	console.error(`[Signature] Method: ${method}, Path: ${path}`)
-	console.error(`[Signature] Headers to verify: ${sigParams.headers.join(', ')}`)
+	logger.error(`[Signature] Verification failed for keyId: ${sigParams.keyId}`)
+	logger.error(`[Signature] Method: ${method}, Path: ${path}`)
+	logger.error(`[Signature] Headers to verify: ${sigParams.headers.join(', ')}`)
 	// Only log signature string in development to avoid information disclosure
 	// The signature string contains header values (host, date, digest, etc.) which are sensitive
 	if (config.isDevelopment) {
-		console.error(`[Signature] Signature string:\n${signatureString}`)
+		logger.error(`[Signature] Signature string:\n${signatureString}`)
 	}
 }
 
@@ -327,7 +328,7 @@ async function fetchPublicKey(keyId: string): Promise<string | null> {
 
 		return publicKey
 	} catch (error) {
-		console.error('Error fetching public key:', error)
+		logger.error('Error fetching public key:', error)
 		return null
 	}
 }

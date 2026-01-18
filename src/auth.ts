@@ -11,6 +11,7 @@ import { promisify } from 'util'
 import { encryptPrivateKey } from './lib/encryption.js'
 import { config } from './config.js'
 import { prisma } from './lib/prisma.js'
+import { logger } from './lib/logger.js'
 
 const generateKeyPairAsync = promisify(generateKeyPair)
 
@@ -59,7 +60,7 @@ export async function generateUserKeys(
 		},
 	})
 
-	console.log(`✅ Generated and encrypted keys for user: ${username}`)
+	logger.info(`✅ Generated and encrypted keys for user: ${username}`)
 }
 
 export const auth = betterAuth({
@@ -235,11 +236,11 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 			})
 
 			if (needsKeys) {
-				console.log(`✅ Generated and encrypted keys for user: ${user.username}`)
+				logger.info(`✅ Generated and encrypted keys for user: ${user.username}`)
 			}
 		})
 	} catch (error) {
-		console.error(`❌ Post-signup/login processing failed for user ${userId}:`, error)
+		logger.error(`❌ Post-signup/login processing failed for user ${userId}:`, error)
 
 		// Attempt to cleanup potential zombie user if initialization failed.
 		//
@@ -263,10 +264,10 @@ export async function processSignupSuccess(userId: string): Promise<void> {
 				await prisma.user.delete({
 					where: { id: userId },
 				})
-				console.log(`⚠️ Deleted uninitialized user ${userId}`)
+				logger.warn(`⚠️ Deleted uninitialized user ${userId}`)
 			}
 		} catch (cleanupError) {
-			console.error(`❌ Failed to cleanup user ${userId}:`, cleanupError)
+			logger.error(`❌ Failed to cleanup user ${userId}:`, cleanupError)
 		}
 
 		// Re-throw the original error so better-auth returns an error response

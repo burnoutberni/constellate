@@ -1,10 +1,23 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
 	normalizeRecipients,
 	buildAddressingFromActivity,
 	getBroadcastTarget,
 	transformEventsForClient,
+	transformEventForClient,
+	hydrateEventUsers,
+	buildEventInclude,
 } from '../events.js'
+import { prisma } from '../lib/prisma.js'
+
+vi.mock('../lib/prisma.js', () => ({
+	prisma: {
+		user: {
+			findMany: vi.fn(),
+			findFirst: vi.fn(),
+		},
+	},
+}))
 
 describe('events helper utilities', () => {
 	describe('normalizeRecipients', () => {
@@ -117,6 +130,353 @@ describe('events helper utilities', () => {
 			// (Assuming the function prefers existing prop as per implementation: (event ...).viewerStatus ?? derived)
 			const result = transformEventsForClient(events, 'user1')
 			expect(result[0].viewerStatus).toBe('maybe')
+		})
+	})
+
+	describe('hydrateEventUsers', () => {
+		beforeEach(() => {
+			vi.clearAllMocks()
+		})
+
+		it('returns events unchanged when no external URLs to resolve', async () => {
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+				},
+			] as any
+
+			const result = await hydrateEventUsers(events)
+
+			expect(result).toEqual(events)
+			expect(prisma.user.findMany).not.toHaveBeenCalled()
+		})
+
+		it('hydrates user from attributedTo when user is missing', async () => {
+			const mockUser = {
+				id: 'user_123',
+				username: 'bob@example.com',
+				name: 'Bob',
+				displayColor: '#3b82f6',
+				profileImage: null,
+				isRemote: true,
+				externalActorUrl: 'https://example.com/users/bob',
+			}
+
+			const events = [
+				{
+					id: '1',
+					user: null,
+					attributedTo: 'https://example.com/users/bob',
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue([mockUser] as any)
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).user).toEqual(mockUser)
+			expect(prisma.user.findMany).toHaveBeenCalledWith({
+				where: { externalActorUrl: { in: ['https://example.com/users/bob'] } },
+				select: expect.any(Object),
+			})
+		})
+
+		it('does not modify events when user already exists', async () => {
+			const existingUser = { id: 'user1', username: 'alice' }
+			const events = [
+				{
+					id: '1',
+					user: existingUser,
+					attributedTo: 'https://example.com/users/bob',
+				},
+			] as any
+
+			const result = await hydrateEventUsers(events)
+
+			expect(result).toEqual(events)
+			expect((result[0] as any).user).toBe(existingUser)
+		})
+
+		it('hydrates organizers with user data', async () => {
+			const mockOrganizer = {
+				id: 'user_456',
+				username: 'charlie@example.com',
+				name: 'Charlie',
+				displayColor: '#10b981',
+				profileImage: 'https://example.com/avatar.jpg',
+				isRemote: true,
+				externalActorUrl: 'https://example.com/users/charlie',
+			}
+
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+					organizers: [{ url: 'https://example.com/users/charlie', username: 'charlie' }],
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue([mockOrganizer] as any)
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).organizers[0]).toMatchObject({
+				url: 'https://example.com/users/charlie',
+				username: 'charlie@example.com',
+				name: 'Charlie',
+				profileImage: 'https://example.com/avatar.jpg',
+			})
+		})
+
+		it('handles multiple events with different external URLs', async () => {
+			const mockUsers = [
+				{
+					id: 'user_123',
+					username: 'bob@example.com',
+					name: 'Bob',
+					displayColor: '#3b82f6',
+					profileImage: null,
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/bob',
+				},
+				{
+					id: 'user_456',
+					username: 'charlie@example.com',
+					name: 'Charlie',
+					displayColor: '#10b981',
+					profileImage: null,
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/charlie',
+				},
+			]
+
+			const events = [
+				{
+					id: '1',
+					user: null,
+					attributedTo: 'https://example.com/users/bob',
+				},
+				{
+					id: '2',
+					user: null,
+					attributedTo: 'https://example.com/users/charlie',
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).user).toMatchObject({ username: 'bob@example.com' })
+			expect((result[1] as any).user).toMatchObject({ username: 'charlie@example.com' })
+		})
+
+		it('normalizes organizer URLs with trailing slashes', async () => {
+			const mockOrganizer = {
+				id: 'user_456',
+				username: 'charlie@example.com',
+				name: 'Charlie',
+				displayColor: '#10b981',
+				profileImage: 'https://example.com/avatar.jpg',
+				isRemote: true,
+				externalActorUrl: 'https://example.com/users/charlie',
+			}
+
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+					organizers: [
+						{ url: 'https://example.com/users/charlie/', username: 'charlie' },
+					],
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue([mockOrganizer] as any)
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).organizers[0]).toMatchObject({
+				url: 'https://example.com/users/charlie/',
+				username: 'charlie@example.com',
+				name: 'Charlie',
+			})
+		})
+
+		it('keeps organizer unchanged when user not found in DB', async () => {
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+					organizers: [{ url: 'https://example.com/users/unknown', username: 'unknown' }],
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue([])
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).organizers[0]).toEqual({
+				url: 'https://example.com/users/unknown',
+				username: 'unknown',
+			})
+		})
+
+		it('handles events with no organizers array', async () => {
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+					organizers: undefined,
+				},
+			] as any
+
+			const result = await hydrateEventUsers(events)
+
+			expect(result).toEqual(events)
+		})
+
+		it('handles empty events array', async () => {
+			const events: any[] = []
+
+			const result = await hydrateEventUsers(events)
+
+			expect(result).toEqual([])
+			expect(prisma.user.findMany).not.toHaveBeenCalled()
+		})
+
+		it('handles events with empty organizers array', async () => {
+			const events = [
+				{
+					id: '1',
+					user: { id: 'user1', username: 'alice' },
+					attributedTo: null,
+					organizers: [],
+				},
+			] as any
+
+			const result = await hydrateEventUsers(events)
+
+			expect(result).toEqual(events)
+		})
+
+		it('collects URLs from both attributedTo and organizers', async () => {
+			const mockUsers = [
+				{
+					id: 'user_123',
+					username: 'bob@example.com',
+					name: 'Bob',
+					displayColor: '#3b82f6',
+					profileImage: null,
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/bob',
+				},
+				{
+					id: 'user_456',
+					username: 'charlie@example.com',
+					name: 'Charlie',
+					displayColor: '#10b981',
+					profileImage: null,
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/charlie',
+				},
+			]
+
+			const events = [
+				{
+					id: '1',
+					user: null,
+					attributedTo: 'https://example.com/users/bob',
+					organizers: [{ url: 'https://example.com/users/charlie', username: 'charlie' }],
+				},
+			] as any
+
+			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+
+			const result = await hydrateEventUsers(events)
+
+			expect((result[0] as any).user).toMatchObject({ username: 'bob@example.com' })
+			expect((result[0] as any).organizers[0]).toMatchObject({
+				username: 'charlie@example.com',
+			})
+		})
+	})
+
+	describe('buildEventInclude', () => {
+		it('should return base include when no userId provided', () => {
+			const include = buildEventInclude()
+			expect(include).toHaveProperty('user')
+			expect(include).not.toHaveProperty('attendance')
+			expect(include).not.toHaveProperty('likes')
+		})
+
+		it('should return full include when userId is provided', () => {
+			const include = buildEventInclude('user-123')
+			expect(include).toHaveProperty('user')
+			expect(include).toHaveProperty('attendance')
+			expect(include).toHaveProperty('likes')
+		})
+
+		it('should include correct fields in attendance', () => {
+			const include = buildEventInclude('user-123') as any
+			expect(include.attendance).toHaveProperty('select')
+			expect(include.attendance.select).toHaveProperty('status')
+			expect(include.attendance.select).toHaveProperty('userId')
+		})
+	})
+
+	describe('transformEventForClient', () => {
+		it('should transform sharedEvent to originalEventId', () => {
+			const event = {
+				id: 'event-1',
+				sharedEvent: { id: 'original-1' },
+				_count: { attendance: 5, likes: 10, comments: 3 },
+			}
+
+			const result = transformEventForClient(event as any)
+			expect(result.originalEventId).toBe('original-1')
+			expect(result.sharedEvent).toBeUndefined()
+		})
+
+		it('should derive viewerStatus from attendance', () => {
+			const event = {
+				id: 'event-1',
+				attendance: [
+					{ userId: 'user-123', status: 'attending' },
+					{ userId: 'other-user', status: 'maybe' },
+				],
+				_count: { attendance: 2, likes: 0, comments: 0 },
+			}
+
+			const result = transformEventForClient(event as any, 'user-123')
+			expect(result.viewerStatus).toBe('attending')
+		})
+
+		it('should return null viewerStatus when not attending', () => {
+			const event = {
+				id: 'event-1',
+				attendance: [{ userId: 'other-user', status: 'attending' }],
+				_count: { attendance: 1, likes: 0, comments: 0 },
+			}
+
+			const result = transformEventForClient(event as any, 'user-123')
+			expect(result.viewerStatus).toBeNull()
+		})
+
+		it('should handle missing _count gracefully', () => {
+			const event = {
+				id: 'event-1',
+				sharedEvent: null,
+			}
+
+			const result = transformEventForClient(event as any)
+			expect(result._count).toEqual({ attendance: 0, likes: 0, comments: 0 })
 		})
 	})
 })

@@ -13,6 +13,7 @@ import { decryptPrivateKey } from '../lib/encryption.js'
 import { prisma } from '../lib/prisma.js'
 import type { Prisma } from '@prisma/client'
 import type { Activity } from '../lib/activitypubSchemas.js'
+import { logger } from '../lib/logger.js'
 
 interface DeliveryError {
 	message: string
@@ -29,7 +30,7 @@ function logFederationError(
 	activity: Activity,
 	error: DeliveryError
 ): void {
-	console.error(`[Federation Error] ${context}`, {
+	logger.error(`[Federation Error] ${context}`, {
 		timestamp: new Date().toISOString(),
 		inboxUrl,
 		activityId: activity.id,
@@ -71,9 +72,9 @@ async function addToDeadLetterQueue(
 			},
 		})
 
-		console.log(`[Dead Letter Queue] Added failed delivery: ${activity.id} -> ${inboxUrl}`)
+		logger.debug(`[Dead Letter Queue] Added failed delivery: ${activity.id} -> ${inboxUrl}`)
 	} catch (err) {
-		console.error('[Dead Letter Queue] Failed to add to queue:', err)
+		logger.error('[Dead Letter Queue] Failed to add to queue:', err)
 	}
 }
 
@@ -100,6 +101,7 @@ export async function deliverToInbox(
 	user: { id?: string; username: string; privateKey: string | null },
 	recordFailure: boolean = false
 ): Promise<boolean> {
+	const deliveryStartTime = Date.now()
 	try {
 		if (!user.privateKey) {
 			const error: DeliveryError = {
@@ -163,12 +165,17 @@ export async function deliverToInbox(
 			body,
 		})
 
+		const duration = Date.now() - deliveryStartTime
+
 		if (!response.ok) {
 			const error: DeliveryError = {
 				message: `HTTP ${response.status}: ${response.statusText}`,
 				statusCode: response.status,
 			}
 			logFederationError('Delivery failed', inboxUrl, activity, error)
+			logger.debug(
+				`[Federation] Failed delivery to ${inboxUrl} in ${duration}ms: ${response.status}`
+			)
 
 			if (recordFailure && user.id) {
 				await addToDeadLetterQueue(activity, inboxUrl, user.id, error, 0)
@@ -177,6 +184,7 @@ export async function deliverToInbox(
 			return false
 		}
 
+		logger.debug(`[Federation] Delivered to ${inboxUrl} in ${duration}ms`)
 		return true
 	} catch (error) {
 		const deliveryError: DeliveryError = {
@@ -314,9 +322,24 @@ export async function deliverActivity(
 	}
 
 	// Resolve addressing to inbox URLs
+	const resolveStartTime = Date.now()
 	const inboxUrls = await resolveInboxes(addressing, userId)
+	const resolveDuration = Date.now() - resolveStartTime
+	logger.debug(`[Federation] Resolved ${inboxUrls.length} inbox URLs in ${resolveDuration}ms`)
 
+	if (inboxUrls.length > 0) {
+		logger.debug(
+			`[Federation] Delivering activity ${activity.type} to ${inboxUrls.length} inboxes`
+		)
+	}
+
+	const deliveryStartTime = Date.now()
 	await deliverToInboxes(activity, inboxUrls, user)
+	const deliveryDuration = Date.now() - deliveryStartTime
+
+	if (inboxUrls.length > 0) {
+		logger.debug(`[Federation] Delivered to all inboxes in ${deliveryDuration}ms`)
+	}
 }
 
 /**
@@ -404,7 +427,7 @@ async function deleteSuccessfulDelivery(deliveryId: string, activityId: string, 
 	await prisma.failedDelivery.delete({
 		where: { id: deliveryId },
 	})
-	console.log(`[Dead Letter Queue] Successfully delivered: ${activityId} -> ${inboxUrl}`)
+	logger.debug(`[Dead Letter Queue] Successfully delivered: ${activityId} -> ${inboxUrl}`)
 }
 
 async function updateAttemptFailure(delivery: {
@@ -467,7 +490,7 @@ async function processSingleDeadLetter(
 
 		await updateAttemptFailure(delivery)
 	} catch (error) {
-		console.error(`[Dead Letter Queue] Error processing delivery ${delivery.id}:`, error)
+		logger.error(`[Dead Letter Queue] Error processing delivery ${delivery.id}:`, error)
 		await markDeliveryError(delivery.id, error)
 	}
 }
@@ -481,13 +504,15 @@ export async function processDeadLetterQueue(): Promise<void> {
 		const pendingDeliveries = await fetchPendingDeadLetters(new Date())
 		if (pendingDeliveries.length === 0) return
 
-		console.log(`[Dead Letter Queue] Processing ${pendingDeliveries.length} pending deliveries`)
+		logger.debug(
+			`[Dead Letter Queue] Processing ${pendingDeliveries.length} pending deliveries`
+		)
 
 		for (const delivery of pendingDeliveries) {
 			await processSingleDeadLetter(delivery)
 		}
 	} catch (error) {
-		console.error('[Dead Letter Queue] Error processing queue:', error)
+		logger.error('[Dead Letter Queue] Error processing queue:', error)
 	}
 }
 

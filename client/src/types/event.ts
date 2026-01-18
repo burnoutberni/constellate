@@ -61,6 +61,8 @@ export interface Event {
 		username: string
 		host: string
 		display: string
+		profileImage?: string | null
+		name?: string | null
 	}> | null
 	externalId?: string | null
 	visibility?: EventVisibility

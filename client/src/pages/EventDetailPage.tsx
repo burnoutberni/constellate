@@ -205,10 +205,12 @@ export function EventDetailPage() {
 				const rawUsername = pathParts.find((p) => p.startsWith('@')) || pathParts[pathParts.length - 1] || 'remote'
 				const cleanUsername = rawUsername.startsWith('@') ? rawUsername.slice(1) : rawUsername
 
+				// Use the username part as the display name if no better name is available
+				// This avoids "@@username@domain" looking double-prefixed when displayed
 				return [{
 					id: 'remote',
 					username: `${cleanUsername}@${u.hostname}`,
-					name: `@${cleanUsername}@${u.hostname}`,
+					name: cleanUsername,
 					profileImage: null,
 					displayColor: null,
 					isRemote: true,

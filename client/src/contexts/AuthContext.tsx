@@ -1,5 +1,6 @@
 import { createContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 
+import { setCurrentUser, clearCurrentUser } from '@/lib/currentUserStore'
 import { logger } from '@/lib/logger'
 
 import { api } from '../lib/api-client'
@@ -156,6 +157,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setUser(null)
 		setTosStatus(null)
 	}
+
+	// Sync user with module-level store for mutations to access
+	useEffect(() => {
+		if (user) {
+			setCurrentUser({
+				id: user.id,
+				username: user.username,
+				name: user.name,
+				profileImage: user.image,
+				isRemote: user.isRemote,
+			})
+		} else {
+			clearCurrentUser()
+		}
+	}, [user])
 
 	return (
 		<AuthContext.Provider

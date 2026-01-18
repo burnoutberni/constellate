@@ -35,7 +35,19 @@ export function HomePage() {
 
 	// Derived data
 	const upcomingEvents =
-		eventsData?.events.filter((e) => new Date(e.startTime) > new Date()) || []
+		eventsData?.events.filter((e) => {
+			const now = new Date()
+			const start = new Date(e.startTime)
+			const end = e.endTime ? new Date(e.endTime) : null
+
+			// If event has an end time, keep showing it until it ends
+			if (end) {
+				return end > now
+			}
+
+			// Otherwise just standard upcoming check
+			return start > now
+		}) || []
 	const trendingEvents = trendingData?.events || []
 	const recommendedEvents = recommendationsData?.recommendations.map((r) => r.event) || []
 

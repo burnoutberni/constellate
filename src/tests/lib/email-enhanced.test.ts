@@ -55,7 +55,7 @@ describe('Enhanced Email Library', () => {
 		})
 
 		// Mock console methods to avoid noise in tests
-		vi.spyOn(console, 'log').mockImplementation(() => {})
+		vi.spyOn(console, 'info').mockImplementation(() => {})
 		vi.spyOn(console, 'error').mockImplementation(() => {})
 	})
 
@@ -159,7 +159,7 @@ describe('Enhanced Email Library', () => {
 			expect(mockSendMail).toHaveBeenCalled()
 			expect(result?.messageId).toBe('test-message-id')
 			expect(console.error).toHaveBeenCalledWith(
-				'⚠️ Failed to record email delivery:',
+				'[ERROR] ⚠️ Failed to record email delivery:',
 				expect.any(Error)
 			)
 
@@ -217,7 +217,7 @@ describe('Enhanced Email Library', () => {
 			const result = await getUserEmailPreference(testUser.id, 'FOLLOW')
 			expect(result).toBe(true) // Should default to true on error
 			expect(console.error).toHaveBeenCalledWith(
-				'Error checking email preferences:',
+				'[ERROR] Error checking email preferences:',
 				expect.any(Error)
 			)
 
@@ -301,8 +301,9 @@ describe('Enhanced Email Library', () => {
 			})
 
 			expect(mockSendMail).not.toHaveBeenCalled()
-			expect(console.log).toHaveBeenCalledWith(
-				`📧 User ${userWithoutEmail.id} has no email address, skipping notification`
+			expect(console.info).toHaveBeenCalledWith(
+				`[INFO] 📧 User ${userWithoutEmail.id} has no email address, skipping notification`,
+				''
 			)
 
 			await prisma.user.delete({ where: { id: userWithoutEmail.id } })
@@ -320,7 +321,7 @@ describe('Enhanced Email Library', () => {
 
 			expect(result).toBeUndefined()
 			expect(console.error).toHaveBeenCalledWith(
-				'Failed to send email notification:',
+				'[ERROR] Failed to send email notification:',
 				expect.any(Error)
 			)
 		})

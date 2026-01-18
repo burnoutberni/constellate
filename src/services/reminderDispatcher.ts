@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { createNotification } from './notifications.js'
 import { config } from '../config.js'
 import { sendEmail } from '../lib/email.js'
+import { logger } from '../lib/logger.js'
 
 const POLL_INTERVAL_MS = 30000
 const PROCESSING_LIMIT = 25
@@ -98,7 +99,7 @@ async function sendReminderNotification(reminder: NonNullable<ReminderWithContex
 		return { success: true as const, reminderLabel, eventUrl, eventStartFormatted }
 	} catch (error) {
 		const err = error instanceof Error ? error : new Error(String(error))
-		console.error('Failed to create notification for reminder:', error)
+		logger.error('Failed to create notification for reminder:', error)
 		return {
 			success: false as const,
 			reminderLabel,
@@ -127,7 +128,7 @@ async function sendReminderEmail(
 		return null
 	} catch (error) {
 		const err = error instanceof Error ? error : new Error(String(error))
-		console.warn('Failed to send email for reminder (non-critical):', error)
+		logger.warn('Failed to send email for reminder (non-critical):', error)
 		return err
 	}
 }
@@ -172,7 +173,7 @@ async function processReminder(reminderId: string) {
 		const emailError = await sendReminderEmail(reminder, notificationResult)
 		await finalizeReminder(reminder, notificationResult, emailError)
 	} catch (error) {
-		console.error('Unexpected error processing reminder, marking as FAILED:', error)
+		logger.error('Unexpected error processing reminder, marking as FAILED:', error)
 		await markReminderFailed(
 			reminder.id,
 			error instanceof Error ? error.message : 'Unknown error'
@@ -223,7 +224,7 @@ export async function runReminderDispatcherCycle(limit: number = PROCESSING_LIMI
 		// Use Promise.allSettled to ensure all reminders are processed even if some fail
 		await Promise.allSettled(reminderIds.map((reminderId) => processReminder(reminderId)))
 	} catch (error) {
-		console.error('Reminder dispatcher error:', error)
+		logger.error('Reminder dispatcher error:', error)
 	} finally {
 		isProcessing = false
 	}
@@ -241,7 +242,7 @@ export function startReminderDispatcher() {
 
 	intervalHandle = setInterval(runCycle, POLL_INTERVAL_MS)
 	runCycle()
-	console.log('⏰ Reminder dispatcher started')
+	logger.info('⏰ Reminder dispatcher started')
 }
 
 export function stopReminderDispatcher() {

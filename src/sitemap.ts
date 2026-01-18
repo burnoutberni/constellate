@@ -9,6 +9,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
+import { logger } from './lib/logger.js'
 
 const app = new OpenAPIHono()
 
@@ -129,7 +130,7 @@ app.get('/sitemap.xml', async (c) => {
 			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
 		})
 	} catch (error) {
-		console.error('Error generating sitemap index:', error)
+		logger.error('Error generating sitemap index:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -156,7 +157,7 @@ app.get('/sitemap-static.xml', async (c) => {
 			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
 		})
 	} catch (error) {
-		console.error('Error generating static sitemap:', error)
+		logger.error('Error generating static sitemap:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -251,7 +252,7 @@ app.get('/sitemap-users/:page', async (c) => {
 			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
 		})
 	} catch (error) {
-		console.error('Error generating user sitemap:', error)
+		logger.error('Error generating user sitemap:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -275,7 +276,7 @@ app.get('/sitemap-events/:page', async (c) => {
 			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
 		})
 	} catch (error) {
-		console.error('Error generating event sitemap:', error)
+		logger.error('Error generating event sitemap:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -303,7 +304,7 @@ Sitemap: ${sitemapUrl}
 			'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
 		})
 	} catch (error) {
-		console.error('Error generating robots.txt:', error)
+		logger.error('Error generating robots.txt:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

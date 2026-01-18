@@ -7,6 +7,7 @@ import { Context } from 'hono'
 import { ZodError } from 'zod'
 import { Prisma } from '@prisma/client'
 import { config } from '../config.js'
+import { logger } from './logger.js'
 
 /**
  * Application Error Class
@@ -93,7 +94,7 @@ export function handleError(error: unknown, c: Context): Response {
 		}
 
 		// Log Prisma errors for debugging
-		console.error('[Error Handler] Prisma error:', error)
+		logger.error('[Error Handler] Prisma error:', error)
 
 		// Return generic database error
 		return c.json(
@@ -106,7 +107,7 @@ export function handleError(error: unknown, c: Context): Response {
 	}
 
 	// Log full error server-side (for debugging)
-	console.error('[Error Handler] Unhandled error:', error)
+	logger.error('[Error Handler] Unhandled error:', error)
 
 	// Return generic error to client (no sensitive information)
 	return c.json(

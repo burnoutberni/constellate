@@ -3,6 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { UserProfileHeader } from '../../components/UserProfileHeader'
 import type { UserProfile } from '../../types'
 
+vi.mock('../../components/FollowButton', () => ({
+	FollowButton: vi.fn(({ username }) => {
+		return (
+			<button data-testid="follow-button" data-username={username}>
+				Follow
+			</button>
+		)
+	}),
+}))
+
 const mockUser: UserProfile = {
 	id: '1',
 	username: 'testuser',
@@ -14,6 +24,7 @@ const mockUser: UserProfile = {
 	isRemote: false,
 	externalActorUrl: null,
 	createdAt: '2023-01-01T00:00:00.000Z',
+	isPublicProfile: true,
 	_count: {
 		events: 5,
 		followers: 10,
@@ -57,45 +68,7 @@ describe('UserProfileHeader Component', () => {
 		expect(screen.getByText('Followers')).toBeInTheDocument()
 		expect(screen.getByText('8')).toBeInTheDocument()
 		expect(screen.getByText('Following')).toBeInTheDocument()
-	})
-
-	it('should show follow button when not own profile and authenticated', () => {
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={false}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-				onFollowClick={vi.fn()}
-			/>
-		)
-
-		const buttons = screen.getAllByRole('button')
-		const followButton = buttons.find((btn) => btn.textContent?.trim() === 'Follow')
-		expect(followButton).toBeDefined()
-		expect(followButton).toBeInTheDocument()
-	})
-
-	it('should show unfollow button when following', () => {
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={true}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-				onUnfollowClick={vi.fn()}
-			/>
-		)
-
-		const unfollowButton = screen.getByRole('button', { name: /Unfollow/i })
-		expect(unfollowButton).toBeInTheDocument()
-	})
+	}	)
 
 	it('should not show follow button when own profile', () => {
 		render(
@@ -115,69 +88,6 @@ describe('UserProfileHeader Component', () => {
 
 		expect(followButton).toBeUndefined()
 		expect(unfollowButton).toBeUndefined()
-	})
-
-	it('should call onFollowClick when follow button is clicked', () => {
-		const onFollowClick = vi.fn()
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={false}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-				onFollowClick={onFollowClick}
-			/>
-		)
-
-		const buttons = screen.getAllByRole('button')
-		const followButton = buttons.find((btn) => btn.textContent?.trim() === 'Follow')
-		expect(followButton).toBeDefined()
-		expect(followButton).toBeInTheDocument()
-		if (followButton) {
-			fireEvent.click(followButton)
-		}
-		expect(onFollowClick).toHaveBeenCalledTimes(1)
-	})
-
-	it('should call onUnfollowClick when unfollow button is clicked', () => {
-		const onUnfollowClick = vi.fn()
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={true}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-				onUnfollowClick={onUnfollowClick}
-			/>
-		)
-
-		const unfollowButton = screen.getByRole('button', { name: /Unfollow/i })
-		fireEvent.click(unfollowButton)
-		expect(onUnfollowClick).toHaveBeenCalledTimes(1)
-	})
-
-	it('should show pending state when follow is pending', () => {
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={false}
-				isFollowPending={true}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-			/>
-		)
-
-		const pendingButton = screen.getByRole('button', { name: /Pending/i })
-		expect(pendingButton).toBeInTheDocument()
 	})
 
 	it('should display remote badge and instance for remote users', () => {
@@ -268,31 +178,6 @@ describe('UserProfileHeader Component', () => {
 			fireEvent.click(followingButton)
 			expect(onFollowingClick).toHaveBeenCalledTimes(1)
 		}
-	})
-
-	it('should show loading state on follow button', () => {
-		render(
-			<UserProfileHeader
-				user={mockUser}
-				isOwnProfile={false}
-				isFollowing={false}
-				followerCount={10}
-				followingCount={8}
-				eventCount={5}
-				showFollowButton={true}
-				isFollowLoading={true}
-			/>
-		)
-
-		// Find the disabled button (the follow button in loading state)
-		const buttons = screen.getAllByRole('button')
-		const followButton = buttons.find(
-			(btn) =>
-				btn.hasAttribute('disabled') &&
-				(btn.textContent?.includes('Follow') || btn.querySelector('svg.animate-spin'))
-		)
-		expect(followButton).toBeDefined()
-		expect(followButton).toBeDisabled()
 	})
 
 	it('should display private account badge when profile is private', () => {

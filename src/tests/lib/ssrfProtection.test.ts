@@ -3,6 +3,19 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+const debugCalls: string[] = []
+
+vi.mock('../../lib/logger.js', () => ({
+	logger: {
+		debug: (msg: string) => debugCalls.push(msg),
+		info: vi.fn(() => {}),
+		warn: vi.fn(() => {}),
+		error: vi.fn(() => {}),
+		critical: vi.fn(() => {}),
+	},
+}))
+
 import { isUrlSafe, safeFetch } from '../../lib/ssrfProtection.js'
 
 describe('SSRF Protection', () => {
@@ -210,8 +223,146 @@ describe('SSRF Protection', () => {
 
 			await expect(safeFetch('https://example.com', {}, 1000)).rejects.toThrow()
 
-			// Timeout should be cleared even on error
 			expect(clearTimeoutSpy).toHaveBeenCalled()
+		})
+
+		it('should throw timeout error when request times out', async () => {
+			let abortCallback: (() => void) | undefined
+			const mockResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({}),
+			}
+
+			global.fetch = vi.fn().mockImplementation(
+				(_url: string, options: RequestInit) =>
+					new Promise((_resolve, reject) => {
+						abortCallback = () => {
+							const error = new Error('AbortError')
+							error.name = 'AbortError'
+							reject(error)
+						}
+						setTimeout(abortCallback, 100)
+					})
+			)
+
+			await expect(safeFetch('https://example.com', {}, 50)).rejects.toThrow(
+				'Request timeout after 50ms'
+			)
+		})
+
+		it('should follow redirects', async () => {
+			const redirectResponse = {
+				status: 302,
+				headers: new Map([['location', 'https://example.com/final']]),
+			}
+			const finalResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({ redirected: true }),
+			}
+
+			global.fetch = vi
+				.fn()
+				.mockResolvedValueOnce(redirectResponse as unknown as Response)
+				.mockResolvedValueOnce(finalResponse as unknown as Response)
+
+			await safeFetch('https://example.com/redirect')
+
+			expect(global.fetch).toHaveBeenCalledTimes(2)
+		})
+
+		it('should throw error when redirect has no location header', async () => {
+			const redirectResponse = {
+				status: 302,
+				headers: new Map([]),
+			}
+
+			global.fetch = vi.fn().mockResolvedValue(redirectResponse as unknown as Response)
+
+			await expect(safeFetch('https://example.com/redirect')).rejects.toThrow(
+				'Redirect without location header'
+			)
+		})
+
+		it('should throw error after max redirects', async () => {
+			const redirectResponse = {
+				status: 302,
+				headers: new Map([['location', 'https://example.com/redirect']]),
+			}
+
+			global.fetch = vi.fn().mockResolvedValue(redirectResponse as unknown as Response)
+
+			await expect(safeFetch('https://example.com/redirect', {}, 30000, 2)).rejects.toThrow(
+				'Too many redirects (max 2)'
+			)
+		})
+
+		it('should use crypto for request ID generation', async () => {
+			const mockResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({}),
+			}
+
+			global.fetch = vi.fn().mockResolvedValue(mockResponse)
+
+			await safeFetch('https://example.com')
+
+			expect(global.fetch).toHaveBeenCalled()
+		})
+
+		it('should handle non-Error exceptions', async () => {
+			global.fetch = vi.fn().mockRejectedValue('string error')
+
+			await expect(safeFetch('https://example.com')).rejects.toThrow('Unknown error')
+		})
+
+		it('should resolve relative redirect URLs', async () => {
+			const redirectResponse = {
+				status: 301,
+				headers: new Map([['location', '/new-path']]),
+			}
+			const finalResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({ success: true }),
+			}
+
+			global.fetch = vi
+				.fn()
+				.mockResolvedValueOnce(redirectResponse as unknown as Response)
+				.mockResolvedValueOnce(finalResponse as unknown as Response)
+
+			const response = await safeFetch('https://example.com/old-path')
+
+			expect(response).toBe(finalResponse)
+			expect(global.fetch).toHaveBeenCalledTimes(2)
+		})
+
+		it('should log slow requests', async () => {
+			debugCalls.length = 0
+
+			const mockResponse = {
+				ok: true,
+				status: 200,
+				json: async () => ({}),
+			}
+
+			const slowFetch = vi.fn().mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						setTimeout(() => resolve(mockResponse), 1500)
+					})
+			)
+
+			global.fetch = slowFetch as unknown as typeof fetch
+
+			await safeFetch('https://example.com', {}, 30000, 5)
+
+			expect(global.fetch).toHaveBeenCalled()
+			const slowLogCall = debugCalls.find((call) => call.includes('[SLOW]'))
+			expect(slowLogCall).toBeDefined()
 		})
 	})
 })

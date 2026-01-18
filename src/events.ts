@@ -19,7 +19,7 @@ import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { prisma } from './lib/prisma.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { normalizeTags } from './lib/tags.js'
-import type { Person } from './lib/activitypubSchemas.js'
+import type { Actor } from './lib/activitypubSchemas.js'
 import { buildVisibilityWhere, canUserViewEvent } from './lib/eventVisibility.js'
 import { handleError } from './lib/errors.js'
 import { config } from './config.js'
@@ -35,6 +35,8 @@ import {
 import { isValidTimeZone, normalizeTimeZone } from './lib/timezone.js'
 import { listEventRemindersForUser } from './services/reminders.js'
 import { buildEventFilter } from './lib/eventQueries.js'
+import { resolveAndCacheRemoteUser } from './userSearch.js'
+import { logger } from './lib/logger.js'
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -69,6 +71,7 @@ const eventUserSummarySelect = {
 	displayColor: true,
 	profileImage: true,
 	isRemote: true,
+	externalActorUrl: true,
 } as const
 
 export const eventBaseInclude = {
@@ -117,28 +120,179 @@ export function buildEventInclude(userId?: string) {
 	return eventBaseInclude
 }
 
-export async function hydrateEventUsers<T extends { user: unknown; attributedTo: string | null }>(
-	events: T[]
-): Promise<T[]> {
-	return Promise.all(
-		events.map(async (event) => {
-			if (!event.user && event.attributedTo) {
-				const remoteUser = await prisma.user.findFirst({
-					where: { externalActorUrl: event.attributedTo },
-					select: eventUserSummarySelect,
-				})
-				if (remoteUser) {
-					return { ...event, user: remoteUser }
+// Helper to fetch and cache a remote user by actor URL
+async function fetchAndCacheRemoteUser(actorUrl: string) {
+	let user = await prisma.user.findFirst({
+		where: { externalActorUrl: actorUrl },
+		select: eventUserSummarySelect,
+	})
+
+	if (!user) {
+		const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
+		const actor = await fetchActor(actorUrl)
+		if (actor) {
+			user = await cacheRemoteUser(actor as Actor)
+			if (user) {
+				// Return with the select fields
+				return {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					displayColor: user.displayColor,
+					profileImage: user.profileImage,
+					isRemote: user.isRemote,
+					externalActorUrl: user.externalActorUrl,
 				}
 			}
-			return event
-		})
+		}
+	}
+	return user
+}
+
+// Hydrates both the main user (if missing but attributed) AND resolves organizers to DB users
+export async function hydrateEventUsers<
+	T extends {
+		user: unknown
+		attributedTo: string | null
+		organizers?: unknown
+	},
+>(events: T[]): Promise<T[]> {
+	const urlToEventMap = new Map<string, Array<T>>()
+	const allExternalUrls = new Set<string>()
+
+	collectEventUrls(events, urlToEventMap, allExternalUrls)
+
+	if (allExternalUrls.size === 0) {
+		return events
+	}
+
+	const cachedUsers = await prisma.user.findMany({
+		where: { externalActorUrl: { in: Array.from(allExternalUrls) } },
+		select: eventUserSummarySelect,
+	})
+
+	const userMap = new Map(cachedUsers.map((u) => [u.externalActorUrl, u]))
+
+	const normalizedUserMap = new Map<
+		string,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>()
+	for (const [key, user] of userMap.entries()) {
+		if (key) {
+			const normalizedKey = key.replace(/\/$/, '')
+			normalizedUserMap.set(normalizedKey, user)
+		}
+	}
+
+	const uncachedUrls = Array.from(allExternalUrls).filter((url) => !userMap.has(url))
+
+	if (uncachedUrls.length > 0) {
+		await Promise.all(
+			uncachedUrls.map(async (url) => {
+				const user = await fetchAndCacheRemoteUser(url)
+				if (user) {
+					userMap.set(user.externalActorUrl, user)
+					const normalizedKey = user.externalActorUrl?.replace(/\/$/, '')
+					if (normalizedKey) {
+						normalizedUserMap.set(normalizedKey, user)
+					}
+				}
+			})
+		)
+	}
+
+	return events.map((event) =>
+		hydrateSingleEventUser(
+			event,
+			userMap as Map<
+				string | null,
+				{ profileImage?: string | null; name?: string | null; username?: string | null }
+			>,
+			normalizedUserMap,
+			urlToEventMap
+		)
 	)
+}
+
+function collectEventUrls<
+	T extends { user: unknown; attributedTo: string | null; organizers?: unknown },
+>(events: T[], urlToEventMap: Map<string, Array<T>>, allExternalUrls: Set<string>) {
+	for (const event of events) {
+		if (!event.user && event.attributedTo) {
+			allExternalUrls.add(event.attributedTo)
+			const list = urlToEventMap.get(event.attributedTo) || []
+			list.push(event)
+			urlToEventMap.set(event.attributedTo, list)
+		}
+
+		if (Array.isArray(event.organizers)) {
+			for (const org of event.organizers as Array<{ url?: string }>) {
+				if (org && typeof org === 'object' && org.url) {
+					allExternalUrls.add(org.url)
+				}
+			}
+		}
+	}
+}
+
+function hydrateSingleEventUser<
+	T extends { user: unknown; attributedTo: string | null; organizers?: unknown },
+>(
+	event: T,
+	userMap: Map<
+		string | null,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>,
+	normalizedUserMap: Map<
+		string,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>,
+	_urlToEventMap: Map<string, Array<T>>
+): T {
+	let updatedEvent = { ...event }
+
+	if (!updatedEvent.user && updatedEvent.attributedTo) {
+		const remoteUser = userMap.get(updatedEvent.attributedTo)
+		if (remoteUser) {
+			updatedEvent = { ...updatedEvent, user: remoteUser }
+		}
+	}
+
+	if (Array.isArray(updatedEvent.organizers)) {
+		const hydratedOrganizers = (
+			updatedEvent.organizers as Array<{ url: string; username: string }>
+		).map((org) => hydrateOrganizer(org, normalizedUserMap))
+		updatedEvent = { ...updatedEvent, organizers: hydratedOrganizers }
+	}
+
+	return updatedEvent
+}
+
+function hydrateOrganizer(
+	org: { url: string; username: string },
+	normalizedUserMap: Map<
+		string,
+		{ profileImage?: string | null; name?: string | null; username?: string | null }
+	>
+) {
+	const normalizedOrgUrl = org.url ? org.url.replace(/\/$/, '') : ''
+
+	const dbUser = normalizedOrgUrl ? normalizedUserMap.get(normalizedOrgUrl) : undefined
+
+	if (dbUser) {
+		return {
+			...org,
+			profileImage: dbUser.profileImage,
+			name: dbUser.name,
+			username: dbUser.username,
+		}
+	}
+	return org
 }
 
 // Transform sharedEvent to originalEventId for client compatibility
 // Also derives viewerStatus from attendance list if available
-function transformEventForClient<
+export function transformEventForClient<
 	T extends {
 		sharedEvent?: { id: string } | null
 		attendance?: Array<{ userId: string; status: string }>
@@ -312,7 +466,7 @@ function processTagsForCreation(tags: unknown): Array<{ tag: string }> | undefin
 			return normalizedTags.map((tag) => ({ tag }))
 		}
 	} catch (error) {
-		console.error('Error normalizing tags:', error)
+		logger.error('Error normalizing tags:', error)
 		throw error
 	}
 
@@ -603,7 +757,7 @@ app.post('/', moderateRateLimit, async (c) => {
 
 		return c.json(transformEventForClient(event, userId), 201)
 	} catch (error) {
-		console.error('Error creating event:', error)
+		logger.error('Error creating event:', error)
 		return handleError(error, c)
 	}
 })
@@ -725,7 +879,7 @@ app.get('/', async (c) => {
 			},
 		})
 	} catch (error) {
-		console.error('Error listing events:', error)
+		logger.error('Error listing events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -857,7 +1011,7 @@ app.get('/trending', lenientRateLimit, async (c) => {
 			generatedAt: now.toISOString(),
 		})
 	} catch (error) {
-		console.error('Error fetching trending events:', error)
+		logger.error('Error fetching trending events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -978,7 +1132,7 @@ async function findOrCacheRemoteUser(actorUrl: string | undefined) {
 		const { cacheRemoteUser, fetchActor } = await import('./lib/activitypubHelpers.js')
 		const actor = await fetchActor(actorUrl)
 		if (actor) {
-			user = await cacheRemoteUser(actor as unknown as Person)
+			user = await cacheRemoteUser(actor as Actor)
 		}
 	}
 
@@ -1124,9 +1278,9 @@ async function cacheRemoteEventData(eventId: string, externalId: string) {
 			}
 		}
 
-		console.log(`✅ Cached attendance and likes for remote event ${eventId}`)
+		logger.debug(`✅ Cached attendance and likes for remote event ${eventId}`)
 	} catch (error) {
-		console.error('Error fetching remote event details:', error)
+		logger.error('Error fetching remote event details:', error)
 		// Continue with cached data
 	}
 }
@@ -1156,34 +1310,18 @@ app.get('/by-user/:username/:eventId', async (c) => {
 		const { username, eventId } = c.req.param()
 		const viewerId = c.get('userId') as string | undefined
 
-		const isRemote = username.includes('@')
-		const user = await prisma.user.findFirst({
-			where: { username, isRemote },
-			select: {
-				id: true,
-				username: true,
-				name: true,
-				displayColor: true,
-				profileImage: true,
-				externalActorUrl: true,
-				isRemote: true,
-			},
-		})
+		const user = await lookupUser(username)
 		if (!user) {
 			return c.json({ error: 'User not found' }, 404)
 		}
 
-		const event = await prisma.event.findFirst({
-			where: {
-				id: eventId,
-				...(isRemote
-					? { attributedTo: user.externalActorUrl || undefined }
-					: { userId: user.id }),
-			},
-			include: getEventFullInclude(),
-		})
-
+		const event = await findEventByUser(eventId, user)
 		if (!event) {
+			const organizerEvent = await searchEventInOrganizers(eventId, user)
+			if (organizerEvent) {
+				const result = await processOrganizerEvent(organizerEvent, user)
+				return c.json(result)
+			}
 			return c.json({ error: 'Event not found' }, 404)
 		}
 
@@ -1191,28 +1329,124 @@ app.get('/by-user/:username/:eventId', async (c) => {
 			return c.json({ error: 'Forbidden' }, 403)
 		}
 
-		const originalEvent = event.sharedEvent ?? event
-		const userHasShared =
-			!!viewerId &&
-			!!(await prisma.event.findFirst({
-				where: { userId: viewerId, sharedEventId: originalEvent.id },
-				select: { id: true },
-			}))
-
-		const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
-		const responseExtras = { userHasShared, viewerReminders }
-
-		if (isRemote) {
-			const result = await processRemoteEvent(event, user, responseExtras)
-			return c.json(result)
-		}
-
-		return c.json({ ...event, ...responseExtras })
+		return buildEventResponse(c, event, user, viewerId)
 	} catch (error) {
-		console.error('Error getting event by username:', error)
+		logger.error('Error getting event by username:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
+
+async function lookupUser(username: string) {
+	const isRemote = username.includes('@')
+	let user = await prisma.user.findFirst({
+		where: { username, isRemote },
+		select: {
+			id: true,
+			username: true,
+			name: true,
+			displayColor: true,
+			profileImage: true,
+			externalActorUrl: true,
+			isRemote: true,
+		},
+	})
+	if (!user && isRemote) {
+		const resolvedUser = await resolveAndCacheRemoteUser(username)
+		if (resolvedUser) {
+			user = resolvedUser
+		}
+	}
+	return user
+}
+
+async function findEventByUser(
+	eventId: string,
+	user: NonNullable<Awaited<ReturnType<typeof lookupUser>>>
+) {
+	const isRemote = user.isRemote
+	return prisma.event.findFirst({
+		where: {
+			id: eventId,
+			...(isRemote
+				? { attributedTo: user.externalActorUrl || undefined }
+				: { userId: user.id }),
+		},
+		include: getEventFullInclude(),
+	})
+}
+
+async function searchEventInOrganizers(
+	eventId: string,
+	user: NonNullable<Awaited<ReturnType<typeof lookupUser>>>
+) {
+	if (!user.isRemote || !user.externalActorUrl) return null
+
+	interface OrganizerEventResult {
+		id: string
+	}
+	const organizerEvents = await prisma.$queryRaw<OrganizerEventResult[]>`
+		SELECT id FROM "Event"
+		WHERE id = ${eventId}
+		AND organizers::text IS NOT NULL
+		AND organizers::text LIKE '%' || ${user.externalActorUrl} || '%'
+		LIMIT 1
+	`
+
+	if (organizerEvents.length > 0 && organizerEvents[0]?.id) {
+		return prisma.event.findFirst({
+			where: { id: organizerEvents[0].id },
+			include: getEventFullInclude(),
+		})
+	}
+	return null
+}
+
+async function processOrganizerEvent(
+	event: NonNullable<Awaited<ReturnType<typeof searchEventInOrganizers>>>,
+	user: NonNullable<Awaited<ReturnType<typeof lookupUser>>>
+) {
+	const eventWithOrganizerUser = {
+		...event,
+		user: {
+			id: user.id,
+			username: user.username,
+			name: user.name,
+			displayColor: user.displayColor,
+			profileImage: user.profileImage,
+			externalActorUrl: user.externalActorUrl,
+			isRemote: user.isRemote,
+		},
+	}
+	return processRemoteEvent(eventWithOrganizerUser, user, {
+		userHasShared: false,
+		viewerReminders: [],
+	})
+}
+
+async function buildEventResponse(
+	c: import('hono').Context,
+	event: NonNullable<Awaited<ReturnType<typeof findEventByUser>>>,
+	user: NonNullable<Awaited<ReturnType<typeof lookupUser>>>,
+	viewerId: string | undefined
+) {
+	const originalEvent = event.sharedEvent ?? event
+	const userHasShared =
+		!!viewerId &&
+		!!(await prisma.event.findFirst({
+			where: { userId: viewerId, sharedEventId: originalEvent.id },
+			select: { id: true },
+		}))
+
+	const viewerReminders = viewerId ? await listEventRemindersForUser(event.id, viewerId) : []
+	const responseExtras = { userHasShared, viewerReminders }
+
+	if (user.isRemote) {
+		const result = await processRemoteEvent(event, user, responseExtras)
+		return c.json(result)
+	}
+
+	return c.json({ ...event, ...responseExtras })
+}
 
 // Get single event
 app.get('/:id', async (c) => {
@@ -1330,7 +1564,7 @@ app.get('/:id', async (c) => {
 
 		return c.json({ ...event, userHasShared, viewerReminders })
 	} catch (error) {
-		console.error('Error getting event:', error)
+		logger.error('Error getting event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1468,7 +1702,7 @@ app.post('/:id/share', moderateRateLimit, async (c) => {
 
 		return c.json({ share, alreadyShared: false }, 201)
 	} catch (error) {
-		console.error('Error sharing event:', error)
+		logger.error('Error sharing event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -1541,7 +1775,7 @@ function normalizeTagsSafely(tags: unknown): string[] {
 	try {
 		return Array.isArray(tags) && tags.length > 0 ? normalizeTags(tags) : []
 	} catch (error) {
-		console.error('Error normalizing tags in update:', error)
+		logger.error('Error normalizing tags in update:', error)
 		throw error
 	}
 }
@@ -1715,7 +1949,7 @@ app.put('/:id', moderateRateLimit, async (c) => {
 			const errorMessage = latError?.message || 'Validation failed'
 			return c.json({ error: errorMessage, details: error.issues }, 400 as const)
 		}
-		console.error('Error updating event:', error)
+		logger.error('Error updating event:', error)
 		const errorMessage = error instanceof Error ? error.message : String(error)
 		const errorStack = error instanceof Error ? error.stack : undefined
 		return c.json(
@@ -1823,7 +2057,7 @@ app.delete('/:id', moderateRateLimit, async (c) => {
 
 		return c.json({ success: true })
 	} catch (error) {
-		console.error('Error deleting event:', error)
+		logger.error('Error deleting event:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Button, Spinner } from '@/components/ui'
-import { useUserProfile, useFollowStatus, useFollowUser, useUnfollowUser } from '@/hooks/queries'
+import { useUserProfile, useFollowStatus, useFollowUser } from '@/hooks/queries'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { useProfileEventsVisibility } from '@/hooks/useProfileEventsVisibility'
 import { useUIStore } from '@/stores'
 
-import { FollowersModal } from '../components/FollowersModal'
 import { Navbar } from '../components/Navbar'
 import { SignUpPrompt } from '../components/SignUpPrompt'
 import { UserEventList } from '../components/UserEventList'
+import { FollowersModal } from '../components/UserListModal'
 import { UserProfileHeader } from '../components/UserProfileHeader'
 import { useAuth } from '../hooks/useAuth'
 
@@ -47,8 +47,16 @@ export function UserProfilePage() {
 
 	const { data: profileData, isLoading, error } = useUserProfile(username)
 	const { data: followStatus } = useFollowStatus(username)
+
+	// Update document title when profile data is loaded
+	useEffect(() => {
+		if (profileData?.user?.username) {
+			document.title = `@${profileData.user.username} - Constellate`
+		} else if (username) {
+			document.title = `@${username} - Constellate`
+		}
+	}, [profileData?.user?.username, username])
 	const followMutation = useFollowUser(username)
-	const unfollowMutation = useUnfollowUser(username)
 	const {
 		followersModalOpen,
 		followersModalUsername,
@@ -72,27 +80,22 @@ export function UserProfilePage() {
 			return
 		}
 		try {
-			await followMutation.mutateAsync()
+			await followMutation.mutateAsync({
+				currentUser: {
+					id: currentUser.id,
+					username: currentUser.username ?? undefined,
+					name: currentUser.name ?? undefined,
+					profileImage: currentUser.image ?? undefined,
+					isRemote: currentUser.isRemote,
+				},
+			})
 		} catch (err) {
 			handleError(err, 'Failed to follow user', { context: 'UserProfilePage.handleFollow' })
 		}
 	}
 
-	const handleUnfollow = async () => {
-		if (!currentUser || !profileData) {
-			return
-		}
-		try {
-			await unfollowMutation.mutateAsync()
-		} catch (err) {
-			handleError(err, 'Failed to unfollow user', {
-				context: 'UserProfilePage.handleUnfollow',
-			})
-		}
-	}
-
 	return (
-		<div className="min-h-screen bg-neutral-50">
+		<div className="min-h-screen bg-neutral-50 dark:bg-background-secondary">
 			<Navbar isConnected={false} user={currentUser} onLogout={logout} />
 
 			<div className="max-w-4xl mx-auto px-4 py-8">
@@ -114,20 +117,15 @@ export function UserProfilePage() {
 						<UserProfileHeader
 							user={profileData.user}
 							isOwnProfile={isOwnProfile}
-							isFollowing={followStatus?.isFollowing}
-							isFollowPending={followStatus?.isFollowing && !followStatus?.isAccepted}
 							followerCount={profileData.user._count?.followers || 0}
 							followingCount={profileData.user._count?.following || 0}
 							eventCount={profileData.user._count?.events || 0}
-							onFollowClick={handleFollow}
-							onUnfollowClick={handleUnfollow}
 							onFollowersClick={() =>
 								openFollowersModal(profileData.user.username, 'followers')
 							}
 							onFollowingClick={() =>
 								openFollowersModal(profileData.user.username, 'following')
 							}
-							isFollowLoading={followMutation.isPending || unfollowMutation.isPending}
 							showFollowButton={isAuthenticated}
 							headerImageUrl={profileData.user.headerImage}
 							isAuthenticated={isAuthenticated}

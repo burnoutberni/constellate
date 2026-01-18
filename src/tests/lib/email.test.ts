@@ -95,7 +95,7 @@ describe('Email Helper', () => {
 
 		it('should skip sending when SMTP host is missing', async () => {
 			mockConfig.smtp.host = ''
-			const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
 			await sendEmail({
 				to: 'recipient@example.com',
@@ -104,7 +104,10 @@ describe('Email Helper', () => {
 			})
 
 			expect(mockSendMail).not.toHaveBeenCalled()
-			expect(logSpy).toHaveBeenCalledWith('⚠️ SMTP not configured, skipping email sending')
+			expect(logSpy).toHaveBeenCalledWith(
+				'[WARN] ⚠️ SMTP not configured, skipping email sending',
+				''
+			)
 
 			logSpy.mockRestore()
 		})

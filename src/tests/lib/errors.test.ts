@@ -143,7 +143,7 @@ describe('Error Handling', () => {
 			handleError(unknownError, mockContext)
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Error Handler] Unhandled error:',
+				'[ERROR] [Error Handler] Unhandled error:',
 				unknownError
 			)
 			expect(mockJson).toHaveBeenCalledWith(
@@ -164,7 +164,7 @@ describe('Error Handling', () => {
 			handleError(unknownError, mockContext)
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Error Handler] Unhandled error:',
+				'[ERROR] [Error Handler] Unhandled error:',
 				unknownError
 			)
 			expect(mockJson).toHaveBeenCalledWith(
@@ -236,7 +236,14 @@ describe('Error Handling', () => {
 			handleError(prismaError, mockContext)
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Error Handler] Prisma error:',
+				'[ERROR] [Error Handler] Prisma error:',
+				prismaError
+			)
+
+			handleError(prismaError, mockContext)
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'[ERROR] [Error Handler] Prisma error:',
 				prismaError
 			)
 			expect(mockJson).toHaveBeenCalledWith(

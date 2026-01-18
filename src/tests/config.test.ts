@@ -210,18 +210,26 @@ describe('Configuration Management', () => {
 		it('should log configuration in development', async () => {
 			process.env.NODE_ENV = 'development'
 			delete process.env.VITEST
-
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const infoCalls: string[] = []
+			vi.doMock('../lib/logger.js', () => ({
+				logger: {
+					info: (msg: string) => infoCalls.push(msg),
+					debug: () => {},
+					warn: () => {},
+					error: () => {},
+					critical: () => {},
+				},
+			}))
 
+			vi.resetModules()
 			await import('../config.js')
 
-			expect(consoleLogSpy).toHaveBeenCalled()
-			const logCalls = consoleLogSpy.mock.calls.map((call) => call[0]).join(' ')
-			expect(logCalls).toContain('Configuration loaded')
+			const hasConfigLog = infoCalls.some((msg) => msg.includes('Configuration loaded'))
+			expect(hasConfigLog).toBe(true)
 
-			consoleLogSpy.mockRestore()
+			vi.doUnmock('../lib/logger.js')
 		})
 
 		it('should not log configuration in test environment', async () => {
@@ -229,13 +237,13 @@ describe('Configuration Management', () => {
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			await import('../config.js')
 
-			expect(consoleLogSpy).not.toHaveBeenCalled()
+			expect(consoleSpy).not.toHaveBeenCalled()
 
-			consoleLogSpy.mockRestore()
+			consoleSpy.mockRestore()
 		})
 
 		it('should not log configuration when VITEST is set', async () => {
@@ -244,13 +252,13 @@ describe('Configuration Management', () => {
 
 			process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex')
 
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			await import('../config.js')
 
-			expect(consoleLogSpy).not.toHaveBeenCalled()
+			expect(consoleSpy).not.toHaveBeenCalled()
 
-			consoleLogSpy.mockRestore()
+			consoleSpy.mockRestore()
 		})
 	})
 })

@@ -273,14 +273,15 @@ describe('ActivityPub API', () => {
 				privateKey: 'encrypted_generated_private_key',
 			} as any)
 
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			const res = await app.request('/users/alice')
 
 			expect(res.status).toBe(200)
 			expect(prisma.user.update).toHaveBeenCalled()
 			expect(consoleLogSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Generated and encrypted keys for user: alice')
+				expect.stringContaining('[INFO] ✅ Generated and encrypted keys for user: alice'),
+				''
 			)
 
 			consoleLogSpy.mockRestore()

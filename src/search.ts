@@ -11,6 +11,7 @@ import { lenientRateLimit } from './middleware/rateLimit.js'
 import { buildVisibilityWhere } from './lib/eventVisibility.js'
 import { normalizeTags } from './lib/tags.js'
 import { buildEventInclude, hydrateEventUsers, transformEventsForClient } from './events.js'
+import { logger } from './lib/logger.js'
 
 // Geographic constants for nearby search
 // KM_PER_DEGREE is approximately 111 km per degree of latitude
@@ -379,7 +380,7 @@ app.get('/', async (c) => {
 				400 as const
 			)
 		}
-		console.error('Error searching events:', error)
+		logger.error('Error searching events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -424,7 +425,7 @@ app.get('/upcoming', async (c) => {
 
 		return c.json({ events: eventsForClient })
 	} catch (error) {
-		console.error('Error getting upcoming events:', error)
+		logger.error('Error getting upcoming events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -470,7 +471,7 @@ app.get('/popular', async (c) => {
 
 		return c.json({ events: eventsForClient })
 	} catch (error) {
-		console.error('Error getting popular events:', error)
+		logger.error('Error getting popular events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -667,7 +668,7 @@ app.get('/nearby', async (c) => {
 				400 as const
 			)
 		}
-		console.error('Error searching nearby events:', error)
+		logger.error('Error searching nearby events:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -743,7 +744,7 @@ app.get('/stats', async (c) => {
 			totalInstances,
 		})
 	} catch (error) {
-		console.error('Error getting platform statistics:', error)
+		logger.error('Error getting platform statistics:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

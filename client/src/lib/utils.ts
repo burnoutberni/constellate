@@ -72,3 +72,21 @@ export function getInitials(name?: string | null, username?: string | null): str
 
 	return '?'
 }
+
+/**
+ * Normalizes a handle (username) for comparison purposes
+ * - Returns empty string for null/undefined
+ * - Removes leading @ if present
+ * - Extracts the local part (before @) for federated usernames like 'user@domain.com'
+ * - Converts to lowercase for case-insensitive comparison
+ * @param handle - The handle to normalize (e.g., '@julia', 'julia@domain.com', 'julia')
+ * @returns Normalized handle suitable for comparison
+ */
+export function normalizeHandleForComparison(handle: string | null | undefined): string {
+	if (!handle) { return '' }
+	// Remove leading @ if present
+	const cleaned = handle.replace(/^@/, '')
+	// If contains @, extract the local part (before @)
+	const localPart = cleaned.split('@')[0]
+	return localPart.toLowerCase()
+}

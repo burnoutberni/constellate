@@ -46,12 +46,6 @@ export const Default: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => {
-			// Follow handler
-		},
-		onUnfollowClick: () => {
-			// Unfollow handler
-		},
 		onFollowersClick: () => {
 			// Followers handler
 		},
@@ -78,33 +72,6 @@ export const OwnProfile: Story = {
 	},
 }
 
-export const Following: Story = {
-	args: {
-		user: mockUser,
-		isOwnProfile: false,
-		isFollowing: true,
-		followerCount: 42,
-		followingCount: 15,
-		eventCount: 8,
-		showFollowButton: true,
-		onUnfollowClick: () => {
-			// Unfollow handler
-		},
-	},
-}
-
-export const FollowPending: Story = {
-	args: {
-		user: mockUser,
-		isOwnProfile: false,
-		isFollowPending: true,
-		followerCount: 42,
-		followingCount: 15,
-		eventCount: 8,
-		showFollowButton: true,
-	},
-}
-
 export const WithHeaderImage: Story = {
 	args: {
 		user: mockUser,
@@ -114,9 +81,6 @@ export const WithHeaderImage: Story = {
 		eventCount: 8,
 		showFollowButton: true,
 		headerImageUrl: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbaf53?w=1200',
-		onFollowClick: () => {
-			// Follow handler
-		},
 	},
 }
 
@@ -132,9 +96,6 @@ export const RemoteUser: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => {
-			// Follow handler
-		},
 	},
 }
 
@@ -149,8 +110,5 @@ export const NoBio: Story = {
 		followingCount: 15,
 		eventCount: 8,
 		showFollowButton: true,
-		onFollowClick: () => {
-			// Follow handler
-		},
 	},
 }

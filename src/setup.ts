@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { prisma } from './lib/prisma.js'
 import { auth } from './auth.js'
 import { generateUserKeys } from './auth.js'
+import { logger } from './lib/logger.js'
 
 const app = new Hono()
 
@@ -83,7 +84,7 @@ app.post('/', async (c) => {
 
 		return c.json({ success: true, user: user.user })
 	} catch (error) {
-		console.error('Setup error:', error)
+		logger.error('Setup error:', error)
 		return c.json({ error: 'Setup failed', details: String(error) }, 500)
 	}
 })

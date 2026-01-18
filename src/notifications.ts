@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { requireAuth } from './middleware/auth.js'
 import { moderateRateLimit, lenientRateLimit } from './middleware/rateLimit.js'
 import { AppError } from './lib/errors.js'
+import { logger } from './lib/logger.js'
 import {
 	listNotifications,
 	getUnreadNotificationCount,
@@ -48,7 +49,7 @@ app.get('/', lenientRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error listing notifications:', error)
+		logger.error('Error listing notifications:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -71,7 +72,7 @@ app.post('/:notificationId/read', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error marking notification as read:', error)
+		logger.error('Error marking notification as read:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })
@@ -93,7 +94,7 @@ app.post('/mark-all-read', moderateRateLimit, async (c) => {
 				error.statusCode as JsonStatusCode
 			)
 		}
-		console.error('Error marking notifications as read:', error)
+		logger.error('Error marking notifications as read:', error)
 		return c.json({ error: 'Internal server error' }, 500)
 	}
 })

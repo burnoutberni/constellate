@@ -11,6 +11,7 @@ import { prisma } from './lib/prisma.js'
 import { requireAuth } from './middleware/auth.js'
 import { sanitizeText } from './lib/sanitization.js'
 import { AppError, Errors } from './lib/errors.js'
+import { logger } from './lib/logger.js'
 import {
 	EventTemplateInputSchema,
 	EventTemplateDataSchema,
@@ -81,7 +82,7 @@ app.get('/event-templates', async (c) => {
 
 		return c.json(response)
 	} catch (error) {
-		console.error('Error listing event templates:', error)
+		logger.error('Error listing event templates:', error)
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
@@ -108,7 +109,7 @@ app.post('/event-templates', async (c) => {
 
 		return c.json(serializeTemplate(template), 201 as const)
 	} catch (error) {
-		console.error('Error creating event template:', error)
+		logger.error('Error creating event template:', error)
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
@@ -140,7 +141,7 @@ app.get('/event-templates/:id', async (c) => {
 
 		return c.json(serializeTemplate(template))
 	} catch (error) {
-		console.error('Error fetching event template:', error)
+		logger.error('Error fetching event template:', error)
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
@@ -167,7 +168,7 @@ app.put('/event-templates/:id', async (c) => {
 
 		return c.json(serializeTemplate(updated))
 	} catch (error) {
-		console.error('Error updating event template:', error)
+		logger.error('Error updating event template:', error)
 		if (error instanceof ZodError) {
 			return c.json({ error: 'Validation failed', details: error.issues }, 400 as const)
 		}
@@ -255,7 +256,7 @@ app.delete('/event-templates/:id', async (c) => {
 
 		return c.json({ success: true })
 	} catch (error) {
-		console.error('Error deleting event template:', error)
+		logger.error('Error deleting event template:', error)
 		if (error instanceof AppError) {
 			return respondWithAppError(error, c)
 		}

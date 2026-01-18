@@ -90,7 +90,7 @@ describe('Popularity Updater Service', () => {
 			await updateEventPopularityScore(eventId)
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Error updating popularity score'),
+				expect.stringContaining('[ERROR] Error updating popularity score'),
 				expect.any(Error)
 			)
 
@@ -154,7 +154,7 @@ describe('Popularity Updater Service', () => {
 		it('should handle empty event list', async () => {
 			vi.mocked(prisma.event.findMany).mockResolvedValueOnce([])
 
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			await runPopularityUpdateCycle()
 
@@ -162,7 +162,8 @@ describe('Popularity Updater Service', () => {
 			expect(prisma.eventAttendance.groupBy).not.toHaveBeenCalled()
 			expect(prisma.eventLike.groupBy).not.toHaveBeenCalled()
 			expect(consoleLogSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Popularity scores updated: 0 events')
+				expect.stringContaining('[INFO] ✅ Popularity scores updated'),
+				''
 			)
 
 			consoleLogSpy.mockRestore()
@@ -198,12 +199,12 @@ describe('Popularity Updater Service', () => {
 
 	describe('startPopularityUpdater / stopPopularityUpdater', () => {
 		it('should start and stop the updater', async () => {
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			vi.mocked(prisma.event.findMany).mockResolvedValue([])
 
 			startPopularityUpdater()
-			expect(consoleLogSpy).toHaveBeenCalledWith('📊 Popularity updater started')
+			expect(consoleLogSpy).toHaveBeenCalledWith('[INFO] 📊 Popularity updater started', '')
 
 			// Wait for the immediate run cycle to complete
 			await new Promise((resolve) => setTimeout(resolve, 50))
@@ -220,7 +221,7 @@ describe('Popularity Updater Service', () => {
 		})
 
 		it('should not start if already started', () => {
-			const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+			const consoleLogSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
 			startPopularityUpdater()
 			const firstCallCount = consoleLogSpy.mock.calls.length
