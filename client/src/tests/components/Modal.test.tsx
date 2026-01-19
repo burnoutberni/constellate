@@ -140,4 +140,38 @@ describe('Modal Component', () => {
 		await user.keyboard('{Escape}')
 		expect(mockOnClose).not.toHaveBeenCalled()
 	})
+
+    it('traps focus inside the modal', async () => {
+        const user = userEvent.setup()
+        render(
+            <Modal isOpen={true} onClose={mockOnClose}>
+                <button>Button 1</button>
+                <button>Button 2</button>
+            </Modal>,
+            { wrapper }
+        )
+
+        const button1 = screen.getByText('Button 1')
+        const button2 = screen.getByText('Button 2')
+
+        // Wait for potential auto-focus or our trap initialization
+        // We can check if one of them is focused
+        if (document.activeElement !== button1) {
+            button1.focus()
+        }
+
+        expect(document.activeElement).toBe(button1)
+
+        // Tab to next
+        await user.tab()
+        expect(document.activeElement).toBe(button2)
+
+        // Tab from last element should go back to first
+        await user.tab()
+        expect(document.activeElement).toBe(button1)
+
+        // Shift+Tab from first element should go to last
+        await user.keyboard('{Shift>}{Tab}{/Shift}')
+        expect(document.activeElement).toBe(button2)
+    })
 })
