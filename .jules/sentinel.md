@@ -1,0 +1,4 @@
+## 2025-02-13 - IP Spoofing in Rate Limiting
+**Vulnerability:** The rate limiting middleware was trusting the *first* IP in the `X-Forwarded-For` header. When behind a proxy like Caddy (which appends the real IP), an attacker can supply a spoofed IP as the first element (e.g., `X-Forwarded-For: spoofed, real`). The middleware would rate limit the spoofed IP, allowing the attacker to bypass limits by rotating the spoofed IP.
+**Learning:** `X-Forwarded-For` is a list. The trust model depends on the specific proxy configuration. If the proxy *appends*, the trusted IP is at the end. If the proxy *replaces* or if you are not behind a proxy, the logic differs. Always verify the proxy behavior.
+**Prevention:** When using `X-Forwarded-For` for security controls (rate limiting, auth), verify how your upstream proxy handles the header. If it appends, use the last IP.
