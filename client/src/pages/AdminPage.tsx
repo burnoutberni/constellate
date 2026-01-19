@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { AppealQueue } from '@/components/admin/AppealQueue'
 import { ReportQueue } from '@/components/admin/ReportQueue'
-import { Input, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
+import { Input, PasswordInput, Button, Textarea, Modal, Spinner, GlobeIcon } from '@/components/ui'
 import {
 	queryKeys,
 	useBlockInstance,
@@ -1024,8 +1024,7 @@ function CreateUserModal({
 					</div>
 					{!isBot && (
 						<div className="mb-4">
-							<Input
-								type="password"
+							<PasswordInput
 								label="Password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
