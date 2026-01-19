@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -58,6 +58,81 @@ export function FeedPage() {
 	const loadMoreRef = useRef<HTMLDivElement>(null)
 
 	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
+
+	// Bolt: Memoize raw items to prevent recreation on every render
+	const allItems = useMemo(() =>
+		data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || [],
+		[data]
+	)
+
+	// Bolt: Memoize feed content generation to prevent expensive validation and re-rendering of children
+	// This ensures that EventCard receives stable event objects, allowing React.memo to work.
+	const feedContent = useMemo(() => {
+		return allItems.map((item: FeedItem) => {
+			const key = `${item.type}-${item.id}`
+
+			switch (item.type) {
+				case 'header': {
+					const validated = getValidatedData(HeaderSchema, item.data, 'header')
+					if (validated) {
+						const { title } = validated
+						return (
+							<div key={key} className="pt-4 pb-2">
+								<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+									{title}
+								</h2>
+							</div>
+						)
+					}
+					return null
+				}
+
+				case 'onboarding': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					if (validated) {
+						return <OnboardingHero key={key} suggestions={validated.suggestions} />
+					}
+					return null
+				}
+
+				case 'suggested_users': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					if (validated) {
+						return <SuggestedUsersCard key={key} users={validated.suggestions} />
+					}
+					return null
+				}
+
+				case 'trending_event': {
+					const validated = getValidatedData(EventSchema, item.data, 'trending_event')
+					if (validated) {
+						return (
+							<div key={key} className="h-full">
+								<EventCard event={validated} isAuthenticated={Boolean(user)} />
+							</div>
+						)
+					}
+					return null
+				}
+
+				case 'activity': {
+					const validated = getValidatedData(ActivitySchema, item.data, 'activity')
+					if (validated) {
+						// For "Smart Agenda", we show the Event itself
+						return (
+							<div key={key} className="h-full">
+								{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
+							</div>
+						)
+					}
+					return null
+				}
+
+				default:
+					return null
+			}
+		})
+	}, [allItems, user])
 
 	useEffect(() => {
 		if (!hasNextPage || isFetchingNextPage) { return }
@@ -119,8 +194,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -158,70 +231,7 @@ export function FeedPage() {
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
-
-								switch (item.type) {
-									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
-									}
-
-									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
-									}
-
-									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
-									}
-
-									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
-									}
-
-									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
-									}
-
-									default:
-										return null
-								}
-							})
+							feedContent
 						)}
 					</div>
 
