@@ -10,6 +10,7 @@ import {
 	getBaseUrl,
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
+import { sanitizeText } from './lib/sanitization.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
@@ -562,9 +563,9 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
 	}
 
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: eventSummary || eventContent ? sanitizeText(eventSummary || eventContent!) : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
@@ -734,9 +735,9 @@ async function handleCreateEvent(
 
 	// Create event in database
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: eventSummary || eventContent ? sanitizeText(eventSummary || eventContent!) : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
@@ -786,7 +787,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeText(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -916,9 +917,9 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 	await prisma.event.updateMany({
 		where: { externalId: eventId },
 		data: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
+			title: sanitizeText(eventName),
+			summary: eventSummary ? sanitizeText(eventSummary) : null,
+			location: locationValue ? sanitizeText(locationValue) : null,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
 			eventStatus: eventStatus as string | null,
@@ -955,8 +956,8 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 	await prisma.user.updateMany({
 		where: { externalActorUrl: personId },
 		data: {
-			name: personName,
-			bio: personSummary,
+			name: personName ? sanitizeText(personName) : undefined,
+			bio: personSummary ? sanitizeText(personSummary) : undefined,
 			displayColor: personDisplayColor,
 			profileImage: personIconUrl,
 			headerImage: personImageUrl,

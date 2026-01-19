@@ -4,6 +4,7 @@
  */
 
 import { safeFetch } from './ssrfProtection.js'
+import { sanitizeText } from './sanitization.js'
 import { ACTIVITYPUB_CONTEXTS, CollectionType, ContentType } from '../constants/activitypub.js'
 import { config } from '../config.js'
 import { prisma } from './prisma.js'
@@ -130,20 +131,20 @@ export async function cacheRemoteUser(actor: Actor) {
 	return await prisma.user.upsert({
 		where: { externalActorUrl: actorUrl },
 		update: {
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			publicKey,
 			inboxUrl,
 			sharedInboxUrl,
 			profileImage: profileImageUrl,
 			headerImage: headerImageUrl,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 			createdAt: createdAt,
 			profileSync: new Date(),
 		},
 		create: {
 			username: `${username}@${new URL(actorUrl).hostname}`,
-			name: actor.name || username,
+			name: actor.name ? sanitizeText(actor.name) : username,
 			externalActorUrl: actorUrl,
 			isRemote: true,
 			publicKey,
@@ -151,7 +152,7 @@ export async function cacheRemoteUser(actor: Actor) {
 			sharedInboxUrl,
 			profileImage: profileImageUrl,
 			headerImage: headerImageUrl,
-			bio: actor.summary || null,
+			bio: actor.summary ? sanitizeText(actor.summary) : null,
 			displayColor: actor.displayColor || '#3b82f6',
 			createdAt: createdAt || undefined,
 			profileSync: new Date(),
@@ -577,9 +578,9 @@ export async function cacheEventFromOutboxActivity(
 	const organizerData = extractOrganizerData(eventObj, userExternalActorUrl)
 
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: eventSummary ? sanitizeText(eventSummary) : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
