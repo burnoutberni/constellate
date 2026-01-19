@@ -147,4 +147,38 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should handle right icon click', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const rightIcon = screen.getByLabelText('Clear')
+		fireEvent.click(rightIcon)
+
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
+
+	it('should handle Enter key on right icon', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const rightIcon = screen.getByLabelText('Clear')
+		fireEvent.keyDown(rightIcon, { key: 'Enter' })
+
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
 })

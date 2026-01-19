@@ -44,6 +44,19 @@ export const Default: Story = {
 	},
 }
 
+export const WithInteractiveRightIcon: Story = {
+	args: {
+		label: 'Search',
+		placeholder: 'Search...',
+		rightIcon: <span className="text-xl font-bold">&times;</span>,
+		onRightIconClick: () => alert('Clicked!'),
+		rightIconAriaLabel: 'Clear search',
+	},
+	parameters: {
+		layout: 'padded',
+	},
+}
+
 export const WithLabel: Story = {
 	args: {
 		label: 'Email Address',
