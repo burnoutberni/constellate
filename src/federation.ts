@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeHtml, sanitizeText } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -507,11 +508,15 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	const rawName = getString(eventObj.name)
+	const rawSummary = getString(eventObj.summary)
+	const rawContent = getString(eventObj.content)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
+		eventName: rawName ? sanitizeText(rawName) : '',
+		eventSummary: rawSummary ? sanitizeHtml(rawSummary) : undefined,
+		eventContent: rawContent ? sanitizeHtml(rawContent) : undefined,
 		locationValue: getLocationValue(eventObj.location),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
@@ -786,7 +791,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeHtml(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
