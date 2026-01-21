@@ -147,4 +147,44 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should handle icon clicks when handlers are provided', () => {
+		const handleLeftClick = vi.fn()
+		const handleRightClick = vi.fn()
+
+		render(
+			<Input
+				type="text"
+				leftIcon={<span>🔍</span>}
+				onLeftIconClick={handleLeftClick}
+				leftIconAriaLabel="Search"
+				rightIcon={<span>✕</span>}
+				onRightIconClick={handleRightClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const leftButton = screen.getByLabelText('Search')
+		fireEvent.click(leftButton)
+		expect(handleLeftClick).toHaveBeenCalledTimes(1)
+
+		const rightButton = screen.getByLabelText('Clear')
+		fireEvent.click(rightButton)
+		expect(handleRightClick).toHaveBeenCalledTimes(1)
+	})
+
+	it('should render icons as buttons when handlers are provided', () => {
+		render(
+			<Input
+				type="text"
+				leftIcon={<span>L</span>}
+				onLeftIconClick={() => {}}
+				rightIcon={<span>R</span>}
+				onRightIconClick={() => {}}
+			/>
+		)
+
+		const buttons = screen.getAllByRole('button')
+		expect(buttons).toHaveLength(2)
+	})
 })

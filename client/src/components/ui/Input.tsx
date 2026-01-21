@@ -31,9 +31,25 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 	 */
 	leftIcon?: React.ReactNode
 	/**
+	 * Callback when the left icon is clicked
+	 */
+	onLeftIconClick?: () => void
+	/**
+	 * Aria label for the left icon button
+	 */
+	leftIconAriaLabel?: string
+	/**
 	 * Icon to display on the right side of the input
 	 */
 	rightIcon?: React.ReactNode
+	/**
+	 * Callback when the right icon is clicked
+	 */
+	onRightIconClick?: () => void
+	/**
+	 * Aria label for the right icon button
+	 */
+	rightIconAriaLabel?: string
 	/**
 	 * Whether the input should take full width of its container
 	 */
@@ -54,7 +70,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			label,
 			helperText,
 			leftIcon,
+			onLeftIconClick,
+			leftIconAriaLabel,
 			rightIcon,
+			onRightIconClick,
+			rightIconAriaLabel,
 			fullWidth = false,
 			className,
 			id,
@@ -130,17 +150,31 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 					</label>
 				)}
 				<div className={containerClasses}>
-					{leftIcon && (
-						<div
-							className={cn(
-								'absolute left-3 top-1/2 -translate-y-1/2',
-								'text-text-disabled',
-								'pointer-events-none',
-								error && 'text-error-500 dark:text-error-400'
-							)}>
-							{leftIcon}
-						</div>
-					)}
+					{leftIcon &&
+						(onLeftIconClick ? (
+							<button
+								type="button"
+								className={cn(
+									'absolute left-3 top-1/2 -translate-y-1/2',
+									'text-text-disabled',
+									'hover:text-text-primary focus:outline-none focus:text-text-primary cursor-pointer',
+									error && 'text-error-500 dark:text-error-400'
+								)}
+								onClick={onLeftIconClick}
+								aria-label={leftIconAriaLabel}>
+								{leftIcon}
+							</button>
+						) : (
+							<div
+								className={cn(
+									'absolute left-3 top-1/2 -translate-y-1/2',
+									'text-text-disabled',
+									'pointer-events-none',
+									error && 'text-error-500 dark:text-error-400'
+								)}>
+								{leftIcon}
+							</div>
+						))}
 					<input
 						ref={ref}
 						id={inputId}
@@ -152,17 +186,31 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 						aria-required={required}
 						{...props}
 					/>
-					{rightIcon && (
-						<div
-							className={cn(
-								'absolute right-3 top-1/2 -translate-y-1/2',
-								'text-text-disabled',
-								'pointer-events-none',
-								error && 'text-error-500 dark:text-error-400'
-							)}>
-							{rightIcon}
-						</div>
-					)}
+					{rightIcon &&
+						(onRightIconClick ? (
+							<button
+								type="button"
+								className={cn(
+									'absolute right-3 top-1/2 -translate-y-1/2',
+									'text-text-disabled',
+									'hover:text-text-primary focus:outline-none focus:text-text-primary cursor-pointer',
+									error && 'text-error-500 dark:text-error-400'
+								)}
+								onClick={onRightIconClick}
+								aria-label={rightIconAriaLabel}>
+								{rightIcon}
+							</button>
+						) : (
+							<div
+								className={cn(
+									'absolute right-3 top-1/2 -translate-y-1/2',
+									'text-text-disabled',
+									'pointer-events-none',
+									error && 'text-error-500 dark:text-error-400'
+								)}>
+								{rightIcon}
+							</div>
+						))}
 				</div>
 				{error && errorMessage && (
 					<p
