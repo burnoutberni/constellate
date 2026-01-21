@@ -39,12 +39,22 @@ export class FeedService {
 		// 1. Get User Context (Who they follow)
 		const following = await SocialGraphService.getFollowing(userId)
 		const followedUserIds = await SocialGraphService.resolveFollowedUserIds(following)
+
+		// Optimize: Create Set of actor URLs to avoid N+1 in visibility checks
+		const followedActorUrls = new Set(following.map((f) => f.actorUrl))
+
 		const isNewUser = followedUserIds.length === 0
 
 		if (isNewUser) {
 			return this.getNewUserFeed(userId, cursor, limit)
 		} else {
-			return this.getEstablishedUserFeed(userId, followedUserIds, cursor, limit)
+			return this.getEstablishedUserFeed(
+				userId,
+				followedUserIds,
+				followedActorUrls,
+				cursor,
+				limit
+			)
 		}
 	}
 
@@ -98,6 +108,7 @@ export class FeedService {
 	private static async getEstablishedUserFeed(
 		userId: string,
 		followedUserIds: string[],
+		followedActorUrls: Set<string>,
 		cursor?: string,
 		limit: number = 20
 	): Promise<{ items: FeedItem[]; nextCursor?: string }> {
@@ -114,7 +125,11 @@ export class FeedService {
 		)
 
 		// Filter activities for visibility, then slice to limit
-		const visibleActivities = await this.filterVisibleActivities(activities, userId)
+		const visibleActivities = await this.filterVisibleActivities(
+			activities,
+			userId,
+			followedActorUrls
+		)
 		const slicedActivities = visibleActivities.slice(0, limit)
 
 		slicedActivities.forEach((a) => {
@@ -1065,12 +1080,13 @@ export class FeedService {
 
 	private static async filterVisibleActivities(
 		activities: FeedActivity[],
-		userId: string
+		userId: string,
+		followedActorUrls: Set<string>
 	): Promise<FeedActivity[]> {
 		const visibleActivities: FeedActivity[] = []
 
 		for (const activity of activities) {
-			if (await this.isActivityVisible(activity, userId)) {
+			if (await this.isActivityVisible(activity, userId, followedActorUrls)) {
 				visibleActivities.push(activity)
 			}
 		}
@@ -1080,18 +1096,19 @@ export class FeedService {
 
 	private static async isActivityVisible(
 		activity: FeedActivity,
-		userId: string
+		userId: string,
+		followedActorUrls: Set<string>
 	): Promise<boolean> {
 		// Check visibility of the primary event
 		if ('event' in activity && activity.event) {
 			const primaryEvent = activity.event
-			const canView = await canUserViewEvent(primaryEvent, userId)
+			const canView = await canUserViewEvent(primaryEvent, userId, followedActorUrls)
 
 			if (canView) {
 				// For shared events, check the shared event visibility too
 				if (activity.type === 'event_shared' && activity.sharedEvent) {
 					const sharedEvent = activity.sharedEvent
-					if (!(await canUserViewEvent(sharedEvent, userId))) {
+					if (!(await canUserViewEvent(sharedEvent, userId, followedActorUrls))) {
 						return false
 					}
 				}

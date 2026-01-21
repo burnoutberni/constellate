@@ -76,7 +76,8 @@ async function userFollowsActor(userId: string, actorUrl: string): Promise<boole
 
 export async function canUserViewEvent(
 	event: EventLike,
-	viewerId?: string | null
+	viewerId?: string | null,
+	followedActorUrls?: Set<string>
 ): Promise<boolean> {
 	const visibility = event.visibility || DEFAULT_VISIBILITY
 
@@ -100,6 +101,9 @@ export async function canUserViewEvent(
 		const actorUrl = resolveEventActorUrl(event)
 		if (!actorUrl) {
 			return false
+		}
+		if (followedActorUrls) {
+			return followedActorUrls.has(actorUrl)
 		}
 		return userFollowsActor(viewerId, actorUrl)
 	}
