@@ -17,6 +17,7 @@ import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { trackInstance } from './lib/instanceHelpers.js'
 import { logger } from './lib/logger.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import type { Prisma, Event, User } from '@prisma/client'
 import type {
 	Activity,
@@ -507,12 +508,17 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	const name = getString(eventObj.name)
+	const summary = getString(eventObj.summary)
+	const content = getString(eventObj.content)
+	const location = getLocationValue(eventObj.location)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: name ? sanitizeText(name) : '',
+		eventSummary: summary ? sanitizeHtml(summary) : null,
+		eventContent: content ? sanitizeHtml(content) : null,
+		locationValue: location ? sanitizeText(location) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -786,7 +792,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeHtml(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,22 +899,22 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : ''
+	const eventSummary = typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
 	const eventLocation = eventObj.location
 	let locationValue: string | null
 	if (typeof eventLocation === 'string') {
-		locationValue = eventLocation
+		locationValue = sanitizeText(eventLocation)
 	} else if (
 		eventLocation &&
 		isNonNullObject(eventLocation) &&
 		'name' in eventLocation &&
 		typeof eventLocation.name === 'string'
 	) {
-		locationValue = eventLocation.name
+		locationValue = sanitizeText(eventLocation.name)
 	} else {
 		locationValue = null
 	}
@@ -945,8 +951,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeText(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
