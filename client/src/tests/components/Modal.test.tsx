@@ -140,4 +140,66 @@ describe('Modal Component', () => {
 		await user.keyboard('{Escape}')
 		expect(mockOnClose).not.toHaveBeenCalled()
 	})
+
+	it('focus is trapped within modal when open', async () => {
+		const user = userEvent.setup()
+		render(
+			<Modal isOpen={true} onClose={mockOnClose}>
+				<button>First Button</button>
+				<button>Second Button</button>
+				<input type="text" placeholder="Input" />
+			</Modal>,
+			{ wrapper }
+		)
+
+		const firstButton = screen.getByText('First Button')
+		const secondButton = screen.getByText('Second Button')
+		const input = screen.getByPlaceholderText('Input')
+
+		// Initial focus should be on first button
+		expect(firstButton).toHaveFocus()
+
+		// Tab should move to next element
+		await user.tab()
+		expect(secondButton).toHaveFocus()
+
+		// Tab again should move to input
+		await user.tab()
+		expect(input).toHaveFocus()
+
+		// Tab again should cycle back to first button
+		await user.tab()
+		expect(firstButton).toHaveFocus()
+
+		// Shift+Tab should cycle to last element (input)
+		await user.tab({ shift: true })
+		expect(input).toHaveFocus()
+	})
+
+	it('focus is restored to previous element on close', async () => {
+		const trigger = document.createElement('button')
+		trigger.textContent = 'Trigger'
+		document.body.appendChild(trigger)
+		trigger.focus()
+
+		const { unmount } = render(
+			<Modal isOpen={true} onClose={mockOnClose}>
+				<button>Inside</button>
+			</Modal>,
+			{ wrapper }
+		)
+
+		// Focus should have moved to inside button
+		const inside = screen.getByText('Inside')
+		expect(inside).toHaveFocus()
+
+		unmount()
+
+		// Wait for timeout in cleanup
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
+		expect(trigger).toHaveFocus()
+
+		document.body.removeChild(trigger)
+	})
 })
