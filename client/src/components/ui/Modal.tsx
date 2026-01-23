@@ -119,6 +119,83 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			}
 		}, [isOpen])
 
+		// Focus trap
+		useEffect(() => {
+			if (!isOpen) {
+				return
+			}
+
+			const previousActiveElement = document.activeElement as HTMLElement
+			const contentElement = contentRef.current
+
+			if (!contentElement) {
+				return
+			}
+
+			// Find all focusable elements
+			// We query dynamically on keydown to handle content changes,
+			// but we also need to set initial focus.
+			const getFocusableElements = () => {
+				if (!contentElement) {
+					return []
+				}
+				return contentElement.querySelectorAll<HTMLElement>(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+			}
+
+			// Small timeout to ensure content is rendered if it's being animated in
+			// although the Modal component renders children immediately when isOpen is true.
+			const focusableElements = getFocusableElements()
+			const firstElement = focusableElements[0]
+
+			// Focus the first element
+			if (firstElement) {
+				firstElement.focus()
+			} else {
+				// If no focusable element, focus the container so escape key still works
+				contentElement.setAttribute('tabindex', '-1')
+				contentElement.focus()
+			}
+
+			function handleTabKey(e: KeyboardEvent) {
+				if (e.key !== 'Tab') {
+					return
+				}
+
+				const currentFocusableElements = getFocusableElements()
+				if (currentFocusableElements.length === 0) {
+					return
+				}
+
+				const firstEl = currentFocusableElements[0]
+				const lastEl = currentFocusableElements[currentFocusableElements.length - 1]
+
+				if (e.shiftKey) {
+					if (document.activeElement === firstEl) {
+						e.preventDefault()
+						lastEl.focus()
+					}
+				} else {
+					if (document.activeElement === lastEl) {
+						e.preventDefault()
+						firstEl.focus()
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTabKey)
+
+			return () => {
+				document.removeEventListener('keydown', handleTabKey)
+				// Small timeout to allow the modal to close and unmount before focusing back
+				// This prevents issues where the focus is stolen back by the modal if it's animating out
+				setTimeout(() => {
+					previousActiveElement?.focus()
+				}, 0)
+			}
+		}, [isOpen])
+
 		if (!isOpen) {
 			return null
 		}
