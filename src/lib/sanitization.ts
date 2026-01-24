@@ -5,6 +5,37 @@
 
 import DOMPurify from 'isomorphic-dompurify'
 
+const DOMPURIFY_CONFIG = {
+	ALLOWED_TAGS: [
+		'p',
+		'br',
+		'strong',
+		'b',
+		'em',
+		'i',
+		'u',
+		's',
+		'strike',
+		'del',
+		'h1',
+		'h2',
+		'h3',
+		'h4',
+		'h5',
+		'h6',
+		'ul',
+		'ol',
+		'li',
+		'a',
+		'blockquote',
+		'pre',
+		'code',
+		'span',
+		'div',
+	],
+	ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+}
+
 /**
  * Sanitizes plain text (strips all HTML)
  * @param input - Raw text that may contain HTML
@@ -15,4 +46,13 @@ export function sanitizeText(input: string): string {
 		ALLOWED_TAGS: [],
 		ALLOWED_ATTR: [],
 	})
+}
+
+/**
+ * Sanitizes HTML content, allowing only safe tags and attributes
+ * @param input - Raw HTML string
+ * @returns Sanitized HTML string
+ */
+export function sanitizeHtml(input: string): string {
+	return DOMPurify.sanitize(input, DOMPURIFY_CONFIG)
 }
