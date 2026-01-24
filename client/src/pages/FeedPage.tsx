@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -58,6 +59,50 @@ export function FeedPage() {
 	const loadMoreRef = useRef<HTMLDivElement>(null)
 
 	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
+
+	// Bolt: Memoize feed content to prevent re-parsing Zod schemas on every render.
+	// This ensures we pass stable object references to memoized components like EventCard.
+	const feedContent = useMemo(() => {
+		const rawItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
+
+		return rawItems.map((item) => {
+			const key = `${item.type}-${item.id}`
+			// Pre-validate data here
+			let content = null
+
+			switch (item.type) {
+				case 'header': {
+					const validated = getValidatedData(HeaderSchema, item.data, 'header')
+					if (validated) { content = { type: 'header', data: validated } }
+					break
+				}
+				case 'onboarding': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					if (validated) { content = { type: 'onboarding', data: validated } }
+					break
+				}
+				case 'suggested_users': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					if (validated) { content = { type: 'suggested_users', data: validated } }
+					break
+				}
+				case 'trending_event': {
+					const validated = getValidatedData(EventSchema, item.data, 'trending_event')
+					if (validated) { content = { type: 'trending_event', data: validated } }
+					break
+				}
+				case 'activity': {
+					const validated = getValidatedData(ActivitySchema, item.data, 'activity')
+					if (validated) { content = { type: 'activity', data: validated } }
+					break
+				}
+				default:
+					break
+			}
+
+			return { key, ...content }
+		})
+	}, [data])
 
 	useEffect(() => {
 		if (!hasNextPage || isFetchingNextPage) { return }
@@ -119,8 +164,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -152,70 +195,56 @@ export function FeedPage() {
 							</div>
 						)}
 
-						{allItems.length === 0 ? (
+						{feedContent.length === 0 ? (
 							<Card variant="default" padding="lg" className="text-center">
 								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
+							feedContent.map((item) => {
+								if (!item.type || !item.data) { return null }
+								const { key, type, data: itemData } = item
 
-								switch (item.type) {
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								const validatedData = itemData as any
+
+								switch (type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
+										const { title } = validatedData
+										return (
+											<div key={key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{title}
+												</h2>
+											</div>
+										)
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
+										const { suggestions } = validatedData
+										return <OnboardingHero key={key} suggestions={suggestions} />
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
+										const { suggestions } = validatedData
+										return <SuggestedUsersCard key={key} users={suggestions} />
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={key} className="h-full">
+												<EventCard event={validatedData} isAuthenticated={Boolean(user)} />
+											</div>
+										)
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
+										const { event } = validatedData
+										return (
+											<div key={key} className="h-full">
+												{event && <EventCard event={event} isAuthenticated={Boolean(user)} />}
+											</div>
+										)
 									}
 
 									default:
@@ -232,7 +261,7 @@ export function FeedPage() {
 						</div>
 					)}
 
-					{!hasNextPage && allItems.length > 0 && (
+					{!hasNextPage && feedContent.length > 0 && (
 						<p className="text-center text-sm text-text-tertiary mt-8 mb-8">
 							You&apos;ve reached the end of your agenda.
 						</p>
