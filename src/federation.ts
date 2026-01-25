@@ -4,6 +4,7 @@
  */
 
 import { ActivityType, ObjectType, AttendanceStatus, ContentType } from './constants/activitypub.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import {
 	cacheRemoteUser,
 	fetchActor,
@@ -501,7 +502,7 @@ function getAttachmentUrl(attachment: unknown): string | null {
 	return null
 }
 
-function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
+export function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
 	const eventObj = event as Record<string, unknown>
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
@@ -509,10 +510,10 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: sanitizeText(getString(eventObj.name)) || '',
+		eventSummary: sanitizeHtml(getString(eventObj.summary)),
+		eventContent: sanitizeHtml(getString(eventObj.content)),
+		locationValue: sanitizeText(getLocationValue(eventObj.location)),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -786,7 +787,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = sanitizeHtml(typeof noteObj.content === 'string' ? noteObj.content : '') || ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -945,9 +946,9 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
-	const personDisplayColor = personObj.displayColor || undefined
+	const personName = sanitizeText(personObj.name) || undefined
+	const personSummary = sanitizeHtml(personObj.summary) || undefined
+	const personDisplayColor = sanitizeText(personObj.displayColor) || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
 	const personPreferredUsername = personObj.preferredUsername
