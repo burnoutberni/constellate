@@ -60,6 +60,7 @@ setInterval(
  * Rate limit configuration
  */
 export interface RateLimitConfig {
+	name?: string // Unique name for the rate limiter scope to prevent collisions
 	windowMs: number // Time window in milliseconds
 	maxRequests: number // Maximum requests per window
 	keyGenerator?: (c: Context) => string // Custom key generator
@@ -91,10 +92,13 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 		let key: string
 		if (finalConfig.keyGenerator) {
 			key = finalConfig.keyGenerator(c)
-		} else if (userId) {
-			key = `user:${userId}`
 		} else {
-			key = `ip:${ip}`
+			const scope = finalConfig.name ? `${finalConfig.name}:` : ''
+			if (userId) {
+				key = `${scope}user:${userId}`
+			} else {
+				key = `${scope}ip:${ip}`
+			}
 		}
 
 		const now = Date.now()
@@ -147,6 +151,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
  * Stricter rate limit for sensitive operations (login, signup, etc.)
  */
 export const strictRateLimit = rateLimit({
+	name: 'strict',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
 })
@@ -155,6 +160,7 @@ export const strictRateLimit = rateLimit({
  * Moderate rate limit for authenticated operations
  */
 export const moderateRateLimit = rateLimit({
+	name: 'moderate',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
 })
@@ -163,6 +169,7 @@ export const moderateRateLimit = rateLimit({
  * Lenient rate limit for public read operations
  */
 export const lenientRateLimit = rateLimit({
+	name: 'lenient',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
 })
