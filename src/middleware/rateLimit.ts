@@ -34,27 +34,11 @@ import { Errors } from '../lib/errors.js'
  * if (count > finalConfig.maxRequests) throw Errors.tooManyRequests(...)
  * ```
  */
-// In-memory rate limit store
-// In production, consider using Redis for distributed rate limiting
+
 interface RateLimitEntry {
 	count: number
 	resetAt: number
 }
-
-const rateLimitStore = new Map<string, RateLimitEntry>()
-
-// Cleanup old entries every 5 minutes
-setInterval(
-	() => {
-		const now = Date.now()
-		for (const [key, entry] of rateLimitStore.entries()) {
-			if (entry.resetAt < now) {
-				rateLimitStore.delete(key)
-			}
-		}
-	},
-	5 * 60 * 1000
-)
 
 /**
  * Rate limit configuration
@@ -81,6 +65,26 @@ const defaultConfig: RateLimitConfig = {
  */
 export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	const finalConfig = { ...defaultConfig, ...config }
+
+	// In-memory rate limit store scoped to this middleware instance
+	// This ensures that different rate limiters (e.g. strict vs lenient) do not share counters
+	const rateLimitStore = new Map<string, RateLimitEntry>()
+
+	// Cleanup old entries every 5 minutes
+	// Note: In a test environment where many rateLimit instances are created,
+	// this might create many intervals. Ideally, we would have a way to stop them,
+	// but standard middleware doesn't have a teardown phase.
+	setInterval(
+		() => {
+			const now = Date.now()
+			for (const [key, entry] of rateLimitStore.entries()) {
+				if (entry.resetAt < now) {
+					rateLimitStore.delete(key)
+				}
+			}
+		},
+		5 * 60 * 1000
+	)
 
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
