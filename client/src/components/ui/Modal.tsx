@@ -119,6 +119,65 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			}
 		}, [isOpen])
 
+		// Focus trap management
+		useEffect(() => {
+			if (!isOpen) {return}
+
+			const previousActiveElement = document.activeElement as HTMLElement
+			const modalElement = contentRef.current
+
+			if (modalElement) {
+				// Focus the first interactive element or the modal itself
+				const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+				const firstElement = focusableElements[0]
+
+				if (firstElement) {
+					firstElement.focus()
+				} else {
+					modalElement.focus()
+				}
+			}
+
+			const handleTabKey = (e: KeyboardEvent) => {
+				if (e.key !== 'Tab' || !modalElement) {return}
+
+				const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+
+				if (focusableElements.length === 0) {
+					e.preventDefault()
+					return
+				}
+
+				const firstElement = focusableElements[0]
+				const lastElement = focusableElements[focusableElements.length - 1]
+
+				if (e.shiftKey) {
+					if (document.activeElement === firstElement) {
+						lastElement.focus()
+						e.preventDefault()
+					}
+				} else {
+					if (document.activeElement === lastElement) {
+						firstElement.focus()
+						e.preventDefault()
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTabKey)
+
+			return () => {
+				document.removeEventListener('keydown', handleTabKey)
+				if (previousActiveElement?.focus) {
+					previousActiveElement.focus()
+				}
+			}
+		}, [isOpen])
+
 		if (!isOpen) {
 			return null
 		}
@@ -138,8 +197,9 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 				{...props}>
 				<div
 					ref={contentRef}
+					tabIndex={-1}
 					className={cn(
-						'w-full relative',
+						'w-full relative outline-none',
 						'bg-white dark:bg-neutral-900',
 						'rounded-xl shadow-2xl',
 						'border border-neutral-200 dark:border-neutral-800',

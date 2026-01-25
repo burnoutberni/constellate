@@ -140,4 +140,49 @@ describe('Modal Component', () => {
 		await user.keyboard('{Escape}')
 		expect(mockOnClose).not.toHaveBeenCalled()
 	})
+
+	it('focuses the first interactive element when opened', async () => {
+		render(
+			<Modal isOpen={true} onClose={mockOnClose}>
+				<div>
+					<button>First</button>
+					<button>Second</button>
+				</div>
+			</Modal>,
+			{ wrapper }
+		)
+
+		// Wait for focus to settle
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		expect(screen.getByText('First')).toHaveFocus()
+	})
+
+	it('traps focus within the modal', async () => {
+		const user = userEvent.setup()
+		render(
+			<Modal isOpen={true} onClose={mockOnClose}>
+				<div>
+					<button>First</button>
+					<button>Second</button>
+				</div>
+			</Modal>,
+			{ wrapper }
+		)
+
+		// First element should be focused initially
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		expect(screen.getByText('First')).toHaveFocus()
+
+		// Tab to next
+		await user.tab()
+		expect(screen.getByText('Second')).toHaveFocus()
+
+		// Tab from last element should go to first
+		await user.tab()
+		expect(screen.getByText('First')).toHaveFocus()
+
+		// Shift+Tab from first element should go to last
+		await user.tab({ shift: true })
+		expect(screen.getByText('Second')).toHaveFocus()
+	})
 })
