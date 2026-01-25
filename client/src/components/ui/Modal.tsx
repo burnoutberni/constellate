@@ -59,7 +59,7 @@ const maxWidthClasses = {
 /**
  * Modal component for displaying content in an overlay.
  * Handles backdrop, escape key, and click-outside-to-close functionality.
- * Fully accessible with proper ARIA attributes.
+ * Fully accessible with proper ARIA attributes and focus trapping.
  */
 export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 	(
@@ -95,6 +95,66 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			document.addEventListener('keydown', handleEscape)
 			return () => document.removeEventListener('keydown', handleEscape)
 		}, [isOpen, closeOnEscape, onClose])
+
+		// Focus trap
+		useEffect(() => {
+			if (!isOpen) {return}
+
+			const content = contentRef.current
+			if (!content) {return}
+
+			// Save previous focus
+			const previousFocus = document.activeElement as HTMLElement
+
+			// Find focusable elements
+			const focusableElements = content.querySelectorAll<HTMLElement>(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			)
+			const firstElement = focusableElements[0]
+
+			// Focus first element
+			if (firstElement) {
+				firstElement.focus()
+			} else {
+				// If no focusable element, focus the content itself
+				content.tabIndex = -1
+				content.focus()
+			}
+
+			function handleTab(e: KeyboardEvent) {
+				if (e.key === 'Tab') {
+					const currentFocusable = content?.querySelectorAll<HTMLElement>(
+						'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+					)
+					if (!currentFocusable || currentFocusable.length === 0) {
+						e.preventDefault()
+						return
+					}
+
+					const first = currentFocusable[0]
+					const last = currentFocusable[currentFocusable.length - 1]
+
+					if (e.shiftKey) {
+						if (document.activeElement === first) {
+							e.preventDefault()
+							last.focus()
+						}
+					} else {
+						if (document.activeElement === last) {
+							e.preventDefault()
+							first.focus()
+						}
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTab)
+
+			return () => {
+				document.removeEventListener('keydown', handleTab)
+				previousFocus?.focus()
+			}
+		}, [isOpen])
 
 		// Handle backdrop click
 		const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -157,4 +217,3 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 )
 
 Modal.displayName = 'Modal'
-
