@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
@@ -94,7 +94,7 @@ export function SearchBar() {
 	}
 
 	// Get all selectable items
-	const getSelectableItems = () => {
+	const selectableItems = useMemo(() => {
 		const items: Array<
 			| { type: 'user'; data: User }
 			| { type: 'event'; data: Event }
@@ -110,7 +110,7 @@ export function SearchBar() {
 		}
 
 		return items
-	}
+	}, [results])
 
 	// Handle item click
 	const handleItemClick = (
@@ -144,12 +144,12 @@ export function SearchBar() {
 			return
 		}
 
-		const items = getSelectableItems()
-
 		switch (e.key) {
 			case 'ArrowDown':
 				e.preventDefault()
-				setSelectedIndex((prev) => (prev < items.length - 1 ? prev + 1 : prev))
+				setSelectedIndex((prev) =>
+					prev < selectableItems.length - 1 ? prev + 1 : prev
+				)
 				break
 			case 'ArrowUp':
 				e.preventDefault()
@@ -157,8 +157,8 @@ export function SearchBar() {
 				break
 			case 'Enter':
 				e.preventDefault()
-				if (selectedIndex >= 0 && selectedIndex < items.length) {
-					const item = items[selectedIndex]
+				if (selectedIndex >= 0 && selectedIndex < selectableItems.length) {
+					const item = selectableItems[selectedIndex]
 					handleItemClick(item)
 				}
 				break
@@ -172,11 +172,11 @@ export function SearchBar() {
 		}
 	}
 
-	const selectableItems = getSelectableItems()
-
 	const searchIcon = <SearchIcon className="w-5 h-5" />
 
 	const loadingSpinner = isLoading ? <Spinner size="sm" variant="secondary" /> : undefined
+	const listboxId = 'search-results-listbox'
+	const getItemId = (index: number) => `search-result-item-${index}`
 
 	return (
 		<div ref={searchRef} className="relative w-full max-w-md">
@@ -191,10 +191,20 @@ export function SearchBar() {
 				leftIcon={searchIcon}
 				rightIcon={loadingSpinner}
 				className="w-full"
+				role="combobox"
+				aria-autocomplete="list"
+				aria-expanded={isOpen}
+				aria-controls={isOpen ? listboxId : undefined}
+				aria-activedescendant={
+					selectedIndex >= 0 ? getItemId(selectedIndex) : undefined
+				}
 			/>
 
 			{isOpen && results && (
-				<div className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
+				<div
+					id={listboxId}
+					role="listbox"
+					className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
 					{results.users.length > 0 && (
 						<div>
 							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
@@ -206,6 +216,10 @@ export function SearchBar() {
 								return (
 									<Button
 										key={user.id}
+										id={getItemId(itemIndex)}
+										role="option"
+										aria-selected={isSelected}
+										tabIndex={-1}
 										onClick={() =>
 											handleItemClick({ type: 'user', data: user })
 										}
@@ -261,6 +275,10 @@ export function SearchBar() {
 								return (
 									<Button
 										key={event.id}
+										id={getItemId(itemIndex)}
+										role="option"
+										aria-selected={isSelected}
+										tabIndex={-1}
 										onClick={() =>
 											handleItemClick({ type: 'event', data: event })
 										}
@@ -292,6 +310,10 @@ export function SearchBar() {
 								Remote Account
 							</div>
 							<Button
+								id={getItemId(selectableItems.length - 1)}
+								role="option"
+								aria-selected={selectedIndex === selectableItems.length - 1}
+								tabIndex={-1}
 								onClick={() => {
 									if (results.remoteAccountSuggestion) {
 										handleItemClick({
