@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
+import { SearchIcon, Button, Input, Spinner, GlobeIcon, CloseIcon } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
+import { cn } from '@/lib/utils'
 import { User, Event } from '@/types'
 
 const log = createLogger('[SearchBar]')
@@ -138,6 +139,12 @@ export function SearchBar() {
 		setIsOpen(false)
 	}
 
+	const handleClear = () => {
+		setQuery('')
+		setIsOpen(false)
+		inputRef.current?.focus()
+	}
+
 	// Keyboard navigation
 	const handleKeyDown = (e: KeyboardEvent) => {
 		if (!isOpen) {
@@ -190,11 +197,30 @@ export function SearchBar() {
 				placeholder="Search events, users, or @user@domain..."
 				leftIcon={searchIcon}
 				rightIcon={loadingSpinner}
-				className="w-full"
+				className={cn('w-full', !isLoading && query && 'pr-10')}
+				aria-label="Search"
+				aria-expanded={isOpen}
+				aria-controls="search-results"
+				aria-activedescendant={
+					selectedIndex >= 0 ? `result-item-${selectedIndex}` : undefined
+				}
 			/>
 
+			{!isLoading && query && (
+				<button
+					type="button"
+					onClick={handleClear}
+					className="absolute right-3 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-primary focus:outline-none focus:text-text-primary"
+					aria-label="Clear search">
+					<CloseIcon className="w-4 h-4" />
+				</button>
+			)}
+
 			{isOpen && results && (
-				<div className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
+				<div
+					id="search-results"
+					role="listbox"
+					className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
 					{results.users.length > 0 && (
 						<div>
 							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
@@ -206,6 +232,9 @@ export function SearchBar() {
 								return (
 									<Button
 										key={user.id}
+										id={`result-item-${itemIndex}`}
+										role="option"
+										aria-selected={isSelected}
 										onClick={() =>
 											handleItemClick({ type: 'user', data: user })
 										}
@@ -261,6 +290,9 @@ export function SearchBar() {
 								return (
 									<Button
 										key={event.id}
+										id={`result-item-${itemIndex}`}
+										role="option"
+										aria-selected={isSelected}
 										onClick={() =>
 											handleItemClick({ type: 'event', data: event })
 										}
@@ -292,6 +324,11 @@ export function SearchBar() {
 								Remote Account
 							</div>
 							<Button
+								id={`result-item-${selectableItems.length - 1}`}
+								role="option"
+								aria-selected={
+									selectedIndex === selectableItems.length - 1
+								}
 								onClick={() => {
 									if (results.remoteAccountSuggestion) {
 										handleItemClick({
