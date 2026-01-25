@@ -28,7 +28,7 @@ import { Errors } from '../lib/errors.js'
  * const redis = new Redis(process.env.REDIS_URL)
  *
  * // In rateLimit function:
- * const key = `ratelimit:${finalConfig.keyGenerator ? finalConfig.keyGenerator(c) : userId ? `user:${userId}` : `ip:${ip}`}`
+ * const key = `ratelimit:${finalConfig.name}:${finalConfig.keyGenerator ? finalConfig.keyGenerator(c) : userId ? `user:${userId}` : `ip:${ip}`}`
  * const count = await redis.incr(key)
  * if (count === 1) await redis.expire(key, Math.ceil(finalConfig.windowMs / 1000))
  * if (count > finalConfig.maxRequests) throw Errors.tooManyRequests(...)
@@ -62,6 +62,7 @@ setInterval(
 export interface RateLimitConfig {
 	windowMs: number // Time window in milliseconds
 	maxRequests: number // Maximum requests per window
+	name?: string // Name of the rate limiter (used for key generation to prevent collisions)
 	keyGenerator?: (c: Context) => string // Custom key generator
 	skipSuccessfulRequests?: boolean // Don't count successful requests
 	skipFailedRequests?: boolean // Don't count failed requests
@@ -74,6 +75,7 @@ export interface RateLimitConfig {
 const defaultConfig: RateLimitConfig = {
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
+	name: 'default',
 }
 
 /**
@@ -88,14 +90,17 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 		const ip =
 			c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || 'unknown'
 
-		let key: string
+		let baseKey: string
 		if (finalConfig.keyGenerator) {
-			key = finalConfig.keyGenerator(c)
+			baseKey = finalConfig.keyGenerator(c)
 		} else if (userId) {
-			key = `user:${userId}`
+			baseKey = `user:${userId}`
 		} else {
-			key = `ip:${ip}`
+			baseKey = `ip:${ip}`
 		}
+
+		// Include limiter name in key to prevent bucket collisions between different limiters
+		const key = `${finalConfig.name}:${baseKey}`
 
 		const now = Date.now()
 		const entry = rateLimitStore.get(key)
@@ -147,6 +152,7 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
  * Stricter rate limit for sensitive operations (login, signup, etc.)
  */
 export const strictRateLimit = rateLimit({
+	name: 'strict',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 10, // Only 10 attempts per 15 minutes
 })
@@ -155,6 +161,7 @@ export const strictRateLimit = rateLimit({
  * Moderate rate limit for authenticated operations
  */
 export const moderateRateLimit = rateLimit({
+	name: 'moderate',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 100,
 })
@@ -163,6 +170,7 @@ export const moderateRateLimit = rateLimit({
  * Lenient rate limit for public read operations
  */
 export const lenientRateLimit = rateLimit({
+	name: 'lenient',
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	maxRequests: 200,
 })

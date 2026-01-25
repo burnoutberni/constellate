@@ -1,0 +1,4 @@
+## 2024-02-14 - Shared Rate Limit Buckets
+**Vulnerability:** Different rate limiters (e.g., `strictRateLimit` vs `moderateRateLimit`) were sharing the same in-memory storage buckets because they generated keys based only on the user ID or IP, without distinguishing the specific limiter configuration.
+**Learning:** Rate limiters operating on the same storage backend must use unique namespaces (prefixes) for their keys. Without this, a user consuming their quota on a high-volume endpoint (e.g., 200 req/15min) could be inadvertently blocked from a low-volume endpoint (e.g., 10 req/15min) if the latter's limit is lower than the current count.
+**Prevention:** Always include a unique identifier or name for the rate limiter in the key generation logic (e.g., `limiterName:userId` instead of just `userId`).
