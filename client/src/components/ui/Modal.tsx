@@ -119,6 +119,44 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			}
 		}, [isOpen])
 
+		// Trap focus inside modal
+		useEffect(() => {
+			if (!isOpen) return
+
+			// Simple focus trap: prevent focus from leaving modal content
+			const handleTab = (e: KeyboardEvent) => {
+				if (e.key !== 'Tab' || !contentRef.current) return
+
+				const focusable = Array.from(
+					contentRef.current.querySelectorAll<HTMLElement>(
+						'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])'
+					)
+				)
+				if (focusable.length === 0) return
+
+				const first = focusable[0]
+				const last = focusable[focusable.length - 1]
+
+				if (e.shiftKey && document.activeElement === first) {
+					e.preventDefault()
+					last.focus()
+				} else if (!e.shiftKey && document.activeElement === last) {
+					e.preventDefault()
+					first.focus()
+				}
+			}
+
+			requestAnimationFrame(() => {
+				const first = contentRef.current?.querySelector<HTMLElement>(
+					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+				)
+				first?.focus()
+			})
+
+			document.addEventListener('keydown', handleTab)
+			return () => document.removeEventListener('keydown', handleTab)
+		}, [isOpen])
+
 		if (!isOpen) {
 			return null
 		}
