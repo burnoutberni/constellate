@@ -10,6 +10,7 @@ import {
 	getBaseUrl,
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
+import { sanitizeText } from './lib/sanitization.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
@@ -505,13 +506,14 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const eventObj = event as Record<string, unknown>
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
+	const getSanitizedString = (val: unknown) => (typeof val === 'string' ? sanitizeText(val) : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
+		eventName: getSanitizedString(eventObj.name) || '',
+		eventSummary: getSanitizedString(eventObj.summary),
+		eventContent: getSanitizedString(eventObj.content),
 		locationValue: getLocationValue(eventObj.location),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
@@ -788,6 +790,9 @@ async function handleCreateNote(
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
 	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
 
+	// Sanitize content to prevent XSS (ActivityPub content is often HTML)
+	const sanitizedContent = sanitizeText(noteContent)
+
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
 		where: {
@@ -804,7 +809,7 @@ async function handleCreateNote(
 	const comment = await prisma.comment.create({
 		data: {
 			externalId: noteId,
-			content: noteContent,
+			content: sanitizedContent,
 			eventId: event.id,
 			authorId: remoteUser.id,
 		},
@@ -893,8 +898,8 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : ''
+	const eventSummary = typeof eventObj.summary === 'string' ? sanitizeText(eventObj.summary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
