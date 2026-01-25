@@ -58,7 +58,7 @@ const maxWidthClasses = {
 
 /**
  * Modal component for displaying content in an overlay.
- * Handles backdrop, escape key, and click-outside-to-close functionality.
+ * Handles backdrop, escape key, focus trapping, and click-outside-to-close functionality.
  * Fully accessible with proper ARIA attributes.
  */
 export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
@@ -79,22 +79,80 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 		ref
 	) => {
 		const contentRef = useRef<HTMLDivElement>(null)
+		const previousFocusRef = useRef<HTMLElement | null>(null)
 
-		// Handle escape key
+		// Focus management: Store previous focus when opening
 		useEffect(() => {
-			if (!isOpen || !closeOnEscape) {
-				return
-			}
+			if (isOpen) {
+				previousFocusRef.current = document.activeElement as HTMLElement
 
-			function handleEscape(e: KeyboardEvent) {
-				if (e.key === 'Escape') {
+				// Focus the first element or container
+				const contentElement = contentRef.current
+				if (contentElement) {
+					const focusableElements = contentElement.querySelectorAll(
+						'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+					)
+					if (focusableElements.length > 0) {
+						(focusableElements[0] as HTMLElement).focus()
+					} else {
+						contentElement.focus()
+					}
+				}
+			} else if (previousFocusRef.current) {
+				// Restore focus when closing
+				previousFocusRef.current.focus()
+				previousFocusRef.current = null
+			}
+		}, [isOpen])
+
+		// Focus trap: Handle Tab key dynamically
+		useEffect(() => {
+			if (!isOpen) {return}
+
+			const handleKeyDown = (e: KeyboardEvent) => {
+				if (closeOnEscape && e.key === 'Escape') {
+					e.preventDefault() // Prevent default behavior (if any)
 					onClose()
+					return
+				}
+
+				if (e.key === 'Tab') {
+					const contentElement = contentRef.current
+					if (!contentElement) {return}
+
+					// Query focusable elements dynamically on each keypress to handle content changes
+					const focusableElements = contentElement.querySelectorAll(
+						'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+					)
+
+					if (focusableElements.length === 0) {
+						e.preventDefault()
+						return
+					}
+
+					const firstElement = focusableElements[0] as HTMLElement
+					const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+					if (e.shiftKey) {
+						if (document.activeElement === firstElement) {
+							e.preventDefault()
+							lastElement.focus()
+						}
+					} else {
+						if (document.activeElement === lastElement) {
+							e.preventDefault()
+							firstElement.focus()
+						}
+					}
 				}
 			}
 
-			document.addEventListener('keydown', handleEscape)
-			return () => document.removeEventListener('keydown', handleEscape)
-		}, [isOpen, closeOnEscape, onClose])
+			document.addEventListener('keydown', handleKeyDown)
+
+			return () => {
+				document.removeEventListener('keydown', handleKeyDown)
+			}
+		}, [isOpen, closeOnEscape, onClose]) // Dependencies kept, but logic inside handles dynamic content
 
 		// Handle backdrop click
 		const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -139,7 +197,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 				<div
 					ref={contentRef}
 					className={cn(
-						'w-full relative',
+						'w-full relative outline-none',
 						'bg-white dark:bg-neutral-900',
 						'rounded-xl shadow-2xl',
 						'border border-neutral-200 dark:border-neutral-800',
@@ -148,7 +206,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 						contentClassName,
 						className
 					)}
-					onClick={(e) => e.stopPropagation()}>
+					onClick={(e) => e.stopPropagation()}
+					tabIndex={-1}>
 					{children}
 				</div>
 			</div>
@@ -157,4 +216,3 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 )
 
 Modal.displayName = 'Modal'
-
