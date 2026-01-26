@@ -1,0 +1,4 @@
+## 2026-01-26 - Missing Sanitization in Federation Handlers
+**Vulnerability:** Incoming ActivityPub content (Events, Notes, Profiles) was being stored directly in the database without sanitization, leading to potential Stored XSS vulnerabilities if this content was rendered unsafely (e.g. if the SafeHTML component was bypassed or if the data was used in emails/notifications).
+**Learning:** Federation handlers often process external, untrusted input. It's easy to assume "the frontend will handle it" or "other instances are trusted", but ActivityPub is an open protocol where any actor can send malicious payloads. Sanitization should happen at the boundary (ingestion) as a defense-in-depth measure, not just at the presentation layer.
+**Prevention:** Always sanitize incoming text and HTML content from federated sources before storing it in the database. Use `sanitizeText` for plain text fields and `sanitizeHtml` (with a strict allowlist) for rich text fields.
