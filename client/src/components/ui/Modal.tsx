@@ -119,6 +119,64 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 			}
 		}, [isOpen])
 
+		// Trap focus within modal
+		useEffect(() => {
+			if (!isOpen) {
+				return
+			}
+
+			const previousActiveElement = document.activeElement as HTMLElement
+			const modalElement = contentRef.current
+			if (!modalElement) {
+				return
+			}
+
+			const focusableSelector =
+				'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+			// Focus first element on open
+			const initialFocusableElements =
+				modalElement.querySelectorAll(focusableSelector)
+			if (initialFocusableElements.length > 0) {
+				;(initialFocusableElements[0] as HTMLElement).focus()
+			}
+
+			function handleTabKey(e: KeyboardEvent) {
+				if (e.key !== 'Tab') {
+					return
+				}
+
+				const currentFocusableElements =
+					modalElement.querySelectorAll(focusableSelector)
+				if (currentFocusableElements.length === 0) {
+					return
+				}
+
+				const firstElement = currentFocusableElements[0] as HTMLElement
+				const lastElement = currentFocusableElements[
+					currentFocusableElements.length - 1
+				] as HTMLElement
+
+				if (e.shiftKey) {
+					if (document.activeElement === firstElement) {
+						lastElement.focus()
+						e.preventDefault()
+					}
+				} else {
+					if (document.activeElement === lastElement) {
+						firstElement.focus()
+						e.preventDefault()
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTabKey)
+			return () => {
+				document.removeEventListener('keydown', handleTabKey)
+				previousActiveElement?.focus()
+			}
+		}, [isOpen])
+
 		if (!isOpen) {
 			return null
 		}
