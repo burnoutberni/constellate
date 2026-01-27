@@ -140,4 +140,39 @@ describe('Modal Component', () => {
 		await user.keyboard('{Escape}')
 		expect(mockOnClose).not.toHaveBeenCalled()
 	})
+
+	it('traps focus within the modal when open', async () => {
+		const user = userEvent.setup()
+		render(
+			<Modal isOpen={true} onClose={mockOnClose}>
+				<button>Button 1</button>
+				<button>Button 2</button>
+				<button>Button 3</button>
+			</Modal>,
+			{ wrapper }
+		)
+
+		const button1 = screen.getByText('Button 1')
+		const button2 = screen.getByText('Button 2')
+		const button3 = screen.getByText('Button 3')
+
+		// Set initial focus
+		button1.focus()
+
+		// Tab to button 2
+		await user.tab()
+		expect(button2).toHaveFocus()
+
+		// Tab to button 3
+		await user.tab()
+		expect(button3).toHaveFocus()
+
+		// Tab should cycle back to button 1
+		await user.tab()
+		expect(button1).toHaveFocus()
+
+		// Shift+Tab should cycle back to button 3
+		await user.tab({ shift: true })
+		expect(button3).toHaveFocus()
+	})
 })
