@@ -16,3 +16,48 @@ export function sanitizeText(input: string): string {
 		ALLOWED_ATTR: [],
 	})
 }
+
+// DOMPurify configuration for safe HTML sanitization
+// This allows common formatting tags like <p>, <strong>, <em>, <br>, <a>, etc.
+// but blocks dangerous tags like <script>, <iframe>, etc.
+// Matches client/src/components/ui/SafeHTML.tsx
+const HTML_CONFIG = {
+	ALLOWED_TAGS: [
+		'p',
+		'br',
+		'strong',
+		'b',
+		'em',
+		'i',
+		'u',
+		's',
+		'strike',
+		'del',
+		'h1',
+		'h2',
+		'h3',
+		'h4',
+		'h5',
+		'h6',
+		'ul',
+		'ol',
+		'li',
+		'a',
+		'blockquote',
+		'pre',
+		'code',
+		'span',
+		'div',
+	],
+	ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+	ALLOWED_URI_REGEXP: /^(https?:|mailto:|tel:|\/)/i,
+}
+
+/**
+ * Sanitizes HTML content (preserves safe tags)
+ * @param input - Raw HTML content
+ * @returns Sanitized HTML with only allowed tags/attributes
+ */
+export function sanitizeHtml(input: string): string {
+	return DOMPurify.sanitize(input, HTML_CONFIG)
+}
