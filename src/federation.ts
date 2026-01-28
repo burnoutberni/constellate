@@ -15,6 +15,7 @@ import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import { trackInstance } from './lib/instanceHelpers.js'
 import { logger } from './lib/logger.js'
 import type { Prisma, Event, User } from '@prisma/client'
@@ -562,9 +563,9 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
 	}
 
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: sanitizeHtml(eventSummary || eventContent || ''),
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
@@ -573,7 +574,7 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
 		eventAttendanceMode: eventAttendanceMode as string | null,
 		maximumAttendeeCapacity: eventMaxCapacity,
 		headerImage: attachmentUrl,
-		attributedTo: attributedTo,
+		attributedTo: attributedTo ? sanitizeText(attributedTo) : null,
 	}
 
 	return prisma.event.upsert({
@@ -734,9 +735,9 @@ async function handleCreateEvent(
 
 	// Create event in database
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: sanitizeHtml(eventSummary || eventContent || ''),
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
@@ -745,7 +746,7 @@ async function handleCreateEvent(
 		eventAttendanceMode: eventAttendanceMode as string | null,
 		maximumAttendeeCapacity: eventMaxCapacity,
 		headerImage: attachmentUrl,
-		attributedTo: attributedTo || activity.actor,
+		attributedTo: attributedTo ? sanitizeText(attributedTo) : activity.actor,
 	}
 
 	const createdEvent = await prisma.event.upsert({
@@ -761,7 +762,7 @@ async function handleCreateEvent(
 	// Broadcast real-time update
 	await broadcastRemoteEventCreation(createdEvent, remoteUser)
 
-	logger.info(`Cached remote event: ${eventName}`)
+	logger.info(`Cached remote event: ${eventData.title}`)
 }
 
 /**
@@ -786,7 +787,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeHtml(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,8 +894,8 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : ''
+	const eventSummary = typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
@@ -917,8 +918,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		where: { externalId: eventId },
 		data: {
 			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
+			summary: eventSummary,
+			location: locationValue ? sanitizeText(locationValue) : null,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
 			eventStatus: eventStatus as string | null,
@@ -945,8 +946,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeHtml(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined

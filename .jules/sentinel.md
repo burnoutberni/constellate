@@ -1,0 +1,4 @@
+## 2024-05-22 - Missing Sanitization in Federation Handlers
+**Vulnerability:** Incoming ActivityPub data (events, comments, profiles) was stored in the database without sanitization. While the frontend uses `DOMPurify` to render HTML safely, raw data storage allowed for Stored XSS if other clients consumed the API without their own sanitization, or if the frontend validation was bypassed.
+**Learning:** Federation endpoints accept data from untrusted sources (other instances). We cannot assume incoming data is safe. Relying solely on client-side sanitization is insufficient ("Defense in Depth").
+**Prevention:** Always sanitize rich text content (HTML) at the API boundary before storage. Use `sanitizeText` for plain text fields and `sanitizeHtml` (with a strict whitelist) for rich text fields. Added `sanitizeHtml` to `src/lib/sanitization.ts` and applied it in `src/federation.ts`.
