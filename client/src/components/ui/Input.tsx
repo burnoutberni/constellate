@@ -35,6 +35,16 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 	 */
 	rightIcon?: React.ReactNode
 	/**
+	 * Callback when the right icon is clicked.
+	 * Makes the icon interactive and accessible as a button.
+	 */
+	onRightIconClick?: () => void
+	/**
+	 * ARIA label for the right icon button when it is interactive.
+	 * Required if onRightIconClick is provided.
+	 */
+	rightIconAriaLabel?: string
+	/**
 	 * Whether the input should take full width of its container
 	 */
 	fullWidth?: boolean
@@ -55,6 +65,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			helperText,
 			leftIcon,
 			rightIcon,
+			onRightIconClick,
+			rightIconAriaLabel,
 			fullWidth = false,
 			className,
 			id,
@@ -156,11 +168,32 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 						<div
 							className={cn(
 								'absolute right-3 top-1/2 -translate-y-1/2',
-								'text-text-disabled',
-								'pointer-events-none',
-								error && 'text-error-500 dark:text-error-400'
+								onRightIconClick ? 'pointer-events-auto' : 'pointer-events-none'
 							)}>
-							{rightIcon}
+							{onRightIconClick ? (
+								<button
+									type="button"
+									onClick={onRightIconClick}
+									aria-label={rightIconAriaLabel}
+									disabled={disabled}
+									className={cn(
+										'flex items-center justify-center rounded-full p-1 -m-1 transition-colors',
+										'focus:outline-none focus:ring-2 focus:ring-primary-500',
+										error
+											? 'text-error-500 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20'
+											: 'text-text-disabled hover:text-text-primary hover:bg-neutral-100 dark:hover:bg-neutral-800'
+									)}>
+									{rightIcon}
+								</button>
+							) : (
+								<span
+									className={cn(
+										'flex items-center',
+										error ? 'text-error-500 dark:text-error-400' : 'text-text-disabled'
+									)}>
+									{rightIcon}
+								</span>
+							)}
 						</div>
 					)}
 				</div>
