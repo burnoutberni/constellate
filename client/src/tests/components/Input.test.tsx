@@ -147,4 +147,22 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should render interactive right icon when onRightIconClick is provided', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Clear' })
+		expect(button).toBeInTheDocument()
+
+		fireEvent.click(button)
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
 })
