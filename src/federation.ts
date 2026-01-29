@@ -735,6 +735,10 @@ async function handleCreateEvent(
 		attributedTo,
 	} = extractEventProperties(event)
 
+	if (!eventId || !eventName || !eventStartTime) {
+		return
+	}
+
 	// Create event in database
 	const eventData = {
 		title: eventName,
@@ -896,11 +900,14 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : null
-	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
-	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
-	const eventStatus = eventObj.eventStatus
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : undefined
+	const eventSummary =
+		typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : undefined
+	const eventStartTime =
+		typeof eventObj.startTime === 'string' ? new Date(eventObj.startTime) : undefined
+	const eventEndTime = typeof eventObj.endTime === 'string' ? new Date(eventObj.endTime) : undefined
+	const eventStatus =
+		typeof eventObj.eventStatus === 'string' ? (eventObj.eventStatus as string) : undefined
 	const eventLocation = eventObj.location
 	let locationValue: string | null
 	if (typeof eventLocation === 'string') {
@@ -920,11 +927,11 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		where: { externalId: eventId },
 		data: {
 			title: eventName,
-			summary: eventSummary || null,
+			summary: eventSummary,
 			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			eventStatus: eventStatus as string | null,
+			startTime: eventStartTime,
+			endTime: eventEndTime,
+			eventStatus: eventStatus,
 		},
 	})
 
@@ -948,8 +955,10 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
-	const personSummary = personObj.summary ? sanitizeHtml(personObj.summary) : undefined
+	const personName =
+		typeof personObj.name === 'string' ? sanitizeText(personObj.name) : undefined
+	const personSummary =
+		typeof personObj.summary === 'string' ? sanitizeHtml(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined

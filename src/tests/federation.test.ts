@@ -1362,8 +1362,8 @@ describe('Federation Handlers', () => {
 
 				expect(updatedEvent).toBeDefined()
 				expect(updatedEvent?.title).toBe('Updated Title Only')
-				// Other fields should be updated to null/undefined as per activity
-				expect(updatedEvent?.summary).toBeNull()
+				// Other fields should be preserved if not present in update
+				expect(updatedEvent?.summary).toBe('Original summary')
 			})
 
 			it('should handle Update activity for a user profile with all fields', async () => {
@@ -2354,6 +2354,165 @@ describe('Federation Handlers', () => {
 				expect(follower).toBeTruthy()
 				expect(follower?.accepted).toBe(true)
 			})
+		})
+	})
+
+	describe('Input Sanitization & Type Coverage', () => {
+		it('should handle Create activity with non-string fields', async () => {
+			const remoteActor = {
+				id: 'https://example.com/users/sanitizer',
+				type: 'Person',
+				preferredUsername: 'sanitizer',
+			}
+
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: 'sanitizer@example.com',
+					isRemote: true,
+					externalActorUrl: remoteActor.id,
+				},
+			})
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+			vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+
+			// Create activity where name and summary are numbers
+			const activity = {
+				id: 'https://example.com/activities/create-nonstring',
+				type: ActivityType.CREATE,
+				actor: remoteActor.id,
+				object: {
+					type: ObjectType.EVENT,
+					id: 'https://example.com/events/nonstring',
+					name: 12345, // Number instead of string
+					summary: { invalid: 'object' }, // Object instead of string
+					startTime: new Date().toISOString(),
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			// Should NOT create event because name is required and sanitization converts non-string to null -> empty string
+			// extractEventProperties: eventName = getSanitizedText(12345) -> null || '' -> ''
+			// upsertRemoteEventFromObject: if (!eventName) return null
+			const event = await prisma.event.findFirst({
+				where: { externalId: activity.object.id },
+			})
+
+			expect(event).toBeNull()
+		})
+
+		it('should handle Update activity with non-string fields', async () => {
+			const remoteEvent = await prisma.event.create({
+				data: {
+					title: 'Original Title',
+					summary: 'Original Summary',
+					startTime: new Date(),
+					externalId: 'https://example.com/events/update-nonstring',
+					attributedTo: 'https://example.com/users/sanitizer',
+				},
+			})
+
+			const activity = {
+				id: 'https://example.com/activities/update-nonstring',
+				type: ActivityType.UPDATE,
+				actor: 'https://example.com/users/sanitizer',
+				object: {
+					type: ObjectType.EVENT,
+					id: remoteEvent.externalId,
+					name: 12345, // Number
+					summary: [], // Array
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			const updatedEvent = await prisma.event.findUnique({
+				where: { id: remoteEvent.id },
+			})
+
+			// Non-string name -> sanitized to undefined -> title NOT updated (preserved)
+			expect(updatedEvent?.title).toBe('Original Title')
+			// Non-string summary -> sanitized to undefined -> summary NOT updated (preserved)
+			expect(updatedEvent?.summary).toBe('Original Summary')
+		})
+
+		it('should handle Create Note with non-string content', async () => {
+			const remoteActor = {
+				id: 'https://example.com/users/sanitizer',
+				type: 'Person',
+			}
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: 'sanitizer_note@example.com',
+					isRemote: true,
+					externalActorUrl: remoteActor.id,
+				},
+			})
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+			vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+			vi.mocked(realtime.broadcast).mockResolvedValue(undefined)
+
+			const activity = {
+				id: 'https://example.com/activities/create-note-nonstring',
+				type: ActivityType.CREATE,
+				actor: remoteActor.id,
+				object: {
+					type: ObjectType.NOTE,
+					id: 'https://example.com/notes/nonstring',
+					content: 12345, // Number
+					inReplyTo: `${baseUrl}/events/${testEvent.id}`,
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			const comment = await prisma.comment.findFirst({
+				where: { externalId: activity.object.id },
+			})
+
+			// Non-string content -> sanitized to ""
+			expect(comment).toBeDefined()
+			expect(comment?.content).toBe('')
+		})
+
+		it('should handle Update Person with non-string fields', async () => {
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: 'sanitizer_person@example.com',
+					name: 'Original Name',
+					bio: 'Original Bio',
+					isRemote: true,
+					externalActorUrl: 'https://example.com/users/sanitizer_person',
+				},
+			})
+
+			const activity = {
+				id: 'https://example.com/activities/update-person-nonstring',
+				type: ActivityType.UPDATE,
+				actor: remoteUser.externalActorUrl,
+				object: {
+					type: ObjectType.PERSON,
+					id: remoteUser.externalActorUrl,
+					name: 12345, // Number
+					summary: {}, // Object
+					preferredUsername: 'sanitizer_person',
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			const updatedUser = await prisma.user.findUnique({
+				where: { id: remoteUser.id },
+			})
+
+			// In handleUpdatePerson:
+			// name: 12345 (number) -> typeof !== 'string' -> undefined (no update)
+			expect(updatedUser?.name).toBe('Original Name')
+
+			// summary: {} (object) -> typeof !== 'string' -> undefined (no update)
+			expect(updatedUser?.bio).toBe('Original Bio')
 		})
 	})
 })
