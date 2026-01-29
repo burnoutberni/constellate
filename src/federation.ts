@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeHtml, sanitizeText } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -506,12 +507,14 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
+	const getSanitizedText = (val: unknown) => (typeof val === 'string' ? sanitizeText(val) : null)
+	const getSanitizedHtml = (val: unknown) => (typeof val === 'string' ? sanitizeHtml(val) : null)
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
+		eventName: getSanitizedText(eventObj.name) || '',
+		eventSummary: getSanitizedHtml(eventObj.summary),
+		eventContent: getSanitizedHtml(eventObj.content),
 		locationValue: getLocationValue(eventObj.location),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
@@ -732,6 +735,10 @@ async function handleCreateEvent(
 		attributedTo,
 	} = extractEventProperties(event)
 
+	if (!eventId || !eventName || !eventStartTime) {
+		return
+	}
+
 	// Create event in database
 	const eventData = {
 		title: eventName,
@@ -786,7 +793,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = typeof noteObj.content === 'string' ? sanitizeHtml(noteObj.content) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,11 +900,14 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
-	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
-	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
-	const eventStatus = eventObj.eventStatus
+	const eventName = typeof eventObj.name === 'string' ? sanitizeText(eventObj.name) : undefined
+	const eventSummary =
+		typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : undefined
+	const eventStartTime =
+		typeof eventObj.startTime === 'string' ? new Date(eventObj.startTime) : undefined
+	const eventEndTime = typeof eventObj.endTime === 'string' ? new Date(eventObj.endTime) : undefined
+	const eventStatus =
+		typeof eventObj.eventStatus === 'string' ? (eventObj.eventStatus as string) : undefined
 	const eventLocation = eventObj.location
 	let locationValue: string | null
 	if (typeof eventLocation === 'string') {
@@ -917,11 +927,11 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		where: { externalId: eventId },
 		data: {
 			title: eventName,
-			summary: eventSummary || null,
+			summary: eventSummary,
 			location: locationValue,
-			startTime: new Date(eventStartTime),
-			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			eventStatus: eventStatus as string | null,
+			startTime: eventStartTime,
+			endTime: eventEndTime,
+			eventStatus: eventStatus,
 		},
 	})
 
@@ -945,8 +955,10 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName =
+		typeof personObj.name === 'string' ? sanitizeText(personObj.name) : undefined
+	const personSummary =
+		typeof personObj.summary === 'string' ? sanitizeHtml(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
