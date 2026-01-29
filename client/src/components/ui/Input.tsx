@@ -35,6 +35,16 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 	 */
 	rightIcon?: React.ReactNode
 	/**
+	 * Callback function when the right icon is clicked.
+	 * Makes the right icon interactive.
+	 */
+	onRightIconClick?: () => void
+	/**
+	 * Accessibility label for the right icon button.
+	 * Required if onRightIconClick is provided.
+	 */
+	rightIconAriaLabel?: string
+	/**
 	 * Whether the input should take full width of its container
 	 */
 	fullWidth?: boolean
@@ -55,6 +65,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			helperText,
 			leftIcon,
 			rightIcon,
+			onRightIconClick,
+			rightIconAriaLabel,
 			fullWidth = false,
 			className,
 			id,
@@ -153,14 +165,29 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 						{...props}
 					/>
 					{rightIcon && (
-						<div
-							className={cn(
-								'absolute right-3 top-1/2 -translate-y-1/2',
-								'text-text-disabled',
-								'pointer-events-none',
-								error && 'text-error-500 dark:text-error-400'
-							)}>
-							{rightIcon}
+						<div className="absolute right-3 top-1/2 -translate-y-1/2">
+							{onRightIconClick ? (
+								<button
+									type="button"
+									onClick={onRightIconClick}
+									aria-label={rightIconAriaLabel}
+									className={cn(
+										'text-text-disabled hover:text-text-primary transition-colors',
+										'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded-sm',
+										error && 'text-error-500 dark:text-error-400'
+									)}>
+									{rightIcon}
+								</button>
+							) : (
+								<div
+									className={cn(
+										'text-text-disabled',
+										'pointer-events-none',
+										error && 'text-error-500 dark:text-error-400'
+									)}>
+									{rightIcon}
+								</div>
+							)}
 						</div>
 					)}
 				</div>
