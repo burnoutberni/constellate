@@ -147,4 +147,42 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should call onRightIconClick when right icon is clicked', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Clear' })
+		fireEvent.click(button)
+
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
+
+	it('should support keyboard interaction on right icon', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>X</span>}
+				onRightIconClick={handleClick}
+				rightIconAriaLabel="Clear"
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'Clear' })
+		button.focus()
+		fireEvent.keyDown(button, { key: 'Enter' })
+
+		expect(handleClick).toHaveBeenCalledTimes(1)
+
+		fireEvent.keyDown(button, { key: ' ' })
+		expect(handleClick).toHaveBeenCalledTimes(2)
+	})
 })
