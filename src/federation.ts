@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -507,12 +508,18 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	// Sanitize text fields
+	const rawName = getString(eventObj.name)
+	const rawSummary = getString(eventObj.summary)
+	const rawContent = getString(eventObj.content)
+	const rawLocation = getLocationValue(eventObj.location)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: rawName ? sanitizeText(rawName) : '',
+		eventSummary: rawSummary ? sanitizeHtml(rawSummary) : null,
+		eventContent: rawContent ? sanitizeHtml(rawContent) : null,
+		locationValue: rawLocation ? sanitizeText(rawLocation) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -786,7 +793,8 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const rawContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = rawContent ? sanitizeHtml(rawContent) : ''
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,8 +901,8 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const rawName = typeof eventObj.name === 'string' ? eventObj.name : ''
+	const rawSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
@@ -913,12 +921,17 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		locationValue = null
 	}
 
+	// Sanitize updated fields
+	const eventName = rawName ? sanitizeText(rawName) : ''
+	const eventSummary = rawSummary ? sanitizeHtml(rawSummary) : null
+	const sanitizedLocation = locationValue ? sanitizeText(locationValue) : null
+
 	await prisma.event.updateMany({
 		where: { externalId: eventId },
 		data: {
 			title: eventName,
 			summary: eventSummary || null,
-			location: locationValue,
+			location: sanitizedLocation,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
 			eventStatus: eventStatus as string | null,
@@ -945,8 +958,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeHtml(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
