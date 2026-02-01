@@ -8,9 +8,20 @@ import DOMPurify from 'isomorphic-dompurify'
 // Regular expression to match external URLs (http://, https://, or protocol-relative //)
 const EXTERNAL_URL_REGEX = /^(https?:\/\/|\/\/)/i
 
+// Define a minimal interface for the DOM node since we don't have global DOM types
+interface SanitizationNode {
+	tagName: string
+	getAttribute(name: string): string | null
+	setAttribute(name: string, value: string): void
+}
+
 // Hook function to add security attributes to external links
 // This ensures that links in sanitized content are safe
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
+	// Cast to unknown first then to our interface to satisfy TypeScript
+	// We rely on runtime checks to ensure safety
+	const node = currentNode as unknown as SanitizationNode
+
 	// Check if node is an Element (has tagName and getAttribute)
 	if ('tagName' in node && node.tagName === 'A' && 'getAttribute' in node) {
 		const href = node.getAttribute('href')
