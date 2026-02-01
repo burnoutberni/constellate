@@ -183,17 +183,23 @@ function MonthView({
 
 	const eventsByDay = useMemo(() => {
 		const map = new Map<number, Event[]>()
-		const { year, month, daysInMonth } = monthMetadata
+		const { year, month } = monthMetadata
 
-		for (let day = 1; day <= daysInMonth; day++) {
-			const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-			const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
-
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= dayStart && eventDate <= dayEnd
-			})
-			map.set(day, filtered)
+		// Bolt: Iterate events once instead of filtering per day (O(N) vs O(Days * N))
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			if (
+				eventDate.getFullYear() === year &&
+				eventDate.getMonth() === month
+			) {
+				const day = eventDate.getDate()
+				let dayEvents = map.get(day)
+				if (!dayEvents) {
+					dayEvents = []
+					map.set(day, dayEvents)
+				}
+				dayEvents.push(event)
+			}
 		}
 		return map
 	}, [events, monthMetadata])
@@ -363,33 +369,30 @@ function WeekView({
 	const eventsByDayAndHour = useMemo(() => {
 		const map = new Map<string, Event[]>()
 
-		for (const day of weekDays) {
-			for (const hour of hours) {
-				const key = `${day.toISOString()}-${hour}`
-				const hourStart = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					0,
-					0,
-					0
-				)
-				const hourEnd = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					59,
-					59,
-					999
-				)
+		// Bolt: Iterate events once instead of filtering per slot (O(N) vs O(Slots * N))
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			const hour = eventDate.getHours()
 
-				const filtered = events.filter((event) => {
-					const eventDate = new Date(event.startTime)
-					return eventDate >= hourStart && eventDate <= hourEnd
-				})
-				map.set(key, filtered)
+			// Check if hour is within the displayed range
+			if (hours.includes(hour)) {
+				// Find matching day in weekDays
+				// Since weekDays are midnight dates, we can compare year/month/date
+				const dayStr = weekDays.find(d =>
+					d.getFullYear() === eventDate.getFullYear() &&
+					d.getMonth() === eventDate.getMonth() &&
+					d.getDate() === eventDate.getDate()
+				)?.toISOString()
+
+				if (dayStr) {
+					const key = `${dayStr}-${hour}`
+					let slotEvents = map.get(key)
+					if (!slotEvents) {
+						slotEvents = []
+						map.set(key, slotEvents)
+					}
+					slotEvents.push(event)
+				}
 			}
 		}
 		return map
@@ -519,31 +522,28 @@ function DayView({
 	const eventsByHour = useMemo(() => {
 		const map = new Map<number, Event[]>()
 
-		for (const hour of hours) {
-			const hourStart = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				0,
-				0,
-				0
-			)
-			const hourEnd = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				59,
-				59,
-				999
-			)
+		// Bolt: Iterate events once instead of filtering per hour (O(N) vs O(Hours * N))
+		const currentYear = currentDate.getFullYear()
+		const currentMonth = currentDate.getMonth()
+		const currentDay = currentDate.getDate()
 
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= hourStart && eventDate <= hourEnd
-			})
-			map.set(hour, filtered)
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			if (
+				eventDate.getFullYear() === currentYear &&
+				eventDate.getMonth() === currentMonth &&
+				eventDate.getDate() === currentDay
+			) {
+				const hour = eventDate.getHours()
+				if (hours.includes(hour)) {
+					let hourEvents = map.get(hour)
+					if (!hourEvents) {
+						hourEvents = []
+						map.set(hour, hourEvents)
+					}
+					hourEvents.push(event)
+				}
+			}
 		}
 		return map
 	}, [events, currentDate, hours])
