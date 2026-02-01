@@ -487,7 +487,8 @@ export function DiscoverPage() {
 									value={sortOption}
 									onChange={(e) => handleSortChange(e.target.value)}
 									className="w-[160px]"
-									size="sm">
+									size="sm"
+									aria-label="Sort events">
 									<option value="date">Date: Soonest</option>
 									<option value="popularity">Popularity</option>
 									<option value="trending">Trending</option>

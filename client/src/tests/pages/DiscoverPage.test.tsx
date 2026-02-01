@@ -113,8 +113,8 @@ describe('DiscoverPage', () => {
 	it('user can see sort options', () => {
 		render(<DiscoverPage />, { wrapper })
 
-		// The Select doesn't have a label, so we find it by its options
-		const sortSelect = screen.getByRole('combobox')
+		// Find by the accessible label we added
+		const sortSelect = screen.getByRole('combobox', { name: /sort events/i })
 		expect(sortSelect).toBeInTheDocument()
 		expect(sortSelect).toHaveValue('date')
 	})
