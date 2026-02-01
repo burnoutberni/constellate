@@ -178,6 +178,10 @@ export function SearchBar() {
 
 	const loadingSpinner = isLoading ? <Spinner size="sm" variant="secondary" /> : undefined
 
+	// Generate ID for the active descendant
+	const activeDescendantId =
+		isOpen && selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
+
 	return (
 		<div ref={searchRef} className="relative w-full max-w-md">
 			<Input
@@ -191,10 +195,19 @@ export function SearchBar() {
 				leftIcon={searchIcon}
 				rightIcon={loadingSpinner}
 				className="w-full"
+				aria-label="Search events, users, or remote accounts"
+				role="combobox"
+				aria-autocomplete="list"
+				aria-expanded={isOpen}
+				aria-controls="search-results-listbox"
+				aria-activedescendant={activeDescendantId}
 			/>
 
 			{isOpen && results && (
-				<div className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
+				<div
+					id="search-results-listbox"
+					role="listbox"
+					className="absolute z-50 w-full mt-2 bg-background-primary border border-border-default rounded-lg shadow-lg max-h-96 overflow-y-auto">
 					{results.users.length > 0 && (
 						<div>
 							<div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase bg-background-secondary">
@@ -206,6 +219,9 @@ export function SearchBar() {
 								return (
 									<Button
 										key={user.id}
+										id={`search-result-${itemIndex}`}
+										role="option"
+										aria-selected={isSelected}
 										onClick={() =>
 											handleItemClick({ type: 'user', data: user })
 										}
@@ -261,6 +277,9 @@ export function SearchBar() {
 								return (
 									<Button
 										key={event.id}
+										id={`search-result-${itemIndex}`}
+										role="option"
+										aria-selected={isSelected}
 										onClick={() =>
 											handleItemClick({ type: 'event', data: event })
 										}
@@ -292,6 +311,9 @@ export function SearchBar() {
 								Remote Account
 							</div>
 							<Button
+								id={`search-result-${selectableItems.length - 1}`}
+								role="option"
+								aria-selected={selectedIndex === selectableItems.length - 1}
 								onClick={() => {
 									if (results.remoteAccountSuggestion) {
 										handleItemClick({
