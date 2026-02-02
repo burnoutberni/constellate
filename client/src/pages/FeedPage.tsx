@@ -78,6 +78,37 @@ export function FeedPage() {
 		return () => observer.disconnect()
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
+	const feedItems = useMemo(() => {
+		const items = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
+
+		return items.map((item) => {
+			const key = `${item.type}-${item.id}`
+			let validatedData = null
+
+			switch (item.type) {
+				case 'header':
+					validatedData = getValidatedData(HeaderSchema, item.data, 'header')
+					break
+				case 'onboarding':
+					validatedData = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					break
+				case 'suggested_users':
+					validatedData = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					break
+				case 'trending_event':
+					validatedData = getValidatedData(EventSchema, item.data, 'trending_event')
+					break
+				case 'activity':
+					validatedData = getValidatedData(ActivitySchema, item.data, 'activity')
+					break
+				default:
+					break
+			}
+
+			return { ...item, validatedData, key }
+		}).filter(item => item.validatedData !== null)
+	}, [data])
+
 
 	// If not authenticated, the query is disabled so status stays pending/idle
 	// We only show loading spinner if we are explicitly loading (isFetching)
@@ -118,37 +149,6 @@ export function FeedPage() {
 			</div>
 		)
 	}
-
-	const feedItems = useMemo(() => {
-		const items = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
-		return items.map((item) => {
-			const key = `${item.type}-${item.id}`
-			let validatedData = null
-
-			switch (item.type) {
-				case 'header':
-					validatedData = getValidatedData(HeaderSchema, item.data, 'header')
-					break
-				case 'onboarding':
-					validatedData = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-					break
-				case 'suggested_users':
-					validatedData = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-					break
-				case 'trending_event':
-					validatedData = getValidatedData(EventSchema, item.data, 'trending_event')
-					break
-				case 'activity':
-					validatedData = getValidatedData(ActivitySchema, item.data, 'activity')
-					break
-				default:
-					break
-			}
-
-			return { ...item, validatedData, key }
-		}).filter(item => item.validatedData !== null)
-	}, [data])
 
 	return (
 		<div className="min-h-screen bg-background-secondary">
@@ -192,8 +192,8 @@ export function FeedPage() {
 
 								switch (type) {
 									case 'header': {
-										const data = validatedData as z.infer<typeof HeaderSchema>
-										const { title } = data
+										const headerData = validatedData as z.infer<typeof HeaderSchema>
+										const { title } = headerData
 										return (
 											<div key={key} className="pt-4 pb-2">
 												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
@@ -204,30 +204,30 @@ export function FeedPage() {
 									}
 
 									case 'onboarding': {
-										const data = validatedData as z.infer<typeof SuggestedUsersSchema>
-										return <OnboardingHero key={key} suggestions={data.suggestions} />
+										const onboardingData = validatedData as z.infer<typeof SuggestedUsersSchema>
+										return <OnboardingHero key={key} suggestions={onboardingData.suggestions} />
 									}
 
 									case 'suggested_users': {
-										const data = validatedData as z.infer<typeof SuggestedUsersSchema>
-										return <SuggestedUsersCard key={key} users={data.suggestions} />
+										const userData = validatedData as z.infer<typeof SuggestedUsersSchema>
+										return <SuggestedUsersCard key={key} users={userData.suggestions} />
 									}
 
 									case 'trending_event': {
-										const data = validatedData as z.infer<typeof EventSchema>
+										const eventData = validatedData as z.infer<typeof EventSchema>
 										return (
 											<div key={key} className="h-full">
-												<EventCard event={data} isAuthenticated={Boolean(user)} />
+												<EventCard event={eventData} isAuthenticated={Boolean(user)} />
 											</div>
 										)
 									}
 
 									case 'activity': {
-										const data = validatedData as z.infer<typeof ActivitySchema>
+										const activityData = validatedData as z.infer<typeof ActivitySchema>
 										// For "Smart Agenda", we show the Event itself
 										return (
 											<div key={key} className="h-full">
-												{data.event && <EventCard event={data.event} isAuthenticated={Boolean(user)} />}
+												{activityData.event && <EventCard event={activityData.event} isAuthenticated={Boolean(user)} />}
 											</div>
 										)
 									}
