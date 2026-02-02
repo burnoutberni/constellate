@@ -312,4 +312,86 @@ describe('FeedPage', () => {
 		expect(screen.getByText('Suggested User')).toBeInTheDocument()
 		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
 	})
+
+	it('should filter out invalid feed items', async () => {
+		// Mock console.error to suppress error logging during this test
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
+
+		const feedItems = [
+			{
+				type: 'header',
+				id: 'invalid-header',
+				timestamp: new Date().toISOString(),
+				data: { invalidProp: 'Missing title' } // Invalid data for HeaderSchema
+			},
+			{
+				type: 'unknown_type', // Unknown type
+				id: 'unknown1',
+				timestamp: new Date().toISOString(),
+				data: {}
+			},
+			{
+				type: 'activity',
+				id: 'valid-activity',
+				timestamp: new Date().toISOString(),
+				data: {
+					event: mockEvent,
+					type: 'event_created',
+					user: mockUser,
+					createdAt: new Date().toISOString()
+				}
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// Should render the valid activity (EventCard)
+		await waitFor(() => {
+			expect(screen.getByText('Test Event')).toBeInTheDocument()
+		})
+
+		// Should NOT render invalid header (no title)
+		// We can't query by text "Missing title" because the component won't render it.
+		// Instead, we verify that only 1 valid item is rendered if we had identifiers,
+		// or simply that the page doesn't crash and renders the valid item.
+		// (The filtering logic happens in useMemo, silent failure for invalid items)
+
+		consoleErrorSpy.mockRestore()
+	})
+
+	it('should render an activity item correctly', async () => {
+		const feedItems = [{
+			type: 'activity',
+			id: 'activity-1',
+			timestamp: new Date().toISOString(),
+			data: {
+				event: mockEvent,
+				type: 'event_created',
+				user: mockUser,
+				createdAt: new Date().toISOString()
+			}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		await waitFor(() => {
+			expect(screen.getByText('Test Event')).toBeInTheDocument()
+		})
+	})
 })
