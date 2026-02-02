@@ -192,7 +192,8 @@ export function FeedPage() {
 
 								switch (type) {
 									case 'header': {
-										const { title } = validatedData
+										const data = validatedData as z.infer<typeof HeaderSchema>
+										const { title } = data
 										return (
 											<div key={key} className="pt-4 pb-2">
 												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
@@ -203,26 +204,30 @@ export function FeedPage() {
 									}
 
 									case 'onboarding': {
-										return <OnboardingHero key={key} suggestions={validatedData.suggestions} />
+										const data = validatedData as z.infer<typeof SuggestedUsersSchema>
+										return <OnboardingHero key={key} suggestions={data.suggestions} />
 									}
 
 									case 'suggested_users': {
-										return <SuggestedUsersCard key={key} users={validatedData.suggestions} />
+										const data = validatedData as z.infer<typeof SuggestedUsersSchema>
+										return <SuggestedUsersCard key={key} users={data.suggestions} />
 									}
 
 									case 'trending_event': {
+										const data = validatedData as z.infer<typeof EventSchema>
 										return (
 											<div key={key} className="h-full">
-												<EventCard event={validatedData} isAuthenticated={Boolean(user)} />
+												<EventCard event={data} isAuthenticated={Boolean(user)} />
 											</div>
 										)
 									}
 
 									case 'activity': {
+										const data = validatedData as z.infer<typeof ActivitySchema>
 										// For "Smart Agenda", we show the Event itself
 										return (
 											<div key={key} className="h-full">
-												{validatedData.event && <EventCard event={validatedData.event} isAuthenticated={Boolean(user)} />}
+												{data.event && <EventCard event={data.event} isAuthenticated={Boolean(user)} />}
 											</div>
 										)
 									}
