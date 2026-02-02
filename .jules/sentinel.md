@@ -1,0 +1,4 @@
+## 2026-02-02 - Stored XSS in ActivityPub Federation
+**Vulnerability:** User-generated content from external ActivityPub instances (event summaries, comments, profile bios) was being stored in the database without sanitization and subsequently rendered by clients.
+**Learning:** Federation handlers often trust the "structure" of the data (JSON schemas) but forget that the *content* strings (HTML/Markdown) within that structure are untrusted user input. The assumption that "backend only processes data" is dangerous when that data is rich text intended for display.
+**Prevention:** All ingress points for user-generated content, especially from federation/external sources, must pass through strict HTML sanitization (e.g., `DOMPurify`) before being persisted. We also enforced `target="_blank"` on links to prevent reverse tabnabbing.
