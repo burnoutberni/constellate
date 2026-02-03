@@ -8,8 +8,17 @@ import DOMPurify from 'isomorphic-dompurify'
 // Configure DOMPurify to enforce secure link attributes globally
 // This hook ensures all links have target="_blank" and rel="noopener noreferrer"
 // to prevent reverse tabnabbing and ensure external links open in new tabs.
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-	if ('target' in node) {
+DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
+	// Cast to a shape that allows checking for attributes
+	// We need to treat it as an object with potential DOM methods
+	const node = currentNode as unknown as {
+		setAttribute: (name: string, value: string) => void
+		getAttribute: (name: string) => string | null
+		tagName: string
+	}
+
+	// Only apply to anchor tags
+	if (node.tagName === 'A' && typeof node.setAttribute === 'function') {
 		node.setAttribute('target', '_blank')
 		node.setAttribute('rel', 'noopener noreferrer')
 	}
