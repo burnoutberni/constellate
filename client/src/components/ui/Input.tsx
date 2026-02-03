@@ -35,6 +35,15 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 	 */
 	rightIcon?: React.ReactNode
 	/**
+	 * Callback when the right icon is clicked.
+	 * If provided, the right icon wrapper becomes interactive.
+	 */
+	onRightIconClick?: () => void
+	/**
+	 * ARIA label for the right icon button when interactive
+	 */
+	rightIconLabel?: string
+	/**
 	 * Whether the input should take full width of its container
 	 */
 	fullWidth?: boolean
@@ -55,6 +64,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			helperText,
 			leftIcon,
 			rightIcon,
+			onRightIconClick,
+			rightIconLabel,
 			fullWidth = false,
 			className,
 			id,
@@ -157,9 +168,24 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 							className={cn(
 								'absolute right-3 top-1/2 -translate-y-1/2',
 								'text-text-disabled',
-								'pointer-events-none',
+								(!onRightIconClick || disabled) && 'pointer-events-none',
+								onRightIconClick && !disabled && 'cursor-pointer hover:text-text-primary',
 								error && 'text-error-500 dark:text-error-400'
-							)}>
+							)}
+							onClick={!disabled ? onRightIconClick : undefined}
+							role={onRightIconClick && !disabled ? 'button' : undefined}
+							aria-label={rightIconLabel}
+							tabIndex={onRightIconClick && !disabled ? 0 : undefined}
+							onKeyDown={
+								onRightIconClick && !disabled
+									? (e) => {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault()
+												onRightIconClick()
+											}
+										}
+									: undefined
+							}>
 							{rightIcon}
 						</div>
 					)}
