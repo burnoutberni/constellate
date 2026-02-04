@@ -43,7 +43,22 @@ const DOMPURIFY_CONFIG = {
 // Same as in client/src/components/ui/SafeHTML.tsx
 const EXTERNAL_URL_REGEX = /^(https?:\/\/|\/\/)/i
 
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
+	// Use type assertion with unknown to safely cast to a compatible interface
+	// This avoids "Unsafe member access on an error typed value" which happens
+	// when typescript-eslint can't infer the type of currentNode from the library
+	const node = currentNode as unknown as {
+		tagName: string
+		getAttribute: (name: string) => string | null
+		setAttribute: (name: string, value: string) => void
+		hasAttribute: (name: string) => boolean
+	}
+
+	// Defensive check
+	if (!node || typeof node.tagName !== 'string') {
+		return
+	}
+
 	if (node.tagName === 'A' && node.hasAttribute('href')) {
 		const href = node.getAttribute('href')
 		if (href && EXTERNAL_URL_REGEX.test(href)) {
