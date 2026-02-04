@@ -38,6 +38,11 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 	 * Whether the input should take full width of its container
 	 */
 	fullWidth?: boolean
+	/**
+	 * Whether the right icon should be interactive (clickable)
+	 * If true, removes 'pointer-events-none' from the icon container.
+	 */
+	rightIconInteractive?: boolean
 }
 
 /**
@@ -56,6 +61,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 			leftIcon,
 			rightIcon,
 			fullWidth = false,
+			rightIconInteractive = false,
 			className,
 			id,
 			disabled,
@@ -157,7 +163,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 							className={cn(
 								'absolute right-3 top-1/2 -translate-y-1/2',
 								'text-text-disabled',
-								'pointer-events-none',
+								!rightIconInteractive && 'pointer-events-none',
 								error && 'text-error-500 dark:text-error-400'
 							)}>
 							{rightIcon}

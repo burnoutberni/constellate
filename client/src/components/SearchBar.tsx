@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
+import { SearchIcon, Button, Input, Spinner, GlobeIcon, CloseIcon } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
@@ -172,11 +172,33 @@ export function SearchBar() {
 		}
 	}
 
+	const handleClear = () => {
+		setQuery('')
+		setResults(null)
+		setIsOpen(false)
+		setSelectedIndex(-1)
+		inputRef.current?.focus()
+	}
+
 	const selectableItems = getSelectableItems()
 
 	const searchIcon = <SearchIcon className="w-5 h-5" />
 
-	const loadingSpinner = isLoading ? <Spinner size="sm" variant="secondary" /> : undefined
+	const clearButton = (
+		<button
+			type="button"
+			onClick={handleClear}
+			className="p-1 hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-full"
+			aria-label="Clear search">
+			<CloseIcon className="w-4 h-4" />
+		</button>
+	)
+
+	const rightIcon = isLoading ? (
+		<Spinner size="sm" variant="secondary" />
+	) : query ? (
+		clearButton
+	) : undefined
 
 	return (
 		<div ref={searchRef} className="relative w-full max-w-md">
@@ -188,8 +210,10 @@ export function SearchBar() {
 				onKeyDown={handleKeyDown}
 				onFocus={() => query && setIsOpen(true)}
 				placeholder="Search events, users, or @user@domain..."
+				aria-label="Search"
 				leftIcon={searchIcon}
-				rightIcon={loadingSpinner}
+				rightIcon={rightIcon}
+				rightIconInteractive={Boolean(query) && !isLoading}
 				className="w-full"
 			/>
 
