@@ -210,7 +210,8 @@ describe('Navbar Component', () => {
 		render(<Navbar />, { wrapper })
 
 		// Search button should be visible on mobile (lg:hidden)
-		const searchButton = screen.getByLabelText('Search')
+		// Use getByRole to distinguish from the desktop search input which also has label "Search"
+		const searchButton = screen.getByRole('button', { name: 'Search' })
 		expect(searchButton).toBeInTheDocument()
 	})
 })
