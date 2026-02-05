@@ -147,4 +147,27 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should allow interactive right icon when rightIconInteractive is true', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={
+					<button onClick={handleIconClick} aria-label="Action">
+						Action
+					</button>
+				}
+				rightIconInteractive
+			/>
+		)
+
+		const button = screen.getByLabelText('Action')
+		expect(button).toBeInTheDocument()
+		// The parent div should not have pointer-events-none class
+		expect(button.parentElement).not.toHaveClass('pointer-events-none')
+
+		fireEvent.click(button)
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
 })
