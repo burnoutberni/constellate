@@ -4,6 +4,7 @@
  */
 
 import { ActivityType, ObjectType, AttendanceStatus, ContentType } from './constants/activitypub.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import {
 	cacheRemoteUser,
 	fetchActor,
@@ -501,18 +502,23 @@ function getAttachmentUrl(attachment: unknown): string | null {
 	return null
 }
 
-function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
+export function extractEventProperties(event: ActivityPubEvent | Record<string, unknown>) {
 	const eventObj = event as Record<string, unknown>
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	const eventName = getString(eventObj.name) || ''
+	const eventSummary = getString(eventObj.summary)
+	const eventContent = getString(eventObj.content)
+	const locationValue = getLocationValue(eventObj.location)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: sanitizeText(eventName),
+		eventSummary: eventSummary ? sanitizeHtml(eventSummary) : null,
+		eventContent: eventContent ? sanitizeHtml(eventContent) : null,
+		locationValue: locationValue ? sanitizeText(locationValue) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -787,6 +793,7 @@ async function handleCreateNote(
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
 	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const safeNoteContent = sanitizeHtml(noteContent)
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -804,7 +811,7 @@ async function handleCreateNote(
 	const comment = await prisma.comment.create({
 		data: {
 			externalId: noteId,
-			content: noteContent,
+			content: safeNoteContent,
 			eventId: event.id,
 			authorId: remoteUser.id,
 		},
@@ -913,12 +920,16 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		locationValue = null
 	}
 
+	const safeEventName = sanitizeText(eventName)
+	const safeEventSummary = eventSummary ? sanitizeHtml(eventSummary) : null
+	const safeLocationValue = locationValue ? sanitizeText(locationValue) : null
+
 	await prisma.event.updateMany({
 		where: { externalId: eventId },
 		data: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
+			title: safeEventName,
+			summary: safeEventSummary || null,
+			location: safeLocationValue,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
 			eventStatus: eventStatus as string | null,
@@ -952,11 +963,14 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 	const personImageUrl = personObj.image?.url || undefined
 	const personPreferredUsername = personObj.preferredUsername
 
+	const safePersonName = personName ? sanitizeText(personName) : undefined
+	const safePersonSummary = personSummary ? sanitizeHtml(personSummary) : undefined
+
 	await prisma.user.updateMany({
 		where: { externalActorUrl: personId },
 		data: {
-			name: personName,
-			bio: personSummary,
+			name: safePersonName,
+			bio: safePersonSummary,
 			displayColor: personDisplayColor,
 			profileImage: personIconUrl,
 			headerImage: personImageUrl,
