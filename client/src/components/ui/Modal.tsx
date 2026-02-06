@@ -56,6 +56,9 @@ const maxWidthClasses = {
 	full: 'max-w-full m-4',
 }
 
+const FOCUSABLE_ELEMENTS_SELECTOR =
+	'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 /**
  * Modal component for displaying content in an overlay.
  * Handles backdrop, escape key, and click-outside-to-close functionality.
@@ -89,7 +92,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
 				// Focus the first focusable element
 				const focusableElements = contentRef.current?.querySelectorAll(
-					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+					FOCUSABLE_ELEMENTS_SELECTOR
 				)
 
 				if (focusableElements && focusableElements.length > 0) {
@@ -113,16 +116,22 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
 		// Handle tab key for focus trapping
 		useEffect(() => {
-			if (!isOpen) return
+			if (!isOpen) {
+				return
+			}
 
 			function handleTabKey(e: KeyboardEvent) {
-				if (e.key !== 'Tab') return
+				if (e.key !== 'Tab') {
+					return
+				}
 
 				const focusableElements = contentRef.current?.querySelectorAll(
-					'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+					FOCUSABLE_ELEMENTS_SELECTOR
 				)
 
-				if (!focusableElements || focusableElements.length === 0) return
+				if (!focusableElements || focusableElements.length === 0) {
+					return
+				}
 
 				const firstElement = focusableElements[0] as HTMLElement
 				const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
