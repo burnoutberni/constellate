@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeHtml, sanitizeText } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -507,12 +508,18 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
 
+	const rawName = getString(eventObj.name)
+	const rawSummary = getString(eventObj.summary)
+	const rawContent = getString(eventObj.content)
+	const rawLocation = getLocationValue(eventObj.location)
+	const rawAttributedTo = getString(eventObj.attributedTo)
+
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: rawName ? sanitizeText(rawName) : '',
+		eventSummary: rawSummary ? sanitizeHtml(rawSummary) : null,
+		eventContent: rawContent ? sanitizeHtml(rawContent) : null,
+		locationValue: rawLocation ? sanitizeText(rawLocation) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -521,7 +528,7 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 		eventAttendanceMode: eventObj.eventAttendanceMode,
 		eventMaxCapacity: getNumber(eventObj.maximumAttendeeCapacity),
 		attachmentUrl: getAttachmentUrl(eventObj.attachment),
-		attributedTo: getString(eventObj.attributedTo),
+		attributedTo: rawAttributedTo ? sanitizeText(rawAttributedTo) : null,
 	}
 }
 
@@ -787,6 +794,7 @@ async function handleCreateNote(
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
 	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const sanitizedContent = sanitizeHtml(noteContent)
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -804,7 +812,7 @@ async function handleCreateNote(
 	const comment = await prisma.comment.create({
 		data: {
 			externalId: noteId,
-			content: noteContent,
+			content: sanitizedContent,
 			eventId: event.id,
 			authorId: remoteUser.id,
 		},
@@ -913,12 +921,16 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		locationValue = null
 	}
 
+	const sanitizedName = sanitizeText(eventName)
+	const sanitizedSummary = eventSummary ? sanitizeHtml(eventSummary) : null
+	const sanitizedLocation = locationValue ? sanitizeText(locationValue) : null
+
 	await prisma.event.updateMany({
 		where: { externalId: eventId },
 		data: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
+			title: sanitizedName,
+			summary: sanitizedSummary || null,
+			location: sanitizedLocation,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
 			eventStatus: eventStatus as string | null,

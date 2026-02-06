@@ -5,6 +5,62 @@
 
 import DOMPurify from 'isomorphic-dompurify'
 
+// DOMPurify configuration for safe HTML sanitization
+// Matches frontend configuration in SafeHTML.tsx
+const DOMPURIFY_CONFIG = {
+	ALLOWED_TAGS: [
+		'p',
+		'br',
+		'strong',
+		'b',
+		'em',
+		'i',
+		'u',
+		's',
+		'strike',
+		'del',
+		'h1',
+		'h2',
+		'h3',
+		'h4',
+		'h5',
+		'h6',
+		'ul',
+		'ol',
+		'li',
+		'a',
+		'blockquote',
+		'pre',
+		'code',
+		'span',
+		'div',
+	],
+	ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+	ALLOWED_URI_REGEXP: /^(https?:|mailto:|tel:|\/)/i,
+}
+
+// Regular expression to match external URLs
+const EXTERNAL_URL_REGEX = /^(https?:\/\/|\/\/)/i
+
+interface SanitizeElement {
+	tagName: string
+	getAttribute(name: string): string | null
+	setAttribute(name: string, value: string): void
+	hasAttribute(name: string): boolean
+}
+
+// Add hook to enforce security attributes on external links
+DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
+	const node = currentNode as unknown as SanitizeElement
+	if (node.tagName === 'A' && node.hasAttribute('href')) {
+		const href = node.getAttribute('href')
+		if (href && EXTERNAL_URL_REGEX.test(href)) {
+			node.setAttribute('target', '_blank')
+			node.setAttribute('rel', 'noopener noreferrer')
+		}
+	}
+})
+
 /**
  * Sanitizes plain text (strips all HTML)
  * @param input - Raw text that may contain HTML
@@ -15,4 +71,13 @@ export function sanitizeText(input: string): string {
 		ALLOWED_TAGS: [],
 		ALLOWED_ATTR: [],
 	})
+}
+
+/**
+ * Sanitizes HTML content allowing only safe tags and attributes
+ * @param input - Raw HTML content
+ * @returns Sanitized HTML
+ */
+export function sanitizeHtml(input: string): string {
+	return DOMPurify.sanitize(input, DOMPURIFY_CONFIG)
 }
