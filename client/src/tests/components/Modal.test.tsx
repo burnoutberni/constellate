@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Modal } from '../../components/ui/Modal'
 import { createTestWrapper } from '../testUtils'
+import React, { useState } from 'react'
 
 describe('Modal Component', () => {
 	const { wrapper } = createTestWrapper()
@@ -139,5 +140,70 @@ describe('Modal Component', () => {
 		mockOnClose.mockClear()
 		await user.keyboard('{Escape}')
 		expect(mockOnClose).not.toHaveBeenCalled()
+	})
+
+	const FocusTestComponent = () => {
+		const [isOpen, setIsOpen] = useState(false)
+		return (
+			<div>
+				<button onClick={() => setIsOpen(true)}>Open Modal</button>
+				<Modal isOpen={isOpen} onClose={() => setIsOpen(false)}>
+					<button>Button 1</button>
+					<button>Button 2</button>
+					<input type="text" placeholder="Input" />
+				</Modal>
+			</div>
+		)
+	}
+
+	it('focus is trapped inside the modal when open', async () => {
+		const user = userEvent.setup()
+		render(<FocusTestComponent />, { wrapper })
+
+		// Open modal
+		await user.click(screen.getByText('Open Modal'))
+
+		// Initial focus should be on the first focusable element inside modal
+		// Using waitFor because focus shift might happen in useEffect/animation frame
+		await waitFor(() => expect(screen.getByText('Button 1')).toHaveFocus())
+
+		// Tab to next element
+		await user.tab()
+		expect(screen.getByText('Button 2')).toHaveFocus()
+
+		// Tab to input
+		await user.tab()
+		expect(screen.getByPlaceholderText('Input')).toHaveFocus()
+
+		// Tab from last element (input) should cycle back to first (Button 1)
+		await user.tab()
+		expect(screen.getByText('Button 1')).toHaveFocus()
+
+		// Shift+Tab from first element (Button 1) should cycle to last (input)
+		await user.keyboard('{Shift>}{Tab}{/Shift}')
+		expect(screen.getByPlaceholderText('Input')).toHaveFocus()
+	})
+
+	it('focus is restored to previous element when modal closes', async () => {
+		const user = userEvent.setup()
+		render(<FocusTestComponent />, { wrapper })
+
+		const trigger = screen.getByText('Open Modal')
+
+		// Ensure trigger has focus initially
+		trigger.focus()
+		expect(trigger).toHaveFocus()
+
+		// Open modal
+		await user.click(trigger)
+
+		// Modal opens, focus moves inside
+		await waitFor(() => expect(screen.getByText('Button 1')).toHaveFocus())
+
+		// Close modal via Escape
+		await user.keyboard('{Escape}')
+
+		// Focus should return to trigger
+		await waitFor(() => expect(trigger).toHaveFocus())
 	})
 })

@@ -56,6 +56,9 @@ const maxWidthClasses = {
 	full: 'max-w-full m-4',
 }
 
+const FOCUSABLE_ELEMENTS_SELECTOR =
+	'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 /**
  * Modal component for displaying content in an overlay.
  * Handles backdrop, escape key, and click-outside-to-close functionality.
@@ -79,6 +82,76 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 		ref
 	) => {
 		const contentRef = useRef<HTMLDivElement>(null)
+		const previousFocusRef = useRef<HTMLElement | null>(null)
+
+		// Handle focus trap and restoration
+		useEffect(() => {
+			if (isOpen) {
+				// Store current focus
+				previousFocusRef.current = document.activeElement as HTMLElement
+
+				// Focus the first focusable element
+				const focusableElements = contentRef.current?.querySelectorAll(
+					FOCUSABLE_ELEMENTS_SELECTOR
+				)
+
+				if (focusableElements && focusableElements.length > 0) {
+					// Use requestAnimationFrame to ensure the modal is fully rendered
+					requestAnimationFrame(() => {
+						;(focusableElements[0] as HTMLElement).focus()
+					})
+				} else if (contentRef.current) {
+					contentRef.current.focus()
+				}
+
+				// Restore focus when modal closes or unmounts
+				return () => {
+					if (previousFocusRef.current) {
+						previousFocusRef.current.focus()
+						previousFocusRef.current = null
+					}
+				}
+			}
+		}, [isOpen])
+
+		// Handle tab key for focus trapping
+		useEffect(() => {
+			if (!isOpen) {
+				return
+			}
+
+			function handleTabKey(e: KeyboardEvent) {
+				if (e.key !== 'Tab') {
+					return
+				}
+
+				const focusableElements = contentRef.current?.querySelectorAll(
+					FOCUSABLE_ELEMENTS_SELECTOR
+				)
+
+				if (!focusableElements || focusableElements.length === 0) {
+					return
+				}
+
+				const firstElement = focusableElements[0] as HTMLElement
+				const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+				if (e.shiftKey) {
+					if (document.activeElement === firstElement) {
+						lastElement.focus()
+						e.preventDefault()
+					}
+				} else {
+					if (document.activeElement === lastElement) {
+						firstElement.focus()
+						e.preventDefault()
+					}
+				}
+			}
+
+			document.addEventListener('keydown', handleTabKey)
+			return () => document.removeEventListener('keydown', handleTabKey)
+		}, [isOpen])
 
 		// Handle escape key
 		useEffect(() => {
