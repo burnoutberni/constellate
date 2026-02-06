@@ -6,7 +6,7 @@ import type { Event } from '../../types'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
 
 // Mock dependencies
-const mockUser = { id: 'user1', username: 'testuser', name: 'Test User' }
+const mockUser = { id: 'user1', username: 'testuser', name: 'Test User', isRemote: false }
 const mockEvent: Event = {
 	id: 'event1',
 	title: 'Test Event',
@@ -311,5 +311,135 @@ describe('FeedPage', () => {
 		// SuggestedUsersCard renders "Suggested for you" usually, or we check for username
 		expect(screen.getByText('Suggested User')).toBeInTheDocument()
 		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
+	})
+
+	it('should handle invalid feed items gracefully', async () => {
+		const feedItems = [
+			{
+				type: 'header',
+				id: 'header-invalid',
+				timestamp: '2024-01-15T08:00:00Z',
+				data: { invalid_field: 'Missing title' } // Missing required 'title'
+			},
+			{
+				type: 'trending_event',
+				id: 'event-valid',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: mockEvent
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// Valid event should still render
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
+		// Invalid header should NOT render (no crash)
+		// We can't easily check for "not rendered" specific element without a specific query,
+		// but ensuring the page renders at all and shows the valid item proves robustness.
+	})
+
+	it('should render activity items correctly', async () => {
+		const feedItems = [
+			{
+				type: 'activity',
+				id: 'activity-1',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: {
+					id: 'act1',
+					type: 'create',
+					user: mockUser,
+					object: 'event',
+					event: mockEvent,
+					createdAt: '2024-01-15T10:00:00Z'
+				}
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
+	})
+
+	it('should ignore unknown item types', async () => {
+		const feedItems = [
+			{
+				type: 'unknown_type_xyz',
+				id: 'unknown-1',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: { some: 'data' }
+			},
+			{
+				type: 'header',
+				id: 'header-valid',
+				timestamp: '2024-01-15T08:00:00Z',
+				data: { title: 'Valid Header' }
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		expect(screen.getByText('Valid Header')).toBeInTheDocument()
+		// Unknown item is simply ignored
+	})
+
+	it('should ignore activity items without an event', async () => {
+		const feedItems = [
+			{
+				type: 'activity',
+				id: 'activity-no-event',
+				timestamp: '2024-01-15T10:00:00Z',
+				data: {
+					id: 'act2',
+					type: 'follow', // Follows might not have an event object in this specific schema
+					actor: mockUser,
+					object: 'user',
+					createdAt: '2024-01-15T10:00:00Z'
+					// Missing 'event' field
+				}
+			},
+			{
+				type: 'header',
+				id: 'header-valid-2',
+				timestamp: '2024-01-15T08:00:00Z',
+				data: { title: 'Visible Header' }
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		expect(screen.getByText('Visible Header')).toBeInTheDocument()
+		// The activity without event should not render anything that breaks the layout
 	})
 })
