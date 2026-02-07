@@ -147,4 +147,20 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should allow interaction with right icon when rightIconInteractive is true', () => {
+		render(<Input type="text" rightIcon={<span>icon</span>} rightIconInteractive />)
+
+		const icon = screen.getByText('icon')
+		const container = icon.parentElement
+		expect(container).not.toHaveClass('pointer-events-none')
+	})
+
+	it('should not allow interaction with right icon by default', () => {
+		render(<Input type="text" rightIcon={<span>icon</span>} />)
+
+		const icon = screen.getByText('icon')
+		const container = icon.parentElement
+		expect(container).toHaveClass('pointer-events-none')
+	})
 })
