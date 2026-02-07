@@ -17,6 +17,7 @@ vi.mock('../../lib/prisma', () => ({
 describe('SocialGraphService', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.restoreAllMocks() // Restore spies
     })
 
     describe('getFollowing', () => {
@@ -29,13 +30,51 @@ describe('SocialGraphService', () => {
         })
     })
 
+    describe('resolveActorUser', () => {
+        it('should resolve local user by username', async () => {
+            const baseUrl = 'http://test.local'
+            const actorUrl = 'http://test.local/user1'
+            const mockUser = { id: 'local1' }
+            ;(prisma.user.findUnique as any).mockResolvedValue(mockUser)
+
+            const result = await SocialGraphService.resolveActorUser(actorUrl, baseUrl)
+            expect(result).toEqual(mockUser)
+            expect(prisma.user.findUnique).toHaveBeenCalledWith({
+                where: { username: 'user1', isRemote: false },
+                select: { id: true }
+            })
+        })
+
+        it('should return null for invalid local user format', async () => {
+            const baseUrl = 'http://test.local'
+            const actorUrl = 'http://test.local/' // No username
+
+            const result = await SocialGraphService.resolveActorUser(actorUrl, baseUrl)
+            expect(result).toBeNull()
+        })
+
+        it('should resolve remote user by actor url', async () => {
+            const baseUrl = 'http://test.local'
+            const actorUrl = 'http://remote.com/users/user1'
+            const mockUser = { id: 'remote1' }
+            ;(prisma.user.findFirst as any).mockResolvedValue(mockUser)
+
+            const result = await SocialGraphService.resolveActorUser(actorUrl, baseUrl)
+            expect(result).toEqual(mockUser)
+            expect(prisma.user.findFirst).toHaveBeenCalledWith({
+                where: { externalActorUrl: actorUrl, isRemote: true },
+                select: { id: true }
+            })
+        })
+    })
+
     describe('resolveFollowedUserIds', () => {
         it('should resolve user IDs from following list', async () => {
             const following = [
                 { actorUrl: 'http://test.local/local1' }
             ]
 
-            // Mock resolveActorUser internally since we are testing the loop logic
+            // Mock resolveActorUser
             vi.spyOn(SocialGraphService, 'resolveActorUser').mockResolvedValue({ id: 'id1' } as any)
 
             const result = await SocialGraphService.resolveFollowedUserIds(following)
