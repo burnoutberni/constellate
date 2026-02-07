@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CalendarView } from '../components/CalendarView'
@@ -5,13 +6,13 @@ import { Event } from '@/types'
 
 // Mock UI components
 vi.mock('../components/ui', () => ({
-	Button: ({ children, onClick, title, ...props }: any) => (
+	Button: ({ children, onClick, title, ...props }: { children: React.ReactNode, onClick?: React.MouseEventHandler, title?: string }) => (
 		<button onClick={onClick} title={title} {...props}>
 			{children}
 		</button>
 	),
 	Spinner: () => <div>Loading...</div>,
-	SafeHTML: ({ html }: any) => <div>{html}</div>
+	SafeHTML: ({ html }: { html: string }) => <div>{html}</div>
 }))
 
 describe('CalendarView', () => {
