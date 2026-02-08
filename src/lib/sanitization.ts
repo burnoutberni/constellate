@@ -7,9 +7,15 @@ import DOMPurify from 'isomorphic-dompurify'
 
 // Enforce target="_blank" and rel="noopener noreferrer" on all links
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-	if ('target' in node) {
-		node.setAttribute('target', '_blank')
-		node.setAttribute('rel', 'noopener noreferrer')
+	// Cast node to Element to access setAttribute safely
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+	const el: any = node
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+	if ('target' in el && typeof el.setAttribute === 'function') {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		el.setAttribute('target', '_blank')
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		el.setAttribute('rel', 'noopener noreferrer')
 	}
 })
 
