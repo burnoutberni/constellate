@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -58,6 +58,34 @@ export function FeedPage() {
 	const loadMoreRef = useRef<HTMLDivElement>(null)
 
 	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
+
+	const feedItems = useMemo(() => {
+		const rawItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
+		return rawItems.map((item) => {
+			let validated = null
+			switch (item.type) {
+				case 'header':
+					validated = getValidatedData(HeaderSchema, item.data, 'header')
+					break
+				case 'onboarding':
+					validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					break
+				case 'suggested_users':
+					validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					break
+				case 'trending_event':
+					validated = getValidatedData(EventSchema, item.data, 'trending_event')
+					break
+				case 'activity':
+					validated = getValidatedData(ActivitySchema, item.data, 'activity')
+					break
+				default:
+					validated = null
+					break
+			}
+			return { ...item, validated }
+		})
+	}, [data])
 
 	useEffect(() => {
 		if (!hasNextPage || isFetchingNextPage) { return }
@@ -119,8 +147,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -152,20 +178,20 @@ export function FeedPage() {
 							</div>
 						)}
 
-						{allItems.length === 0 ? (
+						{feedItems.length === 0 ? (
 							<Card variant="default" padding="lg" className="text-center">
 								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
+							feedItems.map((item) => {
 								const key = `${item.type}-${item.id}`
 
 								switch (item.type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
+										if (item.validated) {
+											const header = item.validated as z.infer<typeof HeaderSchema>
+											const { title } = header
 											return (
 												<div key={key} className="pt-4 pb-2">
 													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
@@ -178,27 +204,27 @@ export function FeedPage() {
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
+										if (item.validated) {
+											const onboardingData = item.validated as z.infer<typeof SuggestedUsersSchema>
+											return <OnboardingHero key={key} suggestions={onboardingData.suggestions} />
 										}
 										return null
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
+										if (item.validated) {
+											const suggestionsData = item.validated as z.infer<typeof SuggestedUsersSchema>
+											return <SuggestedUsersCard key={key} users={suggestionsData.suggestions} />
 										}
 										return null
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
+										if (item.validated) {
+											const event = item.validated as z.infer<typeof EventSchema>
 											return (
 												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
+													<EventCard event={event} isAuthenticated={Boolean(user)} />
 												</div>
 											)
 										}
@@ -206,12 +232,12 @@ export function FeedPage() {
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
+										if (item.validated) {
+											const activity = item.validated as z.infer<typeof ActivitySchema>
 											// For "Smart Agenda", we show the Event itself
 											return (
 												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
+													{activity.event && <EventCard event={activity.event} isAuthenticated={Boolean(user)} />}
 												</div>
 											)
 										}
@@ -232,7 +258,7 @@ export function FeedPage() {
 						</div>
 					)}
 
-					{!hasNextPage && allItems.length > 0 && (
+					{!hasNextPage && feedItems.length > 0 && (
 						<p className="text-center text-sm text-text-tertiary mt-8 mb-8">
 							You&apos;ve reached the end of your agenda.
 						</p>
