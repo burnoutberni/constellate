@@ -147,4 +147,37 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should allow interaction with right icon when rightIconInteractive is true', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<button onClick={handleIconClick}>Click me</button>}
+				rightIconInteractive
+			/>
+		)
+
+		const button = screen.getByText('Click me')
+		// Check that the parent div does NOT have pointer-events-none
+		// The parent of the button is the div with the class.
+		const iconContainer = button.parentElement
+		expect(iconContainer).not.toHaveClass('pointer-events-none')
+
+		fireEvent.click(button)
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
+
+	it('should prevent interaction with right icon when rightIconInteractive is false', () => {
+		render(
+			<Input
+				type="text"
+				rightIcon={<span>Icon</span>}
+			/>
+		)
+
+		const icon = screen.getByText('Icon')
+		const iconContainer = icon.parentElement
+		expect(iconContainer).toHaveClass('pointer-events-none')
+	})
 })
