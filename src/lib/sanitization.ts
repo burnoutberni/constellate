@@ -16,3 +16,12 @@ export function sanitizeText(input: string): string {
 		ALLOWED_ATTR: [],
 	})
 }
+
+/**
+ * Sanitizes HTML content (strips scripts, iframes, etc. but allows safe tags)
+ * @param input - Raw HTML content
+ * @returns Sanitized HTML
+ */
+export function sanitizeHtml(input: string): string {
+	return DOMPurify.sanitize(input)
+}

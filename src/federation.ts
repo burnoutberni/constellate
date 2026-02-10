@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -509,9 +510,9 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
+		eventName: sanitizeText(getString(eventObj.name) || ''),
+		eventSummary: sanitizeHtml(getString(eventObj.summary) || ''),
+		eventContent: sanitizeHtml(getString(eventObj.content) || ''),
 		locationValue: getLocationValue(eventObj.location),
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
@@ -521,7 +522,7 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 		eventAttendanceMode: eventObj.eventAttendanceMode,
 		eventMaxCapacity: getNumber(eventObj.maximumAttendeeCapacity),
 		attachmentUrl: getAttachmentUrl(eventObj.attachment),
-		attributedTo: getString(eventObj.attributedTo),
+		attributedTo: sanitizeText(getString(eventObj.attributedTo) || ''),
 	}
 }
 
@@ -786,7 +787,7 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = sanitizeHtml(typeof noteObj.content === 'string' ? noteObj.content : '')
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,8 +894,8 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventName = sanitizeText(typeof eventObj.name === 'string' ? eventObj.name : '')
+	const eventSummary = typeof eventObj.summary === 'string' ? sanitizeHtml(eventObj.summary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
