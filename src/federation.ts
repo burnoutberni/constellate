@@ -16,6 +16,7 @@ import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
 import { prisma } from './lib/prisma.js'
 import { trackInstance } from './lib/instanceHelpers.js'
+import { sanitizeUrl } from './lib/sanitization.js'
 import { logger } from './lib/logger.js'
 import type { Prisma, Event, User } from '@prisma/client'
 import type {
@@ -516,11 +517,11 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
-		eventUrl: getString(eventObj.url),
+		eventUrl: sanitizeUrl(getString(eventObj.url)),
 		eventStatus: eventObj.eventStatus,
 		eventAttendanceMode: eventObj.eventAttendanceMode,
 		eventMaxCapacity: getNumber(eventObj.maximumAttendeeCapacity),
-		attachmentUrl: getAttachmentUrl(eventObj.attachment),
+		attachmentUrl: sanitizeUrl(getAttachmentUrl(eventObj.attachment)),
 		attributedTo: getString(eventObj.attributedTo),
 	}
 }
@@ -948,8 +949,8 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 	const personName = personObj.name || undefined
 	const personSummary = personObj.summary || undefined
 	const personDisplayColor = personObj.displayColor || undefined
-	const personIconUrl = personObj.icon?.url || undefined
-	const personImageUrl = personObj.image?.url || undefined
+	const personIconUrl = sanitizeUrl(personObj.icon?.url || undefined)
+	const personImageUrl = sanitizeUrl(personObj.image?.url || undefined)
 	const personPreferredUsername = personObj.preferredUsername
 
 	await prisma.user.updateMany({
