@@ -65,8 +65,8 @@ describe('AppealModal Component', () => {
 		})
 
 		expect(screen.getByText('Submit Appeal')).toBeInTheDocument()
-		expect(screen.getByText(/Appeal Type/i)).toBeInTheDocument()
-		expect(screen.getByText(/Reason/i)).toBeInTheDocument()
+		expect(screen.getByLabelText(/Appeal Type/i)).toBeInTheDocument()
+		expect(screen.getByLabelText(/Reason/i)).toBeInTheDocument()
 		expect(
 			screen.getByPlaceholderText(/Please explain why this decision should be reversed/i)
 		).toBeInTheDocument()
@@ -109,9 +109,7 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -133,9 +131,7 @@ describe('AppealModal Component', () => {
 			{ wrapper }
 		)
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -164,9 +160,7 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -207,9 +201,7 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		) as HTMLTextAreaElement
+		const textarea = screen.getByLabelText(/Reason/i) as HTMLTextAreaElement
 		await user.type(textarea, 'This is my appeal reason')
 
 		// Verify textarea has content before submission
@@ -242,9 +234,7 @@ describe('AppealModal Component', () => {
 
 		// If modal is still open (shouldn't be), verify textarea is empty
 		// Otherwise, the fact that onClose was called confirms the form was reset before closing
-		const updatedTextarea = screen.queryByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		) as HTMLTextAreaElement | null
+		const updatedTextarea = screen.queryByLabelText(/Reason/i) as HTMLTextAreaElement | null
 		if (updatedTextarea) {
 			expect(updatedTextarea.value).toBe('')
 		}
@@ -259,9 +249,7 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -289,15 +277,12 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		// Find select by finding the element that contains the "Content Removal" option
-		const contentRemovalOption = screen.getByText('Content Removal')
-		const select = contentRemovalOption.closest('select') as HTMLSelectElement
+		// Use accessible query
+		const select = screen.getByLabelText(/Appeal Type/i) as HTMLSelectElement
 		expect(select).toBeInTheDocument()
 		await user.selectOptions(select, 'ACCOUNT_SUSPENSION')
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -323,9 +308,7 @@ describe('AppealModal Component', () => {
 			wrapper,
 		})
 
-		const textarea = screen.getByPlaceholderText(
-			/Please explain why this decision should be reversed/i
-		)
+		const textarea = screen.getByLabelText(/Reason/i)
 		await user.type(textarea, 'This is my appeal reason')
 
 		const submitButton = screen.getByRole('button', { name: /Submit Appeal/i })
@@ -336,4 +319,3 @@ describe('AppealModal Component', () => {
 		})
 	})
 })
-
