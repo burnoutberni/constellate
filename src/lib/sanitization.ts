@@ -25,6 +25,7 @@ export function sanitizeText(input: string): string {
  */
 export function sanitizeUrl(url: undefined): undefined
 export function sanitizeUrl(url: string | null): string | null
+export function sanitizeUrl(url: string | undefined): string | undefined
 export function sanitizeUrl(url: string | null | undefined): string | null | undefined {
 	if (url === undefined) {
 		return undefined
