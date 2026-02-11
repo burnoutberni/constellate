@@ -69,27 +69,25 @@ export function AppealModal({
 	return (
 		<Modal isOpen={isOpen} onClose={onClose} title="Submit Appeal">
 			<form onSubmit={handleSubmit} className="space-y-4">
-				<div className="space-y-2">
-					<label className="text-sm font-medium text-text-primary">Appeal Type</label>
-					<Select value={type} onChange={(e) => setType(e.target.value as AppealType)}>
-						{Object.entries(APPEAL_TYPE_LABELS).map(([value, label]) => (
-							<option key={value} value={value}>
-								{label}
-							</option>
-						))}
-					</Select>
-				</div>
+				<Select
+					label="Appeal Type"
+					value={type}
+					onChange={(e) => setType(e.target.value as AppealType)}>
+					{Object.entries(APPEAL_TYPE_LABELS).map(([value, label]) => (
+						<option key={value} value={value}>
+							{label}
+						</option>
+					))}
+				</Select>
 
-				<div className="space-y-2">
-					<label className="text-sm font-medium text-text-primary">Reason</label>
-					<Textarea
-						value={reason}
-						onChange={(e) => setReason(e.target.value)}
-						placeholder="Please explain why this decision should be reversed..."
-						required
-						rows={5}
-					/>
-				</div>
+				<Textarea
+					label="Reason"
+					value={reason}
+					onChange={(e) => setReason(e.target.value)}
+					placeholder="Please explain why this decision should be reversed..."
+					required
+					rows={5}
+				/>
 
 				<div className="flex justify-end gap-2 pt-2">
 					<Button type="button" variant="ghost" onClick={onClose}>
