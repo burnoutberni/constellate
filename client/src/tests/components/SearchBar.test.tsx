@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { SearchBar } from '../../components/SearchBar'
 import { api } from '@/lib/api-client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '@/design-system'
+import React from 'react'
 
 // Mock api client
 vi.mock('@/lib/api-client', () => ({
@@ -46,7 +47,8 @@ describe('SearchBar Component', () => {
     expect(input).toBeInTheDocument()
 
     // Setup mock
-    ;(api.get as any).mockResolvedValue({ users: [], events: [], remoteAccountSuggestion: null })
+    const mockGet = api.get as unknown as ReturnType<typeof vi.fn>
+    mockGet.mockResolvedValue({ users: [], events: [], remoteAccountSuggestion: null })
 
     // Type query
     await act(async () => {
@@ -82,9 +84,13 @@ describe('SearchBar Component', () => {
       const input = screen.getByRole('textbox')
 
       // Mock a slow response
-      let resolvePromise: (val: any) => void = () => {};
-      const promise = new Promise((resolve) => { resolvePromise = resolve });
-      (api.get as any).mockReturnValue(promise)
+      // eslint-disable-next-line no-unused-vars
+      let resolvePromise: (val: unknown) => void = () => {};
+      const promise = new Promise((resolve) => {
+          resolvePromise = resolve
+      });
+      const mockGet = api.get as unknown as ReturnType<typeof vi.fn>
+      mockGet.mockReturnValue(promise)
 
       await act(async () => {
           fireEvent.change(input, { target: { value: 'loading test' } })
