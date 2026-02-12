@@ -97,7 +97,7 @@ export function FeedPage() {
 					validatedData,
 				}
 			})
-			.filter((item): item is FeedItem & { key: string; validatedData: unknown } => item !== null)
+			.filter((item) => item !== null) as (FeedItem & { key: string; validatedData: unknown })[]
 	}, [data])
 
 	useEffect(() => {
