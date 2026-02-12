@@ -2355,5 +2355,87 @@ describe('Federation Handlers', () => {
 				expect(follower?.accepted).toBe(true)
 			})
 		})
+
+	describe('Input Sanitization', () => {
+		it('should sanitize HTML from Create activity (Events)', async () => {
+			const remoteActor = {
+				id: 'https://example.com/users/hacker',
+				type: 'Person',
+				preferredUsername: 'hacker',
+			}
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+			vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue({
+				id: 'remote-hacker-id',
+				username: 'hacker@example.com',
+			} as any)
+
+			const activity = {
+				id: 'https://example.com/activities/create-xss',
+				type: ActivityType.CREATE,
+				actor: remoteActor.id,
+				object: {
+					type: ObjectType.EVENT,
+					id: 'https://example.com/events/xss-event',
+					name: '<script>alert(1)</script>Safe Title',
+					summary: '<b>Bold Summary</b>',
+					content: '<img src=x onerror=alert(1)>Content',
+					startTime: new Date().toISOString(),
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			const event = await prisma.event.findFirst({
+				where: { externalId: activity.object.id },
+			})
+
+			expect(event).toBeTruthy()
+			expect(event?.title).toBe('Safe Title') // Script tag stripped
+			expect(event?.summary).toBe('Bold Summary') // HTML tags stripped
+		})
+
+		it('should sanitize HTML from Create Note activity (Comments)', async () => {
+			const remoteActor = {
+				id: 'https://example.com/users/hacker',
+				type: 'Person',
+				preferredUsername: 'hacker',
+			}
+
+			const remoteUser = await prisma.user.create({
+				data: {
+					username: 'hacker@example.com',
+					email: 'hacker@example.com',
+					name: 'Hacker',
+					isRemote: true,
+					externalActorUrl: remoteActor.id,
+				},
+			})
+
+			vi.mocked(activitypubHelpers.fetchActor).mockResolvedValue(remoteActor as any)
+			vi.mocked(activitypubHelpers.cacheRemoteUser).mockResolvedValue(remoteUser as any)
+
+			const activity = {
+				id: 'https://example.com/activities/create-comment-xss',
+				type: ActivityType.CREATE,
+				actor: remoteActor.id,
+				object: {
+					type: ObjectType.NOTE,
+					id: 'https://example.com/comments/xss',
+					content: '<a href="javascript:alert(1)">Click me</a>',
+					inReplyTo: `${baseUrl}/events/${testEvent.id}`,
+				},
+			}
+
+			await handleActivity(activity as any)
+
+			const comment = await prisma.comment.findFirst({
+				where: { externalId: activity.object.id },
+			})
+
+			expect(comment).toBeTruthy()
+			expect(comment?.content).toBe('Click me') // Anchor tag stripped
+		})
+	})
 	})
 })

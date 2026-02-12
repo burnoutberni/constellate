@@ -10,6 +10,7 @@ import {
 	getBaseUrl,
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
+import { sanitizeText } from './lib/sanitization.js'
 import { safeFetch } from './lib/ssrfProtection.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
@@ -506,13 +507,19 @@ function extractEventProperties(event: ActivityPubEvent | Record<string, unknown
 
 	const getString = (val: unknown) => (typeof val === 'string' ? val : null)
 	const getNumber = (val: unknown) => (typeof val === 'number' ? val : null)
+	const getSanitizedString = (val: unknown) => {
+		const str = getString(val)
+		return str ? sanitizeText(str) : null
+	}
+
+	const locationVal = getLocationValue(eventObj.location)
 
 	return {
 		eventId: getString(eventObj.id) || '',
-		eventName: getString(eventObj.name) || '',
-		eventSummary: getString(eventObj.summary),
-		eventContent: getString(eventObj.content),
-		locationValue: getLocationValue(eventObj.location),
+		eventName: sanitizeText(getString(eventObj.name) || ''),
+		eventSummary: getSanitizedString(eventObj.summary),
+		eventContent: getSanitizedString(eventObj.content),
+		locationValue: locationVal ? sanitizeText(locationVal) : null,
 		eventStartTime: getString(eventObj.startTime) || '',
 		eventEndTime: getString(eventObj.endTime),
 		eventDuration: getString(eventObj.duration),
@@ -786,7 +793,8 @@ async function handleCreateNote(
 	if (!inReplyTo) return
 
 	const noteId = typeof noteObj.id === 'string' ? noteObj.id : ''
-	const noteContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const rawContent = typeof noteObj.content === 'string' ? noteObj.content : ''
+	const noteContent = sanitizeText(rawContent)
 
 	// Check if it's replying to an event
 	const event = await prisma.event.findFirst({
@@ -893,8 +901,10 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
 async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
-	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
-	const eventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const rawEventName = typeof eventObj.name === 'string' ? eventObj.name : ''
+	const eventName = sanitizeText(rawEventName)
+	const rawEventSummary = typeof eventObj.summary === 'string' ? eventObj.summary : null
+	const eventSummary = rawEventSummary ? sanitizeText(rawEventSummary) : null
 	const eventStartTime = typeof eventObj.startTime === 'string' ? eventObj.startTime : ''
 	const eventEndTime = typeof eventObj.endTime === 'string' ? eventObj.endTime : null
 	const eventStatus = eventObj.eventStatus
@@ -911,6 +921,10 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 		locationValue = eventLocation.name
 	} else {
 		locationValue = null
+	}
+
+	if (locationValue) {
+		locationValue = sanitizeText(locationValue)
 	}
 
 	await prisma.event.updateMany({
@@ -945,8 +959,8 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
-	const personName = personObj.name || undefined
-	const personSummary = personObj.summary || undefined
+	const personName = personObj.name ? sanitizeText(personObj.name) : undefined
+	const personSummary = personObj.summary ? sanitizeText(personObj.summary) : undefined
 	const personDisplayColor = personObj.displayColor || undefined
 	const personIconUrl = personObj.icon?.url || undefined
 	const personImageUrl = personObj.image?.url || undefined
