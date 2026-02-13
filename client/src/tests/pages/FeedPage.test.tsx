@@ -312,4 +312,77 @@ describe('FeedPage', () => {
 		expect(screen.getByText('Suggested User')).toBeInTheDocument()
 		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
 	})
+
+	it('should render activity items', async () => {
+		const feedItems = [{
+			type: 'activity',
+			id: 'act1',
+			timestamp: new Date().toISOString(),
+			data: {
+				id: 'act1',
+				type: 'create_event',
+				createdAt: new Date().toISOString(),
+				user: { ...mockUser, isRemote: false },
+				event: mockEvent
+			}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		expect(screen.getByText('Test Event')).toBeInTheDocument()
+	})
+
+	it('should ignore unknown item types', async () => {
+		const feedItems = [{
+			type: 'unknown_type',
+			id: 'unk1',
+			timestamp: new Date().toISOString(),
+			data: {}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			// @ts-expect-error - Testing unknown type handling
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		expect(screen.getByText('Welcome!')).toBeInTheDocument()
+	})
+
+	it('should filter out invalid items', async () => {
+		const feedItems = [{
+			type: 'header',
+			id: 'h1',
+			timestamp: new Date().toISOString(),
+			data: { invalid_field: 'missing_title' }
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// Should render empty state or at least not render the invalid header
+		// Assuming empty state if no valid items remain
+		expect(screen.getByText('Welcome!')).toBeInTheDocument()
+		expect(screen.queryByTestId('h1')).not.toBeInTheDocument()
+	})
 })
