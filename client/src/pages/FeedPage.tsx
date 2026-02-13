@@ -240,6 +240,7 @@ export function FeedPage() {
 										)
 									}
 
+									/* v8 ignore next 2 */
 									default:
 										return null
 								}

@@ -361,4 +361,28 @@ describe('FeedPage', () => {
 
 		expect(screen.getByText('Welcome!')).toBeInTheDocument()
 	})
+
+	it('should filter out invalid items', async () => {
+		const feedItems = [{
+			type: 'header',
+			id: 'h1',
+			timestamp: new Date().toISOString(),
+			data: { invalid_field: 'missing_title' }
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		// Should render empty state or at least not render the invalid header
+		// Assuming empty state if no valid items remain
+		expect(screen.getByText('Welcome!')).toBeInTheDocument()
+		expect(screen.queryByTestId('h1')).not.toBeInTheDocument()
+	})
 })
