@@ -102,7 +102,7 @@ export function FeedPage() {
 					validatedData = null
 			}
 			return { ...item, validatedData }
-		}).filter((item): item is FeedItem & { validatedData: NonNullable<unknown> } => item.validatedData !== null)
+		}).filter((item) => item.validatedData !== null) as Array<FeedItem & { validatedData: NonNullable<unknown> }>
 	}, [data])
 
 
