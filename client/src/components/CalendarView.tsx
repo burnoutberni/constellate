@@ -131,6 +131,29 @@ const getDayButtonStyle = (status?: string | null) => {
 	})
 }
 
+// Helper to constructing accessible labels for event buttons
+const getEventLabel = (event: Event): string => {
+	const timeStr = new Date(event.startTime).toLocaleTimeString('en-US', {
+		hour: 'numeric',
+		minute: '2-digit',
+	})
+
+	let label = `${event.title}, ${timeStr}`
+
+	if (event.location) {
+		label += `, Location: ${event.location}`
+	}
+
+	if (event.viewerStatus) {
+		const status =
+			event.viewerStatus.charAt(0).toUpperCase() +
+			event.viewerStatus.slice(1).replace('_', ' ')
+		label += `, Status: ${status}`
+	}
+
+	return label
+}
+
 // Bolt: Memoized to prevent unnecessary re-renders
 const MonthEventButton = React.memo(({
 	event,
@@ -149,6 +172,7 @@ const MonthEventButton = React.memo(({
 			size="sm"
 			className={`text-xs px-2 py-1 rounded truncate w-full justify-start transition-colors ${getEventButtonStyle(event.viewerStatus)}`}
 			title={title || event.title}
+			aria-label={getEventLabel(event)}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
@@ -303,6 +327,7 @@ const WeekEventButton = React.memo(({
 			size="sm"
 			className={`text-xs px-2 py-1 mb-1 rounded truncate w-full justify-start transition-colors ${getEventButtonStyle(event.viewerStatus)}`}
 			title={title || event.title}
+			aria-label={getEventLabel(event)}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
@@ -477,6 +502,7 @@ const DayEventButton = React.memo(({
 			key={event.id}
 			variant="ghost"
 			className={`p-3 rounded border w-full justify-start transition-colors ${getDayButtonStyle(event.viewerStatus)}`}
+			aria-label={getEventLabel(event)}
 			onClick={handleClick}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}>
