@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 
 import { CalendarView } from '../../components/CalendarView'
@@ -6,9 +7,11 @@ import type { Event } from '../../types'
 
 // Mock the SafeHTML component as it can be complex
 vi.mock('../../components/ui', () => ({
-	Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+	Button: ({ children, ...props }: React.ComponentProps<'button'>) => (
+		<button {...props}>{children}</button>
+	),
 	Spinner: () => <div>Loading...</div>,
-	SafeHTML: ({ html }: { html: string }) => <div dangerouslySetInnerHTML={{ __html: html }} />,
+	SafeHTML: ({ html }: { html: string }) => <div data-testid="safe-html">{html}</div>,
 }))
 
 const mockEvent: Event = {
