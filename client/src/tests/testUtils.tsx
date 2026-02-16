@@ -87,8 +87,18 @@ export function clearQueryClient(queryClient: QueryClient) {
 	})
 }
 
-// Re-export everything from testing-library
-export * from '@testing-library/react'
+// Custom render function that includes providers
+export function render(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
+	const { wrapper } = createTestWrapper()
+	return rtlRender(ui, { wrapper, ...options })
+}
 
-// Override render method if needed, or just export it
-export { rtlRender as render }
+// Re-export specific utilities to avoid "export *" warning and conflicts
+export {
+	screen,
+	fireEvent,
+	waitFor,
+	within,
+	act,
+	renderHook
+} from '@testing-library/react'
