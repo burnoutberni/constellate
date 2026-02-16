@@ -1,7 +1,8 @@
-import { ReactNode } from 'react'
+import React, { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../design-system'
+import { render as rtlRender, RenderOptions } from '@testing-library/react'
 
 // Mock matchMedia for JSDOM environment if missing
 if (typeof window !== 'undefined' && !window.matchMedia) {
@@ -85,3 +86,20 @@ export function clearQueryClient(queryClient: QueryClient) {
 		},
 	})
 }
+
+// Custom render function that includes providers
+export function render(ui: React.ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
+	const { wrapper } = createTestWrapper()
+	// Cast ui to React.ReactElement to satisfy rtlRender signature
+	return rtlRender(ui as React.ReactElement, { wrapper, ...options })
+}
+
+// Re-export specific utilities to avoid "export *" warning and conflicts
+export {
+	screen,
+	fireEvent,
+	waitFor,
+	within,
+	act,
+	renderHook
+} from '@testing-library/react'
