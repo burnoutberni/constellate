@@ -139,4 +139,179 @@ describe('Digest Verification Vulnerability', () => {
 		const body = await res.json()
 		expect(body).toEqual({ error: 'Digest mismatch' })
 	})
+
+	it('should accept a request with a valid signature and valid digest', async () => {
+		const validBody = {
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: 'https://remote.com/activities/1',
+			type: 'Follow',
+			actor: actorUrl,
+			object: 'http://localhost:3000/users/alice',
+		}
+		const validBodyString = JSON.stringify(validBody)
+
+		// Calculate valid Digest
+		const hash = createHash('sha256').update(validBodyString).digest('base64')
+		const digestHeader = `SHA-256=${hash}`
+
+		// Create headers for signature
+		const date = new Date().toUTCString()
+		const headers = {
+			host: 'localhost:3000',
+			date,
+			digest: digestHeader,
+			'(request-target)': 'post /users/alice/inbox',
+			'content-type': 'application/activity+json',
+		}
+
+		// Sign the request
+		const signature = signRequest(privateKey, keyId, 'POST', '/users/alice/inbox', headers)
+
+		const res = await app.request('/users/alice/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				host: 'localhost:3000',
+				date,
+				digest: digestHeader,
+				signature,
+			},
+			body: validBodyString,
+		})
+
+		expect(res.status).toBe(202)
+		const body = await res.json()
+		expect(body).toEqual({ status: 'accepted' })
+	})
+
+	it('should accept a request with a valid signature and no digest header (backward compatibility)', async () => {
+		const validBody = {
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: 'https://remote.com/activities/1',
+			type: 'Follow',
+			actor: actorUrl,
+			object: 'http://localhost:3000/users/alice',
+		}
+		const validBodyString = JSON.stringify(validBody)
+
+		// Create headers for signature (NO DIGEST)
+		const date = new Date().toUTCString()
+		const headers = {
+			host: 'localhost:3000',
+			date,
+			'(request-target)': 'post /users/alice/inbox',
+			'content-type': 'application/activity+json',
+		}
+
+		// Sign the request
+		const signature = signRequest(privateKey, keyId, 'POST', '/users/alice/inbox', headers)
+
+		const res = await app.request('/users/alice/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				host: 'localhost:3000',
+				date,
+				signature,
+			},
+			body: validBodyString,
+		})
+
+		expect(res.status).toBe(202)
+		const body = await res.json()
+		expect(body).toEqual({ status: 'accepted' })
+	})
+
+	describe('Shared Inbox (/inbox)', () => {
+		it('should reject a request with a valid signature but a modified body', async () => {
+			const validBody = {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				id: 'https://remote.com/activities/shared/1',
+				type: 'Follow',
+				actor: actorUrl,
+				object: 'http://localhost:3000/users/alice',
+			}
+			const validBodyString = JSON.stringify(validBody)
+
+			const hash = createHash('sha256').update(validBodyString).digest('base64')
+			const digestHeader = `SHA-256=${hash}`
+
+			const date = new Date().toUTCString()
+			const headers = {
+				host: 'localhost:3000',
+				date,
+				digest: digestHeader,
+				'(request-target)': 'post /inbox',
+				'content-type': 'application/activity+json',
+			}
+
+			const signature = signRequest(privateKey, keyId, 'POST', '/inbox', headers)
+
+			const maliciousBody = {
+				...validBody,
+				type: 'Create',
+				object: {
+					type: 'Note',
+					content: 'Malicious shared content',
+				},
+			}
+
+			const res = await app.request('/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					host: 'localhost:3000',
+					date,
+					digest: digestHeader,
+					signature,
+				},
+				body: JSON.stringify(maliciousBody),
+			})
+
+			expect(res.status).toBe(401)
+			const body = await res.json()
+			expect(body).toEqual({ error: 'Digest mismatch' })
+		})
+
+		it('should accept a request with a valid signature and valid digest', async () => {
+			const validBody = {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				id: 'https://remote.com/activities/shared/1',
+				type: 'Follow',
+				actor: actorUrl,
+				object: 'http://localhost:3000/users/alice',
+			}
+			const validBodyString = JSON.stringify(validBody)
+
+			const hash = createHash('sha256').update(validBodyString).digest('base64')
+			const digestHeader = `SHA-256=${hash}`
+
+			const date = new Date().toUTCString()
+			const headers = {
+				host: 'localhost:3000',
+				date,
+				digest: digestHeader,
+				'(request-target)': 'post /inbox',
+				'content-type': 'application/activity+json',
+			}
+
+			const signature = signRequest(privateKey, keyId, 'POST', '/inbox', headers)
+
+			const res = await app.request('/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					host: 'localhost:3000',
+					date,
+					digest: digestHeader,
+					signature,
+				},
+				body: validBodyString,
+			})
+
+			expect(res.status).toBe(202)
+			const body = await res.json()
+			expect(body).toEqual({ status: 'accepted' })
+		})
+	})
 })
