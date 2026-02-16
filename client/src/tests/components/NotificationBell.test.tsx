@@ -117,6 +117,36 @@ describe('NotificationBell', () => {
 		expect(badges.length).toBeGreaterThan(0)
 	})
 
+	it('should show unread count in aria-label', () => {
+		mockUseNotifications.mockReturnValue({
+			data: {
+				notifications: [mockNotification],
+				unreadCount: 5,
+			},
+			isLoading: false,
+			error: null,
+			isError: false,
+		})
+
+		render(<NotificationBell userId="user1" />, { wrapper })
+		expect(screen.getByLabelText('Notifications, 5 unread')).toBeInTheDocument()
+	})
+
+	it('should show default aria-label when no unread notifications', () => {
+		mockUseNotifications.mockReturnValue({
+			data: {
+				notifications: [],
+				unreadCount: 0,
+			},
+			isLoading: false,
+			error: null,
+			isError: false,
+		})
+
+		render(<NotificationBell userId="user1" />, { wrapper })
+		expect(screen.getByLabelText('Notifications')).toBeInTheDocument()
+	})
+
 	it('should open dropdown on click', async () => {
 		const user = userEvent.setup()
 		render(<NotificationBell userId="user1" />, { wrapper })

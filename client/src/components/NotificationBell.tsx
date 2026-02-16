@@ -64,6 +64,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 	const notifications = data?.notifications ?? []
 	const unreadCount = data?.unreadCount ?? 0
 
+	const buttonLabel = unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+
 	const renderDropdownContent = () => {
 		if (isLoading) {
 			return (
@@ -120,7 +122,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 			<Button
 				type="button"
 				id="notification-bell-button"
-				aria-label="Notifications"
+				aria-label={buttonLabel}
 				aria-expanded={isOpen}
 				aria-haspopup="menu"
 				onClick={() => setIsOpen((prev) => !prev)}
