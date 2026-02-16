@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../design-system'
+import { render as rtlRender, RenderOptions } from '@testing-library/react'
 
 // Mock matchMedia for JSDOM environment if missing
 if (typeof window !== 'undefined' && !window.matchMedia) {
@@ -85,3 +86,9 @@ export function clearQueryClient(queryClient: QueryClient) {
 		},
 	})
 }
+
+// Re-export everything from testing-library
+export * from '@testing-library/react'
+
+// Override render method if needed, or just export it
+export { rtlRender as render }
