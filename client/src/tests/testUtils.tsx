@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import React, { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../design-system'
@@ -88,9 +88,10 @@ export function clearQueryClient(queryClient: QueryClient) {
 }
 
 // Custom render function that includes providers
-export function render(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
+export function render(ui: React.ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
 	const { wrapper } = createTestWrapper()
-	return rtlRender(ui, { wrapper, ...options })
+	// Cast ui to React.ReactElement to satisfy rtlRender signature
+	return rtlRender(ui as React.ReactElement, { wrapper, ...options })
 }
 
 // Re-export specific utilities to avoid "export *" warning and conflicts

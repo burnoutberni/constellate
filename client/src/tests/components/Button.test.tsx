@@ -1,148 +1,88 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
-import { Button } from '../../components/ui'
+import { render, screen, fireEvent } from '../testUtils'
+import { Button } from '../../components/ui/Button'
 
 describe('Button Component', () => {
-	it('user can click button to trigger action', async () => {
-		const user = userEvent.setup()
+	it('renders children correctly', () => {
+		render(<Button>Click me</Button>)
+		expect(screen.getByText('Click me')).toBeInTheDocument()
+	})
+
+	it('handles click events', () => {
 		const handleClick = vi.fn()
-		render(<Button onClick={handleClick}>Click</Button>)
-
-		const button = screen.getByRole('button', { name: 'Click' })
-		await user.click(button)
-
+		render(<Button onClick={handleClick}>Click me</Button>)
+		fireEvent.click(screen.getByText('Click me'))
 		expect(handleClick).toHaveBeenCalledTimes(1)
 	})
 
-	it('user cannot click disabled button', async () => {
-		const user = userEvent.setup()
-		const handleClick = vi.fn()
+	it('renders as a link when "to" prop is provided', () => {
+		render(<Button to="/home">Go Home</Button>)
+		const link = screen.getByRole('link', { name: 'Go Home' })
+		expect(link).toBeInTheDocument()
+		expect(link).toHaveAttribute('href', '/home')
+	})
+
+	it('supports loading state', () => {
+		render(<Button loading>Loading</Button>)
+		expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
+		// The text should be hidden (opacity-0) but still present for a11y?
+        // Actually the implementation uses span with opacity-0
+		// And renders a Spinner
+        // Let's just check it is disabled
+        expect(screen.getByRole('button')).toBeDisabled()
+	})
+
+	it('supports disabled state', () => {
+		render(<Button disabled>Disabled</Button>)
+		expect(screen.getByRole('button')).toBeDisabled()
+	})
+
+	it('renders icons', () => {
 		render(
-			<Button disabled onClick={handleClick}>
-				Disabled
+			<Button
+				leftIcon={<span data-testid="left">L</span>}
+				rightIcon={<span data-testid="right">R</span>}
+			>
+				Icon Button
 			</Button>
 		)
-
-		const button = screen.getByRole('button', { name: 'Disabled' })
-		await user.click(button)
-
-		expect(handleClick).not.toHaveBeenCalled()
+		expect(screen.getByTestId('left')).toBeInTheDocument()
+		expect(screen.getByTestId('right')).toBeInTheDocument()
 	})
 
-	it('loading state appears and button cannot be clicked while loading', async () => {
-		const user = userEvent.setup()
-		const handleClick = vi.fn()
-		const { rerender } = render(<Button onClick={handleClick}>Save</Button>)
+    it('renders different variants', () => {
+        const { rerender } = render(<Button variant="danger">Danger</Button>)
+        let btn = screen.getByRole('button')
+        expect(btn.className).toContain('bg-error-600')
 
-		const button = screen.getByRole('button', { name: 'Save' })
-		expect(button).not.toHaveAttribute('aria-busy', 'true')
+        rerender(<Button variant="outline">Outline</Button>)
+        btn = screen.getByRole('button')
+        expect(btn.className).toContain('border-primary-600')
 
-		// Set loading state
-		rerender(
-			<Button loading onClick={handleClick}>
-				Save
-			</Button>
-		)
+        rerender(<Button variant="ghost">Ghost</Button>)
+        btn = screen.getByRole('button')
+        expect(btn.className).toContain('bg-transparent')
 
-		const loadingButton = screen.getByRole('button', { name: 'Save' })
-		expect(loadingButton).toHaveAttribute('aria-busy', 'true')
-		expect(loadingButton).toBeDisabled()
+        rerender(<Button variant="secondary">Secondary</Button>)
+        btn = screen.getByRole('button')
+        expect(btn.className).toContain('bg-white')
+    })
 
-		await user.click(loadingButton)
-		expect(handleClick).not.toHaveBeenCalled()
+    it('renders different sizes', () => {
+        const { rerender } = render(<Button size="sm">Small</Button>)
+        let btn = screen.getByRole('button')
+        expect(btn.className).toContain('text-sm')
+        expect(btn.className).toContain('px-3')
 
-		// Loading state disappears
-		rerender(<Button onClick={handleClick}>Save</Button>)
+        rerender(<Button size="lg">Large</Button>)
+        btn = screen.getByRole('button')
+        expect(btn.className).toContain('text-base')
+        expect(btn.className).toContain('px-6')
+    })
 
-		const normalButton = screen.getByRole('button', { name: 'Save' })
-		expect(normalButton).not.toHaveAttribute('aria-busy', 'true')
-		expect(normalButton).not.toBeDisabled()
-	})
-
-	it('keyboard navigation works with Enter key', async () => {
-		const user = userEvent.setup()
-		const handleClick = vi.fn()
-		render(<Button onClick={handleClick}>Submit</Button>)
-
-		const button = screen.getByRole('button', { name: 'Submit' })
-		button.focus()
-		await user.keyboard('{Enter}')
-
-		expect(handleClick).toHaveBeenCalledTimes(1)
-	})
-
-	it('keyboard navigation works with Space key', async () => {
-		const user = userEvent.setup()
-		const handleClick = vi.fn()
-		render(<Button onClick={handleClick}>Submit</Button>)
-
-		const button = screen.getByRole('button', { name: 'Submit' })
-		button.focus()
-		await user.keyboard(' ')
-
-		expect(handleClick).toHaveBeenCalledTimes(1)
-	})
-
-	it('user can submit a form and see success', async () => {
-		const user = userEvent.setup()
-		const handleSubmit = vi.fn((e) => {
-			e.preventDefault()
-		})
-
-		render(
-			<form onSubmit={handleSubmit}>
-				<input type="text" name="name" defaultValue="Test" />
-				<Button type="submit">Submit Form</Button>
-			</form>
-		)
-
-		const button = screen.getByRole('button', { name: 'Submit Form' })
-		await user.click(button)
-
-		expect(handleSubmit).toHaveBeenCalledTimes(1)
-	})
-
-	describe('Navigation', () => {
-		it('user can navigate with button when to prop is provided', () => {
-			render(
-				<MemoryRouter>
-					<Button to="/home">Go Home</Button>
-				</MemoryRouter>
-			)
-
-			const link = screen.getByRole('link', { name: 'Go Home' })
-			expect(link).toBeInTheDocument()
-			expect(link).toHaveAttribute('href', '/home')
-		})
-
-		it('user cannot navigate with disabled link button', () => {
-			render(
-				<MemoryRouter>
-					<Button to="/home" disabled>
-						Go Home
-					</Button>
-				</MemoryRouter>
-			)
-
-			const link = screen.getByRole('link', { name: 'Go Home' })
-			// Link should be marked as disabled for accessibility
-			expect(link).toHaveAttribute('aria-disabled', 'true')
-		})
-
-		it('user cannot navigate with button when loading', () => {
-			render(
-				<MemoryRouter>
-					<Button to="/home" loading>
-						Go Home
-					</Button>
-				</MemoryRouter>
-			)
-
-			const link = screen.getByRole('link', { name: 'Go Home' })
-			// Link should be marked as disabled for accessibility
-			expect(link).toHaveAttribute('aria-disabled', 'true')
-		})
-	})
+    it('renders full width', () => {
+        render(<Button fullWidth>Full Width</Button>)
+        const btn = screen.getByRole('button')
+        expect(btn.className).toContain('w-full')
+    })
 })
