@@ -85,8 +85,22 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
 		const userId = c.get('userId') as string | undefined
-		const ip =
-			c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || 'unknown'
+		// SECURITY: Trust the LAST IP in X-Forwarded-For as it is appended by our trusted proxy (Caddy).
+		// The first IP can be spoofed by the client sending their own X-Forwarded-For header.
+		const xForwardedFor = c.req.header('x-forwarded-for')
+		const xRealIp = c.req.header('x-real-ip')
+
+		let ip = 'unknown'
+
+		// Prioritize X-Forwarded-For (last IP) as it's the standard for proxies like Caddy/Nginx
+		// to append the real IP to this header.
+		if (xForwardedFor) {
+			const ips = xForwardedFor.split(',')
+			ip = ips[ips.length - 1].trim()
+		} else if (xRealIp) {
+			// Fallback to X-Real-IP if X-Forwarded-For is missing
+			ip = xRealIp.trim()
+		}
 
 		let key: string
 		if (finalConfig.keyGenerator) {
