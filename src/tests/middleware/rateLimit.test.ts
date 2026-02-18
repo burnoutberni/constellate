@@ -166,7 +166,8 @@ describe('Rate Limiting Middleware', () => {
 			const middleware = rateLimit({ windowMs: 1000, maxRequests: 5 })
 
 			mockRequest.header.mockImplementation((name: string) => {
-				if (name === 'x-forwarded-for') return `${uniqueIp}, 10.0.0.1`
+				// Use uniqueIp as the last IP (trusted) to avoid test interference
+				if (name === 'x-forwarded-for') return `10.0.0.1, ${uniqueIp}`
 				return undefined
 			})
 			mockContext.get = vi.fn().mockReturnValue(undefined)

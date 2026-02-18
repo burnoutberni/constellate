@@ -85,8 +85,13 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 	return async (c: Context, next: Next) => {
 		// Generate rate limit key
 		const userId = c.get('userId') as string | undefined
-		const ip =
-			c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || 'unknown'
+
+		// Securely determine IP address
+		// Trust the last IP in X-Forwarded-For as it's appended by the trusted proxy (Caddy)
+		// This prevents IP spoofing where an attacker sends a fake X-Forwarded-For header
+		const forwardedFor = c.req.header('x-forwarded-for')
+		const ips = forwardedFor ? forwardedFor.split(',') : []
+		const ip = ips.length > 0 ? ips[ips.length - 1].trim() : (c.req.header('x-real-ip') || 'unknown')
 
 		let key: string
 		if (finalConfig.keyGenerator) {
