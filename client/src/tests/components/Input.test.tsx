@@ -73,6 +73,22 @@ describe('Input Component', () => {
 		expect(input).toBeInTheDocument()
 	})
 
+	it('should allow pointer events on right icon when rightIconInteractive is true', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={<button onClick={handleIconClick} aria-label="icon-button" />}
+				rightIconInteractive={true}
+			/>
+		)
+
+		const iconButton = screen.getByRole('button', { name: 'icon-button' })
+		fireEvent.click(iconButton)
+
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
+
 	it('should handle value changes', () => {
 		const handleChange = vi.fn()
 		render(<Input type="text" onChange={handleChange} />)
