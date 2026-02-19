@@ -73,6 +73,25 @@ describe('Input Component', () => {
 		expect(input).toBeInTheDocument()
 	})
 
+	it('should allow interaction with right icon when rightIconInteractive is true', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={
+					<button data-testid="right-icon-btn" onClick={handleIconClick}>
+						Clear
+					</button>
+				}
+				rightIconInteractive
+			/>
+		)
+
+		const iconButton = screen.getByTestId('right-icon-btn')
+		fireEvent.click(iconButton)
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
+
 	it('should handle value changes', () => {
 		const handleChange = vi.fn()
 		render(<Input type="text" onChange={handleChange} />)
