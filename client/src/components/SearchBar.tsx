@@ -134,6 +134,7 @@ export function SearchBar() {
 			// item.type must be 'remote' at this point
 			const suggestion = item.data as RemoteAccountSuggestion
 			resolveRemoteAccount(suggestion.handle)
+			return
 		}
 		setQuery('')
 		setIsOpen(false)

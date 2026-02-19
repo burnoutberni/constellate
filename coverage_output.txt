@@ -1,0 +1,25 @@
+
+> constellate-client@1.0.0 test:coverage
+> vitest run --coverage --reporter=default src/tests/components/SearchBar.test.tsx
+
+│
+▲  No story files found for the specified pattern: src/**/*.mdx
+
+[1m[46m RUN [49m[22m [36mv4.0.15 [39m[90m/app/client[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m [30m[42m unit [49m[39m src/tests/components/SearchBar.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 188[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 23:07:57
+[2m   Duration [22m 2.29s[2m (transform 493ms, setup 269ms, import 593ms, tests 188ms, environment 675ms)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+
+=============================== Coverage summary ===============================
+Statements   : 27.18% ( 146/537 )
+Branches     : 9.54% ( 48/503 )
+Functions    : 17.77% ( 24/135 )
+Lines        : 27.57% ( 142/515 )
+================================================================================
