@@ -1,0 +1,4 @@
+## 2025-01-20 - [IP Extraction Vulnerability in Proxy Setup]
+**Vulnerability:** The application was extracting the client IP from the *first* entry in the `X-Forwarded-For` header. This allowed attackers to spoof their IP by sending a request with `X-Forwarded-For: spoofed-ip`.
+**Learning:** Reverse proxies (like Caddy, which is used here) typically *append* the real client IP to the existing `X-Forwarded-For` header. Therefore, the *last* IP in the list is the one added by the trusted proxy and should be considered the true client IP.
+**Prevention:** Always use the last IP address in the `X-Forwarded-For` list when behind a trusted proxy that appends IPs. Configure the proxy to overwrite the header (`header_up X-Forwarded-For {remote_host}`) if possible, but the application logic should default to the last IP for safety.
