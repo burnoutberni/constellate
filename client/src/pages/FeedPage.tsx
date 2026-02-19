@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -8,7 +8,7 @@ import { Sidebar } from '@/components/Feed/Sidebar'
 import { SuggestedUsersCard } from '@/components/Feed/SuggestedUsersCard'
 import { Navbar } from '@/components/Navbar'
 import { Button, Card, Spinner, AddIcon } from '@/components/ui'
-import { useHomeFeed, type FeedItem } from '@/hooks/queries'
+import { useHomeFeed } from '@/hooks/queries'
 import { useAuth } from '@/hooks/useAuth'
 import { logger } from '@/lib/logger'
 import { useUIStore } from '@/stores'
@@ -18,9 +18,6 @@ import {
 	EventSchema,
 	ActivitySchema
 } from '@/types'
-
-// Validation helpers
-// Validation helpers
 
 // Validation helpers
 
@@ -78,6 +75,40 @@ export function FeedPage() {
 		return () => observer.disconnect()
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
+	// Optimize feed processing: Validate and process items only when data changes
+	const feedItems = useMemo(() => {
+		const rawItems = data?.pages?.flatMap((page) => page.items) || []
+
+		return rawItems.map((item) => {
+			const key = `${item.type}-${item.id}`
+
+			switch (item.type) {
+				case 'header': {
+					const validated = getValidatedData(HeaderSchema, item.data, 'header')
+					return validated ? { type: 'header' as const, data: validated, key } : null
+				}
+				case 'onboarding': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+					return validated ? { type: 'onboarding' as const, data: validated, key } : null
+				}
+				case 'suggested_users': {
+					const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+					return validated ? { type: 'suggested_users' as const, data: validated, key } : null
+				}
+				case 'trending_event': {
+					const validated = getValidatedData(EventSchema, item.data, 'trending_event')
+					return validated ? { type: 'trending_event' as const, data: validated, key } : null
+				}
+				case 'activity': {
+					const validated = getValidatedData(ActivitySchema, item.data, 'activity')
+					// For "Smart Agenda", we show the Event itself
+					return validated && validated.event ? { type: 'activity' as const, data: validated, key } : null
+				}
+				default:
+					return null
+			}
+		}).filter((item): item is NonNullable<typeof item> => item !== null)
+	}, [data])
 
 	// If not authenticated, the query is disabled so status stays pending/idle
 	// We only show loading spinner if we are explicitly loading (isFetching)
@@ -119,8 +150,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -152,70 +181,47 @@ export function FeedPage() {
 							</div>
 						)}
 
-						{allItems.length === 0 ? (
+						{feedItems.length === 0 ? (
 							<Card variant="default" padding="lg" className="text-center">
 								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
-
+							feedItems.map((item) => {
 								switch (item.type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={item.key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{item.data.title}
+												</h2>
+											</div>
+										)
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
+										return <OnboardingHero key={item.key} suggestions={item.data.suggestions} />
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
+										return <SuggestedUsersCard key={item.key} users={item.data.suggestions} />
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={item.key} className="h-full">
+												<EventCard event={item.data} isAuthenticated={Boolean(user)} />
+											</div>
+										)
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
+										// For "Smart Agenda", we show the Event itself
+										return (
+											<div key={item.key} className="h-full">
+												<EventCard event={item.data.event} isAuthenticated={Boolean(user)} />
+											</div>
+										)
 									}
 
 									default:
@@ -232,7 +238,7 @@ export function FeedPage() {
 						</div>
 					)}
 
-					{!hasNextPage && allItems.length > 0 && (
+					{!hasNextPage && feedItems.length > 0 && (
 						<p className="text-center text-sm text-text-tertiary mt-8 mb-8">
 							You&apos;ve reached the end of your agenda.
 						</p>
