@@ -40,9 +40,13 @@ vi.mock('../lib/prisma.js', () => ({
 	},
 }))
 
-vi.mock('../lib/httpSignature.js', () => ({
-	verifySignature: vi.fn(),
-}))
+vi.mock('../lib/httpSignature.js', async () => {
+    const actual = await vi.importActual<typeof import('../lib/httpSignature.js')>('../lib/httpSignature.js')
+    return {
+        ...actual,
+        verifySignature: vi.fn(),
+    }
+})
 
 vi.mock('../federation.js', () => ({
 	handleActivity: vi.fn(),
@@ -523,6 +527,29 @@ describe('ActivityPub API', () => {
 			expect(handleActivity).toHaveBeenCalledWith(mockActivity)
 		})
 
+		it('should return 401 when digest is invalid', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const res = await app.request('/users/alice/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature:
+						'keyId="https://remote.com/users/bob#main-key",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="mock_signature"',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest: 'SHA-256=invalid_digest',
+				},
+				body: JSON.stringify(mockActivity),
+			})
+
+			// Initially this will fail (it returns 202). We expect it to be 401 after fix.
+			expect(res.status).toBe(401)
+			const body = (await res.json()) as { error: string }
+			expect(body.error).toBe('Invalid digest')
+		})
+
 		it('should return 404 when user not found', async () => {
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
 
@@ -657,6 +684,28 @@ describe('ActivityPub API', () => {
 			const body = (await res.json()) as { status: string }
 			expect(body.status).toBe('accepted')
 			expect(handleActivity).toHaveBeenCalledWith(mockActivity)
+		})
+
+		it('should return 401 when digest is invalid', async () => {
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const res = await app.request('/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature:
+						'keyId="https://remote.com/users/bob#main-key",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="mock_signature"',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest: 'SHA-256=invalid_digest',
+				},
+				body: JSON.stringify(mockActivity),
+			})
+
+			// Initially this will fail (it returns 202). We expect it to be 401 after fix.
+			expect(res.status).toBe(401)
+			const body = (await res.json()) as { error: string }
+			expect(body.error).toBe('Invalid digest')
 		})
 
 		it('should return 401 when signature is missing', async () => {
