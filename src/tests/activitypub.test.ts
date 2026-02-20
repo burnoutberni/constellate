@@ -550,6 +550,56 @@ describe('ActivityPub API', () => {
 			expect(body.error).toBe('Invalid digest')
 		})
 
+		it('should accept valid activity with valid digest', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const bodyStr = JSON.stringify(mockActivity)
+			const crypto = await import('crypto')
+			const hash = crypto.createHash('sha256')
+			hash.update(bodyStr)
+			const digest = `SHA-256=${hash.digest('base64')}`
+
+			const res = await app.request('/users/alice/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature: 'valid_signature',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest,
+				},
+				body: bodyStr,
+			})
+
+			expect(res.status).toBe(202)
+		})
+
+		it('should accept valid activity with case-insensitive digest algorithm', async () => {
+			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any)
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const bodyStr = JSON.stringify(mockActivity)
+			const crypto = await import('crypto')
+			const hash = crypto.createHash('sha256')
+			hash.update(bodyStr)
+			const digest = `sha-256=${hash.digest('base64')}`
+
+			const res = await app.request('/users/alice/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature: 'valid_signature',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest,
+				},
+				body: bodyStr,
+			})
+
+			expect(res.status).toBe(202)
+		})
+
 		it('should return 404 when user not found', async () => {
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
 
@@ -706,6 +756,54 @@ describe('ActivityPub API', () => {
 			expect(res.status).toBe(401)
 			const body = (await res.json()) as { error: string }
 			expect(body.error).toBe('Invalid digest')
+		})
+
+		it('should accept valid activity with valid digest', async () => {
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const bodyStr = JSON.stringify(mockActivity)
+			const crypto = await import('crypto')
+			const hash = crypto.createHash('sha256')
+			hash.update(bodyStr)
+			const digest = `SHA-256=${hash.digest('base64')}`
+
+			const res = await app.request('/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature: 'valid_signature',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest,
+				},
+				body: bodyStr,
+			})
+
+			expect(res.status).toBe(202)
+		})
+
+		it('should accept valid activity with case-insensitive digest algorithm', async () => {
+			vi.mocked(verifySignature).mockResolvedValue(true)
+
+			const bodyStr = JSON.stringify(mockActivity)
+			const crypto = await import('crypto')
+			const hash = crypto.createHash('sha256')
+			hash.update(bodyStr)
+			const digest = `sha-256=${hash.digest('base64')}`
+
+			const res = await app.request('/inbox', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/activity+json',
+					signature: 'valid_signature',
+					host: 'localhost:3000',
+					date: new Date().toISOString(),
+					digest,
+				},
+				body: bodyStr,
+			})
+
+			expect(res.status).toBe(202)
 		})
 
 		it('should return 401 when signature is missing', async () => {
