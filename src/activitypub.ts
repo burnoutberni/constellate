@@ -11,7 +11,7 @@ import {
 	createOrderedCollectionPage,
 } from './lib/activitypubHelpers.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
-import { verifySignature } from './lib/httpSignature.js'
+import { verifySignature, createDigest } from './lib/httpSignature.js'
 import { ActivitySchema, PersonSchema, EventSchema } from './lib/activitypubSchemas.js'
 import {
 	ACTIVITYPUB_CONTEXTS,
@@ -23,6 +23,45 @@ import { handleActivity } from './federation.js'
 import { prisma } from './lib/prisma.js'
 import { config } from './config.js'
 import { logger } from './lib/logger.js'
+
+/**
+ * Validates the Digest header against the request body
+ * Supports SHA-256 algorithm (case-insensitive)
+ * Handles multiple comma-separated digest values
+ */
+async function validateDigest(bodyText: string, digestHeader: string | undefined): Promise<boolean> {
+	if (!digestHeader) return true
+
+	const digest = await createDigest(bodyText)
+	// createDigest returns "SHA-256=...", so we slice after the first "="
+	const digestValue = digest.slice(digest.indexOf('=') + 1)
+	const digestParts = digestHeader.split(',')
+
+	for (const part of digestParts) {
+		const trimmed = part.trim()
+		const firstEqual = trimmed.indexOf('=')
+		if (firstEqual === -1) continue
+
+		const algo = trimmed.slice(0, firstEqual)
+		const val = trimmed.slice(firstEqual + 1)
+
+		if (algo.toLowerCase() === 'sha-256') {
+			return val === digestValue
+		}
+	}
+
+	// If SHA-256 is present but didn't match, we would have returned false in loop?
+	// No, the loop logic above is: if we find SHA-256, we return comparison result.
+	// Wait, my previous loop logic was:
+	// if found sha-256, store it.
+	// if stored, compare.
+	// Refined logic:
+	// Loop: if algo is sha-256 -> return val === digestValue.
+	// If loop finishes without returning, it means SHA-256 was not found in header.
+	// In that case, we default to valid (true) or invalid?
+	// Current decision: Only enforce if SHA-256 is present.
+	return true
+}
 
 const app = new Hono()
 
@@ -563,10 +602,27 @@ app.post(
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
 
+			// Read body text first to verify digest
+			let bodyText: string
+			try {
+				bodyText = await c.req.text()
+			} catch (error) {
+				logger.error('[Inbox] Failed to read request body:', error)
+				return c.json({ error: 'Invalid request body' }, 400)
+			}
+
+			// Verify digest if present
+			const digestHeader = c.req.header('digest')
+			const isDigestValid = await validateDigest(bodyText, digestHeader)
+			if (!isDigestValid) {
+				logger.error('[Inbox] Digest mismatch')
+				return c.json({ error: 'Invalid digest' }, 401)
+			}
+
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = (await c.req.json()) as unknown
+				activity = JSON.parse(bodyText) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
@@ -656,10 +712,27 @@ app.post(
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
 
+			// Read body text first to verify digest
+			let bodyText: string
+			try {
+				bodyText = await c.req.text()
+			} catch (error) {
+				logger.error('[Shared Inbox] Failed to read request body:', error)
+				return c.json({ error: 'Invalid request body' }, 400)
+			}
+
+			// Verify digest if present
+			const digestHeader = c.req.header('digest')
+			const isDigestValid = await validateDigest(bodyText, digestHeader)
+			if (!isDigestValid) {
+				logger.error('[Shared Inbox] Digest mismatch')
+				return c.json({ error: 'Invalid digest' }, 401)
+			}
+
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = (await c.req.json()) as unknown
+				activity = JSON.parse(bodyText) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
