@@ -94,7 +94,7 @@ describe('Select Component', () => {
 	})
 
     it('forwards ref correctly', () => {
-        const ref = React.createRef<HTMLSelectElement>()
+        const ref = { current: null }
         render(<Select ref={ref}><option>Ref Test</option></Select>)
         expect(ref.current).toBeInstanceOf(HTMLSelectElement)
     })
