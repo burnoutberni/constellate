@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Mock } from 'vitest'
 import { SearchBar } from '../../components/SearchBar'
 import { createTestWrapper, clearQueryClient } from '../testUtils'
 import { api } from '../../lib/api-client'
@@ -29,12 +30,12 @@ describe('SearchBar Component', () => {
 	beforeEach(() => {
 		clearQueryClient(queryClient)
 		vi.clearAllMocks()
-        // Mock api.get to return empty results
-        ;(api.get as any).mockResolvedValue({
-            users: [],
-            events: [],
-            remoteAccountSuggestion: null
-        })
+		// Mock api.get to return empty results
+		;(api.get as Mock).mockResolvedValue({
+			users: [],
+			events: [],
+			remoteAccountSuggestion: null,
+		})
 	})
 
 	it('should render search input', () => {

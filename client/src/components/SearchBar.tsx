@@ -209,7 +209,7 @@ export function SearchBar() {
 				placeholder="Search events, users, or @user@domain..."
 				leftIcon={searchIcon}
 				rightIcon={rightIcon}
-				rightIconInteractive={!!query && !isLoading}
+				rightIconInteractive={Boolean(query) && !isLoading}
 				className="w-full"
 			/>
 
