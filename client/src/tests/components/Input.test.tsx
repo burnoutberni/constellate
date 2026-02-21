@@ -147,4 +147,16 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should apply pointer-events-none to right icon container by default', () => {
+		render(<Input type="text" rightIcon={<span>Icon</span>} />)
+		const iconContainer = screen.getByText('Icon').parentElement
+		expect(iconContainer).toHaveClass('pointer-events-none')
+	})
+
+	it('should remove pointer-events-none from right icon container when rightIconInteractive is true', () => {
+		render(<Input type="text" rightIcon={<span>Icon</span>} rightIconInteractive />)
+		const iconContainer = screen.getByText('Icon').parentElement
+		expect(iconContainer).not.toHaveClass('pointer-events-none')
+	})
 })
