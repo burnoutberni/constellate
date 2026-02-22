@@ -11,6 +11,7 @@ import {
 	fetchRemoteCollectionCount,
 } from './lib/activitypubHelpers.js'
 import { safeFetch } from './lib/ssrfProtection.js'
+import { sanitizeText, sanitizeHtml } from './lib/sanitization.js'
 import { buildAcceptActivity } from './services/ActivityBuilder.js'
 import { deliverToInbox } from './services/ActivityDelivery.js'
 import { broadcast, broadcastToUser, BroadcastEvents } from './realtime.js'
@@ -562,15 +563,15 @@ async function upsertRemoteEventFromObject(event: ActivityPubEvent | Record<stri
 	}
 
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: (eventSummary || eventContent) ? sanitizeHtml(eventSummary || eventContent || '') : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
 		url: eventUrl || null,
-		eventStatus: eventStatus as string | null,
-		eventAttendanceMode: eventAttendanceMode as string | null,
+		eventStatus: eventStatus ? sanitizeText(eventStatus as string) : null,
+		eventAttendanceMode: eventAttendanceMode ? sanitizeText(eventAttendanceMode as string) : null,
 		maximumAttendeeCapacity: eventMaxCapacity,
 		headerImage: attachmentUrl,
 		attributedTo: attributedTo,
@@ -734,15 +735,15 @@ async function handleCreateEvent(
 
 	// Create event in database
 	const eventData = {
-		title: eventName,
-		summary: eventSummary || eventContent || null,
-		location: locationValue,
+		title: sanitizeText(eventName),
+		summary: (eventSummary || eventContent) ? sanitizeHtml(eventSummary || eventContent || '') : null,
+		location: locationValue ? sanitizeText(locationValue) : null,
 		startTime: new Date(eventStartTime),
 		endTime: eventEndTime ? new Date(eventEndTime) : null,
 		duration: eventDuration || null,
 		url: eventUrl || null,
-		eventStatus: eventStatus as string | null,
-		eventAttendanceMode: eventAttendanceMode as string | null,
+		eventStatus: eventStatus ? sanitizeText(eventStatus as string) : null,
+		eventAttendanceMode: eventAttendanceMode ? sanitizeText(eventAttendanceMode as string) : null,
 		maximumAttendeeCapacity: eventMaxCapacity,
 		headerImage: attachmentUrl,
 		attributedTo: attributedTo || activity.actor,
@@ -804,7 +805,7 @@ async function handleCreateNote(
 	const comment = await prisma.comment.create({
 		data: {
 			externalId: noteId,
-			content: noteContent,
+			content: sanitizeHtml(noteContent),
 			eventId: event.id,
 			authorId: remoteUser.id,
 		},
@@ -916,12 +917,12 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 	await prisma.event.updateMany({
 		where: { externalId: eventId },
 		data: {
-			title: eventName,
-			summary: eventSummary || null,
-			location: locationValue,
+			title: sanitizeText(eventName),
+			summary: eventSummary ? sanitizeHtml(eventSummary) : null,
+			location: locationValue ? sanitizeText(locationValue) : null,
 			startTime: new Date(eventStartTime),
 			endTime: eventEndTime ? new Date(eventEndTime) : null,
-			eventStatus: eventStatus as string | null,
+			eventStatus: eventStatus ? sanitizeText(eventStatus as string) : null,
 		},
 	})
 
@@ -955,8 +956,8 @@ async function handleUpdatePerson(person: Person | Record<string, unknown>): Pro
 	await prisma.user.updateMany({
 		where: { externalActorUrl: personId },
 		data: {
-			name: personName,
-			bio: personSummary,
+			name: personName ? sanitizeText(personName) : undefined,
+			bio: personSummary ? sanitizeHtml(personSummary) : undefined,
 			displayColor: personDisplayColor,
 			profileImage: personIconUrl,
 			headerImage: personImageUrl,
