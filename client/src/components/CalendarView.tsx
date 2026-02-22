@@ -183,17 +183,17 @@ function MonthView({
 
 	const eventsByDay = useMemo(() => {
 		const map = new Map<number, Event[]>()
-		const { year, month, daysInMonth } = monthMetadata
+		const { year, month } = monthMetadata
 
-		for (let day = 1; day <= daysInMonth; day++) {
-			const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-			const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
-
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= dayStart && eventDate <= dayEnd
-			})
-			map.set(day, filtered)
+		// Bolt: Optimized to O(N) by iterating events once instead of filtering for each day
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			if (eventDate.getFullYear() === year && eventDate.getMonth() === month) {
+				const day = eventDate.getDate()
+				const list = map.get(day) || []
+				if (!map.has(day)) { map.set(day, list) }
+				list.push(event)
+			}
 		}
 		return map
 	}, [events, monthMetadata])
@@ -363,33 +363,29 @@ function WeekView({
 	const eventsByDayAndHour = useMemo(() => {
 		const map = new Map<string, Event[]>()
 
+		// Bolt: Pre-calculate day string to ISO map to avoid O(N*7) inside loop
+		const dayToIsoMap = new Map<string, string>()
 		for (const day of weekDays) {
-			for (const hour of hours) {
-				const key = `${day.toISOString()}-${hour}`
-				const hourStart = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					0,
-					0,
-					0
-				)
-				const hourEnd = new Date(
-					day.getFullYear(),
-					day.getMonth(),
-					day.getDate(),
-					hour,
-					59,
-					59,
-					999
-				)
+			dayToIsoMap.set(day.toDateString(), day.toISOString())
+		}
 
-				const filtered = events.filter((event) => {
-					const eventDate = new Date(event.startTime)
-					return eventDate >= hourStart && eventDate <= hourEnd
-				})
-				map.set(key, filtered)
+		const validHours = new Set(hours)
+
+		// Bolt: Optimized to O(N) by iterating events once
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			const dateStr = eventDate.toDateString()
+			const dayIso = dayToIsoMap.get(dateStr)
+
+			if (dayIso) {
+				const hour = eventDate.getHours()
+				// Only include events in the visible hours
+				if (validHours.has(hour)) {
+					const key = `${dayIso}-${hour}`
+					const list = map.get(key) || []
+					if (!map.has(key)) { map.set(key, list) }
+					list.push(event)
+				}
 			}
 		}
 		return map
@@ -519,31 +515,28 @@ function DayView({
 	const eventsByHour = useMemo(() => {
 		const map = new Map<number, Event[]>()
 
-		for (const hour of hours) {
-			const hourStart = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				0,
-				0,
-				0
-			)
-			const hourEnd = new Date(
-				currentDate.getFullYear(),
-				currentDate.getMonth(),
-				currentDate.getDate(),
-				hour,
-				59,
-				59,
-				999
-			)
+		const currentYear = currentDate.getFullYear()
+		const currentMonth = currentDate.getMonth()
+		const currentDay = currentDate.getDate()
 
-			const filtered = events.filter((event) => {
-				const eventDate = new Date(event.startTime)
-				return eventDate >= hourStart && eventDate <= hourEnd
-			})
-			map.set(hour, filtered)
+		const validHours = new Set(hours)
+
+		// Bolt: Optimized to O(N) by iterating events once
+		for (const event of events) {
+			const eventDate = new Date(event.startTime)
+			if (
+				eventDate.getFullYear() === currentYear &&
+				eventDate.getMonth() === currentMonth &&
+				eventDate.getDate() === currentDay
+			) {
+				const hour = eventDate.getHours()
+				// Only include events in the visible hours
+				if (validHours.has(hour)) {
+					const list = map.get(hour) || []
+					if (!map.has(hour)) { map.set(hour, list) }
+					list.push(event)
+				}
+			}
 		}
 		return map
 	}, [events, currentDate, hours])
