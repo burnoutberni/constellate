@@ -147,4 +147,24 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should disable pointer events on right icon container by default', () => {
+		render(<Input type="text" rightIcon={<span data-testid="right-icon">✓</span>} />)
+		const icon = screen.getByTestId('right-icon')
+		// The parent div should have pointer-events-none
+		expect(icon.parentElement).toHaveClass('pointer-events-none')
+	})
+
+	it('should enable pointer events on right icon container when rightIconInteractive is true', () => {
+		render(
+			<Input
+				type="text"
+				rightIcon={<span data-testid="right-icon">✓</span>}
+				rightIconInteractive
+			/>
+		)
+		const icon = screen.getByTestId('right-icon')
+		// The parent div should NOT have pointer-events-none
+		expect(icon.parentElement).not.toHaveClass('pointer-events-none')
+	})
 })
