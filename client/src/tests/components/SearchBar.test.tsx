@@ -26,7 +26,7 @@ describe('SearchBar Component', () => {
 
 	it('should show clear button after search finishes', async () => {
 		// Mock API response
-		(api.get as any).mockResolvedValue({
+		vi.mocked(api.get).mockResolvedValue({
 			users: [],
 			events: [],
 			remoteAccountSuggestion: null,
@@ -48,7 +48,7 @@ describe('SearchBar Component', () => {
 	})
 
 	it('should clear input and focus when clear button is clicked', async () => {
-		(api.get as any).mockResolvedValue({
+		vi.mocked(api.get).mockResolvedValue({
 			users: [],
 			events: [],
 			remoteAccountSuggestion: null,
