@@ -11,7 +11,7 @@ import {
 	createOrderedCollectionPage,
 } from './lib/activitypubHelpers.js'
 import { canViewPrivateProfile } from './lib/privacy.js'
-import { verifySignature } from './lib/httpSignature.js'
+import { verifySignature, createDigest } from './lib/httpSignature.js'
 import { ActivitySchema, PersonSchema, EventSchema } from './lib/activitypubSchemas.js'
 import {
 	ACTIVITYPUB_CONTEXTS,
@@ -563,10 +563,31 @@ app.post(
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
 
+			// Read body text first
+			let bodyText
+			try {
+				bodyText = await c.req.text()
+			} catch (error) {
+				logger.error('[Inbox] Failed to read request body:', error)
+				return c.json({ error: 'Invalid request body' }, 400)
+			}
+
+			// Verify Digest if present (critical for integrity)
+			const digestHeader = c.req.header('digest')
+			if (digestHeader && digestHeader.includes('SHA-256=')) {
+				const calculatedDigest = await createDigest(bodyText)
+				if (!digestHeader.includes(calculatedDigest)) {
+					logger.error(
+						`[Inbox] Digest mismatch. Header: ${digestHeader}, Calculated: ${calculatedDigest}`
+					)
+					return c.json({ error: 'Invalid Digest' }, 400)
+				}
+			}
+
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = (await c.req.json()) as unknown
+				activity = JSON.parse(bodyText) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
@@ -656,10 +677,31 @@ app.post(
 				return c.json({ error: 'Invalid signature' }, 401)
 			}
 
+			// Read body text first
+			let bodyText
+			try {
+				bodyText = await c.req.text()
+			} catch (error) {
+				logger.error('[Shared Inbox] Failed to read request body:', error)
+				return c.json({ error: 'Invalid request body' }, 400)
+			}
+
+			// Verify Digest if present (critical for integrity)
+			const digestHeader = c.req.header('digest')
+			if (digestHeader && digestHeader.includes('SHA-256=')) {
+				const calculatedDigest = await createDigest(bodyText)
+				if (!digestHeader.includes(calculatedDigest)) {
+					logger.error(
+						`[Shared Inbox] Digest mismatch. Header: ${digestHeader}, Calculated: ${calculatedDigest}`
+					)
+					return c.json({ error: 'Invalid Digest' }, 400)
+				}
+			}
+
 			// Parse activity with error handling to prevent DoS from malformed JSON
 			let activity
 			try {
-				activity = (await c.req.json()) as unknown
+				activity = JSON.parse(bodyText) as unknown
 			} catch (error) {
 				// Only log full error details in development to avoid potential information disclosure
 				if (config.isDevelopment) {
