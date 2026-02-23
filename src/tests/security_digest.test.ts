@@ -128,4 +128,55 @@ describe('Security: Digest Verification', () => {
 		expect(json.status).toBe('accepted')
 		expect(handleActivity).toHaveBeenCalled()
 	})
+
+	it('should accept request without Digest header', async () => {
+		const body = JSON.stringify({
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: 'https://example.com/1',
+			type: 'Follow',
+			actor: 'https://example.com/users/alice',
+			object: 'https://example.com/users/bob',
+		})
+
+		const res = await app.request('/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				Signature:
+					'keyId="...",algorithm="rsa-sha256",headers="(request-target) host date",signature="..."',
+				Date: new Date().toISOString(),
+				Host: 'localhost:3000',
+			},
+			body: body,
+		})
+
+		expect(res.status).toBe(202)
+		expect(handleActivity).toHaveBeenCalled()
+	})
+
+	it('should ignore Digest header with unknown algorithm', async () => {
+		const body = JSON.stringify({
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: 'https://example.com/1',
+			type: 'Follow',
+			actor: 'https://example.com/users/alice',
+			object: 'https://example.com/users/bob',
+		})
+
+		const res = await app.request('/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				Digest: 'MD5=xyz', // Unknown algorithm
+				Signature:
+					'keyId="...",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="..."',
+				Date: new Date().toISOString(),
+				Host: 'localhost:3000',
+			},
+			body: body,
+		})
+
+		expect(res.status).toBe(202)
+		expect(handleActivity).toHaveBeenCalled()
+	})
 })
