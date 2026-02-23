@@ -179,4 +179,32 @@ describe('Security: Digest Verification', () => {
 		expect(res.status).toBe(202)
 		expect(handleActivity).toHaveBeenCalled()
 	})
+
+	it('should handle request body reading failure', async () => {
+		const body = JSON.stringify({
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			type: 'Follow',
+		})
+
+		// Spy on Request.prototype.text to simulate failure
+		const textSpy = vi.spyOn(Request.prototype, 'text').mockRejectedValue(new Error('Read failed'))
+
+		const res = await app.request('/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				Signature:
+					'keyId="...",algorithm="rsa-sha256",headers="(request-target) host date",signature="..."',
+				Date: new Date().toISOString(),
+				Host: 'localhost:3000',
+			},
+			body: body,
+		})
+
+		expect(res.status).toBe(400)
+		const json = (await res.json()) as { error: string }
+		expect(json.error).toBe('Invalid request body')
+
+		textSpy.mockRestore()
+	})
 })
