@@ -147,4 +147,23 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should allow interaction with right icon when rightIconInteractive is true', () => {
+		const handleClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={
+					<button onClick={handleClick} aria-label="clear">
+						Clear
+					</button>
+				}
+				rightIconInteractive
+			/>
+		)
+
+		const button = screen.getByRole('button', { name: 'clear' })
+		fireEvent.click(button)
+		expect(handleClick).toHaveBeenCalledTimes(1)
+	})
 })
