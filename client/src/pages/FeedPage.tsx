@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -19,8 +19,12 @@ import {
 	ActivitySchema
 } from '@/types'
 
-// Validation helpers
-// Validation helpers
+type ValidatedFeedItem =
+	| { type: 'header'; key: string; data: z.infer<typeof HeaderSchema> }
+	| { type: 'onboarding'; key: string; data: z.infer<typeof SuggestedUsersSchema> }
+	| { type: 'suggested_users'; key: string; data: z.infer<typeof SuggestedUsersSchema> }
+	| { type: 'trending_event'; key: string; data: z.infer<typeof EventSchema> }
+	| { type: 'activity'; key: string; data: z.infer<typeof ActivitySchema> }
 
 // Validation helpers
 
@@ -59,8 +63,83 @@ export function FeedPage() {
 
 	const isRefetching = (isFetching && !isFetchingNextPage) || isFeedRefreshing
 
+	const allItems = useMemo(() => {
+		const items =
+			data?.pages?.flatMap(
+				(page: { items: FeedItem[]; nextCursor?: string }) => page.items
+			) || []
+		const validatedItems: ValidatedFeedItem[] = []
+
+		for (const item of items) {
+			const key = `${item.type}-${item.id}`
+
+			switch (item.type) {
+				case 'header': {
+					const validated = getValidatedData(HeaderSchema, item.data, 'header')
+					if (validated) {
+						validatedItems.push({ type: 'header', key, data: validated })
+					}
+					break
+				}
+				case 'onboarding': {
+					const validated = getValidatedData(
+						SuggestedUsersSchema,
+						item.data,
+						'onboarding'
+					)
+					if (validated) {
+						validatedItems.push({ type: 'onboarding', key, data: validated })
+					}
+					break
+				}
+				case 'suggested_users': {
+					const validated = getValidatedData(
+						SuggestedUsersSchema,
+						item.data,
+						'suggested_users'
+					)
+					if (validated) {
+						validatedItems.push({
+							type: 'suggested_users',
+							key,
+							data: validated
+						})
+					}
+					break
+				}
+				case 'trending_event': {
+					const validated = getValidatedData(
+						EventSchema,
+						item.data,
+						'trending_event'
+					)
+					if (validated) {
+						validatedItems.push({ type: 'trending_event', key, data: validated })
+					}
+					break
+				}
+				case 'activity': {
+					const validated = getValidatedData(
+						ActivitySchema,
+						item.data,
+						'activity'
+					)
+					if (validated) {
+						validatedItems.push({ type: 'activity', key, data: validated })
+					}
+					break
+				}
+				default:
+					break
+			}
+		}
+		return validatedItems
+	}, [data])
+
 	useEffect(() => {
-		if (!hasNextPage || isFetchingNextPage) { return }
+		if (!hasNextPage || isFetchingNextPage) {
+			return
+		}
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -77,7 +156,6 @@ export function FeedPage() {
 
 		return () => observer.disconnect()
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
-
 
 	// If not authenticated, the query is disabled so status stays pending/idle
 	// We only show loading spinner if we are explicitly loading (isFetching)
@@ -99,16 +177,26 @@ export function FeedPage() {
 	}
 
 	if (status === 'error') {
-		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+		const errorMessage =
+			error instanceof Error ? error.message : 'An unknown error occurred'
 		return (
 			<div className="min-h-screen bg-background-secondary">
 				<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
 				<div className="max-w-6xl mx-auto py-8 px-4 flex gap-6">
 					<div className="flex-1">
-						<Card variant="default" padding="lg" className="text-center text-error-600">
+						<Card
+							variant="default"
+							padding="lg"
+							className="text-center text-error-600"
+						>
 							<p>Failed to load feed.</p>
 							<p className="text-sm mt-2">{errorMessage}</p>
-							<Button variant="primary" size="sm" className="mt-4" onClick={() => refetch()}>
+							<Button
+								variant="primary"
+								size="sm"
+								className="mt-4"
+								onClick={() => refetch()}
+							>
 								Retry
 							</Button>
 						</Card>
@@ -118,8 +206,6 @@ export function FeedPage() {
 			</div>
 		)
 	}
-
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
 
 	return (
 		<div className="min-h-screen bg-background-secondary">
@@ -154,68 +240,67 @@ export function FeedPage() {
 
 						{allItems.length === 0 ? (
 							<Card variant="default" padding="lg" className="text-center">
-								<h3 className="text-lg font-medium text-text-primary mb-2">Welcome!</h3>
-								<p className="text-text-secondary">Follow people to see their activity here.</p>
+								<h3 className="text-lg font-medium text-text-primary mb-2">
+									Welcome!
+								</h3>
+								<p className="text-text-secondary">
+									Follow people to see their activity here.
+								</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
-								const key = `${item.type}-${item.id}`
-
+							allItems.map((item) => {
 								switch (item.type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={item.key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{item.data.title}
+												</h2>
+											</div>
+										)
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
+										return (
+											<OnboardingHero
+												key={item.key}
+												suggestions={item.data.suggestions}
+											/>
+										)
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
+										return (
+											<SuggestedUsersCard
+												key={item.key}
+												users={item.data.suggestions}
+											/>
+										)
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={item.key} className="h-full">
+												<EventCard
+													event={item.data}
+													isAuthenticated={Boolean(user)}
+												/>
+											</div>
+										)
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
+										// For "Smart Agenda", we show the Event itself
+										return (
+											<div key={item.key} className="h-full">
+												{item.data.event && (
+													<EventCard
+														event={item.data.event}
+														isAuthenticated={Boolean(user)}
+													/>
+												)}
+											</div>
+										)
 									}
 
 									default:
