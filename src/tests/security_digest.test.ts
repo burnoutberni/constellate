@@ -93,7 +93,39 @@ describe('Security: Digest Verification', () => {
 		}
 		expect(res.status).not.toBe(202)
 		expect(res.status).toBe(400)
-		const json = await res.json()
+		const json = (await res.json()) as { error: string }
 		expect(json.error).toBe('Invalid Digest')
+	})
+
+	it('should accept request when body matches Digest header', async () => {
+		const body = JSON.stringify({
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: 'https://example.com/1',
+			type: 'Follow',
+			actor: 'https://example.com/users/alice',
+			object: 'https://example.com/users/bob',
+		})
+
+		// Calculate valid digest
+		const hash = crypto.createHash('sha256').update(body).digest('base64')
+		const digest = `SHA-256=${hash}`
+
+		const res = await app.request('/inbox', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				Digest: digest,
+				Signature:
+					'keyId="...",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="..."',
+				Date: new Date().toISOString(),
+				Host: 'localhost:3000',
+			},
+			body: body,
+		})
+
+		expect(res.status).toBe(202)
+		const json = (await res.json()) as { status: string }
+		expect(json.status).toBe('accepted')
+		expect(handleActivity).toHaveBeenCalled()
 	})
 })
