@@ -1,4 +1,4 @@
-import { type ChangeEvent } from 'react'
+import { type ChangeEvent, memo } from 'react'
 
 import { REMINDER_OPTIONS } from './reminderConstants'
 import { Select } from './ui'
@@ -45,7 +45,7 @@ const DEFAULT_REMINDER_OPTIONS = REMINDER_OPTIONS
  * ReminderSelector allows users to set reminder notifications for an event.
  * Only available for authenticated users who have RSVP'd as attending or maybe.
  */
-export function ReminderSelector({
+export const ReminderSelector = memo(({
 	value,
 	onChange,
 	isAuthenticated,
@@ -53,7 +53,7 @@ export function ReminderSelector({
 	isPending,
 	eventHasStarted,
 	options = DEFAULT_REMINDER_OPTIONS,
-}: ReminderSelectorProps) {
+}: ReminderSelectorProps) => {
 	// Don't show reminder selector if event has already started
 	if (eventHasStarted) {
 		return null
@@ -98,4 +98,4 @@ export function ReminderSelector({
 			</div>
 		</div>
 	)
-}
+})

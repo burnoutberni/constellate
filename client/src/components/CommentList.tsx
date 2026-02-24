@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import type { CommentWithMentions } from '@/types'
 
 import { CommentForm } from './CommentForm'
@@ -17,7 +19,7 @@ interface CommentListProps {
 	onSignUpPrompt?: () => void
 }
 
-export function CommentList({
+export const CommentList = memo(({
 	comments,
 	currentUserId,
 	isAuthenticated,
@@ -27,7 +29,7 @@ export function CommentList({
 	isAddingComment = false,
 	isDeletingComment = false,
 	onSignUpPrompt,
-}: CommentListProps) {
+}: CommentListProps) => {
 	return (
 		<Stack direction="column" gap="lg">
 			<h2 className="text-xl font-bold text-text-primary">Comments ({comments.length})</h2>
@@ -67,4 +69,4 @@ export function CommentList({
 			)}
 		</Stack>
 	)
-}
+})

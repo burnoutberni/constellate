@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import { Button } from './ui'
 
 interface CalendarExportProps {
@@ -127,7 +129,7 @@ function generateGoogleCalendarUrl({
  * CalendarExport provides buttons to export event to calendar applications.
  * Supports iCal download and Google Calendar integration.
  */
-export function CalendarExport(props: CalendarExportProps) {
+export const CalendarExport = memo((props: CalendarExportProps) => {
 	const handleICalExport = () => {
 		const icalContent = generateICalContent(props)
 		const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' })
@@ -159,4 +161,4 @@ export function CalendarExport(props: CalendarExportProps) {
 			</div>
 		</div>
 	)
-}
+})

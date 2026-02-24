@@ -63,12 +63,12 @@ vi.mock('../../hooks/queries', () => ({
     },
     useEventDetail: (username?: string, eventId?: string) => mockUseEventDetail(username, eventId),
     useEventAttendance: () => mockUseEventAttendance(),
-    useRSVP: () => ({ mutate: vi.fn(), isPending: false }),
-    useLikeEvent: () => ({ mutate: vi.fn() }),
-    useAddComment: () => ({ mutate: vi.fn() }),
-    useDeleteEvent: () => ({ mutate: vi.fn() }),
-    useShareEvent: () => ({ mutate: vi.fn() }),
-    useEventReminder: () => ({ mutate: vi.fn() })
+    useRSVP: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }),
+    useLikeEvent: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }),
+    useAddComment: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }),
+    useDeleteEvent: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }),
+    useShareEvent: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }),
+    useEventReminder: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}), isPending: false })
 }))
 
 // Mock child components to isolate page logic

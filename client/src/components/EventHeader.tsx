@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 
 import { EventActions } from './EventActions'
@@ -47,7 +48,7 @@ interface EventHeaderProps {
  *
  * Used on the event detail page to show who created the event.
  */
-export function EventHeader({
+export const EventHeader = memo(({
 	organizers,
 	eventId,
 	isOwner = false,
@@ -55,7 +56,7 @@ export function EventHeader({
 	isDeleting = false,
 	onDuplicate,
 	isDuplicating = false,
-}: EventHeaderProps) {
+}: EventHeaderProps) => {
 	// Use the first organizer for actions/links if multiple
 	const primaryOrganizer = organizers[0]
 
@@ -99,4 +100,4 @@ export function EventHeader({
 			)}
 		</div>
 	)
-}
+})
