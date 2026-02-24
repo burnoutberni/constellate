@@ -166,7 +166,7 @@ describe('Rate Limiting Middleware', () => {
 			const middleware = rateLimit({ windowMs: 1000, maxRequests: 5 })
 
 			mockRequest.header.mockImplementation((name: string) => {
-				if (name === 'x-forwarded-for') return `${uniqueIp}, 10.0.0.1`
+				if (name === 'x-forwarded-for') return `${uniqueIp}, ${uniqueIp}.2`
 				return undefined
 			})
 			mockContext.get = vi.fn().mockReturnValue(undefined)
@@ -238,6 +238,34 @@ describe('Rate Limiting Middleware', () => {
 			} catch (error) {
 				expect(mockContext.header).toHaveBeenCalledWith('X-RateLimit-Remaining', '0')
 			}
+		})
+
+		it('should NOT allow bypassing rate limit by spoofing X-Forwarded-For', async () => {
+			const middleware = rateLimit({ windowMs: 1000, maxRequests: 1 })
+			// Use a unique IP to avoid interference with other tests
+			const realIp = `203.0.113.${testCounter}.99`
+
+			// Attacker rotates the first IP (spoofed) to bypass rate limit
+			// The second IP is the real one added by the trusted proxy
+
+			// Request 1: Spoofed IP A
+			mockRequest.header.mockImplementation((name: string) => {
+				if (name === 'x-forwarded-for') return `1.2.3.4, ${realIp}`
+				return undefined
+			})
+			await middleware(mockContext, mockNext) // Should consume the limit for realIp
+
+			// Request 2: Spoofed IP B
+			mockRequest.header.mockImplementation((name: string) => {
+				if (name === 'x-forwarded-for') return `5.6.7.8, ${realIp}`
+				return undefined
+			})
+
+			// Current implementation uses the first IP, so it treats this as a new user (5.6.7.8)
+			// Correct implementation should use the last IP (realIp) and block it
+
+			// Expectation: The second request should be blocked because realIp is already at limit
+			await expect(middleware(mockContext, mockNext)).rejects.toThrow()
 		})
 	})
 
