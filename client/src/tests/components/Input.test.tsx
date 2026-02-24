@@ -147,4 +147,23 @@ describe('Input Component', () => {
 		const label = screen.getByText('Email')
 		expect(label).toHaveAttribute('for', 'custom-id')
 	})
+
+	it('should allow interaction with right icon when rightIconInteractive is true', () => {
+		const handleIconClick = vi.fn()
+		render(
+			<Input
+				type="text"
+				rightIcon={
+					<button onClick={handleIconClick} data-testid="right-icon-btn">
+						Click me
+					</button>
+				}
+				rightIconInteractive
+			/>
+		)
+
+		const button = screen.getByTestId('right-icon-btn')
+		fireEvent.click(button)
+		expect(handleIconClick).toHaveBeenCalledTimes(1)
+	})
 })
