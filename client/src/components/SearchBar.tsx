@@ -206,7 +206,7 @@ export function SearchBar() {
 				placeholder="Search events, users, or @user@domain..."
 				leftIcon={searchIcon}
 				rightIcon={loadingSpinner || clearButton}
-				rightIconInteractive={!!clearButton}
+				rightIconInteractive={Boolean(clearButton)}
 				className="w-full"
 			/>
 
