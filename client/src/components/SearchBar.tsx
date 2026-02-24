@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { SearchIcon, Button, Input, Spinner, GlobeIcon } from '@/components/ui'
+import { SearchIcon, Button, Input, Spinner, GlobeIcon, CloseIcon } from '@/components/ui'
 import { useThemeColors } from '@/design-system'
 import { api } from '@/lib/api-client'
 import { createLogger } from '@/lib/logger'
@@ -41,8 +41,8 @@ export function SearchBar() {
 			return
 		}
 
-		setIsLoading(true)
 		const timer = setTimeout(async () => {
+			setIsLoading(true)
 			try {
 				const data = await api.get<SearchResults>('/user-search', { q: query, limit: 5 })
 				setResults(data)
@@ -178,6 +178,22 @@ export function SearchBar() {
 
 	const loadingSpinner = isLoading ? <Spinner size="sm" variant="secondary" /> : undefined
 
+	const handleClear = () => {
+		setQuery('')
+		inputRef.current?.focus()
+	}
+
+	const clearButton =
+		query && !isLoading ? (
+			<button
+				type="button"
+				onClick={handleClear}
+				className="p-1 hover:bg-neutral-100 rounded-full dark:hover:bg-neutral-800 transition-colors text-text-secondary"
+				aria-label="Clear search">
+				<CloseIcon className="w-4 h-4" />
+			</button>
+		) : undefined
+
 	return (
 		<div ref={searchRef} className="relative w-full max-w-md">
 			<Input
@@ -189,7 +205,8 @@ export function SearchBar() {
 				onFocus={() => query && setIsOpen(true)}
 				placeholder="Search events, users, or @user@domain..."
 				leftIcon={searchIcon}
-				rightIcon={loadingSpinner}
+				rightIcon={loadingSpinner || clearButton}
+				rightIconInteractive={!!clearButton}
 				className="w-full"
 			/>
 
