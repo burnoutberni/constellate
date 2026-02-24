@@ -1,9 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ToggleGroup, ToggleButton } from '../../components/ui/ToggleGroup'
 import userEvent from '@testing-library/user-event'
-import { createTestWrapper } from '../testUtils'
 
 describe('ToggleGroup Component', () => {
     it('should render children', () => {
