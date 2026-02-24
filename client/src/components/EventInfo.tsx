@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 import type { EventVisibility, RecurrencePattern } from '@/types'
 
@@ -47,12 +47,12 @@ interface EventInfoProps {
  *
  * Handles timezone display and formatting.
  */
-export function EventInfo({
+export const EventInfo = memo(({
 	event,
 	viewerTimezone,
 	eventTimezone,
 	isAuthenticated,
-}: EventInfoProps) {
+}: EventInfoProps) => {
 	const visibilityMeta = useMemo(() => {
 		// Ensure we always have a valid visibility meta, defaulting to PUBLIC
 		return getVisibilityMeta(event.visibility || 'PUBLIC')
@@ -200,4 +200,4 @@ export function EventInfo({
 			)}
 		</div>
 	)
-}
+})

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 
 import { Container } from '@/components/layout'
@@ -96,11 +96,14 @@ export function EventDetailPage() {
 
 	// Mutations
 	const queryClient = useQueryClient()
-	const likeMutation = useLikeEvent(eventId, user?.id)
-	const shareMutation = useShareEvent(eventId)
-	const addCommentMutation = useAddComment(eventId)
-	const deleteEventMutation = useDeleteEvent(eventId)
-	const reminderMutation = useEventReminder(eventId, username)
+	const { mutateAsync: likeEvent, isPending: isLikePending } = useLikeEvent(eventId, user?.id)
+	const { mutateAsync: shareEvent, isPending: isSharePending } = useShareEvent(eventId)
+	const { mutateAsync: addComment, isPending: isAddingComment } = useAddComment(eventId)
+	const { mutateAsync: deleteEvent, isPending: isDeletingEvent } = useDeleteEvent(eventId)
+	const { mutateAsync: updateReminder, isPending: isUpdatingReminder } = useEventReminder(
+		eventId,
+		username
+	)
 
 	// Derive user's attendance and like status from event data
 	const userAttendance = useMemo(() => {
@@ -231,99 +234,111 @@ export function EventDetailPage() {
 	}, [event])
 
 
-	const handleReminderChange = async (nextValue: number | null) => {
-		if (!user) {
-			setPendingAction(null)
-			setSignupModalOpen(true)
-			return
-		}
+	const handleReminderChange = useCallback(
+		async (nextValue: number | null) => {
+			if (!user) {
+				setPendingAction(null)
+				setSignupModalOpen(true)
+				return
+			}
 
-		if (!canManageReminder) {
-			setSelectedReminder(activeReminderMinutes)
-			handleError(
-				new Error('RSVP as Going or Maybe to enable reminders.'),
-				'Reminder not available',
-				{ context: 'EventDetailPage.handleReminderChange' }
-			)
-			return
-		}
+			if (!canManageReminder) {
+				setSelectedReminder(activeReminderMinutes)
+				handleError(
+					new Error('RSVP as Going or Maybe to enable reminders.'),
+					'Reminder not available',
+					{ context: 'EventDetailPage.handleReminderChange' }
+				)
+				return
+			}
 
-		const previousValue = selectedReminder
-		setSelectedReminder(nextValue)
-		try {
-			await reminderMutation.mutateAsync(nextValue)
-		} catch (error) {
-			// previousValue is always number | null, never undefined
-			setSelectedReminder(previousValue)
-			handleError(error, 'Failed to update reminder. Please try again.', {
-				context: 'EventDetailPage.handleReminderChange',
-			})
-		}
-	}
+			const previousValue = selectedReminder
+			setSelectedReminder(nextValue)
+			try {
+				await updateReminder(nextValue)
+			} catch (error) {
+				// previousValue is always number | null, never undefined
+				setSelectedReminder(previousValue)
+				handleError(error, 'Failed to update reminder. Please try again.', {
+					context: 'EventDetailPage.handleReminderChange',
+				})
+			}
+		},
+		[user, canManageReminder, activeReminderMinutes, selectedReminder, updateReminder, handleError]
+	)
 
-	const handleLike = async () => {
+	const handleLike = useCallback(async () => {
 		if (!user) {
 			setPendingAction('like')
 			setSignupModalOpen(true)
 			return
 		}
 		try {
-			await likeMutation.mutateAsync(userLiked)
+			await likeEvent(userLiked)
 		} catch (error) {
 			log.error('Like failed:', error)
 		}
-	}
+	}, [user, userLiked, likeEvent])
 
-	const handleShare = async () => {
+	const handleShare = useCallback(async () => {
 		if (!user) {
 			setPendingAction('share')
 			setSignupModalOpen(true)
 			return
 		}
 		try {
-			await shareMutation.mutateAsync()
+			await shareEvent()
 			setHasShared(true)
 		} catch (error) {
 			handleError(error, 'Failed to share event', { context: 'EventDetailPage.handleShare' })
 		}
-	}
+	}, [user, shareEvent, handleError])
 
-	const handleAddComment = async (content: string) => {
-		try {
-			await addCommentMutation.mutateAsync({ content })
-		} catch (error) {
-			handleError(error, 'Failed to post comment. Please try again.', {
-				context: 'EventDetailPage.handleAddComment',
-			})
-		}
-	}
+	const handleAddComment = useCallback(
+		async (content: string) => {
+			try {
+				await addComment({ content })
+			} catch (error) {
+				handleError(error, 'Failed to post comment. Please try again.', {
+					context: 'EventDetailPage.handleAddComment',
+				})
+			}
+		},
+		[addComment, handleError]
+	)
 
-	const handleReply = async (parentId: string, content: string) => {
-		try {
-			await addCommentMutation.mutateAsync({ content, inReplyToId: parentId })
-		} catch (error) {
-			handleError(error, 'Failed to post reply. Please try again.', {
-				context: 'EventDetailPage.handleReply',
-			})
-		}
-	}
+	const handleReply = useCallback(
+		async (parentId: string, content: string) => {
+			try {
+				await addComment({ content, inReplyToId: parentId })
+			} catch (error) {
+				handleError(error, 'Failed to post reply. Please try again.', {
+					context: 'EventDetailPage.handleReply',
+				})
+			}
+		},
+		[addComment, handleError]
+	)
 
-	const handleSignupPrompt = () => {
+	const handleSignupPrompt = useCallback(() => {
 		setPendingAction('comment')
 		setSignupModalOpen(true)
-	}
+	}, [])
 
 	const handleSignupSuccess = () => {
 		// User is now authenticated, pending actions are cleared
 		setPendingAction(null)
 	}
 
-	const handleDeleteComment = async (commentId: string) => {
-		if (!user) {
-			return
-		}
-		setDeleteCommentId(commentId)
-	}
+	const handleDeleteComment = useCallback(
+		async (commentId: string) => {
+			if (!user) {
+				return
+			}
+			setDeleteCommentId(commentId)
+		},
+		[user]
+	)
 
 	const confirmDeleteComment = async () => {
 		if (!deleteCommentId) {
@@ -346,12 +361,12 @@ export function EventDetailPage() {
 		}
 	}
 
-	const handleDeleteEvent = () => {
+	const handleDeleteEvent = useCallback(() => {
 		if (!user) {
 			return
 		}
 		setShowDeleteEventConfirm(true)
-	}
+	}, [user])
 
 	const confirmDeleteEvent = async () => {
 		if (!user) {
@@ -359,7 +374,7 @@ export function EventDetailPage() {
 		}
 		setShowDeleteEventConfirm(false)
 		try {
-			await deleteEventMutation.mutateAsync(user.id)
+			await deleteEvent(user.id)
 			// Redirect to feed after successful deletion
 			navigate('/feed', { replace: true })
 		} catch (error) {
@@ -369,7 +384,7 @@ export function EventDetailPage() {
 		}
 	}
 
-	const handleDuplicateEvent = () => {
+	const handleDuplicateEvent = useCallback(() => {
 		if (!event) {
 			return
 		}
@@ -378,7 +393,25 @@ export function EventDetailPage() {
 		handleError(new Error('Duplicate functionality coming soon!'), 'Feature not available', {
 			context: 'EventDetailPage.handleDuplicateEvent',
 		})
-	}
+	}, [event, handleError])
+
+	const eventInfoProps = useMemo(
+		() => ({
+			id: event?.id || '',
+			title: displayedEvent?.title || '',
+			summary: displayedEvent?.summary,
+			startTime: displayedEvent?.startTime || '',
+			endTime: displayedEvent?.endTime,
+			location: displayedEvent?.location,
+			url: displayedEvent?.url,
+			visibility: displayedEvent?.visibility,
+			timezone: displayedEvent?.timezone,
+			recurrencePattern: event?.recurrencePattern,
+			recurrenceEndDate: event?.recurrenceEndDate,
+			tags: event?.tags,
+		}),
+		[event, displayedEvent]
+	)
 
 	const defaultTimezone = useMemo(() => getDefaultTimezone(), [])
 	const viewerTimezone = viewerProfile?.timezone || defaultTimezone
@@ -505,27 +538,14 @@ export function EventDetailPage() {
 							eventId={eventId}
 							isOwner={user?.id === event.user?.id}
 							onDelete={handleDeleteEvent}
-							isDeleting={deleteEventMutation.isPending}
+							isDeleting={isDeletingEvent}
 							onDuplicate={handleDuplicateEvent}
 							isDuplicating={false}
 						/>
 
 						<div className="mt-6">
 							<EventInfo
-								event={{
-									id: event.id,
-									title: displayedEvent.title,
-									summary: displayedEvent.summary,
-									startTime: displayedEvent.startTime,
-									endTime: displayedEvent.endTime,
-									location: displayedEvent.location,
-									url: displayedEvent.url,
-									visibility: displayedEvent.visibility,
-									timezone: displayedEvent.timezone,
-									recurrencePattern: event.recurrencePattern,
-									recurrenceEndDate: event.recurrenceEndDate,
-									tags: event.tags,
-								}}
+								event={eventInfoProps}
 								viewerTimezone={viewerTimezone}
 								eventTimezone={eventTimezone}
 								isAuthenticated={Boolean(user)}
@@ -543,8 +563,8 @@ export function EventDetailPage() {
 								userLiked={userLiked}
 								userHasShared={hasShared || userHasShared}
 								isAuthenticated={Boolean(user)}
-								isLikePending={likeMutation.isPending}
-								isSharePending={shareMutation.isPending}
+								isLikePending={isLikePending}
+								isSharePending={isSharePending}
 								onLike={handleLike}
 								onShare={handleShare}
 								onSignUp={() => setSignupModalOpen(true)}
@@ -557,7 +577,7 @@ export function EventDetailPage() {
 							onChange={handleReminderChange}
 							isAuthenticated={Boolean(user)}
 							canManageReminder={canManageReminder}
-							isPending={reminderMutation.isPending}
+							isPending={isUpdatingReminder}
 							eventHasStarted={eventHasStarted}
 						/>
 
@@ -587,7 +607,7 @@ export function EventDetailPage() {
 							onAddComment={handleAddComment}
 							onReply={handleReply}
 							onDelete={handleDeleteComment}
-							isAddingComment={addCommentMutation.isPending}
+							isAddingComment={isAddingComment}
 							onSignUpPrompt={handleSignupPrompt}
 						/>
 					</CardContent>
@@ -627,7 +647,7 @@ export function EventDetailPage() {
 				variant="danger"
 				onConfirm={confirmDeleteEvent}
 				onCancel={() => setShowDeleteEventConfirm(false)}
-				isPending={deleteEventMutation.isPending}
+				isPending={isDeletingEvent}
 			/>
 		</div>
 	)

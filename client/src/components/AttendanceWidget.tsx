@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import { RSVPButton } from './RSVPButton'
 import { SignUpPrompt } from './SignUpPrompt'
 import { Button } from './ui'
@@ -24,7 +26,7 @@ interface AttendanceWidgetProps {
 	onSignUp?: () => void
 }
 
-export function AttendanceWidget({
+export const AttendanceWidget = memo(({
 	eventId,
 	userAttendance,
 	attendingCount,
@@ -38,7 +40,7 @@ export function AttendanceWidget({
 	onLike,
 	onShare,
 	onSignUp,
-}: AttendanceWidgetProps) {
+}: AttendanceWidgetProps) => {
 	const getShareButtonText = () => {
 		if (isSharePending) {
 			return 'Sharing...'
@@ -96,4 +98,4 @@ export function AttendanceWidget({
 			)}
 		</div>
 	)
-}
+})

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Link } from 'react-router-dom'
 
 import { getInitials } from '@/lib/utils'
@@ -41,11 +41,11 @@ interface AttendeeListProps {
  * AttendeeList displays a list of event attendees with their status.
  * Supports showing a limited number initially with a "show more" button.
  */
-export function AttendeeList({
+export const AttendeeList = memo(({
 	attendees,
 	initialDisplayCount = 10,
 	showAvatars = true,
-}: AttendeeListProps) {
+}: AttendeeListProps) => {
 	const [showAll, setShowAll] = useState(false)
 
 	if (attendees.length === 0) {
@@ -162,4 +162,4 @@ export function AttendeeList({
 			)}
 		</div>
 	)
-}
+})
