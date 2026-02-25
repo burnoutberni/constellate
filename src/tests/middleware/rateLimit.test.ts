@@ -186,7 +186,7 @@ describe('Rate Limiting Middleware', () => {
 
 			// Should be blocked because realIp matches the first request
 			await expect(middleware(mockContext, mockNext)).rejects.toThrow(
-				Errors.tooManyRequests('').constructor
+				'Rate limit exceeded'
 			)
 		})
 
