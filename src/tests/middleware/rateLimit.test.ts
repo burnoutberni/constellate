@@ -162,18 +162,32 @@ describe('Rate Limiting Middleware', () => {
 			expect(mockNext).toHaveBeenCalled()
 		})
 
-		it('should handle x-forwarded-for with multiple IPs', async () => {
-			const middleware = rateLimit({ windowMs: 1000, maxRequests: 5 })
+		it('should use the LAST IP in x-forwarded-for to prevent spoofing', async () => {
+			const middleware = rateLimit({ windowMs: 60000, maxRequests: 1 })
+			const realIp = '203.0.113.1'
+			const spoofedIp = '198.51.100.1'
 
 			mockRequest.header.mockImplementation((name: string) => {
-				if (name === 'x-forwarded-for') return `${uniqueIp}, 10.0.0.1`
+				if (name === 'x-forwarded-for') return `${spoofedIp}, ${realIp}`
 				return undefined
 			})
 			mockContext.get = vi.fn().mockReturnValue(undefined)
 
+			// First request
 			await middleware(mockContext, mockNext)
+			expect(mockNext).toHaveBeenCalledTimes(1)
 
-			expect(mockNext).toHaveBeenCalled()
+			// Second request with DIFFERENT spoofed IP but SAME real IP
+			const newSpoofedIp = '198.51.100.2'
+			mockRequest.header.mockImplementation((name: string) => {
+				if (name === 'x-forwarded-for') return `${newSpoofedIp}, ${realIp}`
+				return undefined
+			})
+
+			// Should be blocked because realIp matches the first request
+			await expect(middleware(mockContext, mockNext)).rejects.toThrow(
+				'Rate limit exceeded'
+			)
 		})
 
 		it('should reset counter after window expires', async () => {
