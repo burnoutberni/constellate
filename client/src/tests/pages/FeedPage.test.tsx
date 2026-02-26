@@ -279,6 +279,7 @@ describe('FeedPage', () => {
 
 		expect(screen.getByText('Failed to load feed.')).toBeInTheDocument()
 	})
+
 	it('should show suggested users card', async () => {
 		const feedItems = [{
 			type: 'suggested_users',
@@ -311,5 +312,103 @@ describe('FeedPage', () => {
 		// SuggestedUsersCard renders "Suggested for you" usually, or we check for username
 		expect(screen.getByText('Suggested User')).toBeInTheDocument()
 		expect(screen.getByText(/@suggested1/)).toBeInTheDocument()
+	})
+
+	it('should render activity items correctly', async () => {
+		const feedItems = [{
+			type: 'activity',
+			id: 'act1',
+			timestamp: new Date().toISOString(),
+			data: {
+				id: 'act1',
+				type: 'Create',
+				createdAt: new Date().toISOString(),
+				user: {
+					id: 'u1',
+					username: 'actor',
+					name: 'Actor',
+					isRemote: false,
+				},
+				event: mockEvent
+			}
+		}]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		await waitFor(() => {
+			expect(screen.getByText('Test Event')).toBeInTheDocument()
+		})
+	})
+
+	it('should filter out invalid items gracefully', async () => {
+		const feedItems = [
+			{
+				type: 'header',
+				id: 'bad-header',
+				timestamp: new Date().toISOString(),
+				data: { invalid_key: 'No title' } // Invalid schema
+			},
+			{
+				type: 'trending_event',
+				id: 'bad-event',
+				timestamp: new Date().toISOString(),
+				data: { invalid_key: 'No title' }
+			},
+			{
+				type: 'activity',
+				id: 'bad-activity',
+				timestamp: new Date().toISOString(),
+				data: { invalid_key: 'No title' }
+			},
+			{
+				type: 'onboarding',
+				id: 'bad-onboarding',
+				timestamp: new Date().toISOString(),
+				data: { invalid_key: 'No suggestions' }
+			},
+			{
+				type: 'suggested_users',
+				id: 'bad-suggested',
+				timestamp: new Date().toISOString(),
+				data: { invalid_key: 'No suggestions' }
+			},
+			{
+				type: 'unknown_type',
+				id: 'unknown1',
+				timestamp: new Date().toISOString(),
+				data: {}
+			},
+			{
+				type: 'header',
+				id: 'good-header',
+				timestamp: new Date().toISOString(),
+				data: { title: 'Valid Header' }
+			}
+		]
+
+		mockUseHomeFeed.mockReturnValue({
+			data: { pages: [{ items: feedItems }] },
+			isLoading: false,
+			hasNextPage: false,
+			isFetchingNextPage: false,
+			status: 'success'
+		})
+
+		render(<FeedPage />, { wrapper })
+
+		await waitFor(() => {
+			// Should render the valid header
+			expect(screen.getByText('Valid Header')).toBeInTheDocument()
+			// Should NOT render invalid or unknown items (no crashes)
+			expect(screen.queryByText('No title')).not.toBeInTheDocument()
+		})
 	})
 })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { CreateEventModal } from '@/components/CreateEventModal'
@@ -16,13 +16,12 @@ import {
 	HeaderSchema,
 	SuggestedUsersSchema,
 	EventSchema,
-	ActivitySchema
+	ActivitySchema,
+	type ValidatedHeader,
+	type ValidatedSuggestedUsers,
+	type ValidatedEvent,
+	type ValidatedActivity
 } from '@/types'
-
-// Validation helpers
-// Validation helpers
-
-// Validation helpers
 
 function getValidatedData<T extends z.ZodTypeAny>(
 	schema: T,
@@ -36,6 +35,14 @@ function getValidatedData<T extends z.ZodTypeAny>(
 	}
 	return result.data
 }
+
+// Bolt: Discriminated Union for processed items to ensure type safety in render loop
+type FeedItemProcessed =
+	| { type: 'header'; id: string; data: ValidatedHeader }
+	| { type: 'onboarding'; id: string; data: ValidatedSuggestedUsers }
+	| { type: 'suggested_users'; id: string; data: ValidatedSuggestedUsers }
+	| { type: 'trending_event'; id: string; data: ValidatedEvent }
+	| { type: 'activity'; id: string; data: ValidatedActivity }
 
 export function FeedPage() {
 	const { user, logout } = useAuth()
@@ -78,6 +85,40 @@ export function FeedPage() {
 		return () => observer.disconnect()
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
+	// Bolt: Memoize and validate items once, rather than on every render
+	const allItems = useMemo(() => {
+		const pages = data?.pages
+		if (!pages) { return [] }
+
+		return pages.flatMap((page) => {
+			return page.items.map((item: FeedItem): FeedItemProcessed | null => {
+				switch (item.type) {
+					case 'header': {
+						const validated = getValidatedData(HeaderSchema, item.data, 'header')
+						return validated ? { type: 'header', id: item.id, data: validated } : null
+					}
+					case 'onboarding': {
+						const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
+						return validated ? { type: 'onboarding', id: item.id, data: validated } : null
+					}
+					case 'suggested_users': {
+						const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
+						return validated ? { type: 'suggested_users', id: item.id, data: validated } : null
+					}
+					case 'trending_event': {
+						const validated = getValidatedData(EventSchema, item.data, 'trending_event')
+						return validated ? { type: 'trending_event', id: item.id, data: validated } : null
+					}
+					case 'activity': {
+						const validated = getValidatedData(ActivitySchema, item.data, 'activity')
+						return validated ? { type: 'activity', id: item.id, data: validated } : null
+					}
+					default:
+						return null
+				}
+			}).filter((item): item is FeedItemProcessed => item !== null)
+		})
+	}, [data?.pages]) // Only re-run if pages change
 
 	// If not authenticated, the query is disabled so status stays pending/idle
 	// We only show loading spinner if we are explicitly loading (isFetching)
@@ -119,8 +160,6 @@ export function FeedPage() {
 		)
 	}
 
-	const allItems = data?.pages?.flatMap((page: { items: FeedItem[], nextCursor?: string }) => page.items) || []
-
 	return (
 		<div className="min-h-screen bg-background-secondary">
 			<Navbar isConnected={sseConnected} user={user} onLogout={logout} />
@@ -158,64 +197,42 @@ export function FeedPage() {
 								<p className="text-text-secondary">Follow people to see their activity here.</p>
 							</Card>
 						) : (
-							allItems.map((item: FeedItem) => {
+							allItems.map((item) => {
 								const key = `${item.type}-${item.id}`
 
 								switch (item.type) {
 									case 'header': {
-										const validated = getValidatedData(HeaderSchema, item.data, 'header')
-										if (validated) {
-											const { title } = validated
-											return (
-												<div key={key} className="pt-4 pb-2">
-													<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
-														{title}
-													</h2>
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={key} className="pt-4 pb-2">
+												<h2 className="text-lg font-semibold text-text-primary border-b border-border-default pb-2">
+													{item.data.title}
+												</h2>
+											</div>
+										)
 									}
 
 									case 'onboarding': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'onboarding')
-										if (validated) {
-											return <OnboardingHero key={key} suggestions={validated.suggestions} />
-										}
-										return null
+										return <OnboardingHero key={key} suggestions={item.data.suggestions} />
 									}
 
 									case 'suggested_users': {
-										const validated = getValidatedData(SuggestedUsersSchema, item.data, 'suggested_users')
-										if (validated) {
-											return <SuggestedUsersCard key={key} users={validated.suggestions} />
-										}
-										return null
+										return <SuggestedUsersCard key={key} users={item.data.suggestions} />
 									}
 
 									case 'trending_event': {
-										const validated = getValidatedData(EventSchema, item.data, 'trending_event')
-										if (validated) {
-											return (
-												<div key={key} className="h-full">
-													<EventCard event={validated} isAuthenticated={Boolean(user)} />
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={key} className="h-full">
+												<EventCard event={item.data} isAuthenticated={Boolean(user)} />
+											</div>
+										)
 									}
 
 									case 'activity': {
-										const validated = getValidatedData(ActivitySchema, item.data, 'activity')
-										if (validated) {
-											// For "Smart Agenda", we show the Event itself
-											return (
-												<div key={key} className="h-full">
-													{validated.event && <EventCard event={validated.event} isAuthenticated={Boolean(user)} />}
-												</div>
-											)
-										}
-										return null
+										return (
+											<div key={key} className="h-full">
+												{item.data.event && <EventCard event={item.data.event} isAuthenticated={Boolean(user)} />}
+											</div>
+										)
 									}
 
 									default:
