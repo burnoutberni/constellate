@@ -863,15 +863,16 @@ async function handleCreateNote(
  */
 async function handleUpdate(activity: UpdateActivity): Promise<void> {
 	const object = activity.object
+	const actorUrl = typeof activity.actor === 'string' ? activity.actor : ''
 
 	if (!object || !object.type) return
 
 	switch (object.type) {
 		case ObjectType.EVENT:
-			await handleUpdateEvent(object)
+			await handleUpdateEvent(object, actorUrl)
 			break
 		case ObjectType.PERSON:
-			await handleUpdatePerson(object)
+			await handleUpdatePerson(object, actorUrl)
 			break
 		default:
 			logger.debug(`Unhandled Update object type: ${object.type}`)
@@ -889,8 +890,12 @@ async function handleUpdate(activity: UpdateActivity): Promise<void> {
  * with the authoritative copy on the remote instance.
  *
  * @param event - The updated event object from the Update activity
+ * @param actorUrl - The actor URL performing the update
  */
-async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknown>): Promise<void> {
+async function handleUpdateEvent(
+	event: ActivityPubEvent | Record<string, unknown>,
+	actorUrl: string
+): Promise<void> {
 	const eventObj = event as Record<string, unknown>
 	const eventId = typeof eventObj.id === 'string' ? eventObj.id : ''
 	const eventName = typeof eventObj.name === 'string' ? eventObj.name : ''
@@ -914,7 +919,10 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
 	}
 
 	await prisma.event.updateMany({
-		where: { externalId: eventId },
+		where: {
+			externalId: eventId,
+			attributedTo: actorUrl, // Ensure only the owner can update
+		},
 		data: {
 			title: eventName,
 			summary: eventSummary || null,
@@ -941,10 +949,21 @@ async function handleUpdateEvent(event: ActivityPubEvent | Record<string, unknow
  * - Display color preferences
  *
  * @param person - The updated Person object from the Update activity
+ * @param actorUrl - The actor URL performing the update
  */
-async function handleUpdatePerson(person: Person | Record<string, unknown>): Promise<void> {
+async function handleUpdatePerson(
+	person: Person | Record<string, unknown>,
+	actorUrl: string
+): Promise<void> {
 	const personObj = person as Person
 	const personId = personObj.id
+
+	// Ensure the actor is updating their own profile
+	if (personId !== actorUrl) {
+		logger.warn(`Unauthorized profile update attempt by ${actorUrl} for ${personId}`)
+		return
+	}
+
 	const personName = personObj.name || undefined
 	const personSummary = personObj.summary || undefined
 	const personDisplayColor = personObj.displayColor || undefined
@@ -1016,15 +1035,33 @@ function getFormerType(object: DeleteActivity['object']): string | null {
 	return null
 }
 
-async function handleDeleteComment(objectId: string): Promise<boolean> {
+async function handleDeleteComment(objectId: string, actorUrl: string): Promise<boolean> {
 	const comment = await prisma.comment.findFirst({
 		where: {
 			OR: [{ externalId: objectId }, { id: objectId.split('/').pop() }],
 		},
-		include: { event: true },
+		include: {
+			event: true,
+			author: {
+				select: {
+					externalActorUrl: true,
+				},
+			},
+		},
 	})
 
 	if (!comment) return false
+
+	// Check authorization:
+	// 1. Comment author matches actorUrl
+	// 2. Event owner matches actorUrl (moderation)
+	const isAuthor = comment.author.externalActorUrl === actorUrl
+	const isEventOwner = comment.event.attributedTo === actorUrl
+
+	if (!isAuthor && !isEventOwner) {
+		logger.warn(`Unauthorized delete attempt by ${actorUrl} for comment ${objectId}`)
+		return false
+	}
 
 	await prisma.comment.delete({ where: { id: comment.id } })
 
@@ -1037,15 +1074,25 @@ async function handleDeleteComment(objectId: string): Promise<boolean> {
 	return true
 }
 
-async function handleDeleteEvent(objectId: string): Promise<boolean> {
-	const deletedEvents = await prisma.event.findMany({ where: { externalId: objectId } })
+async function handleDeleteEvent(objectId: string, actorUrl: string): Promise<boolean> {
+	const deletedEvents = await prisma.event.findMany({
+		where: {
+			externalId: objectId,
+			attributedTo: actorUrl, // Ensure only the owner can delete
+		},
+	})
 
 	if (deletedEvents.length === 0) {
 		return false
 	}
 
 	const eventIds = deletedEvents.map((e) => e.id)
-	await prisma.event.deleteMany({ where: { externalId: objectId } })
+	await prisma.event.deleteMany({
+		where: {
+			externalId: objectId,
+			attributedTo: actorUrl,
+		},
+	})
 
 	for (const eventId of eventIds) {
 		await broadcast({
@@ -1061,18 +1108,20 @@ async function handleDeleteEvent(objectId: string): Promise<boolean> {
 async function handleDelete(activity: DeleteActivity): Promise<void> {
 	const object = activity.object
 	const objectId = getObjectId(object)
-	if (!objectId) return
+	const actorUrl = typeof activity.actor === 'string' ? activity.actor : ''
+
+	if (!objectId || !actorUrl) return
 
 	const formerType = getFormerType(object)
 
 	if (formerType === ObjectType.NOTE || objectId.includes('/comments/')) {
-		if (await handleDeleteComment(objectId)) {
+		if (await handleDeleteComment(objectId, actorUrl)) {
 			return
 		}
 	}
 
-	if (!(await handleDeleteEvent(objectId))) {
-		logger.warn(`No event or comment found to delete: ${objectId}`)
+	if (!(await handleDeleteEvent(objectId, actorUrl))) {
+		logger.warn(`No event or comment found to delete (or unauthorized): ${objectId}`)
 	}
 }
 
